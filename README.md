@@ -1,7 +1,4 @@
-# 📁 ファイル内容一覧
 
-## 1️⃣ README.md
-```markdown
 # 🤖 AIシフト最適化システム POC
 
 > 1ヶ月で実証するAI自動シフト生成システム
@@ -12,7 +9,9 @@
 ## 🎯 プロジェクト概要
 
 店長の作業時間を95%削減する、AI駆動のシフト自動生成・最適化システムのプロトタイプ。
+
 [プロダクト概要のLP](https://claude.ai/public/artifacts/0f62011c-69c4-4e2f-abfc-01e52b5323a9)
+
 [アーキテクチャー設計書並びにシステム構成](https://claude.ai/public/artifacts/6480b2f5-6f71-456b-a184-74fa83ffe577)
 
 
