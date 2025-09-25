@@ -12,6 +12,13 @@
 ## 🎯 プロジェクト概要
 
 店長の作業時間を95%削減する、AI駆動のシフト自動生成・最適化システムのプロトタイプ。
+アーキテクチャー設計書並びにシステム構成
+https://claude.ai/public/artifacts/6480b2f5-6f71-456b-a184-74fa83ffe577
+
+プロダクト概要のLP
+https://claude.ai/public/artifacts/0f62011c-69c4-4e2f-abfc-01e52b5323a9
+
+
 
 ### 主要機能
 - 📤 CSV形式でスタッフ・希望シフト取り込み
@@ -376,9 +383,3 @@ git push origin main
 # 10. 確認
 git log --oneline -5
 ```
-
----
-
-**残りの5つのファイル (API.md, DATA_STRUCTURE.md, TODO.md, TROUBLESHOOTING.md, DEVELOPMENT.md) も必要ですか？**
-
-一度に全部表示すると長すぎるので、まずはこの4つ（README.md, SETUP.md, .env.example, Git Commands）から始めて、残りが必要であれば教えてください！
