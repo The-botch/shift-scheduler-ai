@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AIシフト作成フロー（MVP機能付き）</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: 'Segoe UI', 'Hiragino Sans', sans-serif; background: linear-gradient(135deg,#667eea 0%,#764ba2 100%); padding:20px; min-height:100vh; }
+        .container { max-width:1400px; margin:0 auto; background:#fff; border-radius:20px; box-shadow:0 20px 60px rgba(0,0,0,.3); overflow-x:auto; }
+        .header { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); color:#fff; padding:30px; text-align:center; }
+        .header h1 { font-size:28px; margin-bottom:10px; font-weight:700; }
+        .header p { font-size:16px; opacity:.95; }
+        .phase-header { display:flex; background:#f8f9fa; border-bottom:3px solid #dee2e6; padding-left:150px; }
+        .phase { flex:1; min-width:250px; padding:20px; text-align:center; border-right:2px solid #dee2e6; position:relative; }
+        .phase:last-child { border-right:none; }
+        .phase::after { content:'▶'; position:absolute; right:-12px; top:50%; transform:translateY(-50%); color:#667eea; font-size:16px; z-index:2; }
+        .phase:last-child::after { display:none; }
+        .phase-title { font-weight:700; color:#343a40; font-size:16px; margin-bottom:5px; }
+        .phase-date { font-size:13px; color:#6c757d; }
+        .workflow { display:flex; flex-direction:column; background:#fff; }
+        .swimlane { display:flex; border-bottom:2px solid #dee2e6; min-height:200px; }
+        .swimlane:last-child { border-bottom:none; }
+        .role-header { width:150px; min-width:150px; background:#f8f9fa; border-right:2px solid #dee2e6; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:20px; text-align:center; }
+        .role-icon { font-size:36px; margin-bottom:8px; }
+        .role-title { font-size:16px; font-weight:700; color:#343a40; }
+        .phase-tasks { display:flex; flex:1; }
+        .phase-column { flex:1; min-width:250px; padding:15px; border-right:2px solid #dee2e6; display:flex; flex-direction:column; justify-content:center; align-items:center; position:relative; }
+        .phase-column:last-child { border-right:none; }
+        .task-card { background:#fff; border:2px solid #dee2e6; border-radius:12px; padding:12px; width:90%; max-width:260px; position:relative; transition:.2s ease; }
+        .task-card:hover { transform:translateY(-2px); box-shadow:0 4px 8px rgba(0,0,0,.1); }
+        .task-card.store-manager { background:#28a74510; border-color:#28a745; }
+        .task-card.ai { background:linear-gradient(135deg,#667eea10 0%,#764ba210 100%); border-color:#667eea; }
+        .task-card.staff { background:#ffc10710; border-color:#ffc107; }
+        .data-input { background:#e3f2fd; border:2px solid #2196f3; border-radius:12px; padding:12px; width:90%; max-width:260px; }
+        .step-number { position:absolute; top:-10px; left:12px; background:#fff; border:2px solid currentColor; border-radius:50%; width:24px; height:24px; display:flex; align-items:center; justify-content:center; font-weight:700; font-size:13px; }
+        .task-title { font-size:14px; font-weight:600; color:#343a40; margin-bottom:6px; }
+        .task-description { font-size:12px; color:#6c757d; line-height:1.4; }
+        .task-time { display:inline-block; background:#e9ecef; padding:2px 6px; border-radius:8px; font-size:11px; color:#495057; margin-top:6px; }
+        .line-icon { display:inline-block; background:#00c300; color:#fff; padding:2px 8px; border-radius:4px; font-size:11px; font-weight:600; margin-left:4px; }
+        .auto-process { position:absolute; top:50%; right:-30px; transform:translateY(-50%); background:#ffeaa7; border:1px solid #fdcb6e; border-radius:20px; padding:4px 10px; font-size:11px; font-weight:600; color:#2d3436; z-index:3; white-space:nowrap; }
+        .auto-process::before { content:'⚡'; margin-right:3px; }
+        .auto-process::after { content:'→'; margin-left:3px; color:#fdcb6e; }
+        .empty-cell { position:relative; }
+        .connect-arrow { position:absolute; top:50%; right:-25px; transform:translateY(-50%); color:#667eea; font-size:20px; z-index:2; }
+        .benefits { background:#f8f9fa; padding:30px; text-align:center; }
+        .benefits h2 { font-size:24px; color:#343a40; margin-bottom:20px; }
+        .benefit-cards { display:flex; gap:20px; justify-content:center; flex-wrap:wrap; }
+        .benefit-card { background:#fff; padding:20px; border-radius:12px; box-shadow:0 4px 6px rgba(0,0,0,.1); flex:1; min-width:200px; max-width:300px; }
+        .benefit-icon { font-size:36px; margin-bottom:10px; }
+        .benefit-title { font-size:18px; font-weight:600; color:#343a40; margin-bottom:5px; }
+        .benefit-value { font-size:24px; color:#667eea; font-weight:700; }
+        .features { margin-top:8px; display:flex; flex-wrap:wrap; gap:6px; }
+        .feature-badge { font-size:10.5px; border:1.5px solid; padding:3px 6px; border-radius:999px; background:#fff; white-space:nowrap; }
+        .feature-badge.ai { border-color:#667eea; }
+        .feature-badge.sm { border-color:#28a745; }
+        .feature-badge.staff { border-color:#ffc107; }
+        .feature-badge.sys { border-color:#6c757d; }
+        .legend { padding:16px 20px; background:#f8f9fa; border-top:1px solid #e9ecef; display:flex; gap:12px; flex-wrap:wrap; align-items:center; }
+        .legend .label { font-weight:700; color:#343a40; margin-right:6px; }
+        .legend .feature-badge { background:#fff; }
+        @media (max-width:1200px){ .container{ border-radius:0; } .phase, .phase-column { min-width:200px; } }
+    </style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>🤖 AIシフト作成システムの業務フロー（MVP機能付き）</h1>
+    <p>各ステップに必要なMVP機能をバッジで明示しました</p>
+  </div>
+
+  <!-- フェーズヘッダー -->
+  <div class="phase-header">
+    <div class="phase">
+      <div class="phase-title">準備フェーズ</div>
+      <div class="phase-date">月初 1日〜3日</div>
+    </div>
+    <div class="phase">
+      <div class="phase-title">希望収集フェーズ</div>
+      <div class="phase-date">10日〜20日</div>
+    </div>
+    <div class="phase">
+      <div class="phase-title">調整フェーズ</div>
+      <div class="phase-date">21日〜25日</div>
+    </div>
+    <div class="phase">
+      <div class="phase-title">確定フェーズ</div>
+      <div class="phase-date">26日〜28日</div>
+    </div>
+  </div>
+
+  <!-- メインワークフロー -->
+  <div class="workflow">
+
+    <!-- 店長レーン -->
+    <div class="swimlane">
+      <div class="role-header">
+        <div class="role-icon">👨‍💼</div>
+        <div class="role-title">店長</div>
+      </div>
+      <div class="phase-tasks">
+        <!-- 準備フェーズ -->
+        <div class="phase-column">
+          <div class="data-input">
+            <div class="task-title">📊 初期データ登録</div>
+            <div class="task-description">・売上予測<br>・スタッフ一覧<br>・必要人数</div>
+            <div class="features">
+              <span class="feature-badge sm">CSV入出力</span>
+            </div>
+          </div>
+          <span class="auto-process">データ読込</span>
+        </div>
+        <!-- 希望収集フェーズ -->
+        <div class="phase-column">
+          <div class="task-card store-manager">
+            <div class="step-number" style="color:#28a745;">2</div>
+            <div class="task-title">第1案を確認</div>
+            <div class="task-description">AIが作った案をチェック</div>
+            <div class="features">
+              <span class="feature-badge sm">カレンダーUI</span>
+              <span class="feature-badge sm">差分表示</span>
+              <span class="feature-badge sys">監査ログ</span>
+            </div>
+            <div class="task-time">所要時間: 1分</div>
+          </div>
+        </div>
+        <!-- 調整フェーズ -->
+        <div class="phase-column">
+          <div class="task-card store-manager">
+            <div class="step-number" style="color:#28a745;">5</div>
+            <div class="task-title">第2案を確認・修正</div>
+            <div class="task-description">チャットで微調整を指示</div>
+            <div class="features">
+              <span class="feature-badge sm">自然言語修正</span>
+              <span class="feature-badge sm">チャットUI</span>
+              <span class="feature-badge sm">差分表示</span>
+            </div>
+            <div class="task-time">所要時間: 3分</div>
+          </div>
+        </div>
+        <!-- 確定フェーズ -->
+        <div class="phase-column">
+          <div class="task-card store-manager">
+            <div class="step-number" style="color:#28a745;">7</div>
+            <div class="task-title">最終承認</div>
+            <div class="task-description">承認ボタンを押すだけ</div>
+            <div class="features">
+              <span class="feature-badge sm">承認フロー</span>
+              <span class="feature-badge sm">エクスポート(CSV)</span>
+              <span class="feature-badge sm">配布(通知/LINE)</span>
+            </div>
+            <div class="task-time">所要時間: 30秒</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AIレーン -->
+    <div class="swimlane">
+      <div class="role-header">
+        <div class="role-icon">🤖</div>
+        <div class="role-title">AI</div>
+      </div>
+      <div class="phase-tasks">
+        <!-- 準備フェーズ -->
+        <div class="phase-column">
+          <div class="task-card ai">
+            <div class="step-number" style="color:#667eea;">1</div>
+            <div class="task-title">第1案を自動生成</div>
+            <div class="task-description">売上に応じた最適配置<br>過去の傾向も学習</div>
+            <div class="features">
+              <span class="feature-badge ai">シフト自動生成</span>
+              <span class="feature-badge ai">最適化エンジン</span>
+              <span class="feature-badge ai">バリデータ(法令)</span>
+              <span class="feature-badge ai">AI API接続</span>
+            </div>
+            <div class="task-time">即座に生成</div>
+          </div>
+          <span class="connect-arrow">→</span>
+        </div>
+
+        <!-- 希望収集フェーズ -->
+        <div class="phase-column empty-cell">
+          <span class="auto-process">希望を自動収集</span>
+          <div class="features" style="position:absolute; bottom:12px; left:12px; right:12px;">
+            <span class="feature-badge ai">希望集約(ETL)</span>
+            <span class="feature-badge ai">不足検知/催促</span>
+            <span class="feature-badge ai">重複/競合解消</span>
+          </div>
+        </div>
+
+        <!-- 調整フェーズ -->
+        <div class="phase-column">
+          <div class="task-card ai">
+            <div class="step-number" style="color:#667eea;">4</div>
+            <div class="task-title">第2案を自動生成</div>
+            <div class="task-description">希望を最大限反映<br>法令も自動チェック</div>
+            <div class="features">
+              <span class="feature-badge ai">再最適化</span>
+              <span class="feature-badge ai">バリデータ(法令)</span>
+              <span class="feature-badge ai">制約違反ハイライト</span>
+            </div>
+            <div class="task-time">即座に生成</div>
+          </div>
+          <span class="connect-arrow">→</span>
+        </div>
+
+        <!-- 確定フェーズ -->
+        <div class="phase-column">
+          <div class="task-card ai">
+            <div class="step-number" style="color:#667eea;">6</div>
+            <div class="task-title">修正を即座に反映</div>
+            <div class="task-description">リアルタイムで再調整</div>
+            <div class="features">
+              <span class="feature-badge ai">自然言語→制約翻訳</span>
+              <span class="feature-badge ai">リアルタイム再計算</span>
+              <span class="feature-badge ai">修正ログ学習</span>
+            </div>
+            <div class="task-time">即座に反映</div>
+          </div>
+          <span class="connect-arrow">→</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- スタッフレーン -->
+    <div class="swimlane">
+      <div class="role-header">
+        <div class="role-icon">👥</div>
+        <div class="role-title">スタッフ</div>
+      </div>
+      <div class="phase-tasks">
+        <!-- 準備フェーズ -->
+        <div class="phase-column empty-cell"></div>
+
+        <!-- 希望収集フェーズ -->
+        <div class="phase-column">
+          <div class="task-card staff">
+            <div class="step-number" style="color:#ffc107;">3</div>
+            <div class="task-title">希望を提出 <span class="line-icon">LINE</span></div>
+            <div class="task-description">毎月10〜20日に<br>スマホでカンタン入力</div>
+            <div class="features">
+              <span class="feature-badge staff">希望入力(フォーム/LINE)</span>
+              <span class="feature-badge staff">本人認証</span>
+              <span class="feature-badge staff">提出締切管理</span>
+            </div>
+            <div class="task-time">締切: 20日</div>
+          </div>
+        </div>
+
+        <!-- 調整フェーズ -->
+        <div class="phase-column empty-cell"></div>
+
+        <!-- 確定フェーズ -->
+        <div class="phase-column">
+          <div class="task-card staff">
+            <div class="step-number" style="color:#ffc107;">8</div>
+            <div class="task-title">シフトを受け取る <span class="line-icon">LINE</span></div>
+            <div class="task-description">確定通知が自動で届く<br>カレンダーにも自動登録</div>
+            <div class="features">
+              <span class="feature-badge staff">配布(通知/LINE)</span>
+              <span class="feature-badge staff">個人カレンダー連携</span>
+              <span class="feature-badge staff">既読/確認管理</span>
+            </div>
+            <div class="task-time">27〜28日</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- 凡例 / MVP機能セット -->
+  <div class="legend">
+    <span class="label">MVP機能セット:</span>
+    <span class="feature-badge sm">CSV入出力</span>
+    <span class="feature-badge ai">AI API接続</span>
+    <span class="feature-badge ai">シフト自動生成</span>
+    <span class="feature-badge ai">最適化エンジン</span>
+    <span class="feature-badge ai">バリデータ(法令)</span>
+    <span class="feature-badge sm">カレンダーUI</span>
+    <span class="feature-badge sm">差分表示</span>
+    <span class="feature-badge sm">自然言語修正/チャットUI</span>
+    <span class="feature-badge staff">希望入力(フォーム/LINE)</span>
+    <span class="feature-badge sm">承認フロー</span>
+    <span class="feature-badge sm">エクスポート(CSV)</span>
+    <span class="feature-badge staff">配布(通知/LINE)</span>
+    <span class="feature-badge ai">修正ログ学習</span>
+  </div>
+
+  <div class="benefits">
+    <h2>🎯 導入効果</h2>
+    <div class="benefit-cards">
+      <div class="benefit-card">
+        <div class="benefit-icon">⏰</div>
+        <div class="benefit-title">店長の作業時間</div>
+        <div class="benefit-value">3時間 → 5分</div>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">🤖</div>
+        <div class="benefit-title">自動化率</div>
+        <div class="benefit-value">95%</div>
+      </div>
+      <div class="benefit-card">
+        <div class="benefit-icon">😊</div>
+        <div class="benefit-title">スタッフ満足度</div>
+        <div class="benefit-value">大幅UP</div>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
