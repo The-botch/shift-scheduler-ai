@@ -1,13 +1,26 @@
 {
   "name": "shift-management-mvp",
-  "private": true,
-  "version": "0.0.0",
+  "private": false,
+  "version": "1.0.0",
   "type": "module",
+  "description": "AIによる自動シフト生成から配布まで、完全なワークフローを体験できるインタラクティブなデモアプリケーション",
+  "keywords": ["shift-management", "ai", "react", "demo", "interactive", "scheduling"],
+  "author": "Manus Team",
+  "license": "MIT",
+  "homepage": "https://github.com/username/shift-management-mvp#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/username/shift-management-mvp.git"
+  },
+  "bugs": {
+    "url": "https://github.com/username/shift-management-mvp/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && npx gh-pages -d dist"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.0.1",
