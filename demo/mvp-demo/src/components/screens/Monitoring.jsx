@@ -1,16 +1,18 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import { 
-  Users, 
-  Clock, 
+import {
+  Users,
+  Clock,
   Send,
   CheckCircle,
   AlertCircle,
-  ChevronLeft, 
-  ArrowRight
+  ChevronLeft,
+  ArrowRight,
+  Loader2
 } from 'lucide-react'
+import Papa from 'papaparse'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -25,24 +27,81 @@ const pageTransition = {
 }
 
 const Monitoring = ({ onNext, onPrev }) => {
-  const [staffStatus, setStaffStatus] = useState([
-    { id: 1, name: '田中太郎', submitted: true, submittedAt: '9/15 14:30' },
-    { id: 2, name: '佐藤花子', submitted: true, submittedAt: '9/16 09:15' },
-    { id: 3, name: '山田次郎', submitted: false, lastReminder: '9/17 10:00' },
-    { id: 4, name: '鈴木美咲', submitted: false, lastReminder: '9/16 15:30' },
-    { id: 5, name: '高橋健太', submitted: true, submittedAt: '9/17 20:45' }
-  ])
+  const [staffStatus, setStaffStatus] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadAvailabilityData()
+  }, [])
+
+  const loadAvailabilityData = async () => {
+    setLoading(true)
+    try {
+      // staff.csvを読み込み
+      const staffResponse = await fetch('/data/master/staff.csv')
+      const staffText = await staffResponse.text()
+      const staffParsed = Papa.parse(staffText, { header: true, skipEmptyLines: true })
+
+      // availability_requests.csvを読み込み
+      const availResponse = await fetch('/data/transactions/availability_requests.csv')
+      const availText = await availResponse.text()
+      const availParsed = Papa.parse(availText, { header: true, skipEmptyLines: true })
+
+      // スタッフごとに集計
+      const staffMap = {}
+      staffParsed.data.forEach(staff => {
+        staffMap[staff.staff_id] = {
+          id: parseInt(staff.staff_id),
+          name: staff.name,
+          submitted: false,
+          submittedAt: null,
+          lastReminder: null
+        }
+      })
+
+      // 提出状況を集計
+      availParsed.data.forEach(req => {
+        if (staffMap[req.staff_id]) {
+          staffMap[req.staff_id].submitted = true
+          if (req.submitted_at) {
+            const date = new Date(req.submitted_at)
+            const formatted = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
+            if (!staffMap[req.staff_id].submittedAt || new Date(req.submitted_at) > new Date(staffMap[req.staff_id].submittedAt)) {
+              staffMap[req.staff_id].submittedAt = formatted
+            }
+          }
+        }
+      })
+
+      setStaffStatus(Object.values(staffMap))
+    } catch (error) {
+      console.error('データ読み込みエラー:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const submittedCount = staffStatus.filter(s => s.submitted).length
   const totalCount = staffStatus.length
   const submissionRate = Math.round((submittedCount / totalCount) * 100)
 
   const sendReminder = (staffId) => {
-    setStaffStatus(prev => prev.map(staff => 
-      staff.id === staffId 
+    setStaffStatus(prev => prev.map(staff =>
+      staff.id === staffId
         ? { ...staff, lastReminder: new Date().toLocaleString('ja-JP', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' }) }
         : staff
     ))
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="text-center">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mx-auto mb-4" />
+          <p className="text-gray-600">データを読み込み中...</p>
+        </div>
+      </div>
+    )
   }
 
   return (

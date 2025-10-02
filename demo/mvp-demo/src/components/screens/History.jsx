@@ -149,6 +149,7 @@ const History = ({ onPrev }) => {
   const [detailShifts, setDetailShifts] = useState([])
   const [selectedDay, setSelectedDay] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
+  const [viewMode, setViewMode] = useState('calendar') // 'calendar' or 'staff'
 
   useEffect(() => {
     loadHistoryData()
@@ -250,6 +251,46 @@ const History = ({ onPrev }) => {
     })
 
     return { daysInMonth, firstDay, shiftsByDate }
+  }
+
+  // スタッフ別実績を集計
+  const getStaffPerformance = () => {
+    if (!detailShifts || detailShifts.length === 0) return []
+
+    // スタッフごとに集計
+    const staffMap = {}
+    detailShifts.forEach(shift => {
+      if (!staffMap[shift.staff_name]) {
+        staffMap[shift.staff_name] = {
+          name: shift.staff_name,
+          role: shift.role,
+          totalDays: 0,
+          totalHours: 0,
+          weekdayDays: 0,
+          weekendDays: 0,
+          modifiedCount: 0
+        }
+      }
+
+      const staff = staffMap[shift.staff_name]
+      staff.totalDays += 1
+      staff.totalHours += parseFloat(shift.actual_hours || shift.planned_hours || 0)
+
+      // 曜日判定
+      const date = new Date(selectedMonth.year, selectedMonth.month - 1, shift.date)
+      const dayOfWeek = date.getDay()
+      if (dayOfWeek === 0 || dayOfWeek === 6) {
+        staff.weekendDays += 1
+      } else {
+        staff.weekdayDays += 1
+      }
+
+      if (shift.modified_flag) {
+        staff.modifiedCount += 1
+      }
+    })
+
+    return Object.values(staffMap).sort((a, b) => b.totalHours - a.totalHours)
   }
 
   if (loading) {
@@ -397,17 +438,90 @@ const History = ({ onPrev }) => {
 
         <Card className="shadow-lg border-0">
           <CardHeader>
-            <CardTitle className="flex items-center">
-              <Calendar className="h-5 w-5 mr-2 text-purple-600" />
-              シフト詳細
+            <CardTitle className="flex items-center justify-between">
+              <div className="flex items-center">
+                <Calendar className="h-5 w-5 mr-2 text-purple-600" />
+                シフト詳細
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  variant={viewMode === 'calendar' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('calendar')}
+                  className="text-sm"
+                >
+                  <Calendar className="h-4 w-4 mr-1" />
+                  カレンダー
+                </Button>
+                <Button
+                  size="sm"
+                  variant={viewMode === 'staff' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('staff')}
+                  className="text-sm"
+                >
+                  <UsersIcon className="h-4 w-4 mr-1" />
+                  スタッフ実績
+                </Button>
+              </div>
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <CalendarView
-              selectedMonth={selectedMonth}
-              calendarData={getCalendarData()}
-              onDayClick={handleDayClick}
-            />
+            {viewMode === 'calendar' ? (
+              <CalendarView
+                selectedMonth={selectedMonth}
+                calendarData={getCalendarData()}
+                onDayClick={handleDayClick}
+              />
+            ) : (
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {getStaffPerformance().map((staff, index) => (
+                    <motion.div
+                      key={staff.name}
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                    >
+                      <Card className="border-2 hover:shadow-lg transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <div>
+                              <h3 className="font-bold text-lg text-gray-800">{staff.name}</h3>
+                              <p className="text-sm text-gray-600">{staff.role}</p>
+                            </div>
+                            <div className="text-right">
+                              <div className="text-2xl font-bold text-blue-600">{staff.totalHours}h</div>
+                              <div className="text-xs text-gray-500">{staff.totalDays}日勤務</div>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">平日:</span>
+                              <span className="font-medium">{staff.weekdayDays}日</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">土日:</span>
+                              <span className="font-medium">{staff.weekendDays}日</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">平均:</span>
+                              <span className="font-medium">{(staff.totalHours / staff.totalDays).toFixed(1)}h/日</span>
+                            </div>
+                            {staff.modifiedCount > 0 && (
+                              <div className="flex justify-between text-yellow-700">
+                                <span>変更:</span>
+                                <span className="font-medium">{staff.modifiedCount}件</span>
+                              </div>
+                            )}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

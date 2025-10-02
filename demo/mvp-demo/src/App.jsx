@@ -9,17 +9,21 @@ import LineShiftInput from './components/screens/LineShiftInput'
 import Monitoring from './components/screens/Monitoring'
 import SecondPlan from './components/screens/SecondPlan'
 import FinalDistribution from './components/screens/FinalDistribution'
-import MasterData from './components/screens/MasterData'
+import StaffManagement from './components/screens/StaffManagement'
+import StoreManagement from './components/screens/StoreManagement'
+import ConstraintManagement from './components/screens/ConstraintManagement'
 import History from './components/screens/History'
 import ShiftManagement from './components/screens/ShiftManagement'
 
 // UI Components
 import { Button } from './components/ui/button'
-import { Menu, X, Home, FolderOpen, Users, History as HistoryIcon, MessageSquare, ClipboardList } from 'lucide-react'
+import { Menu, X, Home, FolderOpen, Users, History as HistoryIcon, MessageSquare, ClipboardList, Store, Shield } from 'lucide-react'
 
 function App() {
   const [currentStep, setCurrentStep] = useState(1)
-  const [showMasterData, setShowMasterData] = useState(false)
+  const [showStaffManagement, setShowStaffManagement] = useState(false)
+  const [showStoreManagement, setShowStoreManagement] = useState(false)
+  const [showConstraintManagement, setShowConstraintManagement] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showShiftManagement, setShowShiftManagement] = useState(false)
   const [showFirstPlanFromShiftMgmt, setShowFirstPlanFromShiftMgmt] = useState(false)
@@ -59,14 +63,52 @@ function App() {
     setCurrentStep(step)
   }
 
-  const goToMasterData = () => {
+  const goToStaffManagement = () => {
     if (hasUnsavedChanges) {
-      if (!window.confirm('変更が保存されていません。マスターデータ管理に移動しますか？')) {
+      if (!window.confirm('変更が保存されていません。スタッフ管理に移動しますか？')) {
         return
       }
       setHasUnsavedChanges(false)
     }
-    setShowMasterData(true)
+    setShowStaffManagement(true)
+    setShowStoreManagement(false)
+    setShowConstraintManagement(false)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowHistory(false)
+    setShowLineMessages(false)
+    setShowMonitoring(false)
+    setIsMenuOpen(false)
+  }
+
+  const goToStoreManagement = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。店舗管理に移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowStoreManagement(true)
+    setShowStaffManagement(false)
+    setShowConstraintManagement(false)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowHistory(false)
+    setShowLineMessages(false)
+    setShowMonitoring(false)
+    setIsMenuOpen(false)
+  }
+
+  const goToConstraintManagement = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。制約管理に移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowConstraintManagement(true)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
     setShowShiftManagement(false)
     setShowFirstPlanFromShiftMgmt(false)
     setShowHistory(false)
@@ -83,17 +125,15 @@ function App() {
       setHasUnsavedChanges(false)
     }
     setCurrentStep(1)
-    setShowMasterData(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowConstraintManagement(false)
     setShowShiftManagement(false)
     setShowFirstPlanFromShiftMgmt(false)
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
     setIsMenuOpen(false)
-  }
-
-  const backFromMasterData = () => {
-    setShowMasterData(false)
   }
 
   const goToHistory = () => {
@@ -106,7 +146,9 @@ function App() {
     setShowHistory(true)
     setShowShiftManagement(false)
     setShowFirstPlanFromShiftMgmt(false)
-    setShowMasterData(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowConstraintManagement(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
     setIsMenuOpen(false)
@@ -122,7 +164,9 @@ function App() {
     setShowLineMessages(true)
     setShowShiftManagement(false)
     setShowFirstPlanFromShiftMgmt(false)
-    setShowMasterData(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowConstraintManagement(false)
     setShowHistory(false)
     setShowMonitoring(false)
     setIsMenuOpen(false)
@@ -138,7 +182,9 @@ function App() {
     setShowMonitoring(true)
     setShowShiftManagement(false)
     setShowFirstPlanFromShiftMgmt(false)
-    setShowMasterData(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowConstraintManagement(false)
     setShowHistory(false)
     setShowLineMessages(false)
     setIsMenuOpen(false)
@@ -156,7 +202,9 @@ function App() {
       setHasUnsavedChanges(false)
     }
     setShowShiftManagement(true)
-    setShowMasterData(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowConstraintManagement(false)
     setShowFirstPlanFromShiftMgmt(false)
     setShowHistory(false)
     setShowLineMessages(false)
@@ -225,8 +273,16 @@ function App() {
   }
 
   const renderCurrentScreen = () => {
-    if (showMasterData) {
-      return <MasterData onPrev={backFromMasterData} />
+    if (showStaffManagement) {
+      return <StaffManagement />
+    }
+
+    if (showStoreManagement) {
+      return <StoreManagement />
+    }
+
+    if (showConstraintManagement) {
+      return <ConstraintManagement />
     }
 
     if (showHistory) {
@@ -261,13 +317,29 @@ function App() {
 
     switch (currentStep) {
       case 1:
-        return <Dashboard onNext={nextStep} onMasterData={goToMasterData} onHistory={goToHistory} onShiftManagement={goToShiftManagement} onMonitoring={goToMonitoring} />
+        return <Dashboard
+          onNext={nextStep}
+          onHistory={goToHistory}
+          onShiftManagement={goToShiftManagement}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+        />
       case 2:
         return <SecondPlan onNext={approveSecondPlan} onPrev={prevStep} onMarkUnsaved={() => setHasUnsavedChanges(true)} onMarkSaved={() => setHasUnsavedChanges(false)} />
       case 3:
         return <FinalDistribution onNext={nextStep} onPrev={prevStep} />
       default:
-        return <Dashboard onNext={nextStep} onMasterData={goToMasterData} onHistory={goToHistory} onShiftManagement={goToShiftManagement} onMonitoring={goToMonitoring} />
+        return <Dashboard
+          onNext={nextStep}
+          onHistory={goToHistory}
+          onShiftManagement={goToShiftManagement}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+        />
     }
   }
 
@@ -317,11 +389,25 @@ function App() {
             <span className="font-medium text-gray-800">希望回収状況</span>
           </button>
           <button
-            onClick={goToMasterData}
+            onClick={goToStaffManagement}
             className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
           >
             <Users className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">マスターデータ</span>
+            <span className="font-medium text-gray-800">スタッフ管理</span>
+          </button>
+          <button
+            onClick={goToStoreManagement}
+            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
+          >
+            <Store className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-800">店舗管理</span>
+          </button>
+          <button
+            onClick={goToConstraintManagement}
+            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
+          >
+            <Shield className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-800">制約管理</span>
           </button>
           <button
             onClick={goToHistory}
@@ -335,7 +421,15 @@ function App() {
 
       <div className="flex-1">
         <AnimatePresence mode="wait">
-          <div key={showMasterData ? 'master-data' : showHistory ? 'history' : showShiftManagement ? 'shift-management' : showFirstPlanFromShiftMgmt ? 'first-plan-shift-mgmt' : currentStep}>
+          <div key={
+            showStaffManagement ? 'staff-management' :
+            showStoreManagement ? 'store-management' :
+            showConstraintManagement ? 'constraint-management' :
+            showHistory ? 'history' :
+            showShiftManagement ? 'shift-management' :
+            showFirstPlanFromShiftMgmt ? 'first-plan-shift-mgmt' :
+            currentStep
+          }>
             {renderCurrentScreen()}
           </div>
         </AnimatePresence>

@@ -18,7 +18,9 @@ import {
   Edit3,
   History as HistoryIcon,
   FolderOpen,
-  ClipboardList
+  ClipboardList,
+  Store,
+  Shield
 } from 'lucide-react'
 import Papa from 'papaparse'
 
@@ -34,7 +36,7 @@ const pageTransition = {
   duration: 0.5
 }
 
-const Dashboard = ({ onNext, onMasterData, onHistory, onShiftManagement, onMonitoring }) => {
+const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaffManagement, onStoreManagement, onConstraintManagement }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [metrics, setMetrics] = useState([])
   const [loading, setLoading] = useState(true)
@@ -144,9 +146,17 @@ const Dashboard = ({ onNext, onMasterData, onHistory, onShiftManagement, onMonit
               <ClipboardList className="h-4 w-4 mr-2" />
               希望回収状況
             </Button>
-            <Button variant="outline" size="sm" onClick={onMasterData}>
+            <Button variant="outline" size="sm" onClick={onStaffManagement} className="bg-blue-50 border-blue-300">
               <Users className="h-4 w-4 mr-2" />
-              マスターデータ
+              スタッフ管理
+            </Button>
+            <Button variant="outline" size="sm" onClick={onStoreManagement} className="bg-green-50 border-green-300">
+              <Store className="h-4 w-4 mr-2" />
+              店舗管理
+            </Button>
+            <Button variant="outline" size="sm" onClick={onConstraintManagement} className="bg-purple-50 border-purple-300">
+              <Shield className="h-4 w-4 mr-2" />
+              制約管理
             </Button>
             <Button variant="outline" size="sm" onClick={onHistory}>
               <HistoryIcon className="h-4 w-4 mr-2" />
