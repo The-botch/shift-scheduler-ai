@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import { Shield, AlertTriangle, Download, BookOpen } from 'lucide-react'
+import { Shield, AlertTriangle, Download, Upload, BookOpen } from 'lucide-react'
 import Papa from 'papaparse'
+import { exportCSV as exportCSVHelper, importCSV, validateConstraintCSV, generateFilename } from '../../utils/csvHelper'
 
 const ConstraintManagement = () => {
   const [laborLaws, setLaborLaws] = useState([])
@@ -81,14 +82,37 @@ const ConstraintManagement = () => {
     return grouped
   }
 
-  const exportCSV = () => {
-    const csv = Papa.unparse(laborLaws)
-    const bom = '\uFEFF'
-    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `labor_law_constraints_${new Date().toISOString().split('T')[0]}.csv`
-    link.click()
+  const handleExportCSV = () => {
+    const result = exportCSVHelper(laborLaws, generateFilename('labor_law_constraints'))
+    if (result.success) {
+      alert('✅ CSVファイルをエクスポートしました')
+    } else {
+      alert(`❌ エクスポートに失敗しました: ${result.error}`)
+    }
+  }
+
+  const handleImportCSV = (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    if (!window.confirm('既存の制約データを上書きします。よろしいですか？')) {
+      event.target.value = ''
+      return
+    }
+
+    importCSV(
+      file,
+      (data) => {
+        setLaborLaws(data)
+        alert(`✅ ${data.length}件の制約データをインポートしました`)
+        event.target.value = ''
+      },
+      (error) => {
+        alert(`❌ インポートエラー:\n${error}`)
+        event.target.value = ''
+      },
+      validateConstraintCSV
+    )
   }
 
   if (loading) {
@@ -122,12 +146,29 @@ const ConstraintManagement = () => {
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={exportCSV}
+                  onClick={handleExportCSV}
                   className="bg-white text-purple-700 hover:bg-gray-100"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   CSVエクスポート
                 </Button>
+                <label>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    as="span"
+                    className="bg-white text-purple-700 hover:bg-gray-100 cursor-pointer"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    CSVインポート
+                  </Button>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleImportCSV}
+                    className="hidden"
+                  />
+                </label>
               </div>
             </div>
             <p className="text-sm text-purple-100 mt-2">

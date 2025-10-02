@@ -19,6 +19,7 @@ import {
 } from 'lucide-react'
 import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'
+import { exportCSV, generateFilename } from '../../utils/csvHelper'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -219,6 +220,22 @@ const History = ({ onPrev }) => {
   const backToSummary = () => {
     setSelectedMonth(null)
     setDetailShifts([])
+  }
+
+  const handleExportCSV = () => {
+    if (!selectedMonth || detailShifts.length === 0) {
+      alert('エクスポートするデータがありません')
+      return
+    }
+
+    const filename = `shift_history_${selectedMonth.year}_${String(selectedMonth.month).padStart(2, '0')}.csv`
+    const result = exportCSV(detailShifts, filename)
+
+    if (result.success) {
+      alert(`✅ ${selectedMonth.year}年${selectedMonth.month}月のシフトデータをエクスポートしました`)
+    } else {
+      alert(`❌ エクスポートに失敗しました: ${result.error}`)
+    }
   }
 
   const handleDayClick = (day) => {
@@ -461,6 +478,15 @@ const History = ({ onPrev }) => {
                 >
                   <UsersIcon className="h-4 w-4 mr-1" />
                   スタッフ実績
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleExportCSV}
+                  className="text-sm"
+                >
+                  <Download className="h-4 w-4 mr-1" />
+                  CSVエクスポート
                 </Button>
               </div>
             </CardTitle>

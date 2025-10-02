@@ -2,8 +2,9 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import { Store, Clock, MapPin, Phone, Download } from 'lucide-react'
+import { Store, Clock, MapPin, Phone, Download, Upload } from 'lucide-react'
 import Papa from 'papaparse'
+import { exportCSV, importCSV, validateStoreCSV, generateFilename } from '../../utils/csvHelper'
 
 const StoreManagement = () => {
   const [stores, setStores] = useState([])
@@ -68,14 +69,37 @@ const StoreManagement = () => {
     return badges[priority] || 'bg-gray-100 text-gray-800'
   }
 
-  const exportStoreCSV = () => {
-    const csv = Papa.unparse(stores)
-    const bom = '\uFEFF'
-    const blob = new Blob([bom + csv], { type: 'text/csv;charset=utf-8;' })
-    const link = document.createElement('a')
-    link.href = URL.createObjectURL(blob)
-    link.download = `stores_${new Date().toISOString().split('T')[0]}.csv`
-    link.click()
+  const handleExportCSV = () => {
+    const result = exportCSV(stores, generateFilename('stores'))
+    if (result.success) {
+      alert('✅ CSVファイルをエクスポートしました')
+    } else {
+      alert(`❌ エクスポートに失敗しました: ${result.error}`)
+    }
+  }
+
+  const handleImportCSV = (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    if (!window.confirm('既存の店舗データを上書きします。よろしいですか？')) {
+      event.target.value = ''
+      return
+    }
+
+    importCSV(
+      file,
+      (data) => {
+        setStores(data)
+        alert(`✅ ${data.length}件の店舗データをインポートしました`)
+        event.target.value = ''
+      },
+      (error) => {
+        alert(`❌ インポートエラー:\n${error}`)
+        event.target.value = ''
+      },
+      validateStoreCSV
+    )
   }
 
   if (loading) {
@@ -107,12 +131,29 @@ const StoreManagement = () => {
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={exportStoreCSV}
+                  onClick={handleExportCSV}
                   className="bg-white text-green-700 hover:bg-gray-100"
                 >
                   <Download className="h-4 w-4 mr-2" />
                   CSVエクスポート
                 </Button>
+                <label>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    as="span"
+                    className="bg-white text-green-700 hover:bg-gray-100 cursor-pointer"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    CSVインポート
+                  </Button>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleImportCSV}
+                    className="hidden"
+                  />
+                </label>
               </div>
             </div>
           </CardHeader>
