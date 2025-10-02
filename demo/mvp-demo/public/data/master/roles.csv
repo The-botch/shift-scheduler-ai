@@ -1,5 +1,5 @@
-role_id,role_code,role_name,employment_type,display_order,is_active
-1,MANAGER,店長,monthly,1,TRUE
-2,LEADER,リーダー,monthly,2,TRUE
-3,CONTRACT,業務委託,contract,3,TRUE
-4,PART_TIME,アルバイト,hourly,4,TRUE
+role_id,role_code,role_name,display_order,is_active
+1,MANAGER,店長,1,TRUE
+2,LEADER,リーダー,2,TRUE
+3,SUB_LEADER,主任,3,TRUE
+4,STAFF,一般スタッフ,4,TRUE

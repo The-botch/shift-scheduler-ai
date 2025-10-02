@@ -47,7 +47,12 @@ function App() {
       }
       setHasUnsavedChanges(false)
     }
-    if (currentStep > 1) {
+
+    // 第2案画面からの戻りの場合、シフト管理に戻す（第1案仮承認済みまたは確定済みの場合）
+    if (currentStep === 2 && (shiftStatus[10] === 'first_plan_approved' || shiftStatus[10] === 'completed')) {
+      setCurrentStep(1)
+      setShowShiftManagement(true)
+    } else if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
     }
   }
@@ -264,11 +269,18 @@ function App() {
   }
 
   const approveSecondPlan = () => {
-    // 第2案を承認・確定してシフト管理画面に戻る
+    // 第2案を承認・確定して履歴画面に遷移
     setShiftStatus({ ...shiftStatus, 10: 'completed' })
     setHasUnsavedChanges(false)
     setCurrentStep(1)
-    setShowShiftManagement(true)
+    setShowShiftManagement(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowConstraints(false)
+    setShowLineInput(false)
+    setShowMonitoring(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowHistory(true)
   }
 
   const renderCurrentScreen = () => {

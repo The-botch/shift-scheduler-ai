@@ -10,12 +10,14 @@ import {
   Edit3,
   FileText,
   Download,
+  Upload,
   ArrowLeft,
   TrendingUp,
   Clock,
   DollarSign,
   Users as UsersIcon,
-  Loader2
+  Loader2,
+  AlertTriangle
 } from 'lucide-react'
 import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'
@@ -151,14 +153,89 @@ const History = ({ onPrev }) => {
   const [selectedDay, setSelectedDay] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
   const [viewMode, setViewMode] = useState('calendar') // 'calendar' or 'staff'
+  const [staffMap, setStaffMap] = useState({}) // スタッフID -> スタッフ情報
+  const [rolesMap, setRolesMap] = useState({}) // 役職ID -> 役職名
+  const [actualData, setActualData] = useState(null) // インポートした実績データ
+  const [showDiff, setShowDiff] = useState(false) // 差分表示モード
+  const [diffAnalysis, setDiffAnalysis] = useState(null) // 差分分析結果
+  const [monthStatus, setMonthStatus] = useState({}) // 月別ステータス管理
 
   useEffect(() => {
     loadHistoryData()
+    loadMonthStatus()
   }, [])
+
+  // 月別ステータスの読み込み
+  const loadMonthStatus = () => {
+    const statusData = localStorage.getItem('month_status') || '{}'
+    setMonthStatus(JSON.parse(statusData))
+  }
+
+  // 月別ステータスの保存
+  const saveMonthStatus = (year, month, status) => {
+    const key = `${year}_${month}`
+    const newStatus = {
+      ...monthStatus,
+      [key]: {
+        ...monthStatus[key],
+        ...status,
+        updated_at: new Date().toISOString()
+      }
+    }
+    setMonthStatus(newStatus)
+    localStorage.setItem('month_status', JSON.stringify(newStatus))
+  }
+
+  // 月のステータス取得
+  const getMonthStatus = (year, month) => {
+    const key = `${year}_${month}`
+    return monthStatus[key] || {
+      shift_status: 'draft', // 'draft' | 'approved' | 'completed'
+      actual_imported: false,
+      actual_import_date: null
+    }
+  }
 
   const loadHistoryData = async () => {
     try {
       setLoading(true)
+
+      // スタッフマスターデータを読み込み
+      const staffResponse = await fetch('/data/master/staff.csv')
+      const staffText = await staffResponse.text()
+      const staffResult = await new Promise((resolve) => {
+        Papa.parse(staffText, {
+          header: true,
+          dynamicTyping: false,
+          skipEmptyLines: true,
+          complete: resolve
+        })
+      })
+
+      // 役職マスターデータを読み込み
+      const rolesResponse = await fetch('/data/master/roles.csv')
+      const rolesText = await rolesResponse.text()
+      const rolesResult = await new Promise((resolve) => {
+        Papa.parse(rolesText, {
+          header: true,
+          dynamicTyping: false,
+          skipEmptyLines: true,
+          complete: resolve
+        })
+      })
+
+      // スタッフマップと役職マップを作成
+      const staffMapping = {}
+      staffResult.data.forEach(staff => {
+        staffMapping[staff.staff_id] = staff
+      })
+      setStaffMap(staffMapping)
+
+      const rolesMapping = {}
+      rolesResult.data.forEach(role => {
+        rolesMapping[role.role_id] = role.role_name
+      })
+      setRolesMap(rolesMapping)
 
       // 月次サマリーを読み込み
       const summaryResponse = await fetch('/data/history/shift_monthly_summary.csv')
@@ -171,7 +248,47 @@ const History = ({ onPrev }) => {
           complete: resolve
         })
       })
-      setMonthlySummary(summaryResult.data)
+
+      // LocalStorageから承認されたシフトを読み込み
+      const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
+      const approvedSecondPlan = localStorage.getItem('approved_second_plan_2024_10')
+      let summaryData = summaryResult.data
+
+      // 2024年10月を除外（承認がない限り表示しない）
+      summaryData = summaryData.filter(s => !(s.year === 2024 && s.month === 10))
+
+      // 第2案承認が優先（第1案より後に承認されるため）
+      if (approvedSecondPlan) {
+        const approvedData = JSON.parse(approvedSecondPlan)
+        const approvedSummary = {
+          year: approvedData.year,
+          month: approvedData.month,
+          total_hours: approvedData.stats.totalHours || 0,
+          total_wage: 0,
+          total_shifts: approvedData.stats.totalShifts || 0,
+          fill_rate: 97,
+          notes: `第2案確定済み (${new Date(approvedData.approvedAt).toLocaleDateString('ja-JP')}) - ${approvedData.stats.resolvedIssues}/${approvedData.stats.totalIssues}問題解決済み`,
+          status: 'second_plan_approved'
+        }
+        summaryData.push(approvedSummary)
+      } else if (approvedFirstPlan) {
+        const approvedData = JSON.parse(approvedFirstPlan)
+        // 仮承認データを追加
+        const approvedSummary = {
+          year: approvedData.year,
+          month: approvedData.month,
+          total_hours: approvedData.stats.totalHours || 0,
+          total_wage: 0, // 仮承認時は未計算
+          total_shifts: approvedData.stats.totalShifts || 0,
+          fill_rate: 95, // 仮の充足率
+          notes: `第1案仮承認 (${new Date(approvedData.approvedAt).toLocaleDateString('ja-JP')})`,
+          status: 'first_plan_approved'
+        }
+
+        summaryData.push(approvedSummary)
+      }
+
+      setMonthlySummary(summaryData)
 
       // 過去のシフト履歴を読み込み
       const historyResponse = await fetch('/data/history/shift_history_2023-2024.csv')
@@ -206,13 +323,88 @@ const History = ({ onPrev }) => {
   }
 
   const handleMonthClick = (year, month) => {
-    // 10月2024の場合は承認済みデータを表示
-    if (year === 2024 && month === 10) {
-      setDetailShifts(octoberShifts)
+    // LocalStorageから承認データを確認
+    const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
+    const approvedSecondPlan = localStorage.getItem('approved_second_plan_2024_10')
+
+    if (year === 2024 && month === 10 && approvedSecondPlan) {
+      // 第2案確定データをHistory画面用フォーマットに変換
+      const approvedData = JSON.parse(approvedSecondPlan)
+      const transformedShifts = approvedData.csvShifts.map(shift => {
+        // スタッフIDから役職を取得
+        const staff = staffMap[shift.staff_id]
+        const roleName = staff ? rolesMap[staff.role_id] : '一般スタッフ'
+
+        return {
+          shift_id: shift.shift_id,
+          date: shift.date,
+          day_of_week: shift.day_of_week,
+          staff_name: shift.staff_name,
+          role: roleName,
+          start_time: shift.start_time,
+          end_time: shift.end_time,
+          skill_level: shift.skill_level,
+          planned_hours: shift.total_hours,
+          actual_hours: shift.total_hours,
+          modified_flag: shift.is_modified || false
+        }
+      })
+
+      setDetailShifts(transformedShifts)
+    } else if (year === 2024 && month === 10 && approvedFirstPlan) {
+      // 第1案仮承認データをHistory画面用フォーマットに変換
+      const approvedData = JSON.parse(approvedFirstPlan)
+      const transformedShifts = []
+
+      approvedData.shifts.forEach(dayData => {
+        dayData.shifts.forEach((shift, index) => {
+          // 時間を分割
+          const [startTime, endTime] = shift.time.split('-')
+
+          // スタッフ名から役職を取得
+          const staff = Object.values(staffMap).find(s => s.name === shift.name)
+          const roleName = staff ? rolesMap[staff.role_id] : shift.role || '一般スタッフ'
+
+          transformedShifts.push({
+            shift_id: `FP_${dayData.date}_${index}`,
+            date: dayData.date,
+            day_of_week: dayData.day,
+            staff_name: shift.name,
+            role: roleName,
+            start_time: startTime,
+            end_time: endTime,
+            skill_level: shift.skill,
+            planned_hours: shift.hours,
+            actual_hours: shift.hours,
+            modified_flag: false
+          })
+        })
+      })
+
+      setDetailShifts(transformedShifts)
+    } else if (year === 2024 && month === 10) {
+      // 承認がない場合は承認済みCSVデータを表示（役職をマスターから取得）
+      const transformedOctober = octoberShifts.map(shift => {
+        const staff = staffMap[shift.staff_id]
+        const roleName = staff ? rolesMap[staff.role_id] : shift.role || '一般スタッフ'
+        return {
+          ...shift,
+          role: roleName
+        }
+      })
+      setDetailShifts(transformedOctober)
     } else {
-      // それ以外は履歴データから該当月を抽出
+      // それ以外は履歴データから該当月を抽出（役職をマスターから取得）
       const filtered = shiftHistory.filter(s => s.year === year && s.month === month)
-      setDetailShifts(filtered)
+      const transformedHistory = filtered.map(shift => {
+        const staff = staffMap[shift.staff_id]
+        const roleName = staff ? rolesMap[staff.role_id] : shift.role || '一般スタッフ'
+        return {
+          ...shift,
+          role: roleName
+        }
+      })
+      setDetailShifts(transformedHistory)
     }
     setSelectedMonth({ year, month })
   }
@@ -236,6 +428,172 @@ const History = ({ onPrev }) => {
     } else {
       alert(`❌ エクスポートに失敗しました: ${result.error}`)
     }
+  }
+
+  // 実績CSVインポート
+  const handleImportActual = (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      Papa.parse(e.target.result, {
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: (results) => {
+          if (results.data && results.data.length > 0) {
+            // 実績データを保存
+            setActualData(results.data)
+
+            // 予定データと比較して差分分析
+            analyzeDifference(results.data)
+
+            // ステータスを更新
+            if (selectedMonth) {
+              saveMonthStatus(selectedMonth.year, selectedMonth.month, {
+                actual_imported: true,
+                actual_import_date: new Date().toISOString()
+              })
+            }
+
+            alert(`✅ 実績データ ${results.data.length}件をインポートしました`)
+          } else {
+            alert('❌ 有効なデータが見つかりませんでした')
+          }
+        },
+        error: (error) => {
+          alert(`❌ インポートエラー: ${error.message}`)
+        }
+      })
+    }
+    reader.readAsText(file)
+    // リセット（同じファイルを再度選択できるように）
+    event.target.value = ''
+  }
+
+  // 予定vs実績の差分分析
+  const analyzeDifference = (actualShifts) => {
+    if (!selectedMonth || !detailShifts || detailShifts.length === 0) {
+      alert('予定データが見つかりません')
+      return
+    }
+
+    const analysis = {
+      totalDiff: {
+        plannedShifts: detailShifts.length,
+        actualShifts: actualShifts.length,
+        shiftCountDiff: actualShifts.length - detailShifts.length,
+        plannedHours: 0,
+        actualHours: 0,
+        hoursDiff: 0,
+        plannedCost: 0,
+        actualCost: 0,
+        costDiff: 0
+      },
+      staffDiff: {},
+      dateDiff: {}
+    }
+
+    // 予定データを日付×スタッフでマッピング
+    const plannedMap = {}
+    detailShifts.forEach(shift => {
+      const key = `${shift.date}_${shift.staff_id}`
+      plannedMap[key] = shift
+      analysis.totalDiff.plannedHours += parseFloat(shift.planned_hours || shift.actual_hours || 0)
+      analysis.totalDiff.plannedCost += parseFloat(shift.estimated_wage || shift.daily_wage || 0)
+    })
+
+    // 実績データを分析
+    actualShifts.forEach(shift => {
+      const key = `${shift.date}_${shift.staff_id}`
+      const planned = plannedMap[key]
+
+      const actualHours = parseFloat(shift.actual_hours || 0)
+      const actualCost = parseFloat(shift.actual_wage || shift.daily_wage || 0)
+
+      analysis.totalDiff.actualHours += actualHours
+      analysis.totalDiff.actualCost += actualCost
+
+      // スタッフ別差分
+      if (!analysis.staffDiff[shift.staff_id]) {
+        analysis.staffDiff[shift.staff_id] = {
+          staff_name: shift.staff_name,
+          plannedDays: 0,
+          actualDays: 0,
+          plannedHours: 0,
+          actualHours: 0,
+          hoursDiff: 0,
+          differences: []
+        }
+      }
+      const staffData = analysis.staffDiff[shift.staff_id]
+      staffData.actualDays += 1
+      staffData.actualHours += actualHours
+
+      if (planned) {
+        const plannedHours = parseFloat(planned.planned_hours || planned.actual_hours || 0)
+        staffData.plannedDays += 1
+        staffData.plannedHours += plannedHours
+
+        const hoursDiff = actualHours - plannedHours
+        if (Math.abs(hoursDiff) > 0.1) {
+          staffData.differences.push({
+            date: shift.date,
+            plannedHours,
+            actualHours,
+            diff: hoursDiff
+          })
+        }
+        delete plannedMap[key] // 処理済みをマーク
+      } else {
+        // 予定になかったシフト
+        staffData.differences.push({
+          date: shift.date,
+          plannedHours: 0,
+          actualHours,
+          diff: actualHours,
+          type: 'added'
+        })
+      }
+    })
+
+    // 予定にあって実績になかったシフト
+    Object.values(plannedMap).forEach(planned => {
+      if (!analysis.staffDiff[planned.staff_id]) {
+        analysis.staffDiff[planned.staff_id] = {
+          staff_name: planned.staff_name,
+          plannedDays: 0,
+          actualDays: 0,
+          plannedHours: 0,
+          actualHours: 0,
+          hoursDiff: 0,
+          differences: []
+        }
+      }
+      const staffData = analysis.staffDiff[planned.staff_id]
+      const plannedHours = parseFloat(planned.planned_hours || planned.actual_hours || 0)
+      staffData.plannedDays += 1
+      staffData.plannedHours += plannedHours
+      staffData.differences.push({
+        date: planned.date,
+        plannedHours,
+        actualHours: 0,
+        diff: -plannedHours,
+        type: 'removed'
+      })
+    })
+
+    // スタッフ別差分を計算
+    Object.values(analysis.staffDiff).forEach(staff => {
+      staff.hoursDiff = staff.actualHours - staff.plannedHours
+    })
+
+    analysis.totalDiff.hoursDiff = analysis.totalDiff.actualHours - analysis.totalDiff.plannedHours
+    analysis.totalDiff.costDiff = analysis.totalDiff.actualCost - analysis.totalDiff.plannedCost
+
+    setDiffAnalysis(analysis)
+    setShowDiff(true)
   }
 
   const handleDayClick = (day) => {
@@ -449,7 +807,19 @@ const History = ({ onPrev }) => {
             {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
           </h1>
           <p className="text-lg text-gray-600">
-            {selectedMonth.year === 2024 && selectedMonth.month === 10 ? '承認済み' : '実績'} · 全{detailShifts.length}件
+            {(() => {
+              const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
+              const approvedSecondPlan = localStorage.getItem('approved_second_plan_2024_10')
+              if (selectedMonth.year === 2024 && selectedMonth.month === 10 && approvedSecondPlan) {
+                return '確定済み (第2案)'
+              } else if (selectedMonth.year === 2024 && selectedMonth.month === 10 && approvedFirstPlan) {
+                return '仮承認 (第1案)'
+              } else if (selectedMonth.year === 2024 && selectedMonth.month === 10) {
+                return '承認済み'
+              } else {
+                return '実績'
+              }
+            })()} · 全{detailShifts.length}件
           </p>
         </div>
 
@@ -479,6 +849,34 @@ const History = ({ onPrev }) => {
                   <UsersIcon className="h-4 w-4 mr-1" />
                   スタッフ実績
                 </Button>
+                <label className="inline-block">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="text-sm cursor-pointer"
+                    as="span"
+                  >
+                    <Upload className="h-4 w-4 mr-1" />
+                    実績インポート
+                  </Button>
+                  <input
+                    type="file"
+                    accept=".csv"
+                    onChange={handleImportActual}
+                    className="hidden"
+                  />
+                </label>
+                {showDiff && diffAnalysis && (
+                  <Button
+                    size="sm"
+                    variant="default"
+                    onClick={() => setViewMode('diff')}
+                    className="text-sm bg-orange-600 hover:bg-orange-700"
+                  >
+                    <TrendingUp className="h-4 w-4 mr-1" />
+                    予実差分
+                  </Button>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
@@ -498,7 +896,7 @@ const History = ({ onPrev }) => {
                 calendarData={getCalendarData()}
                 onDayClick={handleDayClick}
               />
-            ) : (
+            ) : viewMode === 'staff' ? (
               <div className="space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {getStaffPerformance().map((staff, index) => (
@@ -547,7 +945,109 @@ const History = ({ onPrev }) => {
                   ))}
                 </div>
               </div>
-            )}
+            ) : viewMode === 'diff' && diffAnalysis ? (
+              <div className="space-y-6">
+                {/* サマリー */}
+                <Card className="border-2 border-orange-300 bg-orange-50">
+                  <CardContent className="p-4">
+                    <h3 className="font-bold text-lg mb-3 flex items-center">
+                      <TrendingUp className="h-5 w-5 mr-2 text-orange-600" />
+                      予実差分サマリー
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div>
+                        <p className="text-xs text-gray-600">シフト数</p>
+                        <p className="text-sm">
+                          予定: <span className="font-bold">{diffAnalysis.totalDiff.plannedShifts}</span>
+                        </p>
+                        <p className="text-sm">
+                          実績: <span className="font-bold">{diffAnalysis.totalDiff.actualShifts}</span>
+                        </p>
+                        <p className={`text-sm font-bold ${diffAnalysis.totalDiff.shiftCountDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          差分: {diffAnalysis.totalDiff.shiftCountDiff > 0 ? '+' : ''}{diffAnalysis.totalDiff.shiftCountDiff}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600">総労働時間</p>
+                        <p className="text-sm">
+                          予定: <span className="font-bold">{diffAnalysis.totalDiff.plannedHours.toFixed(1)}h</span>
+                        </p>
+                        <p className="text-sm">
+                          実績: <span className="font-bold">{diffAnalysis.totalDiff.actualHours.toFixed(1)}h</span>
+                        </p>
+                        <p className={`text-sm font-bold ${diffAnalysis.totalDiff.hoursDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          差分: {diffAnalysis.totalDiff.hoursDiff > 0 ? '+' : ''}{diffAnalysis.totalDiff.hoursDiff.toFixed(1)}h
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-xs text-gray-600">人件費</p>
+                        <p className="text-sm">
+                          予定: <span className="font-bold">¥{diffAnalysis.totalDiff.plannedCost.toLocaleString()}</span>
+                        </p>
+                        <p className="text-sm">
+                          実績: <span className="font-bold">¥{diffAnalysis.totalDiff.actualCost.toLocaleString()}</span>
+                        </p>
+                        <p className={`text-sm font-bold ${diffAnalysis.totalDiff.costDiff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          差分: {diffAnalysis.totalDiff.costDiff > 0 ? '+' : ''}¥{diffAnalysis.totalDiff.costDiff.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                {/* スタッフ別差分 */}
+                <div>
+                  <h3 className="font-bold text-lg mb-3">スタッフ別差分</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {Object.values(diffAnalysis.staffDiff).map((staff, index) => (
+                      <motion.div
+                        key={staff.staff_name}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                      >
+                        <Card className={`border-2 ${Math.abs(staff.hoursDiff) > 3 ? 'border-orange-400 bg-orange-50' : 'border-gray-200'}`}>
+                          <CardContent className="p-4">
+                            <h4 className="font-bold text-md mb-2">{staff.staff_name}</h4>
+                            <div className="space-y-1 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">予定勤務:</span>
+                                <span className="font-medium">{staff.plannedDays}日 / {staff.plannedHours.toFixed(1)}h</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">実績勤務:</span>
+                                <span className="font-medium">{staff.actualDays}日 / {staff.actualHours.toFixed(1)}h</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">時間差分:</span>
+                                <span className={`font-bold ${staff.hoursDiff > 0 ? 'text-green-600' : staff.hoursDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                                  {staff.hoursDiff > 0 ? '+' : ''}{staff.hoursDiff.toFixed(1)}h
+                                </span>
+                              </div>
+                              {staff.differences.length > 0 && (
+                                <div className="mt-2 pt-2 border-t">
+                                  <p className="text-xs text-gray-500 mb-1">差分詳細:</p>
+                                  <div className="space-y-0.5 max-h-32 overflow-y-auto">
+                                    {staff.differences.map((diff, idx) => (
+                                      <div key={idx} className="text-xs flex justify-between">
+                                        <span>{diff.date}日:</span>
+                                        <span className={diff.type === 'added' ? 'text-green-600' : diff.type === 'removed' ? 'text-red-600' : 'text-orange-600'}>
+                                          {diff.type === 'added' ? '追加' : diff.type === 'removed' ? '削除' : `${diff.plannedHours}h → ${diff.actualHours}h`}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            ) : null}
           </CardContent>
         </Card>
 
@@ -595,7 +1095,11 @@ const History = ({ onPrev }) => {
           >
             <Card
               className={`shadow-lg border-2 hover:shadow-xl transition-all cursor-pointer ${
-                summary.year === 2024 && summary.month === 10
+                summary.status === 'second_plan_approved'
+                  ? 'border-blue-500 bg-blue-50'
+                  : summary.status === 'first_plan_approved'
+                  ? 'border-yellow-500 bg-yellow-50'
+                  : summary.year === 2024 && summary.month === 10
                   ? 'border-green-500 bg-green-50'
                   : 'border-gray-200 hover:border-blue-400'
               }`}
@@ -606,11 +1110,19 @@ const History = ({ onPrev }) => {
                   <CardTitle className="text-xl">
                     {summary.year}年{summary.month}月
                   </CardTitle>
-                  {summary.year === 2024 && summary.month === 10 && (
+                  {summary.status === 'second_plan_approved' ? (
+                    <span className="px-2 py-1 text-xs font-bold bg-blue-600 text-white rounded">
+                      確定済
+                    </span>
+                  ) : summary.status === 'first_plan_approved' ? (
+                    <span className="px-2 py-1 text-xs font-bold bg-yellow-600 text-white rounded">
+                      仮承認
+                    </span>
+                  ) : summary.year === 2024 && summary.month === 10 ? (
                     <span className="px-2 py-1 text-xs font-bold bg-green-600 text-white rounded">
                       承認済
                     </span>
-                  )}
+                  ) : null}
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">

@@ -95,17 +95,24 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
 
   const { columns, shifts: processedShifts } = calculateOverlaps()
 
-  // ロールごとの色
+  // 役職ごとの色
   const getRoleColor = (role) => {
     const colorMap = {
+      '店長': 'bg-red-500',
       'リーダー': 'bg-purple-500',
-      '正社員': 'bg-blue-500',
-      'スタッフ': 'bg-green-500',
-      'パート': 'bg-yellow-500',
-      'アルバイト': 'bg-orange-500'
+      '主任': 'bg-blue-500',
+      '一般スタッフ': 'bg-green-500'
     }
     return colorMap[role] || 'bg-gray-500'
   }
+
+  // 凡例用の役職リスト
+  const roleLegend = [
+    { name: '店長', color: 'bg-red-500' },
+    { name: 'リーダー', color: 'bg-purple-500' },
+    { name: '主任', color: 'bg-blue-500' },
+    { name: '一般スタッフ', color: 'bg-green-500' }
+  ]
 
   return (
     <div
@@ -129,9 +136,21 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
               <X className="h-5 w-5" />
             </Button>
           </div>
-          <p className="text-sm text-gray-600 mt-2">
-            {shifts.length}名のスタッフが勤務 · {columns > 1 ? `最大${columns}名の重なり` : '重なりなし'}
-          </p>
+          <div className="flex items-center justify-between mt-2">
+            <p className="text-sm text-gray-600">
+              {shifts.length}名のスタッフが勤務 · {columns > 1 ? `最大${columns}名の重なり` : '重なりなし'}
+            </p>
+            {/* 凡例 */}
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-500 font-medium">役職:</span>
+              {roleLegend.map(role => (
+                <div key={role.name} className="flex items-center gap-1">
+                  <div className={`w-3 h-3 rounded ${role.color}`}></div>
+                  <span className="text-xs text-gray-700">{role.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
 
         {/* スクロール可能なコンテンツエリア */}

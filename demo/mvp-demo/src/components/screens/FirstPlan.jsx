@@ -68,37 +68,6 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
     loadShiftData()
   }, [])
 
-  const generateDemoData = () => {
-    // 30日分のデモデータを生成
-    const demoData = []
-    const staffNames = ['田中', '佐藤', '鈴木', '高橋', '山田', '中村', '伊藤', '渡辺']
-
-    for (let i = 1; i <= 30; i++) {
-      const shifts = []
-      const numShifts = 2 + Math.floor(Math.random() * 3) // 2-4シフト/日
-
-      for (let j = 0; j < numShifts; j++) {
-        const staffName = staffNames[Math.floor(Math.random() * staffNames.length)]
-        const startHour = 9 + j * 4
-        const endHour = startHour + 4
-
-        shifts.push({
-          name: staffName,
-          time: `${startHour.toString().padStart(2, '0')}:00-${endHour.toString().padStart(2, '0')}:00`,
-          skill: 3 + Math.floor(Math.random() * 3), // スキル3-5
-          hours: 4
-        })
-      }
-
-      demoData.push({
-        date: i,
-        fullDate: `2024-10-${i.toString().padStart(2, '0')}`,
-        shifts
-      })
-    }
-
-    return demoData
-  }
 
   const loadShiftData = async () => {
     try {
@@ -137,10 +106,34 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
         })
       })
 
-      // スタッフIDから名前へのマッピング
+      // roles.csvを読み込み
+      const rolesResponse = await fetch('/data/master/roles.csv')
+      const rolesText = await rolesResponse.text()
+
+      const rolesResult = await new Promise((resolve, reject) => {
+        Papa.parse(rolesText, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete: resolve,
+          error: reject
+        })
+      })
+
+      // 役職IDから役職名へのマッピング
+      const rolesMap = {}
+      rolesResult.data.forEach(role => {
+        rolesMap[role.role_id] = role.role_name
+      })
+
+      // スタッフIDから名前・役職へのマッピング
       const staffMap = {}
       staffResult.data.forEach(staff => {
-        staffMap[staff.staff_id] = staff.name
+        staffMap[staff.staff_id] = {
+          name: staff.name,
+          role_id: staff.role_id,
+          role_name: rolesMap[staff.role_id] || 'スタッフ'
+        }
       })
 
       // 日付別にグループ化
@@ -150,8 +143,10 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
         if (!groupedByDate[date]) {
           groupedByDate[date] = []
         }
+        const staffInfo = staffMap[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
         groupedByDate[date].push({
-          name: staffMap[shift.staff_id] || '不明',
+          name: staffInfo.name,
+          role: staffInfo.role_name,
           time: `${shift.start_time?.substring(0,5)}-${shift.end_time?.substring(0,5)}`,
           skill: shift.skill_level || 3,
           hours: shift.total_hours || 0
@@ -171,35 +166,25 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
       console.log('CSVから読み込んだデータ:', formattedData.length, '日分')
       console.log('スタッフ数:', Object.keys(staffMap).length)
 
-      // データが不十分な場合（30日未満）はデモデータを使用
-      if (formattedData.length < 30) {
-        console.warn(`CSVデータが不十分です (${formattedData.length}日分)。デモデータを使用します。`)
-        const demoData = generateDemoData()
-        setShiftData(demoData)
-        setStats({ totalShifts: demoData.length * 3, totalHours: demoData.length * 12, staffCount: 8 })
-      } else {
-        console.log('CSVデータを使用します')
-        setShiftData(formattedData)
+      // CSVデータを使用
+      console.log(`CSVデータを使用します (${formattedData.length}日分)`)
+      setShiftData(formattedData)
 
-        // 統計情報を計算
-        const totalShifts = shiftsResult.data.length
-        const totalHours = shiftsResult.data.reduce((sum, s) => sum + (s.total_hours || 0), 0)
-        const staffCount = Object.keys(staffMap).length
+      // 統計情報を計算
+      const totalShifts = shiftsResult.data.length
+      const totalHours = shiftsResult.data.reduce((sum, s) => sum + (s.total_hours || 0), 0)
+      const staffCount = Object.keys(staffMap).length
 
-        setStats({ totalShifts, totalHours, staffCount })
-      }
+      setStats({ totalShifts, totalHours, staffCount })
 
       setLoading(false)
 
     } catch (err) {
       console.error('データ読み込みエラー:', err)
-      console.log('デモデータを使用します')
-
-      // エラー時はデモデータを使用
-      const demoData = generateDemoData()
-      setShiftData(demoData)
-      setStats({ totalShifts: demoData.length * 3, totalHours: demoData.length * 12, staffCount: 8 })
+      setShiftData([])
+      setStats({ totalShifts: 0, totalHours: 0, staffCount: 0 })
       setLoading(false)
+      alert('シフトデータの読み込みに失敗しました。CSVファイルを確認してください。')
     }
   }
 
@@ -209,6 +194,27 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
       setGenerating(false)
       setGenerated(true)
     }, 3000)
+  }
+
+  const handleApprove = () => {
+    // 承認時に履歴データとして保存
+    const approvedData = {
+      month: 10,
+      year: 2024,
+      status: 'first_plan_approved',
+      approvedAt: new Date().toISOString(),
+      shifts: shiftData,
+      stats: stats
+    }
+
+    // LocalStorageに保存
+    localStorage.setItem('approved_first_plan_2024_10', JSON.stringify(approvedData))
+    console.log('第1案を仮承認しました。履歴に保存されました。')
+
+    // 親コンポーネントの承認処理を呼び出し
+    if (onApprove) {
+      onApprove()
+    }
   }
 
   // タイムライン表示用の関数
@@ -221,7 +227,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
         staff_name: shift.name,
         start_time: startTime,
         end_time: endTime,
-        role: shift.skill >= 5 ? 'リーダー' : shift.skill >= 4 ? 'スタッフ' : 'アルバイト',
+        role: shift.role || 'スタッフ',
         planned_hours: shift.hours,
         modified_flag: shift.changed || false
       }
@@ -536,7 +542,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
     >
       {/* ナビゲーション */}
       <div className="flex justify-end items-center mb-8">
-        <Button onClick={onApprove} size="sm" disabled={!generated} className="bg-gradient-to-r from-green-600 to-green-700">
+        <Button onClick={handleApprove} size="sm" disabled={!generated} className="bg-gradient-to-r from-green-600 to-green-700">
           <CheckCircle className="mr-2 h-4 w-4" />
           シフトを承認・確定
         </Button>

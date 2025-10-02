@@ -1,0 +1,6 @@
+employment_type_id,employment_code,employment_name,payment_type,display_order,is_active
+1,FULL_TIME,正社員,monthly,1,TRUE
+2,CONTRACT,契約社員,monthly,2,TRUE
+3,PART_TIME,アルバイト,hourly,3,TRUE
+4,PART,パート,hourly,4,TRUE
+5,OUTSOURCE,業務委託,contract,5,TRUE

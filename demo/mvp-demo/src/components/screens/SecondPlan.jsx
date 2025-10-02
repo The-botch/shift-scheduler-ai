@@ -2,8 +2,8 @@ import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import { 
-  RefreshCw, 
+import {
+  RefreshCw,
   Zap,
   Calendar as CalendarIcon,
   CheckCircle,
@@ -23,6 +23,8 @@ import {
   Maximize2,
   GripVertical
 } from 'lucide-react'
+import Papa from 'papaparse'
+import ShiftTimeline from '../shared/ShiftTimeline'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -41,6 +43,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
   const [generated, setGenerated] = useState(false)
   const [comparison, setComparison] = useState(null)
   const [selectedDate, setSelectedDate] = useState(null)
+  const [dayShifts, setDayShifts] = useState([])
   const [viewMode, setViewMode] = useState('second') // 'second', 'first', 'compare'
   const [messages, setMessages] = useState([
     { id: 1, type: 'system', content: '第2案が生成されました。自然言語で修正指示をお聞かせください。', time: '14:30' }
@@ -51,6 +54,15 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
   const [shiftData, setShiftData] = useState([])
   const [changedDates, setChangedDates] = useState(new Set())
   const [pendingChange, setPendingChange] = useState(null)
+
+  // CSVデータ格納用state
+  const [csvShifts, setCsvShifts] = useState([])
+  const [csvIssues, setCsvIssues] = useState([])
+  const [csvSolutions, setCsvSolutions] = useState([])
+  const [staffMap, setStaffMap] = useState({})
+  const [rolesMap, setRolesMap] = useState({})
+  const [firstPlanData, setFirstPlanData] = useState([])
+
   // 問題のある日付を定義
   const problematicDates = new Set([3, 8, 15, 22, 28]) // 問題のある日付
   const [problemDates, setProblemDates] = useState(new Set([3, 8, 15, 22, 28]))
@@ -151,210 +163,215 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
     }
   }, [isResizing, dragStart, chatSize])
 
-  const generateSecondPlan = () => {
-    setGenerating(true)
-    setTimeout(() => {
-      setGenerating(false)
+  const generateSecondPlan = async () => {
+    try {
+      // シフト希望提出状況を確認
+      const staffRes = await fetch('/data/master/staff.csv')
+      const staffText = await staffRes.text()
+      const staffResult = await new Promise((resolve) => {
+        Papa.parse(staffText, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete: resolve
+        })
+      })
+      const activeStaff = staffResult.data.filter(s => s.is_active)
+      const totalStaffCount = activeStaff.length
+
+      const preferencesRes = await fetch('/data/transactions/availability_requests.csv')
+      const preferencesText = await preferencesRes.text()
+      const preferencesResult = await new Promise((resolve) => {
+        Papa.parse(preferencesText, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete: resolve
+        })
+      })
+
+      // 提出済みのスタッフIDを抽出（submitted_atがあるスタッフ）
+      const submittedStaffIds = new Set(
+        preferencesResult.data
+          .filter(req => req.submitted_at)
+          .map(req => req.staff_id)
+      )
+      const submittedCount = submittedStaffIds.size
+
+      // 全員提出していない場合は確認アラート
+      if (submittedCount < totalStaffCount) {
+        const unsubmittedCount = totalStaffCount - submittedCount
+        const unsubmittedStaff = activeStaff
+          .filter(staff => !submittedStaffIds.has(staff.staff_id))
+          .map(s => s.name)
+          .join('、')
+
+        const confirmMessage = `⚠️ シフト希望の提出が完了していません\n\n提出済み: ${submittedCount}名 / 全${totalStaffCount}名\n未提出: ${unsubmittedCount}名（${unsubmittedStaff}）\n\nシフト希望が未提出のスタッフがいますが、第2案を作成しますか？\n※未提出のスタッフは自動配置されます`
+
+        if (!window.confirm(confirmMessage)) {
+          return // キャンセルされた場合は中止
+        }
+      }
+
+      setGenerating(true)
+
+      // マスターデータ読み込み
+      const [rolesRes, shiftsRes, issuesRes, solutionsRes] = await Promise.all([
+        fetch('/data/master/roles.csv'),
+        fetch('/data/transactions/shift_second_plan.csv'),
+        fetch('/data/transactions/shift_second_plan_issues.csv'),
+        fetch('/data/transactions/shift_second_plan_solutions.csv')
+      ])
+
+      const [rolesText, shiftsText, issuesText, solutionsText] = await Promise.all([
+        rolesRes.text(),
+        shiftsRes.text(),
+        issuesRes.text(),
+        solutionsRes.text()
+      ])
+
+      // CSV解析
+      const parseCSV = (text) => new Promise((resolve) => {
+        Papa.parse(text, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete: (result) => resolve(result.data)
+        })
+      })
+
+      const [rolesData, shiftsData, issuesData, solutionsData] = await Promise.all([
+        parseCSV(rolesText),
+        parseCSV(shiftsText),
+        parseCSV(issuesText),
+        parseCSV(solutionsText)
+      ])
+
+      // staffDataは既に読み込み済み
+      const staffData = staffResult.data
+
+      // スタッフマップとロールマップを作成
+      const newRolesMap = {}
+      rolesData.forEach(role => {
+        newRolesMap[role.role_id] = role.role_name
+      })
+
+      const newStaffMap = {}
+      staffData.forEach(staff => {
+        newStaffMap[staff.staff_id] = {
+          name: staff.name,
+          role_id: staff.role_id,
+          role_name: newRolesMap[staff.role_id] || 'スタッフ',
+          skill_level: staff.skill_level
+        }
+      })
+
+      setRolesMap(newRolesMap)
+      setStaffMap(newStaffMap)
+      setCsvShifts(shiftsData)
+      setCsvIssues(issuesData)
+      setCsvSolutions(solutionsData)
+
+      // シフトデータを日付ごとにグループ化
+      const groupedByDate = {}
+      shiftsData.forEach(shift => {
+        if (!groupedByDate[shift.date]) {
+          groupedByDate[shift.date] = []
+        }
+        const staffInfo = newStaffMap[shift.staff_id] || { name: '不明', skill_level: 1 }
+        groupedByDate[shift.date].push({
+          name: staffInfo.name,
+          time: `${shift.start_time.replace(':00', '')}-${shift.end_time.replace(':00', '')}`,
+          skill: shift.skill_level || staffInfo.skill_level,
+          preferred: shift.is_preferred,
+          changed: false
+        })
+      })
+
+      // 日付順にソート
+      const formattedData = Object.keys(groupedByDate)
+        .map(date => parseInt(date))
+        .sort((a, b) => a - b)
+        .map(date => ({
+          date,
+          shifts: groupedByDate[date]
+        }))
+
+      // 問題のある日付を抽出
+      const problemDatesSet = new Set(issuesData.map(issue => issue.date))
+      setProblemDates(problemDatesSet)
+
+      // 第1案データを読み込み（localStorageまたはCSV）
+      const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
+      if (approvedFirstPlan) {
+        const firstPlanApprovedData = JSON.parse(approvedFirstPlan)
+        setFirstPlanData(firstPlanApprovedData.shifts)
+      } else {
+        // 第1案がlocalStorageにない場合は、shift.csvから読み込む
+        try {
+          const firstPlanRes = await fetch('/data/transactions/shift.csv')
+          const firstPlanText = await firstPlanRes.text()
+          const firstPlanResult = await parseCSV(firstPlanText)
+
+          // 第1案データを日付ごとにグループ化
+          const firstPlanGrouped = {}
+          firstPlanResult.forEach(shift => {
+            if (!firstPlanGrouped[shift.date]) {
+              firstPlanGrouped[shift.date] = []
+            }
+            const staffInfo = newStaffMap[shift.staff_id] || { name: '不明', skill_level: 1, role_name: 'スタッフ' }
+            firstPlanGrouped[shift.date].push({
+              name: staffInfo.name,
+              time: `${shift.start_time.replace(':00', '')}-${shift.end_time.replace(':00', '')}`,
+              skill: shift.skill_level || staffInfo.skill_level,
+              role: staffInfo.role_name,
+              preferred: shift.is_preferred,
+              changed: false
+            })
+          })
+
+          const firstPlanFormatted = Object.keys(firstPlanGrouped)
+            .map(date => parseInt(date))
+            .sort((a, b) => a - b)
+            .map(date => ({
+              date,
+              day: ['日', '月', '火', '水', '木', '金', '土'][new Date(2024, 9, date).getDay()],
+              shifts: firstPlanGrouped[date]
+            }))
+
+          setFirstPlanData(firstPlanFormatted)
+        } catch (err) {
+          console.error('第1案データ読み込みエラー:', err)
+          setFirstPlanData([])
+        }
+      }
+
+      setShiftData(formattedData)
       setGenerated(true)
       setComparison({
         first: { satisfaction: 72, coverage: 85, cost: 52000 },
         second: { satisfaction: 89, coverage: 92, cost: 48000 }
       })
-      // リアルなデモデータ（30日分）
-      const demoData = []
-      for (let i = 1; i <= 30; i++) {
-        const isProblem = problemDates.has(i)
-        const shifts = []
-        
-        if (isProblem) {
-          // 問題のある日のパターン
-          if (i === 3) {
-            shifts.push({ name: '中村', time: '9-13', skill: 2, preferred: true, changed: false })
-            shifts.push({ name: '伊藤', time: '13-17', skill: 2, preferred: true, changed: false })
-          } else if (i === 8) {
-            shifts.push({ name: '山田', time: '9-13', skill: 3, preferred: true, changed: false })
-          } else if (i === 15) {
-            shifts.push({ name: '佐藤', time: '9-17', skill: 5, preferred: true, changed: false })
-          } else if (i === 22) {
-            shifts.push({ name: '山田', time: '9-13', skill: 2, preferred: true, changed: false })
-            shifts.push({ name: '中村', time: '13-17', skill: 2, preferred: true, changed: false })
-          } else if (i === 28) {
-            shifts.push({ name: '田中', time: '9-21', skill: 4, preferred: true, changed: false })
-          }
-        } else {
-          // 問題のない日のパターン
-          const patterns = [
-            [{ name: '田中', time: '9-17', skill: 4, preferred: true, changed: false }],
-            [{ name: '佐藤', time: '9-17', skill: 5, preferred: true, changed: false }, { name: '山田', time: '17-21', skill: 3, preferred: true, changed: false }],
-            [{ name: '鈴木', time: '9-17', skill: 4, preferred: true, changed: false }],
-            [{ name: '高橋', time: '9-15', skill: 4, preferred: true, changed: false }, { name: '田中', time: '15-21', skill: 4, preferred: true, changed: false }],
-            [{ name: '佐藤', time: '10-18', skill: 5, preferred: true, changed: false }]
-          ]
-          shifts.push(...patterns[i % patterns.length])
-        }
-        
-        demoData.push({ date: i, shifts })
-      }
-      setShiftData(demoData)
-    }, 3000)
-  }
-
-  // 拡張されたデモパターン（事前影響分析付き）
-  const demoPatterns = {
-    '田中さんの月曜日を休みにしてください': {
-      analysis: {
-        changes: '田中さん: 1日 13-21時 → 削除',
-        impacts: [
-          '1日夜勤(13-21時)が1名不足になります',
-          '佐藤さんを1日13-21時に自動配置を提案',
-          '佐藤さんの週間勤務: 32時間 → 37時間',
-          '全体人件費: -¥3,000の削減'
-        ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
-      },
-      changes: [{ date: 1, action: 'remove', staff: '田中' }],
-      response: '✅ 変更を実行しました\n• 田中さんの1日のシフトを削除\n• 佐藤さんを1日13-21時に自動配置\n• 人件費¥3,000削減'
-    },
-    '9月5日の午前に佐藤さんを追加してください': {
-      analysis: {
-        changes: '佐藤さん: 5日 9-13時に追加配置',
-        impacts: [
-          '5日午前(9-13時)の人員不足が解消されます',
-          'スキル不足問題も同時に解決',
-          '佐藤さんの週間勤務: 32時間 → 36時間',
-          '全体充足率: 85% → 92%に向上'
-        ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
-      },
-      changes: [{ date: 5, action: 'add', staff: '佐藤', time: '9-13', skill: 5 }],
-      response: '✅ 変更を実行しました\n• 佐藤さんを5日9-13時に追加配置\n• 人員不足とスキル不足を同時解消\n• 充足率92%に向上'
-    },
-    '12日午後の山田さんを鈴木さんに変更してください': {
-      analysis: {
-        changes: '12日午後: 山田さん → 鈴木さんに変更',
-        impacts: [
-          'スキルレベル: ★☆☆ → ★★★に向上',
-          '12日午後のスキル不足問題が解消',
-          '山田さんの週間勤務: 35時間 → 31時間',
-          '鈴木さんの週間勤務: 30時間 → 34時間'
-        ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
-      },
-      changes: [{ date: 12, action: 'modify', staff: '山田', newStaff: '鈴木', time: '13-17', skill: 4 }],
-      response: '✅ 変更を実行しました\n• 12日午後を山田さんから鈴木さんに変更\n• スキルレベルが★★★に向上\n• スキル不足問題を解消'
-    },
-    '田中さんの18日を午前シフトに変更してください': {
-      analysis: {
-        changes: '田中さん: 18日 17-21時 → 9-13時に変更',
-        impacts: [
-          '18日夜勤(17-21時)が1名不足になります',
-          '佐藤さんを18日17-21時に自動配置を提案',
-          '田中さんの希望適合度: 72% → 89%に向上',
-          '全体人件費: -¥2,000の削減'
-        ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
-      },
-      changes: [{ date: 18, action: 'modify', staff: '田中', time: '9-13', skill: 4 }],
-      response: '✅ 変更を実行しました\n• 田中さんの18日を午前シフトに変更\n• 佐藤さんを18日夜勤に自動配置\n• 希望適合度89%に向上'
-    },
-    '25日午後の高橋さんと山田さんを外してください': {
-      analysis: {
-        changes: '25日午後: 高橋さんと山田さんを削除',
-        impacts: [
-          '25日午後の人員過多(4名→2名)が解消',
-          '適正人数に調整されます',
-          '高橋さんの週間勤務: 34時間 → 30時間',
-          '山田さんの週間勤務: 33時間 → 29時間',
-          '人件費削減: ¥8,000'
-        ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
-      },
-      changes: [
-        { date: 25, action: 'remove', staff: '高橋' },
-        { date: 25, action: 'remove', staff: '山田' }
-      ],
-      response: '✅ 変更を実行しました\n• 25日午後の高橋さんと山田さんを削除\n• 人員過多を解消(4名→2名)\n• 人件費¥8,000削減'
-    },
-    '3日の問題を解決してください': {
-      analysis: {
-        changes: '3日: スキルレベルの高いスタッフに変更',
-        impacts: [
-          '中村さん（★★）→ 高橋さん（★★★★）に変更',
-          'サービス品質が大幅に向上',
-          '高橋さんの週間勤務: 30時間 → 34時間',
-          'スキル不足問題が完全に解消'
-        ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
-      },
-      changes: [{ date: 3, action: 'modify', staff: '中村', newStaff: '高橋', time: '9-13', skill: 4 }],
-      response: '✅ 変更を実行しました\n• 3日のスキル不足問題を解決\n• 中村さん→高橋さんに変更\n• サービス品質が向上'
-    },
-    '8日の問題を解決してください': {
-      analysis: {
-        changes: '8日: 佐藤さんを追加配置',
-        impacts: [
-          '人員不足(1名→2名)が解消',
-          '業務の安定性が向上',
-          '佐藤さんの週間勤務: 32時間 → 36時間',
-          '充足率: 85% → 88%に向上'
-        ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
-      },
-      changes: [{ date: 8, action: 'add', staff: '佐藤', time: '9-13', skill: 5 }],
-      response: '✅ 変更を実行しました\n• 8日の人員不足問題を解決\n• 佐藤さんを追加配置\n• 業務の安定性が向上'
-    },
-    '15日の問題を解決してください': {
-      analysis: {
-        changes: '15日: 佐藤さんを休みに、鈴木さんを配置',
-        impacts: [
-          '佐藤さんの連続勤務問題が解消',
-          '労働基準法の遵守',
-          '鈴木さんの週間勤務: 30時間 → 34時間',
-          'スタッフの健康管理が改善'
-        ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
-      },
-      changes: [{ date: 15, action: 'modify', staff: '佐藤', newStaff: '鈴木', time: '9-17', skill: 4 }],
-      response: '✅ 変更を実行しました\n• 15日の連続勤務問題を解決\n• 佐藤さん→鈴木さんに変更\n• 労働基準法を遵守'
-    },
-    '22日の問題を解決してください': {
-      analysis: {
-        changes: '22日: 高橋さんを追加配置',
-        impacts: [
-          'ベテランスタッフの配置により安定性向上',
-          'トラブル対応力が強化',
-          '高橋さんの週間勤務: 30時間 → 34時間',
-          'サービス品質が向上'
-        ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
-      },
-      changes: [{ date: 22, action: 'add', staff: '高橋', time: '13-17', skill: 4 }],
-      response: '✅ 変更を実行しました\n• 22日のベテラン不在問題を解決\n• 高橋さんを追加配置\n• トラブル対応力が強化'
-    },
-    '28日の問題を解決してください': {
-      analysis: {
-        changes: '28日: 田中さんの勤務時間を短縮し、佐藤さんと分担',
-        impacts: [
-          '田中さんの過重労働(12時間→8時間)が解消',
-          '佐藤さんが4時間分を補完',
-          '田中さんの週間勤務: 42時間 → 38時間',
-          '労働時間の適正化'
-        ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
-      },
-      changes: [
-        { date: 28, action: 'modify', staff: '田中', time: '9-17', skill: 4 },
-        { date: 28, action: 'add', staff: '佐藤', time: '17-21', skill: 5 }
-      ],
-      response: '✅ 変更を実行しました\n• 28日の過重労働問題を解決\n• 田中さんの勤務時間を短縮\n• 佐藤さんと分担して適正化'
+    } catch (err) {
+      console.error('第2案データ読み込みエラー:', err)
+      alert('第2案データの読み込みに失敗しました。CSVファイルを確認してください。')
+    } finally {
+      setGenerating(false)
     }
   }
+
 
   const applyShiftChanges = (changes) => {
     // 変更があったことをマーク
     if (onMarkUnsaved) {
       onMarkUnsaved()
     }
+
+    // スタッフ名からstaff_idを逆引きするマップを作成
+    const nameToIdMap = {}
+    Object.entries(staffMap).forEach(([id, info]) => {
+      nameToIdMap[info.name] = parseInt(id)
+    })
 
     setShiftData(prevData => {
       const newData = [...prevData]
@@ -413,6 +430,83 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
 
       return newData
     })
+
+    // csvShiftsも更新
+    setCsvShifts(prevCsvShifts => {
+      const newCsvShifts = [...prevCsvShifts]
+      const dayOfWeekMap = ['日', '月', '火', '水', '木', '金', '土']
+
+      changes.forEach(change => {
+        const date = new Date(2024, 9, change.date)
+        const dayOfWeek = dayOfWeekMap[date.getDay()]
+
+        if (change.action === 'remove') {
+          // 削除
+          const staffId = nameToIdMap[change.staff]
+          const removeIndex = newCsvShifts.findIndex(s =>
+            s.date === change.date && s.staff_id === staffId
+          )
+          if (removeIndex !== -1) {
+            newCsvShifts.splice(removeIndex, 1)
+          }
+        } else if (change.action === 'add') {
+          // 追加
+          const staffId = nameToIdMap[change.staff]
+          const [startHour, endHour] = change.time.split('-')
+          const newShift = {
+            shift_id: `SP2_NEW_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+            date: change.date,
+            day_of_week: dayOfWeek,
+            staff_id: staffId,
+            staff_name: change.staff,
+            start_time: `${startHour.padStart(2, '0')}:00`,
+            end_time: `${endHour.padStart(2, '0')}:00`,
+            skill_level: change.skill,
+            is_preferred: 'TRUE',
+            is_modified: 'TRUE',
+            has_issue: 'FALSE',
+            issue_type: ''
+          }
+          newCsvShifts.push(newShift)
+        } else if (change.action === 'modify') {
+          // 変更
+          const oldStaffId = nameToIdMap[change.staff]
+          const modifyIndex = newCsvShifts.findIndex(s =>
+            s.date === change.date && s.staff_id === oldStaffId
+          )
+          if (modifyIndex !== -1) {
+            const [startHour, endHour] = change.time.split('-')
+            if (change.newStaff) {
+              // スタッフ変更
+              const newStaffId = nameToIdMap[change.newStaff]
+              newCsvShifts[modifyIndex] = {
+                ...newCsvShifts[modifyIndex],
+                staff_id: newStaffId,
+                staff_name: change.newStaff,
+                start_time: `${startHour.padStart(2, '0')}:00`,
+                end_time: `${endHour.padStart(2, '0')}:00`,
+                skill_level: change.skill,
+                is_modified: 'TRUE',
+                has_issue: 'FALSE',
+                issue_type: ''
+              }
+            } else {
+              // 時間変更
+              newCsvShifts[modifyIndex] = {
+                ...newCsvShifts[modifyIndex],
+                start_time: `${startHour.padStart(2, '0')}:00`,
+                end_time: `${endHour.padStart(2, '0')}:00`,
+                is_modified: 'TRUE',
+                has_issue: 'FALSE',
+                issue_type: ''
+              }
+            }
+          }
+        }
+      })
+
+      return newCsvShifts
+    })
   }
 
   const sendMessage = (messageText = null) => {
@@ -450,28 +544,72 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
       return
     }
 
-    // デモパターンをチェック
-    const pattern = demoPatterns[currentInput]
-    
+    // CSVソリューションから解決策を検索
     setTimeout(() => {
-      if (pattern) {
-        // 影響分析を表示
-        const analysisContent = `📋 変更予定:\n• ${pattern.analysis.changes}\n\n⚠️ 影響分析:\n${pattern.analysis.impacts.map(impact => `• ${impact}`).join('\n')}\n\n${pattern.analysis.question}`
-        
-        const aiResponse = {
-          id: messages.length + 2,
-          type: 'assistant',
-          content: analysisContent,
-          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+      // "X日の問題を解決してください" パターンをマッチ
+      const dateMatch = currentInput.match(/(\d+)日の問題を解決/)
+
+      if (dateMatch) {
+        const targetDate = parseInt(dateMatch[1])
+        const issue = csvIssues.find(i => i.date === targetDate)
+        const solutions = csvSolutions.filter(s => s.date === targetDate)
+
+        if (issue && solutions.length > 0) {
+          // 解決策を構築
+          const changes = solutions.map(sol => {
+            if (sol.action_type === 'add') {
+              return {
+                date: sol.date,
+                action: 'add',
+                staff: sol.staff_to,
+                time: sol.time_slot.replace(':00', ''),
+                skill: sol.skill_level_to
+              }
+            } else if (sol.action_type === 'modify') {
+              return {
+                date: sol.date,
+                action: 'modify',
+                staff: sol.staff_from,
+                newStaff: sol.staff_to,
+                time: sol.time_slot.replace(':00', ''),
+                skill: sol.skill_level_to
+              }
+            }
+            return null
+          }).filter(c => c !== null)
+
+          const analysisContent = `📋 変更予定:\n• ${issue.description}\n\n⚠️ 影響分析:\n${solutions.map(s => `• ${s.expected_improvement}`).join('\n')}\n${solutions.map(s => `• ${s.implementation_note}`).join('\n')}\n\nこの変更を実行しますか？「OK」と入力してください。`
+
+          const responseContent = `✅ 変更を実行しました\n• ${issue.date}日の${issue.issue_type}問題を解決\n${solutions.map(s => `• ${s.expected_improvement}`).join('\n')}`
+
+          const aiResponse = {
+            id: messages.length + 2,
+            type: 'assistant',
+            content: analysisContent,
+            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+          }
+
+          setMessages(prev => [...prev, aiResponse])
+          setPendingChange({
+            changes,
+            response: responseContent
+          })
+          scrollToBottom()
+        } else {
+          const aiResponse = {
+            id: messages.length + 2,
+            type: 'assistant',
+            content: `${targetDate}日の問題に対する解決策が見つかりませんでした。`,
+            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+          }
+          setMessages(prev => [...prev, aiResponse])
+          scrollToBottom()
         }
-        setMessages(prev => [...prev, aiResponse])
-        setPendingChange(pattern)
-        scrollToBottom()
       } else {
         const aiResponse = {
           id: messages.length + 2,
           type: 'assistant',
-          content: '申し訳ございませんが、その指示は認識できませんでした。以下の例を参考にしてください：\n\n• 田中さんの月曜日を休みにしてください\n• 9月5日の午前に佐藤さんを追加してください\n• 12日午後の山田さんを鈴木さんに変更してください',
+          content: '申し訳ございませんが、その指示は認識できませんでした。\n\n問題を解決するには「X日の問題を解決してください」と入力してください。',
           time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
         }
         setMessages(prev => [...prev, aiResponse])
@@ -481,28 +619,67 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
     }, 2000)
   }
 
-  const getDateDetails = (date) => {
-    const dayData = shiftData.find(d => d.date === date)
-    if (!dayData) return null
+  const handleDayClick = (date) => {
+    // CSVデータから該当日のシフトを取得
+    const dayShiftsData = csvShifts.filter(s => s.date === date)
 
-    return {
-      date,
-      shifts: dayData.shifts,
-      required: { morning: 2, afternoon: 2, evening: 1 },
-      assigned: { 
-        morning: dayData.shifts.filter(s => s.time.includes('9') || s.time.includes('10')).length,
-        afternoon: dayData.shifts.filter(s => s.time.includes('13') || s.time.includes('15')).length,
-        evening: dayData.shifts.filter(s => s.time.includes('17') || s.time.includes('21')).length
-      },
-      issues: [
-        ...(dayData.shifts.filter(s => !s.preferred).length > 0 ? ['希望外時間帯あり'] : []),
-        ...(dayData.shifts.filter(s => s.skill < 3).length > 2 ? ['スキル不足'] : [])
-      ]
+    // ShiftTimelineコンポーネント用のフォーマットに変換
+    const formattedShifts = dayShiftsData.map(shift => {
+      const staffInfo = staffMap[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
+      return {
+        shift_id: shift.shift_id,
+        staff_name: staffInfo.name,
+        role: staffInfo.role_name,
+        start_time: shift.start_time,
+        end_time: shift.end_time,
+        skill_level: shift.skill_level,
+        modified_flag: shift.is_modified
+      }
+    })
+
+    setDayShifts(formattedShifts)
+    setSelectedDate(date)
+  }
+
+  const closeDayView = () => {
+    setSelectedDate(null)
+    setDayShifts([])
+  }
+
+  const handleApprove = () => {
+    // 承認時に履歴データとして保存
+    const approvedData = {
+      month: 10,
+      year: 2024,
+      status: 'second_plan_approved',
+      approvedAt: new Date().toISOString(),
+      shifts: shiftData,
+      csvShifts: csvShifts,
+      stats: {
+        totalShifts: csvShifts.length,
+        totalHours: csvShifts.reduce((sum, s) => {
+          const start = parseInt(s.start_time.split(':')[0])
+          const end = parseInt(s.end_time.split(':')[0])
+          return sum + (end - start)
+        }, 0),
+        staffCount: new Set(csvShifts.map(s => s.staff_id)).size,
+        resolvedIssues: resolvedProblems.size,
+        totalIssues: csvIssues.length
+      }
+    }
+
+    // LocalStorageに保存
+    localStorage.setItem('approved_second_plan_2024_10', JSON.stringify(approvedData))
+    console.log('第2案を承認しました。履歴に保存されました。')
+
+    // 親コンポーネントの承認処理を呼び出し
+    if (onNext) {
+      onNext()
     }
   }
 
   const renderCalendar = (isFirstPlan = false) => {
-    const data = isFirstPlan ? getFirstPlanData() : shiftData
+    const data = isFirstPlan ? firstPlanData : shiftData
 
     return (
       <div className="grid grid-cols-7 gap-1">
@@ -511,7 +688,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
           const dayData = data.find(d => d.date === date) || { date, shifts: [] }
           const isProblem = !isFirstPlan && isProblematicDate(date)
           const isChanged = !isFirstPlan && changedDates.has(date)
-          
+
           return (
             <motion.div
               key={i}
@@ -522,7 +699,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.02 }}
-              onClick={() => !isFirstPlan && setSelectedDate(date)}
+              onClick={() => !isFirstPlan && handleDayClick(date)}
             >
               <div className={`text-xs font-bold mb-1 ${isProblem ? 'text-yellow-700' : 'text-gray-700'}`}>
                 {date}
@@ -554,24 +731,6 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
     )
   }
 
-  const getFirstPlanData = () => {
-    // 第1案のデータ（希望を考慮しない自動生成）
-    const firstPlanData = []
-    for (let i = 1; i <= 30; i++) {
-      const shifts = []
-      const patterns = [
-        [{ name: '田中', time: '9-17', skill: 4, preferred: false }],
-        [{ name: '佐藤', time: '13-21', skill: 5, preferred: true }, { name: '山田', time: '9-15', skill: 3, preferred: false }],
-        [{ name: '鈴木', time: '10-18', skill: 4, preferred: true }],
-        [{ name: '田中', time: '9-17', skill: 4, preferred: false }, { name: '佐藤', time: '17-21', skill: 5, preferred: false }],
-        [{ name: '山田', time: '9-15', skill: 3, preferred: true }, { name: '高橋', time: '15-21', skill: 4, preferred: false }]
-      ]
-      shifts.push(...patterns[i % patterns.length])
-      firstPlanData.push({ date: i, shifts })
-    }
-    return firstPlanData
-  }
-
   return (
     <motion.div
       initial="initial"
@@ -582,8 +741,12 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
       className="container mx-auto px-4 py-8"
     >
       {/* ナビゲーション */}
-      <div className="flex justify-end items-center mb-8">
-        <Button onClick={onNext} size="sm" className="bg-gradient-to-r from-green-600 to-green-700">
+      <div className="flex justify-between items-center mb-8">
+        <Button onClick={onPrev} variant="outline" size="sm">
+          <ChevronLeft className="mr-2 h-4 w-4" />
+          戻る
+        </Button>
+        <Button onClick={handleApprove} size="sm" className="bg-gradient-to-r from-green-600 to-green-700">
           <CheckCircle className="mr-2 h-4 w-4" />
           第2案を承認
         </Button>
@@ -731,150 +894,48 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                      {/* 3日の問題 */}
-                      {isProblematicDate(3) && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-yellow-800 mb-2">📅 3日（火）- スキル不足</h4>
-                              <p className="text-sm text-yellow-700 mb-3">
-                                中村さん（★★）と伊藤さん（★★）の低スキル配置により、サービス品質に影響する可能性があります。
-                              </p>
-                              <div className="text-xs text-yellow-600">
-                                💡 改善案: 高橋さん（★★★★）または鈴木さん（★★★★★）を配置
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => sendMessage('3日の問題を解決してください')}
-                              className="ml-4 bg-yellow-600 hover:bg-yellow-700 text-white"
-                            >
-                              解決
-                            </Button>
-                          </div>
-                        </motion.div>
-                      )}
+                      {/* CSVから問題を動的に表示 */}
+                      {csvIssues.filter(issue => isProblematicDate(issue.date)).map((issue, index) => {
+                        const issueTypeLabels = {
+                          skill_shortage: 'スキル不足',
+                          understaffed: '人員不足',
+                          consecutive_days: '連続勤務問題',
+                          no_veteran: 'ベテラン不在',
+                          overwork: '過重労働'
+                        }
 
-                      {/* 8日の問題 */}
-                      {isProblematicDate(8) && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-yellow-800 mb-2">📅 8日（日）- 人員不足</h4>
-                              <p className="text-sm text-yellow-700 mb-3">
-                                1名のみの配置で業務に支障をきたす可能性があります。最低2名の配置が必要です。
-                              </p>
-                              <div className="text-xs text-yellow-600">
-                                💡 改善案: 佐藤さんまたは田中さんを追加配置
+                        return (
+                          <motion.div
+                            key={issue.issue_id}
+                            initial={{ opacity: 0, y: 10 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -10 }}
+                            transition={{ delay: index * 0.1 }}
+                            className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-yellow-800 mb-2">
+                                  📅 {issue.date}日（{issue.day_of_week}）- {issueTypeLabels[issue.issue_type]}
+                                </h4>
+                                <p className="text-sm text-yellow-700 mb-3">
+                                  {issue.description}
+                                </p>
+                                <div className="text-xs text-yellow-600">
+                                  💡 改善案: {issue.recommendation}
+                                </div>
                               </div>
+                              <Button
+                                size="sm"
+                                onClick={() => sendMessage(`${issue.date}日の問題を解決してください`)}
+                                className="ml-4 bg-yellow-600 hover:bg-yellow-700 text-white"
+                              >
+                                解決
+                              </Button>
                             </div>
-                            <Button
-                              size="sm"
-                              onClick={() => sendMessage('8日の問題を解決してください')}
-                              className="ml-4 bg-yellow-600 hover:bg-yellow-700 text-white"
-                            >
-                              解決
-                            </Button>
-                          </div>
-                        </motion.div>
-                      )}
-
-                      {/* 15日の問題 */}
-                      {isProblematicDate(15) && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-yellow-800 mb-2">📅 15日（日）- 連続勤務問題</h4>
-                              <p className="text-sm text-yellow-700 mb-3">
-                                佐藤さんが5日目の連続勤務となり、労働基準法上の問題があります。
-                              </p>
-                              <div className="text-xs text-yellow-600">
-                                💡 改善案: 佐藤さんを休みにして、他のスタッフを配置
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => sendMessage('15日の問題を解決してください')}
-                              className="ml-4 bg-yellow-600 hover:bg-yellow-700 text-white"
-                            >
-                              解決
-                            </Button>
-                          </div>
-                        </motion.div>
-                      )}
-
-                      {/* 22日の問題 */}
-                      {isProblematicDate(22) && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-yellow-800 mb-2">📅 22日（日）- ベテラン不在</h4>
-                              <p className="text-sm text-yellow-700 mb-3">
-                                スキルレベル★★★以下のスタッフのみで、トラブル対応に不安があります。
-                              </p>
-                              <div className="text-xs text-yellow-600">
-                                💡 改善案: 高橋さん（★★★★）または鈴木さん（★★★★★）を配置
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => sendMessage('22日の問題を解決してください')}
-                              className="ml-4 bg-yellow-600 hover:bg-yellow-700 text-white"
-                            >
-                              解決
-                            </Button>
-                          </div>
-                        </motion.div>
-                      )}
-
-                      {/* 28日の問題 */}
-                      {isProblematicDate(28) && (
-                        <motion.div
-                          initial={{ opacity: 0, y: 10 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -10 }}
-                          className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
-                        >
-                          <div className="flex items-start justify-between">
-                            <div className="flex-1">
-                              <h4 className="font-medium text-yellow-800 mb-2">📅 28日（土）- 過重労働</h4>
-                              <p className="text-sm text-yellow-700 mb-3">
-                                田中さんが12時間勤務となり、労働時間が過重です。
-                              </p>
-                              <div className="text-xs text-yellow-600">
-                                💡 改善案: 勤務時間を短縮するか、他のスタッフと分担
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              onClick={() => sendMessage('28日の問題を解決してください')}
-                              className="ml-4 bg-yellow-600 hover:bg-yellow-700 text-white"
-                            >
-                              解決
-                            </Button>
-                          </div>
-                        </motion.div>
-                      )}
+                          </motion.div>
+                        )
+                      })}
 
                       {/* 総合評価 */}
                       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -882,17 +943,17 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                         <div className="text-sm text-blue-700">
                           {resolvedProblems.size === 0 && (
                             <>
-                              <p>🔍 <strong>5つの問題</strong>が検出されました</p>
+                              <p>🔍 <strong>{csvIssues.length}つの問題</strong>が検出されました</p>
                               <p>💡 AI修正アシスタントで問題を解決すると、満足度が<strong>17%向上</strong>し、充足率が<strong>7%改善</strong>される見込みです</p>
                             </>
                           )}
-                          {resolvedProblems.size > 0 && resolvedProblems.size < 5 && (
+                          {resolvedProblems.size > 0 && resolvedProblems.size < csvIssues.length && (
                             <>
-                              <p>✅ <strong>{resolvedProblems.size}つ解決済み</strong>、残り<strong>{5 - resolvedProblems.size}つ</strong></p>
+                              <p>✅ <strong>{resolvedProblems.size}つ解決済み</strong>、残り<strong>{csvIssues.length - resolvedProblems.size}つ</strong></p>
                               <p>📈 現在の改善効果: 満足度<strong>+{Math.round(resolvedProblems.size * 3.4)}%</strong>、充足率<strong>+{Math.round(resolvedProblems.size * 1.4)}%</strong></p>
                             </>
                           )}
-                          {resolvedProblems.size === 5 && (
+                          {resolvedProblems.size === csvIssues.length && csvIssues.length > 0 && (
                             <>
                               <p>🎉 <strong>すべての問題が解決されました！</strong></p>
                               <p>📈 最終改善効果: 満足度<strong>+17%</strong>、充足率<strong>+7%</strong>達成</p>
@@ -1207,189 +1268,16 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
             </Card>
           )}
 
-          {/* 日付詳細ポップアップ */}
+          {/* ShiftTimelineコンポーネント */}
           <AnimatePresence>
             {selectedDate && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-                onClick={() => setSelectedDate(null)}
-              >
-                <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-white rounded-lg p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-y-auto"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="text-lg font-bold">
-                      {selectedDate}日の詳細配置状況
-                    </h3>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => setSelectedDate(null)}
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  </div>
-
-                  {(() => {
-                    const details = getDateDetails(selectedDate)
-                    if (!details) {
-                      return (
-                        <div className="text-center py-8 text-gray-500">
-                          <p>この日はシフトが設定されていません</p>
-                        </div>
-                      )
-                    }
-
-                    return (
-                      <div>
-                        {/* 時間軸テーブル */}
-                        <div className="overflow-y-auto max-h-[60vh]">
-                          <table className="w-full border-collapse border border-gray-300 text-sm">
-                            <thead className="bg-gray-50 sticky top-0">
-                              <tr>
-                                <th className="border border-gray-300 px-3 py-2 text-left">時間帯</th>
-                                <th className="border border-gray-300 px-3 py-2 text-left">AI配置スタッフ</th>
-                                <th className="border border-gray-300 px-2 py-2">必要</th>
-                                <th className="border border-gray-300 px-2 py-2">現在</th>
-                                <th className="border border-gray-300 px-3 py-2 text-left">状況</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {(() => {
-                                const timeSlots = [];
-                                for (let hour = 5; hour < 20; hour++) {
-                                  for (let minute = 0; minute < 60; minute += 30) {
-                                    const startTime = `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
-                                    const endMinute = minute + 30;
-                                    const endHour = endMinute >= 60 ? hour + 1 : hour;
-                                    const endTime = `${endHour.toString().padStart(2, '0')}:${(endMinute % 60).toString().padStart(2, '0')}`;
-                                    
-                                    // リアルなサンプルデータ生成
-                                    let assigned = [];
-                                    let required = 0;
-                                    let status = '✅';
-                                    let statusColor = 'text-green-600';
-                                    
-                                    if (problemDates.has(selectedDate)) {
-                                      // 問題のある日のパターン
-                                      if (selectedDate === 5 && hour >= 9 && hour < 13) {
-                                        assigned = ['山田★☆☆'];
-                                        required = 3;
-                                        status = '⚠️2名不足(スキル不足)';
-                                        statusColor = 'text-red-600';
-                                      } else if (selectedDate === 12 && hour >= 13 && hour < 17) {
-                                        assigned = ['田中★★★', '山田★☆☆'];
-                                        required = 2;
-                                        status = '⚠️スキル不足';
-                                        statusColor = 'text-yellow-600';
-                                      } else if (selectedDate === 18 && hour >= 17 && hour < 21) {
-                                        assigned = ['田中★★★'];
-                                        required = 2;
-                                        status = '⚠️希望外配置';
-                                        statusColor = 'text-yellow-600';
-                                      } else if (selectedDate === 25 && hour >= 13 && hour < 17) {
-                                        assigned = ['田中★★★', '佐藤★★☆', '鈴木★★★', '山田★☆☆'];
-                                        required = 2;
-                                        status = '🔴2名超過';
-                                        statusColor = 'text-red-600';
-                                      } else if (selectedDate === 28 && hour >= 9 && hour < 13) {
-                                        assigned = ['高橋★★☆'];
-                                        required = 3;
-                                        status = '⚠️2名不足';
-                                        statusColor = 'text-red-600';
-                                      }
-                                    } else {
-                                      // 問題のない日のパターン
-                                      if (hour >= 9 && hour < 13) {
-                                        assigned = ['田中★★★', '佐藤★★☆'];
-                                        required = 2;
-                                        status = '✅';
-                                        statusColor = 'text-green-600';
-                                      } else if (hour >= 13 && hour < 17) {
-                                        assigned = ['鈴木★★★', '高橋★★☆'];
-                                        required = 2;
-                                        status = '✅';
-                                        statusColor = 'text-green-600';
-                                      } else if (hour >= 17 && hour < 21) {
-                                        assigned = ['山田★☆☆'];
-                                        required = 1;
-                                        status = '✅';
-                                        statusColor = 'text-green-600';
-                                      }
-                                    }
-                                    
-                                    timeSlots.push({
-                                      time: `${startTime}-${endTime}`,
-                                      assigned,
-                                      required,
-                                      current: assigned.length,
-                                      status,
-                                      statusColor
-                                    });
-                                  }
-                                }
-                                
-                                return timeSlots.map((slot, index) => (
-                                  <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                                    <td className="border border-gray-300 px-3 py-2 font-mono text-xs">
-                                      {slot.time}
-                                    </td>
-                                    <td className="border border-gray-300 px-3 py-2">
-                                      {slot.assigned.length > 0 ? (
-                                        <div className="flex flex-wrap gap-1">
-                                          {slot.assigned.map((staff, i) => (
-                                            <span key={i} className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">
-                                              {staff}
-                                            </span>
-                                          ))}
-                                        </div>
-                                      ) : (
-                                        <span className="text-gray-400">-</span>
-                                      )}
-                                    </td>
-                                    <td className="border border-gray-300 px-2 py-2 text-center">
-                                      {slot.required}
-                                    </td>
-                                    <td className="border border-gray-300 px-2 py-2 text-center">
-                                      {slot.current}
-                                    </td>
-                                    <td className={`border border-gray-300 px-3 py-2 ${slot.statusColor}`}>
-                                      {slot.status}
-                                    </td>
-                                  </tr>
-                                ));
-                              })()}
-                            </tbody>
-                          </table>
-                        </div>
-                        
-                        <div className="mt-4 p-3 bg-blue-50 rounded">
-                          <h4 className="font-medium text-blue-800 mb-2">💡 改善提案</h4>
-                          <div className="text-sm text-blue-700">
-                            {problemDates.has(selectedDate) ? (
-                              selectedDate === 5 ? '• 09:00-13:00: ベテラン2名追加（佐藤さんと鈴木さん推奨）' :
-                              selectedDate === 12 ? '• 13:00-17:00: 山田さんを鈴木さんに変更（スキルレベル向上）' :
-                              selectedDate === 18 ? '• 田中さんを午前シフトに変更、夜勤に佐藤さんを配置' :
-                              selectedDate === 25 ? '• 13:00-17:00: 高橋さんと山田さんを他の時間帯に移動' :
-                              selectedDate === 28 ? '• 09:00-13:00: 田中さんと佐藤さんを追加配置' :
-                              '• 特に問題はありません'
-                            ) : (
-                              '• 適正な配置です。問題ありません。'
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })()}
-                </motion.div>
-              </motion.div>
+              <ShiftTimeline
+                date={selectedDate}
+                year={2024}
+                month={10}
+                shifts={dayShifts}
+                onClose={closeDayView}
+              />
             )}
           </AnimatePresence>
         </div>
