@@ -13,10 +13,11 @@ import StoreManagement from './components/screens/StoreManagement'
 import ConstraintManagement from './components/screens/ConstraintManagement'
 import History from './components/screens/History'
 import ShiftManagement from './components/screens/ShiftManagement'
+import ActualDataImport from './components/screens/ActualDataImport'
 
 // UI Components
 import { Button } from './components/ui/button'
-import { Menu, X, Home, FolderOpen, Users, History as HistoryIcon, MessageSquare, ClipboardList, Store, Shield } from 'lucide-react'
+import { Menu, X, Home, FolderOpen, Users, History as HistoryIcon, MessageSquare, ClipboardList, Store, Shield, Database } from 'lucide-react'
 
 function App() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -33,6 +34,7 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showLineMessages, setShowLineMessages] = useState(false)
   const [showMonitoring, setShowMonitoring] = useState(false)
+  const [showActualDataImport, setShowActualDataImport] = useState(false)
 
   const nextStep = () => {
     if (currentStep < 3) {
@@ -82,6 +84,7 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
+    setShowActualDataImport(false)
     setIsMenuOpen(false)
   }
 
@@ -100,6 +103,7 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
+    setShowActualDataImport(false)
     setIsMenuOpen(false)
   }
 
@@ -118,6 +122,7 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
+    setShowActualDataImport(false)
     setIsMenuOpen(false)
   }
 
@@ -137,6 +142,7 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
+    setShowActualDataImport(false)
     setIsMenuOpen(false)
   }
 
@@ -155,6 +161,7 @@ function App() {
     setShowConstraintManagement(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
+    setShowActualDataImport(false)
     setIsMenuOpen(false)
   }
 
@@ -173,6 +180,7 @@ function App() {
     setShowConstraintManagement(false)
     setShowHistory(false)
     setShowMonitoring(false)
+    setShowActualDataImport(false)
     setIsMenuOpen(false)
   }
 
@@ -184,6 +192,26 @@ function App() {
       setHasUnsavedChanges(false)
     }
     setShowMonitoring(true)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowConstraintManagement(false)
+    setShowHistory(false)
+    setShowLineMessages(false)
+    setShowActualDataImport(false)
+    setIsMenuOpen(false)
+  }
+
+  const goToActualDataImport = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。実績インポート画面に移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowActualDataImport(true)
+    setShowMonitoring(false)
     setShowShiftManagement(false)
     setShowFirstPlanFromShiftMgmt(false)
     setShowStaffManagement(false)
@@ -213,6 +241,7 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
+    setShowActualDataImport(false)
     setIsMenuOpen(false)
   }
 
@@ -280,6 +309,7 @@ function App() {
     setShowLineInput(false)
     setShowMonitoring(false)
     setShowFirstPlanFromShiftMgmt(false)
+    setShowActualDataImport(false)
     setShowHistory(true)
   }
 
@@ -306,6 +336,10 @@ function App() {
 
     if (showMonitoring) {
       return <Monitoring />
+    }
+
+    if (showActualDataImport) {
+      return <ActualDataImport />
     }
 
     if (showShiftManagement) {
@@ -419,11 +453,11 @@ function App() {
             <span className="font-medium text-gray-800">制約管理</span>
           </button>
           <button
-            onClick={goToHistory}
+            onClick={goToActualDataImport}
             className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
           >
-            <HistoryIcon className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">履歴</span>
+            <Database className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-800">実績管理</span>
           </button>
         </div>
       )}
@@ -437,6 +471,7 @@ function App() {
             showHistory ? 'history' :
             showShiftManagement ? 'shift-management' :
             showFirstPlanFromShiftMgmt ? 'first-plan-shift-mgmt' :
+            showActualDataImport ? 'actual-data-import' :
             currentStep
           }>
             {renderCurrentScreen()}

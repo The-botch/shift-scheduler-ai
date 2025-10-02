@@ -143,12 +143,12 @@ const CalendarView = ({ selectedMonth, calendarData, onDayClick }) => {
   )
 }
 
-const History = ({ onPrev }) => {
+const History = ({ onPrev, initialMonth }) => {
   const [loading, setLoading] = useState(true)
   const [monthlySummary, setMonthlySummary] = useState([])
   const [shiftHistory, setShiftHistory] = useState([])
   const [octoberShifts, setOctoberShifts] = useState([])
-  const [selectedMonth, setSelectedMonth] = useState(null)
+  const [selectedMonth, setSelectedMonth] = useState(initialMonth || null)
   const [detailShifts, setDetailShifts] = useState([])
   const [selectedDay, setSelectedDay] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
@@ -164,6 +164,14 @@ const History = ({ onPrev }) => {
     loadHistoryData()
     loadMonthStatus()
   }, [])
+
+  // initialMonthが設定されている場合、データ読み込み完了後に自動的に開く
+  useEffect(() => {
+    if (!loading && initialMonth && staffMap && Object.keys(staffMap).length > 0) {
+      handleMonthClick(initialMonth.year, initialMonth.month)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, initialMonth])
 
   // 月別ステータスの読み込み
   const loadMonthStatus = () => {
@@ -253,6 +261,12 @@ const History = ({ onPrev }) => {
       const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
       const approvedSecondPlan = localStorage.getItem('approved_second_plan_2024_10')
       let summaryData = summaryResult.data
+
+      // 全ての月に確定済みステータスを設定
+      summaryData = summaryData.map(s => ({
+        ...s,
+        status: 'completed'
+      }))
 
       // 2024年10月を除外（承認がない限り表示しない）
       summaryData = summaryData.filter(s => !(s.year === 2024 && s.month === 10))
@@ -831,41 +845,6 @@ const History = ({ onPrev }) => {
                 シフト詳細
               </div>
               <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant={viewMode === 'calendar' ? 'default' : 'outline'}
-                  onClick={() => setViewMode('calendar')}
-                  className="text-sm"
-                >
-                  <Calendar className="h-4 w-4 mr-1" />
-                  カレンダー
-                </Button>
-                <Button
-                  size="sm"
-                  variant={viewMode === 'staff' ? 'default' : 'outline'}
-                  onClick={() => setViewMode('staff')}
-                  className="text-sm"
-                >
-                  <UsersIcon className="h-4 w-4 mr-1" />
-                  スタッフ実績
-                </Button>
-                <label className="inline-block">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="text-sm cursor-pointer"
-                    as="span"
-                  >
-                    <Upload className="h-4 w-4 mr-1" />
-                    実績インポート
-                  </Button>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleImportActual}
-                    className="hidden"
-                  />
-                </label>
                 {showDiff && diffAnalysis && (
                   <Button
                     size="sm"
@@ -890,62 +869,7 @@ const History = ({ onPrev }) => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            {viewMode === 'calendar' ? (
-              <CalendarView
-                selectedMonth={selectedMonth}
-                calendarData={getCalendarData()}
-                onDayClick={handleDayClick}
-              />
-            ) : viewMode === 'staff' ? (
-              <div className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {getStaffPerformance().map((staff, index) => (
-                    <motion.div
-                      key={staff.name}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                    >
-                      <Card className="border-2 hover:shadow-lg transition-shadow">
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <h3 className="font-bold text-lg text-gray-800">{staff.name}</h3>
-                              <p className="text-sm text-gray-600">{staff.role}</p>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-2xl font-bold text-blue-600">{staff.totalHours}h</div>
-                              <div className="text-xs text-gray-500">{staff.totalDays}日勤務</div>
-                            </div>
-                          </div>
-
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">平日:</span>
-                              <span className="font-medium">{staff.weekdayDays}日</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">土日:</span>
-                              <span className="font-medium">{staff.weekendDays}日</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">平均:</span>
-                              <span className="font-medium">{(staff.totalHours / staff.totalDays).toFixed(1)}h/日</span>
-                            </div>
-                            {staff.modifiedCount > 0 && (
-                              <div className="flex justify-between text-yellow-700">
-                                <span>変更:</span>
-                                <span className="font-medium">{staff.modifiedCount}件</span>
-                              </div>
-                            )}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
-              </div>
-            ) : viewMode === 'diff' && diffAnalysis ? (
+            {viewMode === 'diff' && diffAnalysis ? (
               <div className="space-y-6">
                 {/* サマリー */}
                 <Card className="border-2 border-orange-300 bg-orange-50">
@@ -1047,7 +971,13 @@ const History = ({ onPrev }) => {
                   </div>
                 </div>
               </div>
-            ) : null}
+            ) : (
+              <CalendarView
+                selectedMonth={selectedMonth}
+                calendarData={getCalendarData()}
+                onDayClick={handleDayClick}
+              />
+            )}
           </CardContent>
         </Card>
 
@@ -1099,7 +1029,7 @@ const History = ({ onPrev }) => {
                   ? 'border-blue-500 bg-blue-50'
                   : summary.status === 'first_plan_approved'
                   ? 'border-yellow-500 bg-yellow-50'
-                  : summary.year === 2024 && summary.month === 10
+                  : summary.status === 'completed'
                   ? 'border-green-500 bg-green-50'
                   : 'border-gray-200 hover:border-blue-400'
               }`}
@@ -1118,9 +1048,9 @@ const History = ({ onPrev }) => {
                     <span className="px-2 py-1 text-xs font-bold bg-yellow-600 text-white rounded">
                       仮承認
                     </span>
-                  ) : summary.year === 2024 && summary.month === 10 ? (
+                  ) : summary.status === 'completed' ? (
                     <span className="px-2 py-1 text-xs font-bold bg-green-600 text-white rounded">
-                      承認済
+                      確定済
                     </span>
                   ) : null}
                 </div>

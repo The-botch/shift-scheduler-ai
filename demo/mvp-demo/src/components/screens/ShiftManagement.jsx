@@ -10,8 +10,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Check,
-  Clock
+  Clock,
+  History as HistoryIcon
 } from 'lucide-react'
+import History from './History'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -27,10 +29,11 @@ const pageTransition = {
 
 const ShiftManagement = ({ onNext, onPrev, onCreateShift, shiftStatus }) => {
   const [selectedYear, setSelectedYear] = useState(2024)
+  const [activeTab, setActiveTab] = useState('management') // 'management' or 'history'
+  const [initialHistoryMonth, setInitialHistoryMonth] = useState(null)
 
   // デモ用のシフトデータ（propsからのステータスを反映）
   const shifts = [
-    { month: 9, status: 'completed', createdAt: '2024-08-25', staff: 12, totalHours: 480 },
     {
       month: 10,
       status: shiftStatus?.[10] || 'not_started',
@@ -53,14 +56,31 @@ const ShiftManagement = ({ onNext, onPrev, onCreateShift, shiftStatus }) => {
     return statusMap[status] || statusMap.not_started
   }
 
+  const handleViewShift = (shift) => {
+    // 履歴タブに切り替えて、該当月の詳細を開く
+    setInitialHistoryMonth({ year: 2024, month: shift.month })
+    setActiveTab('history')
+  }
+
+  const handleEditShift = (shift) => {
+    // 第2案作成画面に遷移
+    onCreateShift()
+  }
+
   const getActionButton = (shift) => {
     switch (shift.status) {
       case 'completed':
         return (
-          <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700" onClick={onCreateShift}>
-            <Eye className="h-4 w-4 mr-2" />
-            閲覧・修正
-          </Button>
+          <div className="space-y-2">
+            <Button size="sm" className="w-full bg-blue-600 hover:bg-blue-700" onClick={() => handleViewShift(shift)}>
+              <Eye className="h-4 w-4 mr-2" />
+              閲覧
+            </Button>
+            <Button size="sm" variant="outline" className="w-full" onClick={() => handleEditShift(shift)}>
+              <Edit3 className="h-4 w-4 mr-2" />
+              修正
+            </Button>
+          </div>
         )
       case 'first_plan_approved':
         return (
@@ -108,6 +128,42 @@ const ShiftManagement = ({ onNext, onPrev, onCreateShift, shiftStatus }) => {
         </h1>
         <p className="text-lg text-gray-600">月別シフトの作成・編集・閲覧</p>
       </div>
+
+      {/* タブメニュー */}
+      <div className="flex gap-2 mb-6 border-b border-gray-200">
+        <button
+          onClick={() => setActiveTab('management')}
+          className={`px-6 py-3 font-medium transition-colors relative ${
+            activeTab === 'management'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4" />
+            シフト管理
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('history')}
+          className={`px-6 py-3 font-medium transition-colors relative ${
+            activeTab === 'history'
+              ? 'text-blue-600 border-b-2 border-blue-600'
+              : 'text-gray-600 hover:text-gray-900'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            <HistoryIcon className="h-4 w-4" />
+            シフト作成履歴
+          </div>
+        </button>
+      </div>
+
+      {/* タブコンテンツ */}
+      {activeTab === 'history' ? (
+        <History initialMonth={initialHistoryMonth} />
+      ) : (
+        <div>
 
       {/* 年選択 */}
       <div className="flex items-center justify-center gap-4 mb-8">
@@ -198,32 +254,8 @@ const ShiftManagement = ({ onNext, onPrev, onCreateShift, shiftStatus }) => {
         })}
       </div>
 
-      {/* クイックアクション */}
-      <Card className="mt-8 shadow-lg border-0">
-        <CardHeader>
-          <CardTitle>クイックアクション</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Button variant="outline" className="h-20" onClick={onCreateShift}>
-            <div className="text-center">
-              <Plus className="h-6 w-6 mx-auto mb-1" />
-              <p className="text-sm">新しい月のシフトを作成</p>
-            </div>
-          </Button>
-          <Button variant="outline" className="h-20" onClick={onCreateShift}>
-            <div className="text-center">
-              <Edit3 className="h-6 w-6 mx-auto mb-1" />
-              <p className="text-sm">前月のシフトをコピー</p>
-            </div>
-          </Button>
-          <Button variant="outline" className="h-20" onClick={onCreateShift}>
-            <div className="text-center">
-              <Calendar className="h-6 w-6 mx-auto mb-1" />
-              <p className="text-sm">複数月まとめて作成</p>
-            </div>
-          </Button>
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </motion.div>
   )
 }
