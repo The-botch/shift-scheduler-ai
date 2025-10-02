@@ -7,16 +7,6 @@ import {
   DollarSign,
   Calendar as CalendarIcon,
   Users,
-  ArrowRight,
-  CheckCircle,
-  AlertTriangle,
-  Loader2,
-  Target,
-  Wallet,
-  Scale,
-  Heart,
-  Edit3,
-  History as HistoryIcon,
   FolderOpen,
   ClipboardList,
   Store,
@@ -44,8 +34,6 @@ const pageTransition = {
 
 const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaffManagement, onStoreManagement, onConstraintManagement, onLineMessages, onActualDataImport }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [metrics, setMetrics] = useState([])
-  const [loading, setLoading] = useState(true)
   const [annualSummary, setAnnualSummary] = useState(null)
   const [loadingAnnualSummary, setLoadingAnnualSummary] = useState(true)
 
@@ -58,33 +46,8 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
   }, [])
 
   useEffect(() => {
-    loadMetrics()
     loadAnnualSummary()
   }, [])
-
-  const loadMetrics = async () => {
-    try {
-      setLoading(true)
-      const response = await fetch('/data/dashboard/metrics.csv')
-      const text = await response.text()
-
-      const result = await new Promise((resolve, reject) => {
-        Papa.parse(text, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: resolve,
-          error: reject
-        })
-      })
-
-      setMetrics(result.data)
-    } catch (err) {
-      console.error('メトリクスデータ読み込みエラー:', err)
-    } finally {
-      setLoading(false)
-    }
-  }
 
   const loadAnnualSummary = async () => {
     try {
@@ -184,44 +147,6 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
     return `${year}年${month}月${day}日（${weekday}）`
   }
 
-  const getMetricIcon = (metricId) => {
-    const iconMap = {
-      sales_personnel_fit: Target,
-      cost_impact: Wallet,
-      legal_compliance: Scale,
-      fairness_preference: Heart,
-      manager_adjustment: Edit3
-    }
-    return iconMap[metricId] || TrendingUp
-  }
-
-  const getMetricColor = (status) => {
-    const colorMap = {
-      success: { bg: 'from-green-50 to-green-100', icon: 'bg-green-500', text: 'text-green-900', badge: 'bg-green-100 text-green-800' },
-      warning: { bg: 'from-yellow-50 to-yellow-100', icon: 'bg-yellow-500', text: 'text-yellow-900', badge: 'bg-yellow-100 text-yellow-800' },
-      error: { bg: 'from-red-50 to-red-100', icon: 'bg-red-500', text: 'text-red-900', badge: 'bg-red-100 text-red-800' }
-    }
-    return colorMap[status] || colorMap.warning
-  }
-
-  if (loading) {
-    return (
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-        className="container mx-auto px-4 py-8"
-      >
-        <div className="flex flex-col items-center justify-center min-h-[400px]">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-          <p className="text-lg text-gray-600">データを読み込んでいます...</p>
-        </div>
-      </motion.div>
-    )
-  }
-
   return (
     <motion.div
       initial="initial"
@@ -278,65 +203,6 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
             <span>{formatDate(currentTime)}</span>
           </div>
         </div>
-      </div>
-
-      {/* メトリクスカード */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        {metrics.map((metric, index) => {
-          const Icon = getMetricIcon(metric.metric_id)
-          const colors = getMetricColor(metric.status)
-          const diff = metric.actual - metric.predicted
-          const diffPercent = metric.unit === '%'
-            ? diff.toFixed(1)
-            : ((diff / metric.predicted) * 100).toFixed(1)
-
-          return (
-            <motion.div
-              key={metric.metric_id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Card className={`shadow-lg border-0 bg-gradient-to-br ${colors.bg}`}>
-                <CardContent className="p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-600 mb-2">{metric.metric_name}</p>
-                    </div>
-                    <div className={`w-12 h-12 ${colors.icon} rounded-full flex items-center justify-center flex-shrink-0`}>
-                      <Icon className="h-6 w-6 text-white" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <p className="text-xs text-gray-500 mb-1">予測</p>
-                        <p className="text-2xl font-bold text-gray-700">
-                          {metric.unit === '円' ? `¥${metric.predicted.toLocaleString()}` : `${metric.predicted}${metric.unit}`}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-xs text-gray-500 mb-1">実績</p>
-                        <p className={`text-2xl font-bold ${colors.text}`}>
-                          {metric.unit === '円' ? `¥${metric.actual.toLocaleString()}` : `${metric.actual}${metric.unit}`}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2 border-t border-gray-200">
-                      <span className="text-xs text-gray-600">乖離</span>
-                      <span className={`text-sm font-bold ${diff > 0 && metric.metric_id !== 'cost_impact' ? 'text-red-600' : diff < 0 ? 'text-green-600' : 'text-gray-600'}`}>
-                        {diff > 0 ? '+' : ''}{metric.unit === '円' ? `¥${diff.toLocaleString()}` : `${diff.toFixed(1)}${metric.unit}`}
-                        {metric.unit !== '円' && ` (${diff > 0 ? '+' : ''}${diffPercent}%)`}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )
-        })}
       </div>
 
       {/* 年次予実差分サマリー */}
@@ -433,6 +299,149 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
                   ※ 実績データが登録されている月のみを集計しています。詳細な月別分析は「実績管理」画面から確認できます。
                 </p>
               </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* 2024年着地見込み */}
+      {!loadingAnnualSummary && annualSummary && annualSummary.monthsCount < 12 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="mb-8"
+        >
+          <Card className="shadow-xl border-2 border-purple-300 bg-gradient-to-br from-purple-50 to-indigo-50">
+            <CardHeader className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="h-8 w-8" />
+                  <CardTitle className="text-2xl">2024年 着地見込み</CardTitle>
+                </div>
+                <div className="text-sm bg-white/20 px-3 py-1 rounded-full">
+                  実績{annualSummary.monthsCount}ヶ月 + 予測{12 - annualSummary.monthsCount}ヶ月
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              {(() => {
+                const remainingMonths = 12 - annualSummary.monthsCount
+                const avgShiftsPerMonth = annualSummary.actualShifts / annualSummary.monthsCount
+                const avgHoursPerMonth = annualSummary.actualHours / annualSummary.monthsCount
+                const avgCostPerMonth = annualSummary.actualCost / annualSummary.monthsCount
+
+                const predictedShifts = Math.round(avgShiftsPerMonth * remainingMonths)
+                const predictedHours = avgHoursPerMonth * remainingMonths
+                const predictedCost = Math.round(avgCostPerMonth * remainingMonths)
+
+                const totalShifts = annualSummary.actualShifts + predictedShifts
+                const totalHours = annualSummary.actualHours + predictedHours
+                const totalCost = annualSummary.actualCost + predictedCost
+
+                // 予定との比較
+                const plannedAnnualShifts = Math.round((annualSummary.plannedShifts / annualSummary.monthsCount) * 12)
+                const plannedAnnualHours = (annualSummary.plannedHours / annualSummary.monthsCount) * 12
+                const plannedAnnualCost = Math.round((annualSummary.plannedCost / annualSummary.monthsCount) * 12)
+
+                const shiftDiff = totalShifts - plannedAnnualShifts
+                const hoursDiff = totalHours - plannedAnnualHours
+                const costDiff = totalCost - plannedAnnualCost
+                const costDiffPercent = ((costDiff / plannedAnnualCost) * 100).toFixed(1)
+
+                return (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                      {/* シフト数 */}
+                      <div className="bg-white p-5 rounded-lg shadow-md border-2 border-blue-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <CalendarIcon className="h-5 w-5 text-blue-600" />
+                          <p className="text-sm font-semibold text-gray-600">シフト数（年間）</p>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>実績（{annualSummary.monthsCount}ヶ月）:</span>
+                            <span className="font-bold">{annualSummary.actualShifts.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>予測（{remainingMonths}ヶ月）:</span>
+                            <span className="font-bold">{predictedShifts.toLocaleString()}</span>
+                          </div>
+                          <div className="h-px bg-gray-300 my-2"></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-semibold text-gray-700">着地見込み:</span>
+                            <span className="text-2xl font-bold text-blue-600">{totalShifts.toLocaleString()}</span>
+                          </div>
+                          <div className={`text-xs text-right ${shiftDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                            予定比 {shiftDiff > 0 ? '+' : ''}{shiftDiff.toLocaleString()}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 労働時間 */}
+                      <div className="bg-white p-5 rounded-lg shadow-md border-2 border-purple-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <Clock className="h-5 w-5 text-purple-600" />
+                          <p className="text-sm font-semibold text-gray-600">総労働時間（年間）</p>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>実績（{annualSummary.monthsCount}ヶ月）:</span>
+                            <span className="font-bold">{annualSummary.actualHours.toLocaleString()}h</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>予測（{remainingMonths}ヶ月）:</span>
+                            <span className="font-bold">{predictedHours.toFixed(1)}h</span>
+                          </div>
+                          <div className="h-px bg-gray-300 my-2"></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-semibold text-gray-700">着地見込み:</span>
+                            <span className="text-2xl font-bold text-purple-600">{totalHours.toFixed(1)}h</span>
+                          </div>
+                          <div className={`text-xs text-right ${hoursDiff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            予定比 {hoursDiff > 0 ? '+' : ''}{hoursDiff.toFixed(1)}h
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* 人件費 */}
+                      <div className="bg-white p-5 rounded-lg shadow-md border-2 border-red-200">
+                        <div className="flex items-center gap-2 mb-3">
+                          <DollarSign className="h-5 w-5 text-red-600" />
+                          <p className="text-sm font-semibold text-gray-600">人件費（年間）</p>
+                        </div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>実績（{annualSummary.monthsCount}ヶ月）:</span>
+                            <span className="font-bold">¥{annualSummary.actualCost.toLocaleString()}</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-gray-500">
+                            <span>予測（{remainingMonths}ヶ月）:</span>
+                            <span className="font-bold">¥{predictedCost.toLocaleString()}</span>
+                          </div>
+                          <div className="h-px bg-gray-300 my-2"></div>
+                          <div className="flex justify-between items-center">
+                            <span className="text-sm font-semibold text-gray-700">着地見込み:</span>
+                            <span className="text-2xl font-bold text-red-600">¥{totalCost.toLocaleString()}</span>
+                          </div>
+                          <div className={`text-xs text-right ${costDiff > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                            予定比 {costDiff > 0 ? '+' : ''}¥{costDiff.toLocaleString()} ({costDiffPercent > 0 ? '+' : ''}{costDiffPercent}%)
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                      <p className="text-sm text-purple-800">
+                        <span className="font-bold">予測方法:</span> {annualSummary.monthsCount}ヶ月の実績平均を基に、残り{remainingMonths}ヶ月を予測
+                      </p>
+                      <p className="text-xs text-purple-600 mt-1">
+                        ※ 月平均: シフト{Math.round(avgShiftsPerMonth)}回、労働時間{avgHoursPerMonth.toFixed(1)}h、人件費¥{Math.round(avgCostPerMonth).toLocaleString()}
+                      </p>
+                    </div>
+                  </>
+                )
+              })()}
             </CardContent>
           </Card>
         </motion.div>
