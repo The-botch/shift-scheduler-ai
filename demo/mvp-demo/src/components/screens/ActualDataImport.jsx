@@ -114,6 +114,10 @@ const ActualDataImport = () => {
     try {
       setImporting(true)
 
+      // 現在の月（デモでは2024年10月として固定）
+      const currentYear = 2024
+      const currentMonth = 10
+
       // 労働時間実績CSVをロード
       const workHoursResponse = await fetch('/data/actual/work_hours_2024.csv')
       const workHoursText = await workHoursResponse.text()
@@ -122,8 +126,14 @@ const ActualDataImport = () => {
         header: true,
         skipEmptyLines: true,
         complete: (result) => {
-          setWorkHoursData(result.data)
-          setWorkHoursPreview(result.data.slice(0, 5))
+          // 現在月以前のデータのみをフィルタ
+          const filteredData = result.data.filter(row => {
+            const year = parseInt(row.year)
+            const month = parseInt(row.month)
+            return year < currentYear || (year === currentYear && month <= currentMonth)
+          })
+          setWorkHoursData(filteredData)
+          setWorkHoursPreview(filteredData.slice(0, 5))
           setWorkHoursFile({ name: 'work_hours_2024.csv (サンプル)' })
         }
       })
@@ -136,8 +146,14 @@ const ActualDataImport = () => {
         header: true,
         skipEmptyLines: true,
         complete: (result) => {
-          setPayrollData(result.data)
-          setPayrollPreview(result.data.slice(0, 5))
+          // 現在月以前のデータのみをフィルタ
+          const filteredData = result.data.filter(row => {
+            const year = parseInt(row.year)
+            const month = parseInt(row.month)
+            return year < currentYear || (year === currentYear && month <= currentMonth)
+          })
+          setPayrollData(filteredData)
+          setPayrollPreview(filteredData.slice(0, 5))
           setPayrollFile({ name: 'payroll_2024.csv (サンプル)' })
         }
       })
@@ -160,6 +176,26 @@ const ActualDataImport = () => {
       setImportStatus(prev => ({
         ...prev,
         workHours: { status: 'error', message: 'データがありません' }
+      }))
+      return
+    }
+
+    // 現在の月チェック（デモでは2024年10月として固定）
+    const currentYear = 2024
+    const currentMonth = 10
+
+    // 未来のデータが含まれていないかチェック
+    const futureData = workHoursData.filter(row => {
+      const year = parseInt(row.year)
+      const month = parseInt(row.month)
+      return year > currentYear || (year === currentYear && month > currentMonth)
+    })
+
+    if (futureData.length > 0) {
+      alert(`未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`)
+      setImportStatus(prev => ({
+        ...prev,
+        workHours: { status: 'error', message: '未来のデータが含まれています' }
       }))
       return
     }
@@ -221,6 +257,26 @@ const ActualDataImport = () => {
       setImportStatus(prev => ({
         ...prev,
         payroll: { status: 'error', message: 'データがありません' }
+      }))
+      return
+    }
+
+    // 現在の月チェック（デモでは2024年10月として固定）
+    const currentYear = 2024
+    const currentMonth = 10
+
+    // 未来のデータが含まれていないかチェック
+    const futureData = payrollData.filter(row => {
+      const year = parseInt(row.year)
+      const month = parseInt(row.month)
+      return year > currentYear || (year === currentYear && month > currentMonth)
+    })
+
+    if (futureData.length > 0) {
+      alert(`未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`)
+      setImportStatus(prev => ({
+        ...prev,
+        payroll: { status: 'error', message: '未来のデータが含まれています' }
       }))
       return
     }
@@ -329,8 +385,31 @@ const ActualDataImport = () => {
       const actualShifts = await getActualShifts(monthData.year, monthData.month)
       const actualPayroll = await getPayroll(monthData.year, monthData.month)
 
+      // 実績データが本当に存在するか確認
+      if (actualShifts.length === 0) {
+        alert('労働時間実績データがありません。')
+        setSelectedMonth(null)
+        setLoading(false)
+        return
+      }
+
+      if (actualPayroll.length === 0) {
+        alert('給与明細データがありません。')
+        setSelectedMonth(null)
+        setLoading(false)
+        return
+      }
+
       // 予定シフトデータを取得（Historyから）
       const plannedShifts = await loadPlannedShifts(monthData.year, monthData.month)
+
+      // 予定データが存在するか確認
+      if (plannedShifts.length === 0) {
+        alert('予定シフトデータがありません。この月のシフト作成履歴が見つかりませんでした。')
+        setSelectedMonth(null)
+        setLoading(false)
+        return
+      }
 
       // 差分を分析
       const analysis = analyzeDifference(plannedShifts, actualShifts, actualPayroll)
