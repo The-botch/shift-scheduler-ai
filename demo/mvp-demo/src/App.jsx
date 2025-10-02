@@ -370,6 +370,8 @@ function App() {
           onStaffManagement={goToStaffManagement}
           onStoreManagement={goToStoreManagement}
           onConstraintManagement={goToConstraintManagement}
+          onLineMessages={goToLineMessages}
+          onActualDataImport={goToActualDataImport}
         />
       case 2:
         return <SecondPlan onNext={approveSecondPlan} onPrev={prevStep} onMarkUnsaved={() => setHasUnsavedChanges(true)} onMarkSaved={() => setHasUnsavedChanges(false)} />
@@ -382,6 +384,8 @@ function App() {
           onStaffManagement={goToStaffManagement}
           onStoreManagement={goToStoreManagement}
           onConstraintManagement={goToConstraintManagement}
+          onLineMessages={goToLineMessages}
+          onActualDataImport={goToActualDataImport}
         />
     }
   }
@@ -422,14 +426,14 @@ function App() {
             className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
           >
             <MessageSquare className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">メッセージ</span>
+            <span className="font-medium text-gray-800">メッセージ管理</span>
           </button>
           <button
             onClick={goToMonitoring}
             className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
           >
             <ClipboardList className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">希望回収状況</span>
+            <span className="font-medium text-gray-800">シフト希望管理</span>
           </button>
           <button
             onClick={goToStaffManagement}

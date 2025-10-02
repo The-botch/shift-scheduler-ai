@@ -262,9 +262,9 @@ const Monitoring = ({ onNext, onPrev }) => {
     >
       <div className="mb-8">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-          希望回収モニタリング
+          シフト希望管理
         </h1>
-        <p className="text-lg text-gray-600">スタッフの希望提出状況を監視</p>
+        <p className="text-lg text-gray-600">スタッフの希望提出状況を管理</p>
       </div>
 
       {/* 統計カード */}

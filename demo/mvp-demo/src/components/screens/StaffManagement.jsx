@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import { Users, Download, Upload, X, DollarSign, Clock, TrendingUp, Calendar, Award, FileText } from 'lucide-react'
+import { Users, X, DollarSign, Clock, TrendingUp, Calendar, Award, FileText, Edit3 } from 'lucide-react'
 import Papa from 'papaparse'
-import { exportCSV, importCSV, validateStaffCSV, generateFilename } from '../../utils/csvHelper'
+import { validateStaffCSV } from '../../utils/csvHelper'
 import { calculatePayslip } from '../../utils/salaryCalculator'
+import { getStaffWorkHistory, getStaffPayrollHistory } from '../../utils/indexedDB'
+import CSVActions from '../shared/CSVActions'
 
 const StaffManagement = () => {
   const [staffList, setStaffList] = useState([])
@@ -19,6 +21,7 @@ const StaffManagement = () => {
   const [taxBrackets, setTaxBrackets] = useState([])
   const [commuteAllowances, setCommuteAllowances] = useState([])
   const [payslips, setPayslips] = useState({})
+  const [showMasters, setShowMasters] = useState(false)
 
   useEffect(() => {
     loadData()
@@ -62,12 +65,12 @@ const StaffManagement = () => {
       const commuteAllowancesText = await commuteAllowancesResponse.text()
       const commuteAllowancesParsed = Papa.parse(commuteAllowancesText, { header: true, skipEmptyLines: true })
 
-      // Load shift_history_2023-2024.csv for performance data (全期間実績)
+      // Load shift_history_2023-2024.csv for performance data (全期間シフト履歴)
       const shiftsResponse = await fetch('/data/history/shift_history_2023-2024.csv')
       const shiftsText = await shiftsResponse.text()
       const shiftsParsed = Papa.parse(shiftsText, { header: true, skipEmptyLines: true })
 
-      // スタッフ別実績を集計
+      // スタッフ別シフト履歴を集計
       const performanceMap = {}
       shiftsParsed.data.forEach(shift => {
         const staffName = shift.staff_name
@@ -142,6 +145,43 @@ const StaffManagement = () => {
         }
       })
 
+      // IndexedDBから2024年実績データを取得して追加
+      const { openDB } = await import('../../utils/indexedDB')
+      await openDB()
+
+      // 各スタッフの実績データをIndexedDBから取得
+      for (const staff of staffParsed.data) {
+        try {
+          const workHistory = await getStaffWorkHistory(staff.staff_id)
+          const payrollHistory = await getStaffPayrollHistory(staff.staff_id)
+
+          if (workHistory.length > 0 || payrollHistory.length > 0) {
+            // 実績データがある場合はperformanceMapに追加情報として保存
+            if (!performanceMap[staff.name]) {
+              performanceMap[staff.name] = {
+                totalDays: 0,
+                totalHours: 0,
+                totalWage: 0,
+                weekdayDays: 0,
+                weekendDays: 0,
+                earlyShifts: 0,
+                lateShifts: 0,
+                modifiedCount: 0,
+                shifts: [],
+                monthlyStats: {}
+              }
+            }
+
+            performanceMap[staff.name].actualData = {
+              workHistory,
+              payrollHistory
+            }
+          }
+        } catch (err) {
+          console.log(`実績データ取得エラー (${staff.name}):`, err)
+        }
+      }
+
       setStaffList(staffParsed.data)
       setRoles(rolesParsed.data)
       setEmploymentTypes(employmentTypesParsed.data)
@@ -189,38 +229,6 @@ const StaffManagement = () => {
     return typeMap[employmentType] || employmentType
   }
 
-  const handleExportCSV = () => {
-    const result = exportCSV(staffList, generateFilename('staff'))
-    if (result.success) {
-      alert('✅ CSVファイルをエクスポートしました')
-    } else {
-      alert(`❌ エクスポートに失敗しました: ${result.error}`)
-    }
-  }
-
-  const handleImportCSV = (event) => {
-    const file = event.target.files[0]
-    if (!file) return
-
-    if (!window.confirm('既存のスタッフデータを上書きします。よろしいですか？')) {
-      event.target.value = '' // リセット
-      return
-    }
-
-    importCSV(
-      file,
-      (data) => {
-        setStaffList(data)
-        alert(`✅ ${data.length}件のスタッフデータをインポートしました`)
-        event.target.value = '' // リセット
-      },
-      (error) => {
-        alert(`❌ インポートエラー:\n${error}`)
-        event.target.value = '' // リセット
-      },
-      validateStaffCSV
-    )
-  }
 
   if (loading) {
     return (
@@ -229,6 +237,497 @@ const StaffManagement = () => {
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
           <p className="text-gray-600">データを読み込み中...</p>
         </div>
+      </div>
+    )
+  }
+
+  // スタッフ詳細画面
+  if (selectedStaff) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card className="shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="text-2xl mb-2">{selectedStaff.name}</CardTitle>
+                  <p className="text-sm text-blue-100">{selectedStaff.staff_code} · {getRoleName(selectedStaff.role_id)}</p>
+                </div>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setSelectedStaff(null)}
+                  className="bg-white text-blue-700 hover:bg-gray-100"
+                >
+                  <X className="h-4 w-4 mr-2" />
+                  戻る
+                </Button>
+              </div>
+            </CardHeader>
+
+            <CardContent className="p-6 space-y-6">
+              {/* 基本情報 */}
+              <div>
+                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <Users className="h-5 w-5 text-blue-600" />
+                  基本情報
+                </h3>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-gray-600">フリガナ</div>
+                    <div className="font-medium">{selectedStaff.name_kana}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-600">雇用形態</div>
+                    <div className="font-medium">
+                      {getEmploymentTypeName(selectedStaff.employment_type)}
+                    </div>
+                  </div>
+                  <div>
+                    <div className="text-gray-600">入社日</div>
+                    <div className="font-medium">{selectedStaff.hire_date}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-600">メールアドレス</div>
+                    <div className="font-medium text-blue-600">{selectedStaff.email}</div>
+                  </div>
+                  <div>
+                    <div className="text-gray-600">電話番号</div>
+                    <div className="font-medium">{selectedStaff.phone_number}</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 給与情報 */}
+              <div>
+                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <DollarSign className="h-5 w-5 text-green-600" />
+                  給与情報
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  {selectedStaff.employment_type === 'monthly' && (
+                    <Card className="bg-green-50 border-green-200">
+                      <CardContent className="p-4">
+                        <div className="text-sm text-green-700 mb-1">月給</div>
+                        <div className="text-2xl font-bold text-green-800">
+                          ¥{parseInt(selectedStaff.monthly_salary || 0).toLocaleString()}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {selectedStaff.employment_type === 'hourly' && (
+                    <Card className="bg-green-50 border-green-200">
+                      <CardContent className="p-4">
+                        <div className="text-sm text-green-700 mb-1">時給</div>
+                        <div className="text-2xl font-bold text-green-800">
+                          ¥{parseInt(selectedStaff.hourly_rate || 0).toLocaleString()}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  {selectedStaff.employment_type === 'contract' && (
+                    <Card className="bg-green-50 border-green-200">
+                      <CardContent className="p-4">
+                        <div className="text-sm text-green-700 mb-1">契約料</div>
+                        <div className="text-2xl font-bold text-green-800">
+                          ¥{parseInt(selectedStaff.contract_fee || 0).toLocaleString()}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  <Card className="bg-blue-50 border-blue-200">
+                    <CardContent className="p-4">
+                      <div className="text-sm text-blue-700 mb-1">日当換算</div>
+                      <div className="text-2xl font-bold text-blue-800">
+                        ¥{parseInt(selectedStaff.daily_cost || 0).toLocaleString()}
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
+              {/* 労働時間制限 */}
+              <div>
+                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <Clock className="h-5 w-5 text-purple-600" />
+                  労働時間制限
+                </h3>
+                <div className="grid grid-cols-3 gap-4">
+                  <Card className="border-2">
+                    <CardContent className="p-4 text-center">
+                      <div className="text-sm text-gray-600 mb-1">週最大時間</div>
+                      <div className="text-3xl font-bold text-purple-600">{selectedStaff.max_hours_per_week}h</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2">
+                    <CardContent className="p-4 text-center">
+                      <div className="text-sm text-gray-600 mb-1">週最小時間</div>
+                      <div className="text-3xl font-bold text-gray-600">{selectedStaff.min_hours_per_week}h</div>
+                    </CardContent>
+                  </Card>
+                  <Card className="border-2">
+                    <CardContent className="p-4 text-center">
+                      <div className="text-sm text-gray-600 mb-1">最大連続勤務</div>
+                      <div className="text-3xl font-bold text-orange-600">{selectedStaff.max_consecutive_days}日</div>
+                    </CardContent>
+                  </Card>
+                </div>
+              </div>
+
+              {/* スキル情報 */}
+              <div>
+                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <Award className="h-5 w-5 text-yellow-600" />
+                  スキル情報
+                </h3>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-600">スキルレベル:</span>
+                  <div className="flex items-center gap-1">
+                    {[...Array(5)].map((_, i) => (
+                      <div
+                        key={i}
+                        className={`w-3 h-3 rounded-full ${
+                          i < parseInt(selectedStaff.skill_level) ? 'bg-yellow-400' : 'bg-gray-200'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <span className="font-bold text-lg">{selectedStaff.skill_level}/5</span>
+                </div>
+              </div>
+
+              {/* 全期間実績 */}
+              {staffPerformance[selectedStaff.name] && (() => {
+                // 総給与の計算: 正社員・業務委託は固定給×月数、時給制のみ実績ベース
+                const monthCount = Object.keys(staffPerformance[selectedStaff.name].monthlyStats).length
+                let totalWage = 0
+                let avgDailyWage = 0
+
+                if (selectedStaff.employment_type === 'monthly') {
+                  totalWage = parseInt(selectedStaff.monthly_salary || 0) * monthCount
+                  avgDailyWage = Math.round(totalWage / staffPerformance[selectedStaff.name].totalDays)
+                } else if (selectedStaff.employment_type === 'contract') {
+                  totalWage = parseInt(selectedStaff.contract_fee || 0) * monthCount
+                  avgDailyWage = Math.round(totalWage / staffPerformance[selectedStaff.name].totalDays)
+                } else if (selectedStaff.employment_type === 'hourly') {
+                  totalWage = Math.round(staffPerformance[selectedStaff.name].totalHours * parseInt(selectedStaff.hourly_rate || 0))
+                  avgDailyWage = Math.round(totalWage / staffPerformance[selectedStaff.name].totalDays)
+                }
+
+                return (
+                  <div>
+                    <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                      <TrendingUp className="h-5 w-5 text-blue-600" />
+                      労働実績（2023年11月〜2024年10月）
+                    </h3>
+
+                    {/* サマリー */}
+                    <div className="grid grid-cols-3 gap-4 mb-4">
+                      <Card className="bg-blue-50 border-blue-200">
+                        <CardContent className="p-4 text-center">
+                          <div className="text-sm text-blue-700 mb-1">総勤務日数</div>
+                          <div className="text-3xl font-bold text-blue-800">
+                            {staffPerformance[selectedStaff.name].totalDays}日
+                          </div>
+                          <div className="text-xs text-blue-600 mt-1">
+                            平日{staffPerformance[selectedStaff.name].weekdayDays}日 / 土日{staffPerformance[selectedStaff.name].weekendDays}日
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card className="bg-purple-50 border-purple-200">
+                        <CardContent className="p-4 text-center">
+                          <div className="text-sm text-purple-700 mb-1">総労働時間</div>
+                          <div className="text-3xl font-bold text-purple-800">
+                            {staffPerformance[selectedStaff.name].totalHours.toFixed(1)}h
+                          </div>
+                          <div className="text-xs text-purple-600 mt-1">
+                            平均 {(staffPerformance[selectedStaff.name].totalHours / staffPerformance[selectedStaff.name].totalDays).toFixed(1)}h/日
+                          </div>
+                        </CardContent>
+                      </Card>
+                      <Card className="bg-green-50 border-green-200">
+                        <CardContent className="p-4 text-center">
+                          <div className="text-sm text-green-700 mb-1">総給与</div>
+                          <div className="text-2xl font-bold text-green-800">
+                            ¥{totalWage.toLocaleString()}
+                          </div>
+                          <div className="text-xs text-green-600 mt-1">
+                            {selectedStaff.employment_type === 'hourly' ? '平均 ' : ''}
+                            ¥{avgDailyWage.toLocaleString()}/日
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+
+                  {/* 詳細実績 */}
+                  <div className="grid grid-cols-2 gap-4 mb-4">
+                    <Card className="border-2">
+                      <CardContent className="p-4">
+                        <div className="text-sm text-gray-600 mb-2">シフト内訳</div>
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span>早番（午前開始）:</span>
+                            <span className="font-bold text-orange-600">{staffPerformance[selectedStaff.name].earlyShifts}回</span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span>遅番（午後開始）:</span>
+                            <span className="font-bold text-blue-600">{staffPerformance[selectedStaff.name].lateShifts}回</span>
+                          </div>
+                          {staffPerformance[selectedStaff.name].modifiedCount > 0 && (
+                            <div className="flex justify-between text-sm">
+                              <span>変更されたシフト:</span>
+                              <span className="font-bold text-yellow-600">{staffPerformance[selectedStaff.name].modifiedCount}回</span>
+                            </div>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+
+                    <Card className="border-2">
+                      <CardContent className="p-4">
+                        <div className="text-sm text-gray-600 mb-2">給与情報</div>
+                        <div className="space-y-2">
+                          {selectedStaff.employment_type === 'monthly' && (
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <span>月給:</span>
+                                <span className="font-bold">¥{parseInt(selectedStaff.monthly_salary || 0).toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span>平均時給換算:</span>
+                                <span className="font-bold">¥{Math.round(parseInt(selectedStaff.monthly_salary || 0) / 160).toLocaleString()}</span>
+                              </div>
+                            </>
+                          )}
+                          {selectedStaff.employment_type === 'contract' && (
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <span>業務委託料:</span>
+                                <span className="font-bold">¥{parseInt(selectedStaff.contract_fee || 0).toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span>平均時給換算:</span>
+                                <span className="font-bold">¥{Math.round(parseInt(selectedStaff.contract_fee || 0) / 160).toLocaleString()}</span>
+                              </div>
+                            </>
+                          )}
+                          {selectedStaff.employment_type === 'hourly' && (
+                            <>
+                              <div className="flex justify-between text-sm">
+                                <span>時給:</span>
+                                <span className="font-bold">¥{parseInt(selectedStaff.hourly_rate || 0).toLocaleString()}</span>
+                              </div>
+                              <div className="flex justify-between text-sm">
+                                <span>平均月収:</span>
+                                <span className="font-bold">¥{Math.round(totalWage / monthCount).toLocaleString()}</span>
+                              </div>
+                            </>
+                          )}
+                          <div className="flex justify-between text-sm">
+                            <span>週平均時間:</span>
+                            <span className="font-bold">{(staffPerformance[selectedStaff.name].totalHours / monthCount / 4.3).toFixed(1)}h</span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+
+                  {/* 月別実績サマリー */}
+                  <div className="mb-4">
+                    <h4 className="text-sm font-bold text-gray-700 mb-2">月別実績</h4>
+                    <div className="max-h-60 overflow-y-auto border rounded-lg">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">年月</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">勤務日数</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">総時間</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">給与</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                          {Object.entries(staffPerformance[selectedStaff.name].monthlyStats)
+                            .sort((a, b) => a[0].localeCompare(b[0]))
+                            .map(([monthKey, stats]) => {
+                              // 給与計算: 正社員・業務委託は固定給、時給制のみ実績ベース
+                              let monthlySalary = 0
+                              if (selectedStaff.employment_type === 'monthly') {
+                                monthlySalary = parseInt(selectedStaff.monthly_salary || 0)
+                              } else if (selectedStaff.employment_type === 'contract') {
+                                monthlySalary = parseInt(selectedStaff.contract_fee || 0)
+                              } else if (selectedStaff.employment_type === 'hourly') {
+                                monthlySalary = Math.round(stats.hours * parseInt(selectedStaff.hourly_rate || 0))
+                              }
+
+                              return (
+                                <tr key={monthKey} className="hover:bg-gray-50">
+                                  <td className="px-3 py-2 font-medium">{monthKey}</td>
+                                  <td className="px-3 py-2 text-right">{stats.days}日</td>
+                                  <td className="px-3 py-2 text-right">{stats.hours.toFixed(1)}h</td>
+                                  <td className="px-3 py-2 text-right font-medium text-green-700">
+                                    ¥{monthlySalary.toLocaleString()}
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  {/* 給与明細（2023年11月〜2024年10月） */}
+                  {payslips[selectedStaff.name] && (
+                    <div>
+                      <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                        <FileText className="h-5 w-5 text-green-600" />
+                        給与明細（2023年11月〜2024年10月）
+                      </h3>
+                      <Card className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200">
+                        <CardContent className="p-6">
+                          <div className="grid grid-cols-2 gap-6">
+                            {/* 支給 */}
+                            <div>
+                              <h4 className="font-bold text-green-800 mb-3 border-b-2 border-green-300 pb-2">支給</h4>
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-700">
+                                    {selectedStaff.employment_type === 'monthly' && '月給'}
+                                    {selectedStaff.employment_type === 'hourly' && '時給×時間'}
+                                    {selectedStaff.employment_type === 'contract' && '業務委託料'}
+                                  </span>
+                                  <span className="font-bold">¥{payslips[selectedStaff.name].grossSalary.toLocaleString()}</span>
+                                </div>
+                                {selectedStaff.employment_type === 'hourly' && (
+                                  <div className="flex justify-between text-xs text-gray-500">
+                                    <span>（¥{selectedStaff.hourly_rate} × {payslips[selectedStaff.name].workHours.toFixed(1)}h）</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-700">
+                                    交通費
+                                    {(selectedStaff.employment_type === 'monthly' || selectedStaff.employment_type === 'contract') && '（定額）'}
+                                    {selectedStaff.employment_type === 'hourly' && `（${payslips[selectedStaff.name].workDays}日分）`}
+                                  </span>
+                                  <span className="font-bold">¥{payslips[selectedStaff.name].commuteAllowance.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-base border-t pt-2 mt-2">
+                                  <span className="font-bold text-green-800">総支給額</span>
+                                  <span className="font-bold text-green-800 text-lg">¥{payslips[selectedStaff.name].totalGross.toLocaleString()}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* 控除 */}
+                            <div>
+                              <h4 className="font-bold text-red-800 mb-3 border-b-2 border-red-300 pb-2">控除</h4>
+                              <div className="space-y-2">
+                                {payslips[selectedStaff.name].socialInsurance.healthInsurance > 0 && (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-700">健康保険</span>
+                                    <span className="font-medium text-red-700">¥{payslips[selectedStaff.name].socialInsurance.healthInsurance.toLocaleString()}</span>
+                                  </div>
+                                )}
+                                {payslips[selectedStaff.name].socialInsurance.pension > 0 && (
+                                  <div className="flex justify-between text-sm">
+                                    <span className="text-gray-700">厚生年金</span>
+                                    <span className="font-medium text-red-700">¥{payslips[selectedStaff.name].socialInsurance.pension.toLocaleString()}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-700">雇用保険</span>
+                                  <span className="font-medium text-red-700">¥{payslips[selectedStaff.name].socialInsurance.employmentInsurance.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-700">所得税</span>
+                                  <span className="font-medium text-red-700">¥{payslips[selectedStaff.name].incomeTax.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-gray-700">住民税</span>
+                                  <span className="font-medium text-red-700">¥{payslips[selectedStaff.name].residentTax.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-base border-t pt-2 mt-2">
+                                  <span className="font-bold text-red-800">控除合計</span>
+                                  <span className="font-bold text-red-800">¥{payslips[selectedStaff.name].totalDeductions.toLocaleString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* 差引支給額 */}
+                          <div className="mt-6 pt-4 border-t-2 border-blue-300">
+                            <div className="flex justify-between items-center">
+                              <span className="text-xl font-bold text-blue-900">差引支給額</span>
+                              <span className="text-3xl font-bold text-blue-900">¥{payslips[selectedStaff.name].netSalary.toLocaleString()}</span>
+                            </div>
+                          </div>
+
+                          {/* 勤務情報 */}
+                          <div className="mt-4 pt-4 border-t border-gray-300 grid grid-cols-2 gap-4 text-sm text-gray-600">
+                            <div>勤務日数: <span className="font-bold">{payslips[selectedStaff.name].workDays}日</span></div>
+                            <div>勤務時間: <span className="font-bold">{payslips[selectedStaff.name].workHours.toFixed(1)}時間</span></div>
+                            <div>通勤距離: <span className="font-bold">{selectedStaff.commute_distance_km}km</span></div>
+                            <div>社会保険: <span className="font-bold">{selectedStaff.has_social_insurance === 'TRUE' ? '加入' : '未加入'}</span></div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </div>
+                  )}
+
+                  {/* シフト詳細リスト（最新100件） */}
+                  <div>
+                    <h4 className="text-sm font-bold text-gray-700 mb-2">最近のシフト詳細（最新100件）</h4>
+                    <div className="max-h-60 overflow-y-auto border rounded-lg">
+                      <table className="min-w-full text-sm">
+                        <thead className="bg-gray-50 sticky top-0">
+                          <tr>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">日付</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">曜日</th>
+                            <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">時間</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">勤務時間</th>
+                            <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">給与</th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-100">
+                          {staffPerformance[selectedStaff.name].shifts
+                            .sort((a, b) => {
+                              // 年月日でソート（降順 - 新しい順）
+                              const dateA = `${a.year}-${String(a.month).padStart(2, '0')}-${String(a.date).padStart(2, '0')}`
+                              const dateB = `${b.year}-${String(b.month).padStart(2, '0')}-${String(b.date).padStart(2, '0')}`
+                              return dateB.localeCompare(dateA)
+                            })
+                            .map((shift, idx) => (
+                              <tr key={idx} className="hover:bg-gray-50">
+                                <td className="px-3 py-2">{shift.year}/{shift.month}/{shift.date}</td>
+                                <td className="px-3 py-2">
+                                  <span className={`${
+                                    shift.dayOfWeek === '土' || shift.dayOfWeek === '日'
+                                      ? 'text-blue-600 font-semibold'
+                                      : 'text-gray-600'
+                                  }`}>
+                                    {shift.dayOfWeek}
+                                  </span>
+                                </td>
+                                <td className="px-3 py-2 text-gray-700">{shift.startTime} - {shift.endTime}</td>
+                                <td className="px-3 py-2 text-right font-medium">{shift.hours}h</td>
+                                <td className="px-3 py-2 text-right font-medium text-green-700">
+                                  ¥{Math.round(shift.wage).toLocaleString()}
+                                </td>
+                              </tr>
+                            ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     )
   }
@@ -251,96 +750,90 @@ const StaffManagement = () => {
                 <Button
                   size="sm"
                   variant="secondary"
-                  onClick={handleExportCSV}
+                  onClick={() => setShowMasters(!showMasters)}
                   className="bg-white text-blue-700 hover:bg-gray-100"
                 >
-                  <Download className="h-4 w-4 mr-2" />
-                  CSVエクスポート
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  マスター編集
                 </Button>
-                <label>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    as="span"
-                    className="bg-white text-blue-700 hover:bg-gray-100 cursor-pointer"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    CSVインポート
-                  </Button>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleImportCSV}
-                    className="hidden"
-                  />
-                </label>
+                <CSVActions
+                  data={staffList}
+                  filename="staff"
+                  onImport={setStaffList}
+                  validateFunction={validateStaffCSV}
+                  importConfirmMessage="既存のスタッフデータを上書きします。よろしいですか？"
+                />
               </div>
             </div>
           </CardHeader>
 
           <CardContent className="p-6">
-            {/* 役職一覧 */}
-            <div className="mb-8">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <div className="w-1 h-6 bg-blue-600 rounded"></div>
-                役職マスタ
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {roles.map((role) => (
-                  <Card key={role.role_id} className="border-2 hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="font-bold text-lg mb-1">{role.role_name}</div>
-                      <div className="text-sm text-gray-600">{role.role_code}</div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+            {showMasters ? (
+              /* マスター編集セクション */
+              <>
+                {/* 役職一覧 */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <div className="w-1 h-6 bg-blue-600 rounded"></div>
+                    役職マスタ
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {roles.map((role) => (
+                      <Card key={role.role_id} className="border-2 hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="font-bold text-lg mb-1">{role.role_name}</div>
+                          <div className="text-sm text-gray-600">{role.role_code}</div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
 
-            {/* 雇用形態一覧 */}
-            <div className="mb-8">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <div className="w-1 h-6 bg-purple-600 rounded"></div>
-                雇用形態マスタ
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                {employmentTypes.map((type) => (
-                  <Card key={type.employment_type_id} className="border-2 hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="font-bold text-lg mb-1">{type.employment_name}</div>
-                      <div className="text-sm text-gray-600">{type.employment_code}</div>
-                      <div className="text-xs text-gray-500 mt-2">
-                        {type.payment_type === 'monthly' && '月給制'}
-                        {type.payment_type === 'hourly' && '時給制'}
-                        {type.payment_type === 'contract' && '委託契約'}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
+                {/* 雇用形態一覧 */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <div className="w-1 h-6 bg-purple-600 rounded"></div>
+                    雇用形態マスタ
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                    {employmentTypes.map((type) => (
+                      <Card key={type.employment_type_id} className="border-2 hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="font-bold text-lg mb-1">{type.employment_name}</div>
+                          <div className="text-sm text-gray-600">{type.employment_code}</div>
+                          <div className="text-xs text-gray-500 mt-2">
+                            {type.payment_type === 'monthly' && '月給制'}
+                            {type.payment_type === 'hourly' && '時給制'}
+                            {type.payment_type === 'contract' && '委託契約'}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
 
-            {/* スキル一覧 */}
-            <div className="mb-8">
-              <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                <div className="w-1 h-6 bg-green-600 rounded"></div>
-                スキルマスタ
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {skills.map((skill) => (
-                  <Card key={skill.skill_id} className="border-2 hover:shadow-md transition-shadow">
-                    <CardContent className="p-4">
-                      <div className="font-bold text-lg mb-1">{skill.skill_name}</div>
-                      <div className="text-sm text-gray-600">{skill.skill_code}</div>
-                      <div className="text-xs text-gray-500 mt-2">{skill.description}</div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            </div>
-
-            {/* スタッフ一覧テーブル */}
-            <div>
+                {/* スキル一覧 */}
+                <div className="mb-8">
+                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                    <div className="w-1 h-6 bg-green-600 rounded"></div>
+                    スキルマスタ
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {skills.map((skill) => (
+                      <Card key={skill.skill_id} className="border-2 hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="font-bold text-lg mb-1">{skill.skill_name}</div>
+                          <div className="text-sm text-gray-600">{skill.skill_code}</div>
+                          <div className="text-xs text-gray-500 mt-2">{skill.description}</div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </>
+            ) : (
+              /* スタッフ一覧テーブル */
+              <div>
               <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                 <div className="w-1 h-6 bg-orange-600 rounded"></div>
                 スタッフ一覧 ({staffList.length}名)
@@ -404,502 +897,9 @@ const StaffManagement = () => {
                 </table>
               </div>
             </div>
+            )}
           </CardContent>
         </Card>
-
-        {/* スタッフ詳細モーダル */}
-        <AnimatePresence>
-          {selectedStaff && (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 flex items-center justify-center z-50 p-4"
-              onClick={() => setSelectedStaff(null)}
-            >
-              <motion.div
-                initial={{ scale: 0.9, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                exit={{ scale: 0.9, opacity: 0 }}
-                className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-4 flex items-center justify-between">
-                  <div>
-                    <h2 className="text-2xl font-bold">{selectedStaff.name}</h2>
-                    <p className="text-sm text-blue-100">{selectedStaff.staff_code} · {getRoleName(selectedStaff.role_id)}</p>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setSelectedStaff(null)}
-                    className="text-white hover:bg-blue-800"
-                  >
-                    <X className="h-5 w-5" />
-                  </Button>
-                </div>
-
-                <div className="p-6 space-y-6">
-                  {/* 基本情報 */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                      <Users className="h-5 w-5 text-blue-600" />
-                      基本情報
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4 text-sm">
-                      <div>
-                        <div className="text-gray-600">フリガナ</div>
-                        <div className="font-medium">{selectedStaff.name_kana}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-600">雇用形態</div>
-                        <div className="font-medium">
-                          {getEmploymentTypeName(selectedStaff.employment_type)}
-                        </div>
-                      </div>
-                      <div>
-                        <div className="text-gray-600">入社日</div>
-                        <div className="font-medium">{selectedStaff.hire_date}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-600">メールアドレス</div>
-                        <div className="font-medium text-blue-600">{selectedStaff.email}</div>
-                      </div>
-                      <div>
-                        <div className="text-gray-600">電話番号</div>
-                        <div className="font-medium">{selectedStaff.phone_number}</div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 給与情報 */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                      <DollarSign className="h-5 w-5 text-green-600" />
-                      給与情報
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {selectedStaff.employment_type === 'monthly' && (
-                        <Card className="bg-green-50 border-green-200">
-                          <CardContent className="p-4">
-                            <div className="text-sm text-green-700 mb-1">月給</div>
-                            <div className="text-2xl font-bold text-green-800">
-                              ¥{parseInt(selectedStaff.monthly_salary || 0).toLocaleString()}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                      {selectedStaff.employment_type === 'hourly' && (
-                        <Card className="bg-green-50 border-green-200">
-                          <CardContent className="p-4">
-                            <div className="text-sm text-green-700 mb-1">時給</div>
-                            <div className="text-2xl font-bold text-green-800">
-                              ¥{parseInt(selectedStaff.hourly_rate || 0).toLocaleString()}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                      {selectedStaff.employment_type === 'contract' && (
-                        <Card className="bg-green-50 border-green-200">
-                          <CardContent className="p-4">
-                            <div className="text-sm text-green-700 mb-1">契約料</div>
-                            <div className="text-2xl font-bold text-green-800">
-                              ¥{parseInt(selectedStaff.contract_fee || 0).toLocaleString()}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      )}
-                      <Card className="bg-blue-50 border-blue-200">
-                        <CardContent className="p-4">
-                          <div className="text-sm text-blue-700 mb-1">日当換算</div>
-                          <div className="text-2xl font-bold text-blue-800">
-                            ¥{parseInt(selectedStaff.daily_cost || 0).toLocaleString()}
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-
-                  {/* 労働時間制限 */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                      <Clock className="h-5 w-5 text-purple-600" />
-                      労働時間制限
-                    </h3>
-                    <div className="grid grid-cols-3 gap-4">
-                      <Card className="border-2">
-                        <CardContent className="p-4 text-center">
-                          <div className="text-sm text-gray-600 mb-1">週最大時間</div>
-                          <div className="text-3xl font-bold text-purple-600">{selectedStaff.max_hours_per_week}h</div>
-                        </CardContent>
-                      </Card>
-                      <Card className="border-2">
-                        <CardContent className="p-4 text-center">
-                          <div className="text-sm text-gray-600 mb-1">週最小時間</div>
-                          <div className="text-3xl font-bold text-gray-600">{selectedStaff.min_hours_per_week}h</div>
-                        </CardContent>
-                      </Card>
-                      <Card className="border-2">
-                        <CardContent className="p-4 text-center">
-                          <div className="text-sm text-gray-600 mb-1">最大連続勤務</div>
-                          <div className="text-3xl font-bold text-orange-600">{selectedStaff.max_consecutive_days}日</div>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </div>
-
-                  {/* スキル情報 */}
-                  <div>
-                    <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                      <Award className="h-5 w-5 text-yellow-600" />
-                      スキル情報
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">スキルレベル:</span>
-                      <div className="flex items-center gap-1">
-                        {[...Array(5)].map((_, i) => (
-                          <div
-                            key={i}
-                            className={`w-3 h-3 rounded-full ${
-                              i < parseInt(selectedStaff.skill_level) ? 'bg-yellow-400' : 'bg-gray-200'
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="font-bold text-lg">{selectedStaff.skill_level}/5</span>
-                    </div>
-                  </div>
-
-                  {/* 全期間実績 */}
-                  {staffPerformance[selectedStaff.name] && (() => {
-                    // 総給与の計算: 正社員・業務委託は固定給×月数、時給制のみ実績ベース
-                    const monthCount = Object.keys(staffPerformance[selectedStaff.name].monthlyStats).length
-                    let totalWage = 0
-                    let avgDailyWage = 0
-
-                    if (selectedStaff.employment_type === 'monthly') {
-                      totalWage = parseInt(selectedStaff.monthly_salary || 0) * monthCount
-                      avgDailyWage = Math.round(totalWage / staffPerformance[selectedStaff.name].totalDays)
-                    } else if (selectedStaff.employment_type === 'contract') {
-                      totalWage = parseInt(selectedStaff.contract_fee || 0) * monthCount
-                      avgDailyWage = Math.round(totalWage / staffPerformance[selectedStaff.name].totalDays)
-                    } else if (selectedStaff.employment_type === 'hourly') {
-                      totalWage = Math.round(staffPerformance[selectedStaff.name].totalHours * parseInt(selectedStaff.hourly_rate || 0))
-                      avgDailyWage = Math.round(totalWage / staffPerformance[selectedStaff.name].totalDays)
-                    }
-
-                    return (
-                      <div>
-                        <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                          <TrendingUp className="h-5 w-5 text-blue-600" />
-                          労働実績（2023年11月〜2024年10月）
-                        </h3>
-
-                        {/* サマリー */}
-                        <div className="grid grid-cols-3 gap-4 mb-4">
-                          <Card className="bg-blue-50 border-blue-200">
-                            <CardContent className="p-4 text-center">
-                              <div className="text-sm text-blue-700 mb-1">総勤務日数</div>
-                              <div className="text-3xl font-bold text-blue-800">
-                                {staffPerformance[selectedStaff.name].totalDays}日
-                              </div>
-                              <div className="text-xs text-blue-600 mt-1">
-                                平日{staffPerformance[selectedStaff.name].weekdayDays}日 / 土日{staffPerformance[selectedStaff.name].weekendDays}日
-                              </div>
-                            </CardContent>
-                          </Card>
-                          <Card className="bg-purple-50 border-purple-200">
-                            <CardContent className="p-4 text-center">
-                              <div className="text-sm text-purple-700 mb-1">総労働時間</div>
-                              <div className="text-3xl font-bold text-purple-800">
-                                {staffPerformance[selectedStaff.name].totalHours.toFixed(1)}h
-                              </div>
-                              <div className="text-xs text-purple-600 mt-1">
-                                平均 {(staffPerformance[selectedStaff.name].totalHours / staffPerformance[selectedStaff.name].totalDays).toFixed(1)}h/日
-                              </div>
-                            </CardContent>
-                          </Card>
-                          <Card className="bg-green-50 border-green-200">
-                            <CardContent className="p-4 text-center">
-                              <div className="text-sm text-green-700 mb-1">総給与</div>
-                              <div className="text-2xl font-bold text-green-800">
-                                ¥{totalWage.toLocaleString()}
-                              </div>
-                              <div className="text-xs text-green-600 mt-1">
-                                {selectedStaff.employment_type === 'hourly' ? '平均 ' : ''}
-                                ¥{avgDailyWage.toLocaleString()}/日
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-
-                      {/* 詳細実績 */}
-                      <div className="grid grid-cols-2 gap-4 mb-4">
-                        <Card className="border-2">
-                          <CardContent className="p-4">
-                            <div className="text-sm text-gray-600 mb-2">シフト内訳</div>
-                            <div className="space-y-2">
-                              <div className="flex justify-between text-sm">
-                                <span>早番（午前開始）:</span>
-                                <span className="font-bold text-orange-600">{staffPerformance[selectedStaff.name].earlyShifts}回</span>
-                              </div>
-                              <div className="flex justify-between text-sm">
-                                <span>遅番（午後開始）:</span>
-                                <span className="font-bold text-blue-600">{staffPerformance[selectedStaff.name].lateShifts}回</span>
-                              </div>
-                              {staffPerformance[selectedStaff.name].modifiedCount > 0 && (
-                                <div className="flex justify-between text-sm">
-                                  <span>変更されたシフト:</span>
-                                  <span className="font-bold text-yellow-600">{staffPerformance[selectedStaff.name].modifiedCount}回</span>
-                                </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-
-                        <Card className="border-2">
-                          <CardContent className="p-4">
-                            <div className="text-sm text-gray-600 mb-2">給与情報</div>
-                            <div className="space-y-2">
-                              {selectedStaff.employment_type === 'monthly' && (
-                                <>
-                                  <div className="flex justify-between text-sm">
-                                    <span>月給:</span>
-                                    <span className="font-bold">¥{parseInt(selectedStaff.monthly_salary || 0).toLocaleString()}</span>
-                                  </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span>平均時給換算:</span>
-                                    <span className="font-bold">¥{Math.round(parseInt(selectedStaff.monthly_salary || 0) / 160).toLocaleString()}</span>
-                                  </div>
-                                </>
-                              )}
-                              {selectedStaff.employment_type === 'contract' && (
-                                <>
-                                  <div className="flex justify-between text-sm">
-                                    <span>業務委託料:</span>
-                                    <span className="font-bold">¥{parseInt(selectedStaff.contract_fee || 0).toLocaleString()}</span>
-                                  </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span>平均時給換算:</span>
-                                    <span className="font-bold">¥{Math.round(parseInt(selectedStaff.contract_fee || 0) / 160).toLocaleString()}</span>
-                                  </div>
-                                </>
-                              )}
-                              {selectedStaff.employment_type === 'hourly' && (
-                                <>
-                                  <div className="flex justify-between text-sm">
-                                    <span>時給:</span>
-                                    <span className="font-bold">¥{parseInt(selectedStaff.hourly_rate || 0).toLocaleString()}</span>
-                                  </div>
-                                  <div className="flex justify-between text-sm">
-                                    <span>平均月収:</span>
-                                    <span className="font-bold">¥{Math.round(totalWage / monthCount).toLocaleString()}</span>
-                                  </div>
-                                </>
-                              )}
-                              <div className="flex justify-between text-sm">
-                                <span>週平均時間:</span>
-                                <span className="font-bold">{(staffPerformance[selectedStaff.name].totalHours / monthCount / 4.3).toFixed(1)}h</span>
-                              </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-
-                      {/* 月別実績サマリー */}
-                      <div className="mb-4">
-                        <h4 className="text-sm font-bold text-gray-700 mb-2">月別実績</h4>
-                        <div className="max-h-60 overflow-y-auto border rounded-lg">
-                          <table className="min-w-full text-sm">
-                            <thead className="bg-gray-50 sticky top-0">
-                              <tr>
-                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">年月</th>
-                                <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">勤務日数</th>
-                                <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">総時間</th>
-                                <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">給与</th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-100">
-                              {Object.entries(staffPerformance[selectedStaff.name].monthlyStats)
-                                .sort((a, b) => a[0].localeCompare(b[0]))
-                                .map(([monthKey, stats]) => {
-                                  // 給与計算: 正社員・業務委託は固定給、時給制のみ実績ベース
-                                  let monthlySalary = 0
-                                  if (selectedStaff.employment_type === 'monthly') {
-                                    monthlySalary = parseInt(selectedStaff.monthly_salary || 0)
-                                  } else if (selectedStaff.employment_type === 'contract') {
-                                    monthlySalary = parseInt(selectedStaff.contract_fee || 0)
-                                  } else if (selectedStaff.employment_type === 'hourly') {
-                                    monthlySalary = Math.round(stats.hours * parseInt(selectedStaff.hourly_rate || 0))
-                                  }
-
-                                  return (
-                                    <tr key={monthKey} className="hover:bg-gray-50">
-                                      <td className="px-3 py-2 font-medium">{monthKey}</td>
-                                      <td className="px-3 py-2 text-right">{stats.days}日</td>
-                                      <td className="px-3 py-2 text-right">{stats.hours.toFixed(1)}h</td>
-                                      <td className="px-3 py-2 text-right font-medium text-green-700">
-                                        ¥{monthlySalary.toLocaleString()}
-                                      </td>
-                                    </tr>
-                                  )
-                                })}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-
-                      {/* 給与明細（2023年11月〜2024年10月） */}
-                      {payslips[selectedStaff.name] && (
-                        <div>
-                          <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                            <FileText className="h-5 w-5 text-green-600" />
-                            給与明細（2023年11月〜2024年10月）
-                          </h3>
-                          <Card className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200">
-                            <CardContent className="p-6">
-                              <div className="grid grid-cols-2 gap-6">
-                                {/* 支給 */}
-                                <div>
-                                  <h4 className="font-bold text-green-800 mb-3 border-b-2 border-green-300 pb-2">支給</h4>
-                                  <div className="space-y-2">
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-700">
-                                        {selectedStaff.employment_type === 'monthly' && '月給'}
-                                        {selectedStaff.employment_type === 'hourly' && '時給×時間'}
-                                        {selectedStaff.employment_type === 'contract' && '業務委託料'}
-                                      </span>
-                                      <span className="font-bold">¥{payslips[selectedStaff.name].grossSalary.toLocaleString()}</span>
-                                    </div>
-                                    {selectedStaff.employment_type === 'hourly' && (
-                                      <div className="flex justify-between text-xs text-gray-500">
-                                        <span>（¥{selectedStaff.hourly_rate} × {payslips[selectedStaff.name].workHours.toFixed(1)}h）</span>
-                                      </div>
-                                    )}
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-700">
-                                        交通費
-                                        {(selectedStaff.employment_type === 'monthly' || selectedStaff.employment_type === 'contract') && '（定額）'}
-                                        {selectedStaff.employment_type === 'hourly' && `（${payslips[selectedStaff.name].workDays}日分）`}
-                                      </span>
-                                      <span className="font-bold">¥{payslips[selectedStaff.name].commuteAllowance.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between text-base border-t pt-2 mt-2">
-                                      <span className="font-bold text-green-800">総支給額</span>
-                                      <span className="font-bold text-green-800 text-lg">¥{payslips[selectedStaff.name].totalGross.toLocaleString()}</span>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                {/* 控除 */}
-                                <div>
-                                  <h4 className="font-bold text-red-800 mb-3 border-b-2 border-red-300 pb-2">控除</h4>
-                                  <div className="space-y-2">
-                                    {payslips[selectedStaff.name].socialInsurance.healthInsurance > 0 && (
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-700">健康保険</span>
-                                        <span className="font-medium text-red-700">¥{payslips[selectedStaff.name].socialInsurance.healthInsurance.toLocaleString()}</span>
-                                      </div>
-                                    )}
-                                    {payslips[selectedStaff.name].socialInsurance.pension > 0 && (
-                                      <div className="flex justify-between text-sm">
-                                        <span className="text-gray-700">厚生年金</span>
-                                        <span className="font-medium text-red-700">¥{payslips[selectedStaff.name].socialInsurance.pension.toLocaleString()}</span>
-                                      </div>
-                                    )}
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-700">雇用保険</span>
-                                      <span className="font-medium text-red-700">¥{payslips[selectedStaff.name].socialInsurance.employmentInsurance.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-700">所得税</span>
-                                      <span className="font-medium text-red-700">¥{payslips[selectedStaff.name].incomeTax.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between text-sm">
-                                      <span className="text-gray-700">住民税</span>
-                                      <span className="font-medium text-red-700">¥{payslips[selectedStaff.name].residentTax.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between text-base border-t pt-2 mt-2">
-                                      <span className="font-bold text-red-800">控除合計</span>
-                                      <span className="font-bold text-red-800">¥{payslips[selectedStaff.name].totalDeductions.toLocaleString()}</span>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {/* 差引支給額 */}
-                              <div className="mt-6 pt-4 border-t-2 border-blue-300">
-                                <div className="flex justify-between items-center">
-                                  <span className="text-xl font-bold text-blue-900">差引支給額</span>
-                                  <span className="text-3xl font-bold text-blue-900">¥{payslips[selectedStaff.name].netSalary.toLocaleString()}</span>
-                                </div>
-                              </div>
-
-                              {/* 勤務情報 */}
-                              <div className="mt-4 pt-4 border-t border-gray-300 grid grid-cols-2 gap-4 text-sm text-gray-600">
-                                <div>勤務日数: <span className="font-bold">{payslips[selectedStaff.name].workDays}日</span></div>
-                                <div>勤務時間: <span className="font-bold">{payslips[selectedStaff.name].workHours.toFixed(1)}時間</span></div>
-                                <div>通勤距離: <span className="font-bold">{selectedStaff.commute_distance_km}km</span></div>
-                                <div>社会保険: <span className="font-bold">{selectedStaff.has_social_insurance === 'TRUE' ? '加入' : '未加入'}</span></div>
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </div>
-                      )}
-
-                      {/* シフト詳細リスト（最新100件） */}
-                      <div>
-                        <h4 className="text-sm font-bold text-gray-700 mb-2">最近のシフト詳細（最新100件）</h4>
-                        <div className="max-h-60 overflow-y-auto border rounded-lg">
-                          <table className="min-w-full text-sm">
-                            <thead className="bg-gray-50 sticky top-0">
-                              <tr>
-                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">日付</th>
-                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">曜日</th>
-                                <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">時間</th>
-                                <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">勤務時間</th>
-                                <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">給与</th>
-                              </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-100">
-                              {staffPerformance[selectedStaff.name].shifts
-                                .sort((a, b) => {
-                                  // 年月日でソート（降順 - 新しい順）
-                                  const dateA = `${a.year}-${String(a.month).padStart(2, '0')}-${String(a.date).padStart(2, '0')}`
-                                  const dateB = `${b.year}-${String(b.month).padStart(2, '0')}-${String(b.date).padStart(2, '0')}`
-                                  return dateB.localeCompare(dateA)
-                                })
-                                .map((shift, idx) => (
-                                  <tr key={idx} className="hover:bg-gray-50">
-                                    <td className="px-3 py-2">{shift.year}/{shift.month}/{shift.date}</td>
-                                    <td className="px-3 py-2">
-                                      <span className={`${
-                                        shift.dayOfWeek === '土' || shift.dayOfWeek === '日'
-                                          ? 'text-blue-600 font-semibold'
-                                          : 'text-gray-600'
-                                      }`}>
-                                        {shift.dayOfWeek}
-                                      </span>
-                                    </td>
-                                    <td className="px-3 py-2 text-gray-700">{shift.startTime} - {shift.endTime}</td>
-                                    <td className="px-3 py-2 text-right font-medium">{shift.hours}h</td>
-                                    <td className="px-3 py-2 text-right font-medium text-green-700">
-                                      ¥{Math.round(shift.wage).toLocaleString()}
-                                    </td>
-                                  </tr>
-                                ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })()}
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
       </motion.div>
     </div>
   )

@@ -20,7 +20,9 @@ import {
   FolderOpen,
   ClipboardList,
   Store,
-  Shield
+  Shield,
+  MessageSquare,
+  Database
 } from 'lucide-react'
 import Papa from 'papaparse'
 
@@ -36,7 +38,7 @@ const pageTransition = {
   duration: 0.5
 }
 
-const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaffManagement, onStoreManagement, onConstraintManagement }) => {
+const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaffManagement, onStoreManagement, onConstraintManagement, onLineMessages, onActualDataImport }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [metrics, setMetrics] = useState([])
   const [loading, setLoading] = useState(true)
@@ -142,9 +144,13 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
               <FolderOpen className="h-4 w-4 mr-2" />
               シフト管理
             </Button>
+            <Button variant="outline" size="sm" onClick={onLineMessages} className="bg-blue-50 border-blue-300">
+              <MessageSquare className="h-4 w-4 mr-2" />
+              メッセージ管理
+            </Button>
             <Button variant="outline" size="sm" onClick={onMonitoring} className="bg-blue-50 border-blue-300">
               <ClipboardList className="h-4 w-4 mr-2" />
-              希望回収状況
+              シフト希望管理
             </Button>
             <Button variant="outline" size="sm" onClick={onStaffManagement} className="bg-blue-50 border-blue-300">
               <Users className="h-4 w-4 mr-2" />
@@ -158,9 +164,9 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
               <Shield className="h-4 w-4 mr-2" />
               制約管理
             </Button>
-            <Button variant="outline" size="sm" onClick={onHistory}>
-              <HistoryIcon className="h-4 w-4 mr-2" />
-              履歴
+            <Button variant="outline" size="sm" onClick={onActualDataImport} className="bg-orange-50 border-orange-300">
+              <Database className="h-4 w-4 mr-2" />
+              実績管理
             </Button>
           </div>
         </div>

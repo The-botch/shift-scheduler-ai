@@ -1,15 +1,17 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { Button } from '../ui/button'
-import { Store, Clock, MapPin, Phone, Download, Upload } from 'lucide-react'
+import { Store, Clock, MapPin, Phone, Briefcase } from 'lucide-react'
 import Papa from 'papaparse'
-import { exportCSV, importCSV, validateStoreCSV, generateFilename } from '../../utils/csvHelper'
+import { validateStoreCSV } from '../../utils/csvHelper'
+import CSVActions from '../shared/CSVActions'
 
 const StoreManagement = () => {
   const [stores, setStores] = useState([])
   const [constraints, setConstraints] = useState([])
   const [loading, setLoading] = useState(true)
+  const [employmentTypes, setEmploymentTypes] = useState([])
+  const [employmentRequirements, setEmploymentRequirements] = useState({})
 
   useEffect(() => {
     loadData()
@@ -28,8 +30,23 @@ const StoreManagement = () => {
       const constraintsText = await constraintsResponse.text()
       const constraintsParsed = Papa.parse(constraintsText, { header: true, skipEmptyLines: true })
 
+      // Load employment_types.csv
+      const employmentTypesResponse = await fetch('/data/master/employment_types.csv')
+      const employmentTypesText = await employmentTypesResponse.text()
+      const employmentTypesParsed = Papa.parse(employmentTypesText, { header: true, skipEmptyLines: true })
+
       setStores(storesParsed.data)
       setConstraints(constraintsParsed.data)
+      setEmploymentTypes(employmentTypesParsed.data)
+
+      // デモ用の雇用形態別勤務条件を設定
+      setEmploymentRequirements({
+        'FULL_TIME': { min_days: 20, description: '正社員は月20日以上勤務必須' },
+        'CONTRACT': { min_days: 18, description: '契約社員は月18日以上勤務必須' },
+        'PART_TIME': { min_days: 8, description: 'アルバイトは月8日以上勤務必須' },
+        'PART': { min_days: 10, description: 'パートは月10日以上勤務必須' },
+        'OUTSOURCE': { min_days: 15, description: '業務委託は月15日以上勤務必須' }
+      })
     } catch (error) {
       console.error('データの読み込みエラー:', error)
     } finally {
@@ -69,38 +86,6 @@ const StoreManagement = () => {
     return badges[priority] || 'bg-gray-100 text-gray-800'
   }
 
-  const handleExportCSV = () => {
-    const result = exportCSV(stores, generateFilename('stores'))
-    if (result.success) {
-      alert('✅ CSVファイルをエクスポートしました')
-    } else {
-      alert(`❌ エクスポートに失敗しました: ${result.error}`)
-    }
-  }
-
-  const handleImportCSV = (event) => {
-    const file = event.target.files[0]
-    if (!file) return
-
-    if (!window.confirm('既存の店舗データを上書きします。よろしいですか？')) {
-      event.target.value = ''
-      return
-    }
-
-    importCSV(
-      file,
-      (data) => {
-        setStores(data)
-        alert(`✅ ${data.length}件の店舗データをインポートしました`)
-        event.target.value = ''
-      },
-      (error) => {
-        alert(`❌ インポートエラー:\n${error}`)
-        event.target.value = ''
-      },
-      validateStoreCSV
-    )
-  }
 
   if (loading) {
     return (
@@ -127,34 +112,13 @@ const StoreManagement = () => {
                 <Store className="h-8 w-8" />
                 <CardTitle className="text-2xl">店舗情報管理</CardTitle>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={handleExportCSV}
-                  className="bg-white text-green-700 hover:bg-gray-100"
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  CSVエクスポート
-                </Button>
-                <label>
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    as="span"
-                    className="bg-white text-green-700 hover:bg-gray-100 cursor-pointer"
-                  >
-                    <Upload className="h-4 w-4 mr-2" />
-                    CSVインポート
-                  </Button>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleImportCSV}
-                    className="hidden"
-                  />
-                </label>
-              </div>
+              <CSVActions
+                data={stores}
+                filename="stores"
+                onImport={setStores}
+                validateFunction={validateStoreCSV}
+                importConfirmMessage="既存の店舗データを上書きします。よろしいですか？"
+              />
             </div>
           </CardHeader>
 
@@ -198,7 +162,7 @@ const StoreManagement = () => {
                   </Card>
 
                   {/* 店舗制約情報 */}
-                  <div>
+                  <div className="mb-6">
                     <h4 className="text-lg font-bold mb-3 flex items-center gap-2">
                       <div className="w-1 h-6 bg-green-600 rounded"></div>
                       店舗制約条件 ({storeConstraints.length}件)
@@ -224,6 +188,37 @@ const StoreManagement = () => {
                           </CardContent>
                         </Card>
                       ))}
+                    </div>
+                  </div>
+
+                  {/* 雇用形態別勤務条件 */}
+                  <div>
+                    <h4 className="text-lg font-bold mb-3 flex items-center gap-2">
+                      <div className="w-1 h-6 bg-purple-600 rounded"></div>
+                      <Briefcase className="h-5 w-5 text-purple-600" />
+                      雇用形態別勤務条件
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {employmentTypes.map((type) => {
+                        const requirement = employmentRequirements[type.employment_code]
+                        return (
+                          <Card key={type.employment_type_id} className="border-2 border-purple-200 hover:shadow-md transition-shadow">
+                            <CardContent className="p-4">
+                              <div className="font-bold text-gray-800 mb-2">{type.employment_name}</div>
+                              {requirement && (
+                                <>
+                                  <div className="text-2xl font-bold text-purple-600 mb-1">
+                                    月{requirement.min_days}日以上
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    {requirement.description}
+                                  </div>
+                                </>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
                     </div>
                   </div>
                 </motion.div>
