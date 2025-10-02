@@ -1,0 +1,7 @@
+staff_id,store_id,staff_code,name,name_kana,role_id,email,phone_number,hire_date,birth_date,employment_type,hourly_rate,monthly_salary,contract_fee,daily_cost,max_hours_per_week,min_hours_per_week,max_consecutive_days,skill_level,is_active
+1,1,S001,田中太郎,タナカタロウ,1,tanaka@example.com,080-1111-1111,2020-04-01,1985-03-15,monthly,,350000,,15909,40,40,6,5,TRUE
+2,1,S002,佐藤花子,サトウハナコ,2,sato@example.com,080-2222-2222,2021-06-01,1990-07-20,monthly,,280000,,12727,40,32,6,5,TRUE
+3,1,S003,山田次郎,ヤマダジロウ,3,yamada@example.com,080-3333-3333,2022-01-15,1988-11-10,contract,,,250000,11364,0,0,6,5,TRUE
+4,1,S004,鈴木健太,スズキケンタ,4,suzuki@example.com,080-4444-4444,2023-04-01,2005-09-05,hourly,1150,,,0,28,12,5,3,TRUE
+5,1,S005,高橋美咲,タカハシミサキ,4,takahashi@example.com,080-5555-5555,2023-09-01,2004-02-14,hourly,1150,,,0,28,12,4,3,TRUE
+6,1,S006,伊藤翔,イトウショウ,4,ito@example.com,080-6666-6666,2024-01-10,1999-12-01,hourly,1200,,,0,40,20,5,4,TRUE

@@ -4,7 +4,14 @@
   "version": "1.0.0",
   "type": "module",
   "description": "AIによる自動シフト生成から配布まで、完全なワークフローを体験できるインタラクティブなデモアプリケーション",
-  "keywords": ["shift-management", "ai", "react", "demo", "interactive", "scheduling"],
+  "keywords": [
+    "shift-management",
+    "ai",
+    "react",
+    "demo",
+    "interactive",
+    "scheduling"
+  ],
   "author": "Manus Team",
   "license": "MIT",
   "homepage": "https://github.com/username/shift-management-mvp#readme",
@@ -60,6 +67,7 @@
     "input-otp": "^1.4.2",
     "lucide-react": "^0.510.0",
     "next-themes": "^0.4.6",
+    "papaparse": "^5.5.3",
     "react": "^19.1.0",
     "react-day-picker": "8.10.1",
     "react-dom": "^19.1.0",

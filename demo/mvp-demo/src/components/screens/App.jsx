@@ -11,6 +11,7 @@ import StaffInput from './components/screens/StaffInput'
 import Monitoring from './components/screens/Monitoring'
 import SecondPlan from './components/screens/SecondPlan'
 import ChatModification from './components/screens/ChatModification'
+import MasterData from './components/screens/MasterData'
 
 // UI Components
 import { Button } from './components/ui/button'
@@ -94,6 +95,7 @@ const History = ({ onNext, onPrev }) => (
 
 function App() {
   const [currentStep, setCurrentStep] = useState(1)
+  const [showMasterData, setShowMasterData] = useState(false)
 
   const nextStep = () => {
     if (currentStep < 9) {
@@ -111,10 +113,22 @@ function App() {
     setCurrentStep(step)
   }
 
+  const goToMasterData = () => {
+    setShowMasterData(true)
+  }
+
+  const backFromMasterData = () => {
+    setShowMasterData(false)
+  }
+
   const renderCurrentScreen = () => {
+    if (showMasterData) {
+      return <MasterData onPrev={backFromMasterData} />
+    }
+
     switch (currentStep) {
       case 1:
-        return <Dashboard onNext={nextStep} />
+        return <Dashboard onNext={nextStep} onMasterData={goToMasterData} />
       case 2:
         return <DataImport onNext={nextStep} onPrev={prevStep} />
       case 3:
@@ -132,15 +146,15 @@ function App() {
       case 9:
         return <div className="container mx-auto px-4 py-8 text-center"><h1 className="text-2xl font-bold">履歴・監査</h1><p className="text-gray-600 mt-4">実装予定</p><div className="mt-8"><button onClick={prevStep} className="mr-4 px-4 py-2 border rounded">戻る</button></div></div>
       default:
-        return <Dashboard onNext={nextStep} />
+        return <Dashboard onNext={nextStep} onMasterData={goToMasterData} />
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      <Stepper currentStep={currentStep} onStepClick={goToStep} />
+      {!showMasterData && <Stepper currentStep={currentStep} onStepClick={goToStep} />}
       <AnimatePresence mode="wait">
-        <div key={currentStep}>
+        <div key={showMasterData ? 'master-data' : currentStep}>
           {renderCurrentScreen()}
         </div>
       </AnimatePresence>

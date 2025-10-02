@@ -1,15 +1,16 @@
 import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import { 
-  Bell, 
-  Settings, 
-  TrendingUp, 
-  Clock, 
-  Zap, 
+import {
+  Bell,
+  Settings,
+  TrendingUp,
+  Clock,
+  Zap,
   DollarSign,
   Download,
-  Calendar,
+  Calendar as CalendarIcon,
   Users,
   BarChart3,
   ArrowRight,
@@ -28,7 +29,33 @@ const pageTransition = {
   duration: 0.5
 }
 
-const Dashboard = ({ onNext }) => {
+const Dashboard = ({ onNext, onMasterData }) => {
+  const [currentTime, setCurrentTime] = useState(new Date())
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
+  const formatDate = (date) => {
+    const year = date.getFullYear()
+    const month = date.getMonth() + 1
+    const day = date.getDate()
+    const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+    const weekday = weekdays[date.getDay()]
+    return `${year}年${month}月${day}日（${weekday}）`
+  }
+
+  const formatTime = (date) => {
+    const hours = String(date.getHours()).padStart(2, '0')
+    const minutes = String(date.getMinutes()).padStart(2, '0')
+    const seconds = String(date.getSeconds()).padStart(2, '0')
+    return `${hours}:${minutes}:${seconds}`
+  }
+
   return (
     <motion.div
       initial="initial"
@@ -42,25 +69,25 @@ const Dashboard = ({ onNext }) => {
       <div className="flex justify-between items-center mb-8">
         <div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            9月シフト管理ダッシュボード
+            シフト管理ダッシュボード
           </h1>
           <p className="text-lg text-gray-600">AIによる自動シフト生成から配布まで</p>
+          <div className="flex items-center mt-2 text-sm text-gray-500">
+            <CalendarIcon className="h-4 w-4 mr-2" />
+            <span>{formatDate(currentTime)}</span>
+          </div>
         </div>
         <div className="flex space-x-3">
-          <Button variant="outline" size="sm">
-            <Bell className="h-4 w-4 mr-2" />
-            通知 (2)
-          </Button>
-          <Button variant="outline" size="sm">
-            <Settings className="h-4 w-4 mr-2" />
-            設定
+          <Button variant="outline" size="sm" onClick={onMasterData}>
+            <Users className="h-4 w-4 mr-2" />
+            マスターデータ
           </Button>
         </div>
       </div>
 
       {/* 通知バー */}
       <div className="space-y-3 mb-8">
-        <motion.div 
+        <motion.div
           className="p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center"
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
@@ -71,19 +98,6 @@ const Dashboard = ({ onNext }) => {
             <p className="text-blue-800 font-medium">システムメンテナンスは9/30 2:00-4:00に実施予定です</p>
           </div>
           <span className="text-xs text-blue-600 bg-blue-100 px-2 py-1 rounded">2時間前</span>
-        </motion.div>
-        
-        <motion.div 
-          className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg flex items-center"
-          initial={{ opacity: 0, x: -20 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <div className="w-2 h-2 bg-yellow-500 rounded-full mr-3"></div>
-          <div className="flex-1">
-            <p className="text-yellow-800 font-medium">田中さんの希望シフトに制約違反があります</p>
-          </div>
-          <span className="text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded">1日前</span>
         </motion.div>
       </div>
 
@@ -186,7 +200,7 @@ const Dashboard = ({ onNext }) => {
           <Card className="shadow-lg border-0">
             <CardHeader>
               <CardTitle className="flex items-center">
-                <Calendar className="h-5 w-5 mr-2 text-blue-600" />
+                <CalendarIcon className="h-5 w-5 mr-2 text-blue-600" />
                 次のアクション
               </CardTitle>
               <p className="text-sm text-gray-600">現在のステップで実行可能なタスク</p>

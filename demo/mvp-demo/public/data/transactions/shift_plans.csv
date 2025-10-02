@@ -1,0 +1,2 @@
+plan_id,store_id,plan_code,plan_name,period_start,period_end,status,generation_type,ai_model_version,total_labor_hours,total_labor_cost,coverage_score,constraint_violations,created_by,created_at
+1,1,PLAN_202410,2024年10月シフト,2024-10-01,2024-10-31,approved,ai,gpt-4-2024-11,856.0,1089450,94.8,0,1,2024-09-25 10:00:00

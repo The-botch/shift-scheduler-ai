@@ -1,0 +1,13 @@
+law_id,law_code,law_name,category,constraint_rule,penalty_level,legal_reference,description,is_active
+1,LAW_001,法定労働時間（1日）,working_hours,"{""max_hours_per_day"": 8, ""exception"": ""36協定がある場合は延長可能""}",critical,労働基準法第32条第1項,使用者は労働者に休憩時間を除き一週間について四十時間を超えて労働させてはならない,TRUE
+2,LAW_002,法定労働時間（1週間）,working_hours,"{""max_hours_per_week"": 40, ""exception"": ""36協定がある場合は延長可能""}",critical,労働基準法第32条第2項,使用者は一週間の各日については労働者に休憩時間を除き一日について八時間を超えて労働させてはならない,TRUE
+3,LAW_003,休憩時間（6時間超）,rest_period,"{""working_hours_threshold"": 6, ""min_break_minutes"": 45}",critical,労働基準法第34条第1項,労働時間が六時間を超える場合においては少くとも四十五分の休憩時間を労働時間の途中に与えなければならない,TRUE
+4,LAW_004,休憩時間（8時間超）,rest_period,"{""working_hours_threshold"": 8, ""min_break_minutes"": 60}",critical,労働基準法第34条第1項,労働時間が八時間を超える場合においては少くとも一時間の休憩時間を労働時間の途中に与えなければならない,TRUE
+5,LAW_005,法定休日,rest_period,"{""min_days_off_per_week"": 1, ""alternative"": ""4週4休も可""}",critical,労働基準法第35条,使用者は労働者に対して毎週少くとも一回の休日を与えなければならない,TRUE
+6,LAW_006,勤務間インターバル,rest_period,"{""min_interval_hours"": 11, ""recommended"": ""EU指令に準拠""}",high,労働時間等設定改善法（努力義務）,前日の終業時刻と翌日の始業時刻の間に一定時間以上の休息時間（インターバル時間）を確保すること,TRUE
+7,LAW_007,年少者の労働時間,minor,"{""max_hours_per_day"": 8, ""max_hours_per_week"": 40, ""applicable_age"": ""18歳未満""}",critical,労働基準法第60条,18歳未満の者については一週間について四十時間一日について八時間を超えて労働させてはならない,TRUE
+8,LAW_008,年少者の深夜労働禁止,minor,"{""prohibited_hours"": {""start"": ""22:00"", ""end"": ""05:00""}, ""applicable_age"": ""18歳未満""}",critical,労働基準法第61条,使用者は満十八才に満たない者を午後十時から午前五時までの間において使用してはならない,TRUE
+9,LAW_009,深夜労働の割増賃金,overtime,"{""night_hours"": {""start"": ""22:00"", ""end"": ""05:00""}, ""premium_rate"": 0.25}",high,労働基準法第37条第4項,深夜（午後十時から午前五時まで）の時間帯に労働させる場合は通常の賃金の2割5分以上の率で計算した割増賃金を支払わなければならない,TRUE
+10,LAW_010,連続勤務日数の制限,working_hours,"{""max_consecutive_days"": 6, ""reasoning"": ""週1日休日の確保""}",high,労働基準法第35条（解釈）,週1日の休日を確保するため連続勤務は原則6日までとすることが望ましい,TRUE
+11,LAW_011,時間外労働の上限（月）,overtime,"{""max_overtime_hours_per_month"": 45, ""special_max"": 100, ""requires_agreement"": true}",critical,労働基準法第36条,36協定を締結した場合でも時間外労働は月45時間年360時間を限度とする（特別条項がある場合は月100時間未満年720時間まで）,TRUE
+12,LAW_012,時間外労働の上限（年）,overtime,"{""max_overtime_hours_per_year"": 360, ""special_max"": 720, ""requires_agreement"": true}",critical,労働基準法第36条,36協定を締結した場合の時間外労働の年間上限。特別条項がある場合は年720時間まで,TRUE
