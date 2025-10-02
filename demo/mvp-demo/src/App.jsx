@@ -9,6 +9,7 @@ import FirstPlan from './components/screens/FirstPlan'
 import HopeCollection from './components/screens/HopeCollection'
 import StaffInput from './components/screens/StaffInput'
 import Monitoring from './components/screens/Monitoring'
+import SecondPlan from './components/screens/SecondPlan'
 import ChatModification from './components/screens/ChatModification'
 
 // UI Components
@@ -68,16 +69,7 @@ const Stepper = ({ currentStep, onStepClick }) => {
 
 // Remaining placeholder components
 
-const SecondPlan = ({ onNext, onPrev }) => (
-  <div className="container mx-auto px-4 py-8">
-    <h1 className="text-4xl font-bold mb-4">第2案（希望反映）</h1>
-    <p className="text-gray-600 mb-8">スタッフ希望を反映した最適化シフトを生成します</p>
-    <div className="flex justify-between">
-      <Button variant="outline" onClick={onPrev}>戻る</Button>
-      <Button onClick={onNext}>次へ</Button>
-    </div>
-  </div>
-)
+
 
 const FinalDistribution = ({ onNext, onPrev }) => (
   <div className="container mx-auto px-4 py-8">
@@ -135,7 +127,7 @@ function App() {
       case 6:
         return <Monitoring onNext={nextStep} onPrev={prevStep} />
       case 7:
-        return <div className="container mx-auto px-4 py-8 text-center"><h1 className="text-2xl font-bold">第2案生成</h1><p className="text-gray-600 mt-4">実装予定</p><div className="mt-8"><button onClick={prevStep} className="mr-4 px-4 py-2 border rounded">戻る</button><button onClick={nextStep} className="px-4 py-2 bg-blue-600 text-white rounded">次へ</button></div></div>
+        return <SecondPlan onNext={nextStep} onPrev={prevStep} />
       case 8:
         return <ChatModification onNext={nextStep} onPrev={prevStep} />
       case 9:
