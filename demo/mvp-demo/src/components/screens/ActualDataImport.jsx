@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Upload, CheckCircle, XCircle, FileText, DollarSign, Database, Download } from 'lucide-react'
+import { Upload, CheckCircle, XCircle, FileText, DollarSign, Database, Download, TrendingUp, ArrowLeft, Users, Clock, AlertTriangle } from 'lucide-react'
 import Papa from 'papaparse'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -28,6 +28,9 @@ const ActualDataImport = () => {
     payroll: { status: 'idle', message: '' }
   })
   const [monthlyStatus, setMonthlyStatus] = useState([])
+  const [selectedMonth, setSelectedMonth] = useState(null)
+  const [diffAnalysis, setDiffAnalysis] = useState(null)
+  const [loading, setLoading] = useState(false)
 
   // IndexedDB内のデータ件数を取得
   useEffect(() => {
@@ -311,6 +314,276 @@ const ActualDataImport = () => {
     }
   }
 
+  // 月をクリックして予実差分を分析
+  const handleMonthClick = async (monthData) => {
+    if (!monthData.hasWorkHours || !monthData.hasPayroll) {
+      alert('実績データが不完全です。労働時間実績と給与明細の両方をインポートしてください。')
+      return
+    }
+
+    setLoading(true)
+    setSelectedMonth(monthData)
+
+    try {
+      // 実績データを取得
+      const actualShifts = await getActualShifts(monthData.year, monthData.month)
+      const actualPayroll = await getPayroll(monthData.year, monthData.month)
+
+      // 予定シフトデータを取得（Historyから）
+      const plannedShifts = await loadPlannedShifts(monthData.year, monthData.month)
+
+      // 差分を分析
+      const analysis = analyzeDifference(plannedShifts, actualShifts, actualPayroll)
+      setDiffAnalysis(analysis)
+    } catch (error) {
+      console.error('差分分析エラー:', error)
+      alert('差分分析に失敗しました')
+      setSelectedMonth(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // 予定シフトデータを読み込み
+  const loadPlannedShifts = async (year, month) => {
+    try {
+      // shift_history_2023-2024.csvから読み込み
+      const response = await fetch('/data/history/shift_history_2023-2024.csv')
+      const text = await response.text()
+
+      const result = await new Promise((resolve) => {
+        Papa.parse(text, {
+          header: true,
+          dynamicTyping: true,
+          skipEmptyLines: true,
+          complete: resolve
+        })
+      })
+
+      // 該当月のデータをフィルタ
+      return result.data.filter(shift => shift.year === year && shift.month === month)
+    } catch (error) {
+      console.error('予定シフト読み込みエラー:', error)
+      return []
+    }
+  }
+
+  // 予実差分を分析
+  const analyzeDifference = (plannedShifts, actualShifts, actualPayroll) => {
+    const analysis = {
+      summary: {
+        plannedShifts: plannedShifts.length,
+        actualShifts: actualShifts.length,
+        shiftCountDiff: actualShifts.length - plannedShifts.length,
+        plannedHours: 0,
+        actualHours: 0,
+        hoursDiff: 0,
+        plannedCost: 0,
+        actualCost: 0,
+        costDiff: 0
+      },
+      staffAnalysis: {},
+      dateAnalysis: {}
+    }
+
+    // 予定データを集計
+    plannedShifts.forEach(shift => {
+      analysis.summary.plannedHours += parseFloat(shift.actual_hours || 0)
+      analysis.summary.plannedCost += parseFloat(shift.daily_wage || 0)
+    })
+
+    // 実績データを集計
+    actualShifts.forEach(shift => {
+      analysis.summary.actualHours += parseFloat(shift.actual_hours || 0)
+
+      // スタッフ別分析
+      if (!analysis.staffAnalysis[shift.staff_id]) {
+        analysis.staffAnalysis[shift.staff_id] = {
+          staff_name: shift.staff_name,
+          plannedDays: 0,
+          actualDays: 0,
+          plannedHours: 0,
+          actualHours: 0,
+          hoursDiff: 0,
+          differences: []
+        }
+      }
+      analysis.staffAnalysis[shift.staff_id].actualDays += 1
+      analysis.staffAnalysis[shift.staff_id].actualHours += parseFloat(shift.actual_hours || 0)
+    })
+
+    // 給与データから実際のコストを計算
+    actualPayroll.forEach(payroll => {
+      analysis.summary.actualCost += parseInt(payroll.gross_salary || 0)
+
+      if (analysis.staffAnalysis[payroll.staff_id]) {
+        analysis.staffAnalysis[payroll.staff_id].actualCost = parseInt(payroll.gross_salary || 0)
+      }
+    })
+
+    // 予定データをスタッフ別に集計
+    plannedShifts.forEach(shift => {
+      if (!analysis.staffAnalysis[shift.staff_id]) {
+        analysis.staffAnalysis[shift.staff_id] = {
+          staff_name: shift.staff_name,
+          plannedDays: 0,
+          actualDays: 0,
+          plannedHours: 0,
+          actualHours: 0,
+          hoursDiff: 0,
+          differences: []
+        }
+      }
+      analysis.staffAnalysis[shift.staff_id].plannedDays += 1
+      analysis.staffAnalysis[shift.staff_id].plannedHours += parseFloat(shift.actual_hours || 0)
+      analysis.staffAnalysis[shift.staff_id].plannedCost = (analysis.staffAnalysis[shift.staff_id].plannedCost || 0) + parseFloat(shift.daily_wage || 0)
+    })
+
+    // 差分を計算
+    analysis.summary.hoursDiff = analysis.summary.actualHours - analysis.summary.plannedHours
+    analysis.summary.costDiff = analysis.summary.actualCost - analysis.summary.plannedCost
+
+    Object.values(analysis.staffAnalysis).forEach(staff => {
+      staff.hoursDiff = staff.actualHours - staff.plannedHours
+      staff.costDiff = (staff.actualCost || 0) - (staff.plannedCost || 0)
+    })
+
+    return analysis
+  }
+
+  const backToList = () => {
+    setSelectedMonth(null)
+    setDiffAnalysis(null)
+  }
+
+  // 差分分析画面
+  if (selectedMonth && diffAnalysis) {
+    return (
+      <motion.div
+        variants={PAGE_VARIANTS}
+        initial="initial"
+        animate="in"
+        exit="out"
+        transition={PAGE_TRANSITION}
+        className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6"
+      >
+        <div className="max-w-7xl mx-auto space-y-6">
+          {/* ヘッダー */}
+          <div>
+            <Button variant="outline" onClick={backToList} className="mb-4">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              一覧に戻る
+            </Button>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {selectedMonth.year}年{selectedMonth.month}月 予実差分分析
+            </h1>
+            <p className="text-gray-600 mt-1">
+              予定シフトと実績データの差分を分析します
+            </p>
+          </div>
+
+          {/* サマリー */}
+          <Card className="border-2 border-orange-300 bg-orange-50">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-orange-600" />
+                差分サマリー
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-white p-4 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">シフト数</p>
+                  <p className="text-sm">予定: <span className="font-bold">{diffAnalysis.summary.plannedShifts}</span></p>
+                  <p className="text-sm">実績: <span className="font-bold">{diffAnalysis.summary.actualShifts}</span></p>
+                  <p className={`text-sm font-bold mt-2 ${diffAnalysis.summary.shiftCountDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    差分: {diffAnalysis.summary.shiftCountDiff > 0 ? '+' : ''}{diffAnalysis.summary.shiftCountDiff}
+                  </p>
+                </div>
+                <div className="bg-white p-4 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">総労働時間</p>
+                  <p className="text-sm">予定: <span className="font-bold">{diffAnalysis.summary.plannedHours.toFixed(1)}h</span></p>
+                  <p className="text-sm">実績: <span className="font-bold">{diffAnalysis.summary.actualHours.toFixed(1)}h</span></p>
+                  <p className={`text-sm font-bold mt-2 ${diffAnalysis.summary.hoursDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                    差分: {diffAnalysis.summary.hoursDiff > 0 ? '+' : ''}{diffAnalysis.summary.hoursDiff.toFixed(1)}h
+                  </p>
+                </div>
+                <div className="bg-white p-4 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">人件費</p>
+                  <p className="text-sm">予定: <span className="font-bold">¥{diffAnalysis.summary.plannedCost.toLocaleString()}</span></p>
+                  <p className="text-sm">実績: <span className="font-bold">¥{diffAnalysis.summary.actualCost.toLocaleString()}</span></p>
+                  <p className={`text-sm font-bold mt-2 ${diffAnalysis.summary.costDiff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                    差分: {diffAnalysis.summary.costDiff > 0 ? '+' : ''}¥{diffAnalysis.summary.costDiff.toLocaleString()}
+                  </p>
+                </div>
+                <div className="bg-white p-4 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">コスト比率</p>
+                  <p className="text-2xl font-bold text-orange-900">
+                    {diffAnalysis.summary.plannedCost > 0
+                      ? ((diffAnalysis.summary.actualCost / diffAnalysis.summary.plannedCost) * 100).toFixed(1)
+                      : '0.0'}%
+                  </p>
+                  <p className="text-xs text-gray-500 mt-1">実績/予定</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* スタッフ別分析 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-blue-600" />
+                スタッフ別分析
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {Object.values(diffAnalysis.staffAnalysis).map((staff, index) => (
+                  <motion.div
+                    key={staff.staff_name}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                  >
+                    <Card className={`border-2 ${Math.abs(staff.hoursDiff) > 3 ? 'border-orange-400 bg-orange-50' : 'border-gray-200'}`}>
+                      <CardContent className="p-4">
+                        <h4 className="font-bold text-md mb-3">{staff.staff_name}</h4>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">予定勤務:</span>
+                            <span className="font-medium">{staff.plannedDays}日 / {staff.plannedHours.toFixed(1)}h</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">実績勤務:</span>
+                            <span className="font-medium">{staff.actualDays}日 / {staff.actualHours.toFixed(1)}h</span>
+                          </div>
+                          <div className="flex justify-between border-t pt-2">
+                            <span className="text-gray-600">時間差分:</span>
+                            <span className={`font-bold ${staff.hoursDiff > 0 ? 'text-green-600' : staff.hoursDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                              {staff.hoursDiff > 0 ? '+' : ''}{staff.hoursDiff.toFixed(1)}h
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-600">費用差分:</span>
+                            <span className={`font-bold ${staff.costDiff > 0 ? 'text-red-600' : staff.costDiff < 0 ? 'text-green-600' : 'text-gray-600'}`}>
+                              {staff.costDiff > 0 ? '+' : ''}¥{(staff.costDiff || 0).toLocaleString()}
+                            </span>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </motion.div>
+    )
+  }
+
+  // 通常のインポート画面
   return (
     <motion.div
       variants={PAGE_VARIANTS}
@@ -512,13 +785,21 @@ const ActualDataImport = () => {
         <Card>
           <CardHeader>
             <CardTitle>月別インポートステータス（2024年）</CardTitle>
+            <p className="text-sm text-gray-600 mt-2">
+              データが揃っている月をクリックすると予実差分を確認できます
+            </p>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
               {monthlyStatus.map((month) => (
                 <div
                   key={month.month}
-                  className="border rounded-lg p-3 text-center"
+                  onClick={() => handleMonthClick(month)}
+                  className={`border rounded-lg p-3 text-center transition-all ${
+                    month.hasWorkHours && month.hasPayroll
+                      ? 'cursor-pointer hover:shadow-lg hover:border-blue-500 bg-blue-50'
+                      : 'opacity-60 cursor-not-allowed'
+                  }`}
                 >
                   <p className="font-bold text-lg mb-2">{month.month}月</p>
                   <div className="space-y-1">
@@ -543,6 +824,14 @@ const ActualDataImport = () => {
                       </span>
                     </div>
                   </div>
+                  {month.hasWorkHours && month.hasPayroll && (
+                    <div className="mt-2 pt-2 border-t border-blue-200">
+                      <span className="text-xs text-blue-700 font-medium flex items-center justify-center gap-1">
+                        <TrendingUp className="h-3 w-3" />
+                        差分を見る
+                      </span>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
