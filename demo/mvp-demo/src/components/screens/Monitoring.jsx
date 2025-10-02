@@ -185,17 +185,6 @@ const Monitoring = ({ onNext, onPrev }) => {
         </CardContent>
       </Card>
 
-      {/* ナビゲーション */}
-      <div className="mt-8 flex justify-between">
-        <Button variant="outline" onClick={onPrev} size="lg">
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          戻る
-        </Button>
-        <Button onClick={onNext} size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-          第2案生成へ
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-      </div>
     </motion.div>
   )
 }

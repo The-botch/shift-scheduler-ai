@@ -36,7 +36,7 @@ const pageTransition = {
   duration: 0.5
 }
 
-const SecondPlan = ({ onNext, onPrev }) => {
+const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
   const [comparison, setComparison] = useState(null)
@@ -351,6 +351,11 @@ const SecondPlan = ({ onNext, onPrev }) => {
   }
 
   const applyShiftChanges = (changes) => {
+    // 変更があったことをマーク
+    if (onMarkUnsaved) {
+      onMarkUnsaved()
+    }
+
     setShiftData(prevData => {
       const newData = [...prevData]
       const newChangedDates = new Set(changedDates)
@@ -576,6 +581,14 @@ const SecondPlan = ({ onNext, onPrev }) => {
       transition={pageTransition}
       className="container mx-auto px-4 py-8"
     >
+      {/* ナビゲーション */}
+      <div className="flex justify-end items-center mb-8">
+        <Button onClick={onNext} size="sm" className="bg-gradient-to-r from-green-600 to-green-700">
+          <CheckCircle className="mr-2 h-4 w-4" />
+          第2案を承認
+        </Button>
+      </div>
+
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
@@ -1381,20 +1394,6 @@ const SecondPlan = ({ onNext, onPrev }) => {
           </AnimatePresence>
         </div>
       )}
-
-      {/* ナビゲーション */}
-      <div className="mt-8 flex justify-between">
-        <Button variant="outline" onClick={onPrev} size="lg">
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          戻る
-        </Button>
-        {generated && (
-          <Button onClick={onNext} size="lg" className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700">
-            確定・配布へ
-            <ArrowRight className="ml-2 h-4 w-4" />
-          </Button>
-        )}
-      </div>
     </motion.div>
   )
 }

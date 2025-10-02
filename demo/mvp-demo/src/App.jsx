@@ -4,121 +4,224 @@ import './App.css'
 
 // Screen Components
 import Dashboard from './components/screens/Dashboard'
-import DataImport from './components/screens/DataImport'
 import FirstPlan from './components/screens/FirstPlan'
-import HopeCollection from './components/screens/HopeCollection'
-import StaffInput from './components/screens/StaffInput'
+import LineShiftInput from './components/screens/LineShiftInput'
 import Monitoring from './components/screens/Monitoring'
 import SecondPlan from './components/screens/SecondPlan'
-import ChatModification from './components/screens/ChatModification'
+import FinalDistribution from './components/screens/FinalDistribution'
 import MasterData from './components/screens/MasterData'
+import History from './components/screens/History'
+import ShiftManagement from './components/screens/ShiftManagement'
 
 // UI Components
 import { Button } from './components/ui/button'
-
-// Stepper Component
-const Stepper = ({ currentStep, onStepClick }) => {
-  const steps = [
-    { id: 1, title: 'ダッシュボード', description: 'システム概要' },
-    { id: 2, title: 'データ導入', description: 'CSV取り込み' },
-    { id: 3, title: '第1案生成', description: 'AI自動生成' },
-    { id: 4, title: '希望回収設定', description: 'リンク発行' },
-    { id: 5, title: 'スタッフ入力', description: 'モバイル対応' },
-    { id: 6, title: 'モニタリング', description: '提出状況監視' },
-    { id: 7, title: '第2案+修正', description: '希望反映+調整' },
-    { id: 8, title: '確定・配布', description: '最終チェック' },
-    { id: 9, title: '履歴', description: '監査・統計' }
-  ]
-
-  return (
-    <div className="bg-white border-b border-gray-200 px-4 py-3 sticky top-0 z-50 shadow-sm">
-      <div className="container mx-auto">
-        <div className="flex items-center space-x-2 overflow-x-auto pb-2">
-          {steps.map((step, index) => (
-            <button
-              key={step.id}
-              onClick={() => onStepClick(step.id)}
-              className={`flex-shrink-0 flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
-                currentStep === step.id
-                  ? 'bg-blue-600 text-white shadow-md'
-                  : currentStep > step.id
-                  ? 'bg-green-100 text-green-800 hover:bg-green-200'
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-              }`}
-            >
-              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                currentStep === step.id
-                  ? 'bg-white text-blue-600'
-                  : currentStep > step.id
-                  ? 'bg-green-600 text-white'
-                  : 'bg-gray-300 text-gray-600'
-              }`}>
-                {step.id}
-              </div>
-              <div className="text-left">
-                <div className="font-medium">{step.title}</div>
-                <div className="text-xs opacity-75">{step.description}</div>
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// Remaining placeholder components
-
-
-
-const FinalDistribution = ({ onNext, onPrev }) => (
-  <div className="container mx-auto px-4 py-8">
-    <h1 className="text-4xl font-bold mb-4">確定・配布</h1>
-    <p className="text-gray-600 mb-8">最終チェック後、シフトを確定・配布します</p>
-    <div className="flex justify-between">
-      <Button variant="outline" onClick={onPrev}>戻る</Button>
-      <Button onClick={onNext}>次へ</Button>
-    </div>
-  </div>
-)
-
-const History = ({ onNext, onPrev }) => (
-  <div className="container mx-auto px-4 py-8">
-    <h1 className="text-4xl font-bold mb-4">履歴・監査</h1>
-    <p className="text-gray-600 mb-8">変更履歴と監査ログを確認できます</p>
-    <div className="flex justify-between">
-      <Button variant="outline" onClick={onPrev}>戻る</Button>
-      <Button onClick={onNext} disabled>完了</Button>
-    </div>
-  </div>
-)
+import { Menu, X, Home, FolderOpen, Users, History as HistoryIcon, MessageSquare, ClipboardList } from 'lucide-react'
 
 function App() {
   const [currentStep, setCurrentStep] = useState(1)
   const [showMasterData, setShowMasterData] = useState(false)
+  const [showHistory, setShowHistory] = useState(false)
+  const [showShiftManagement, setShowShiftManagement] = useState(false)
+  const [showFirstPlanFromShiftMgmt, setShowFirstPlanFromShiftMgmt] = useState(false)
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [shiftStatus, setShiftStatus] = useState({
+    10: 'not_started', // 10月のステータス
+  })
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [showLineMessages, setShowLineMessages] = useState(false)
+  const [showMonitoring, setShowMonitoring] = useState(false)
 
   const nextStep = () => {
-    if (currentStep < 9) {
+    if (currentStep < 3) {
       setCurrentStep(currentStep + 1)
     }
   }
 
   const prevStep = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。前の画面に戻りますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
     if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
     }
   }
 
   const goToStep = (step) => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。画面を移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
     setCurrentStep(step)
   }
 
   const goToMasterData = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。マスターデータ管理に移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
     setShowMasterData(true)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowHistory(false)
+    setShowLineMessages(false)
+    setShowMonitoring(false)
+    setIsMenuOpen(false)
+  }
+
+  const goToDashboard = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。ダッシュボードに移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setCurrentStep(1)
+    setShowMasterData(false)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowHistory(false)
+    setShowLineMessages(false)
+    setShowMonitoring(false)
+    setIsMenuOpen(false)
   }
 
   const backFromMasterData = () => {
     setShowMasterData(false)
+  }
+
+  const goToHistory = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。履歴画面に移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowHistory(true)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowMasterData(false)
+    setShowLineMessages(false)
+    setShowMonitoring(false)
+    setIsMenuOpen(false)
+  }
+
+  const goToLineMessages = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。メッセージ画面に移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowLineMessages(true)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowMasterData(false)
+    setShowHistory(false)
+    setShowMonitoring(false)
+    setIsMenuOpen(false)
+  }
+
+  const goToMonitoring = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。モニタリング画面に移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowMonitoring(true)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowMasterData(false)
+    setShowHistory(false)
+    setShowLineMessages(false)
+    setIsMenuOpen(false)
+  }
+
+  const backFromHistory = () => {
+    setShowHistory(false)
+  }
+
+  const goToShiftManagement = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。シフト管理に移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowShiftManagement(true)
+    setShowMasterData(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowHistory(false)
+    setShowLineMessages(false)
+    setShowMonitoring(false)
+    setIsMenuOpen(false)
+  }
+
+  const backFromShiftManagement = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。戻りますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowShiftManagement(false)
+  }
+
+  const goToFirstPlanFromShiftMgmt = () => {
+    // ステータスに応じて遷移先を変更
+    if (shiftStatus[10] === 'completed') {
+      // 承認済みの場合は第2案（編集・修正）画面へ
+      setShowShiftManagement(false)
+      setCurrentStep(2)
+    } else if (shiftStatus[10] === 'first_plan_approved') {
+      // 第1案仮承認済みの場合は第2案作成（ステップ2）へ
+      setShowShiftManagement(false)
+      setCurrentStep(2)
+    } else {
+      // 未作成の場合は第1案作成へ
+      setShowFirstPlanFromShiftMgmt(true)
+      setShowShiftManagement(false)
+    }
+  }
+
+  const backToShiftManagementFromFirstPlan = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。シフト管理に戻りますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowShiftManagement(true)
+  }
+
+  const approveFirstPlan = () => {
+    // 第1案を仮承認してシフト管理画面に戻る
+    setShiftStatus({ ...shiftStatus, 10: 'first_plan_approved' })
+    setHasUnsavedChanges(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowShiftManagement(true)
+  }
+
+  const goToSecondPlanFromFirstPlan = () => {
+    // 第1案から修正ボタンで第2案へ
+    setShowFirstPlanFromShiftMgmt(false)
+    setCurrentStep(2) // 第2案画面へ
+  }
+
+  const approveSecondPlan = () => {
+    // 第2案を承認・確定してシフト管理画面に戻る
+    setShiftStatus({ ...shiftStatus, 10: 'completed' })
+    setHasUnsavedChanges(false)
+    setCurrentStep(1)
+    setShowShiftManagement(true)
   }
 
   const renderCurrentScreen = () => {
@@ -126,38 +229,117 @@ function App() {
       return <MasterData onPrev={backFromMasterData} />
     }
 
+    if (showHistory) {
+      return <History onPrev={backFromHistory} />
+    }
+
+    if (showLineMessages) {
+      return <LineShiftInput shiftStatus={shiftStatus} />
+    }
+
+    if (showMonitoring) {
+      return <Monitoring />
+    }
+
+    if (showShiftManagement) {
+      return <ShiftManagement
+        onPrev={backFromShiftManagement}
+        onCreateShift={goToFirstPlanFromShiftMgmt}
+        shiftStatus={shiftStatus}
+      />
+    }
+
+    if (showFirstPlanFromShiftMgmt) {
+      return <FirstPlan
+        onNext={goToSecondPlanFromFirstPlan}
+        onPrev={backToShiftManagementFromFirstPlan}
+        onApprove={approveFirstPlan}
+        onMarkUnsaved={() => setHasUnsavedChanges(true)}
+        onMarkSaved={() => setHasUnsavedChanges(false)}
+      />
+    }
+
     switch (currentStep) {
       case 1:
-        return <Dashboard onNext={nextStep} onMasterData={goToMasterData} />
+        return <Dashboard onNext={nextStep} onMasterData={goToMasterData} onHistory={goToHistory} onShiftManagement={goToShiftManagement} onMonitoring={goToMonitoring} />
       case 2:
-        return <DataImport onNext={nextStep} onPrev={prevStep} />
+        return <SecondPlan onNext={approveSecondPlan} onPrev={prevStep} onMarkUnsaved={() => setHasUnsavedChanges(true)} onMarkSaved={() => setHasUnsavedChanges(false)} />
       case 3:
-        return <FirstPlan onNext={nextStep} onPrev={prevStep} />
-      case 4:
-        return <HopeCollection onNext={nextStep} onPrev={prevStep} />
-      case 5:
-        return <StaffInput onNext={nextStep} onPrev={prevStep} />
-      case 6:
-        return <Monitoring onNext={nextStep} onPrev={prevStep} />
-      case 7:
-        return <SecondPlan onNext={nextStep} onPrev={prevStep} />
-      case 8:
-        return <div className="container mx-auto px-4 py-8 text-center"><h1 className="text-2xl font-bold">確定・配布</h1><p className="text-gray-600 mt-4">実装予定</p><div className="mt-8"><button onClick={prevStep} className="mr-4 px-4 py-2 border rounded">戻る</button><button onClick={nextStep} className="px-4 py-2 bg-blue-600 text-white rounded">次へ</button></div></div>
-      case 9:
-        return <div className="container mx-auto px-4 py-8 text-center"><h1 className="text-2xl font-bold">履歴・監査</h1><p className="text-gray-600 mt-4">実装予定</p><div className="mt-8"><button onClick={prevStep} className="mr-4 px-4 py-2 border rounded">戻る</button></div></div>
+        return <FinalDistribution onNext={nextStep} onPrev={prevStep} />
       default:
-        return <Dashboard onNext={nextStep} onMasterData={goToMasterData} />
+        return <Dashboard onNext={nextStep} onMasterData={goToMasterData} onHistory={goToHistory} onShiftManagement={goToShiftManagement} onMonitoring={goToMonitoring} />
     }
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      {!showMasterData && <Stepper currentStep={currentStep} onStepClick={goToStep} />}
-      <AnimatePresence mode="wait">
-        <div key={showMasterData ? 'master-data' : currentStep}>
-          {renderCurrentScreen()}
+      {/* ハンバーガーメニュー */}
+      <div className="fixed top-4 right-4 z-50">
+        <Button
+          onClick={() => setIsMenuOpen(!isMenuOpen)}
+          size="sm"
+          className="bg-white hover:bg-gray-100 text-gray-800 shadow-lg"
+          variant="outline"
+        >
+          {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+        </Button>
+      </div>
+
+      {/* メニュードロップダウン */}
+      {isMenuOpen && (
+        <div className="fixed top-16 right-4 z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 w-56">
+          <button
+            onClick={goToDashboard}
+            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
+          >
+            <Home className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-800">ダッシュボード</span>
+          </button>
+          <button
+            onClick={goToShiftManagement}
+            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
+          >
+            <FolderOpen className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-800">シフト管理</span>
+          </button>
+          <button
+            onClick={goToLineMessages}
+            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
+          >
+            <MessageSquare className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-800">メッセージ</span>
+          </button>
+          <button
+            onClick={goToMonitoring}
+            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
+          >
+            <ClipboardList className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-800">希望回収状況</span>
+          </button>
+          <button
+            onClick={goToMasterData}
+            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
+          >
+            <Users className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-800">マスターデータ</span>
+          </button>
+          <button
+            onClick={goToHistory}
+            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
+          >
+            <HistoryIcon className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-800">履歴</span>
+          </button>
         </div>
-      </AnimatePresence>
+      )}
+
+      <div className="flex-1">
+        <AnimatePresence mode="wait">
+          <div key={showMasterData ? 'master-data' : showHistory ? 'history' : showShiftManagement ? 'shift-management' : showFirstPlanFromShiftMgmt ? 'first-plan-shift-mgmt' : currentStep}>
+            {renderCurrentScreen()}
+          </div>
+        </AnimatePresence>
+      </div>
     </div>
   )
 }

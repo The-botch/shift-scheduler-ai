@@ -1,0 +1,6 @@
+metric_id,metric_name,predicted,actual,unit,status
+sales_personnel_fit,売上予測・人員配置との適合度,95.2,92.8,%,warning
+cost_impact,コスト影響（人件費・交通費）,450000,485000,円,warning
+legal_compliance,法令遵守,100,100,%,success
+fairness_preference,公平性・本人希望との乖離度,88.5,85.2,%,warning
+manager_adjustment,店長の最終修正との一致度,90.0,87.5,%,warning

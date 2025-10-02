@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -11,7 +11,14 @@ import {
   AlertCircle,
   Scale,
   Loader2,
-  ChevronLeft
+  ChevronLeft,
+  Plus,
+  Edit2,
+  Trash2,
+  Save,
+  X,
+  Upload,
+  Download
 } from 'lucide-react'
 import Papa from 'papaparse'
 
@@ -40,6 +47,9 @@ const MasterData = ({ onPrev }) => {
     storeConstraints: [],
     laborLawConstraints: []
   })
+  const [editingRow, setEditingRow] = useState(null)
+  const [editedData, setEditedData] = useState({})
+  const fileInputRef = useRef(null)
 
   const tabs = [
     { id: 'staff', label: 'スタッフ一覧', icon: Users, file: 'staff.csv' },
@@ -98,12 +108,139 @@ const MasterData = ({ onPrev }) => {
     }
   }
 
+  const handleAddRow = () => {
+    const tableData = data[activeTab] || []
+    if (tableData.length === 0) return
+
+    const columns = Object.keys(tableData[0])
+    const newRow = {}
+    columns.forEach(col => {
+      newRow[col] = ''
+    })
+
+    setData({
+      ...data,
+      [activeTab]: [...tableData, newRow]
+    })
+  }
+
+  const handleEditRow = (rowIndex) => {
+    setEditingRow(rowIndex)
+    setEditedData({ ...data[activeTab][rowIndex] })
+  }
+
+  const handleSaveRow = () => {
+    const updatedData = [...data[activeTab]]
+    updatedData[editingRow] = editedData
+    setData({
+      ...data,
+      [activeTab]: updatedData
+    })
+    setEditingRow(null)
+    setEditedData({})
+  }
+
+  const handleCancelEdit = () => {
+    setEditingRow(null)
+    setEditedData({})
+  }
+
+  const handleDeleteRow = (rowIndex) => {
+    if (!confirm('この行を削除しますか？')) return
+
+    const updatedData = data[activeTab].filter((_, index) => index !== rowIndex)
+    setData({
+      ...data,
+      [activeTab]: updatedData
+    })
+  }
+
+  const handleCellChange = (column, value) => {
+    setEditedData({
+      ...editedData,
+      [column]: value
+    })
+  }
+
+  const handleImportCSV = (event) => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      const text = e.target.result
+      Papa.parse(text, {
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: (result) => {
+          if (result.errors.length > 0) {
+            console.error('CSVパースエラー:', result.errors)
+            alert('CSVの読み込み中にエラーが発生しました')
+            return
+          }
+          setData({
+            ...data,
+            [activeTab]: result.data
+          })
+          alert('CSVを正常にインポートしました')
+          event.target.value = ''
+        },
+        error: (err) => {
+          console.error('CSVインポートエラー:', err)
+          alert('CSVのインポートに失敗しました')
+        }
+      })
+    }
+    reader.onerror = () => {
+      alert('ファイルの読み込みに失敗しました')
+    }
+    reader.readAsText(file)
+  }
+
+  const handleExportCSV = () => {
+    const tableData = data[activeTab]
+    if (!tableData || tableData.length === 0) {
+      alert('エクスポートするデータがありません')
+      return
+    }
+
+    try {
+      // BOM付きでUTF-8エンコード（Excelで文字化けしないように）
+      const csv = Papa.unparse(tableData)
+      const bom = new Uint8Array([0xEF, 0xBB, 0xBF])
+      const blob = new Blob([bom, csv], { type: 'text/csv;charset=utf-8;' })
+      const link = document.createElement('a')
+      const url = URL.createObjectURL(blob)
+
+      const currentTab = tabs.find(t => t.id === activeTab)
+      link.setAttribute('href', url)
+      link.setAttribute('download', currentTab.file)
+      link.style.visibility = 'hidden'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+
+      // メモリ解放
+      setTimeout(() => URL.revokeObjectURL(url), 100)
+
+      alert('CSVを正常にエクスポートしました')
+    } catch (err) {
+      console.error('CSVエクスポートエラー:', err)
+      alert('CSVのエクスポートに失敗しました')
+    }
+  }
+
   const renderTable = (tableData) => {
     if (!tableData || tableData.length === 0) {
       return (
         <div className="text-center py-12 text-gray-500">
           <AlertCircle className="h-12 w-12 mx-auto mb-4 opacity-30" />
           <p>データがありません</p>
+          <Button onClick={handleAddRow} className="mt-4" size="sm">
+            <Plus className="h-4 w-4 mr-2" />
+            最初の行を追加
+          </Button>
         </div>
       )
     }
@@ -123,6 +260,9 @@ const MasterData = ({ onPrev }) => {
                   {column}
                 </th>
               ))}
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                操作
+              </th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -132,18 +272,50 @@ const MasterData = ({ onPrev }) => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: rowIndex * 0.02 }}
-                className="hover:bg-gray-50"
+                className={editingRow === rowIndex ? "bg-blue-50" : "hover:bg-gray-50"}
               >
                 {columns.map((column) => (
                   <td
                     key={column}
-                    className="px-6 py-4 whitespace-nowrap text-sm text-gray-900"
+                    className="px-6 py-4 whitespace-nowrap text-sm"
                   >
-                    {row[column] !== null && row[column] !== undefined
-                      ? String(row[column])
-                      : '-'}
+                    {editingRow === rowIndex ? (
+                      <input
+                        type="text"
+                        value={editedData[column] || ''}
+                        onChange={(e) => handleCellChange(column, e.target.value)}
+                        className="w-full px-2 py-1 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                    ) : (
+                      <span className="text-gray-900">
+                        {row[column] !== null && row[column] !== undefined
+                          ? String(row[column])
+                          : '-'}
+                      </span>
+                    )}
                   </td>
                 ))}
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right space-x-2">
+                  {editingRow === rowIndex ? (
+                    <>
+                      <Button onClick={handleSaveRow} size="sm" variant="default">
+                        <Save className="h-4 w-4" />
+                      </Button>
+                      <Button onClick={handleCancelEdit} size="sm" variant="outline">
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <Button onClick={() => handleEditRow(rowIndex)} size="sm" variant="outline">
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button onClick={() => handleDeleteRow(rowIndex)} size="sm" variant="outline" className="text-red-600 hover:text-red-700">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </>
+                  )}
+                </td>
               </motion.tr>
             ))}
           </tbody>
@@ -203,6 +375,31 @@ const MasterData = ({ onPrev }) => {
             </div>
           </div>
 
+          {/* ツールバー */}
+          <div className="mb-4 flex justify-between items-center">
+            <div className="flex gap-2">
+              <Button onClick={handleAddRow} size="sm" variant="default">
+                <Plus className="h-4 w-4 mr-2" />
+                行を追加
+              </Button>
+              <Button onClick={() => fileInputRef.current?.click()} size="sm" variant="outline">
+                <Upload className="h-4 w-4 mr-2" />
+                CSVインポート
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv"
+                onChange={handleImportCSV}
+                className="hidden"
+              />
+            </div>
+            <Button onClick={handleExportCSV} size="sm" variant="outline">
+              <Download className="h-4 w-4 mr-2" />
+              CSVエクスポート
+            </Button>
+          </div>
+
           {/* データ表示カード */}
           <Card className="shadow-lg border-0">
             <CardHeader>
@@ -225,14 +422,6 @@ const MasterData = ({ onPrev }) => {
           </Card>
         </>
       )}
-
-      {/* ナビゲーション */}
-      <div className="mt-8">
-        <Button onClick={onPrev} variant="outline" size="lg">
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          ダッシュボードに戻る
-        </Button>
-      </div>
     </motion.div>
   )
 }
