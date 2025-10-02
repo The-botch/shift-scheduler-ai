@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { X } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { ROLE_COLORS, getRoleColor } from '../../config/colors'
 
 const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
   // 時間範囲（7:00 - 翌3:00）
@@ -95,24 +96,11 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
 
   const { columns, shifts: processedShifts } = calculateOverlaps()
 
-  // 役職ごとの色
-  const getRoleColor = (role) => {
-    const colorMap = {
-      '店長': 'bg-red-500',
-      'リーダー': 'bg-purple-500',
-      '主任': 'bg-blue-500',
-      '一般スタッフ': 'bg-green-500'
-    }
-    return colorMap[role] || 'bg-gray-500'
-  }
-
-  // 凡例用の役職リスト
-  const roleLegend = [
-    { name: '店長', color: 'bg-red-500' },
-    { name: 'リーダー', color: 'bg-purple-500' },
-    { name: '主任', color: 'bg-blue-500' },
-    { name: '一般スタッフ', color: 'bg-green-500' }
-  ]
+  // 凡例用の役職リスト（コンフィグから生成）
+  const roleLegend = Object.keys(ROLE_COLORS).map(roleName => ({
+    name: roleName,
+    color: ROLE_COLORS[roleName].bg
+  }))
 
   return (
     <div
@@ -195,7 +183,7 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className={`absolute rounded-lg shadow-md border-2 border-white overflow-hidden ${getRoleColor(shift.role)}`}
+                      className={`absolute rounded-lg shadow-md border-2 border-white overflow-hidden ${getRoleColor(shift.role).bg}`}
                       style={{
                         top: style.top,
                         height: style.height,
