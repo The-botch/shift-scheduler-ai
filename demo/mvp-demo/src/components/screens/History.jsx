@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import {
   ChevronLeft,
+  ChevronRight,
   History as HistoryIcon,
   User,
   Calendar,
@@ -159,6 +160,7 @@ const History = ({ onPrev, initialMonth }) => {
   const [showDiff, setShowDiff] = useState(false) // 差分表示モード
   const [diffAnalysis, setDiffAnalysis] = useState(null) // 差分分析結果
   const [monthStatus, setMonthStatus] = useState({}) // 月別ステータス管理
+  const [selectedYear, setSelectedYear] = useState(2024) // 選択中の年
 
   useEffect(() => {
     loadHistoryData()
@@ -1011,12 +1013,41 @@ const History = ({ onPrev, initialMonth }) => {
         <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
           シフト履歴
         </h1>
-        <p className="text-lg text-gray-600">過去1年分のシフト実績と10月の承認済みシフト</p>
+        <p className="text-lg text-gray-600">月別のシフト実績</p>
+      </div>
+
+      {/* 年選択 */}
+      <div className="flex items-center justify-center gap-4 mb-8">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setSelectedYear(selectedYear - 1)}
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="text-2xl font-bold">{selectedYear}年</div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setSelectedYear(selectedYear + 1)}
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* 月次サマリーカード */}
+      {monthlySummary.filter(summary => summary.year === selectedYear).length === 0 ? (
+        <div className="text-center py-12">
+          <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          <p className="text-lg text-gray-600">
+            {selectedYear}年のシフトデータはありません
+          </p>
+        </div>
+      ) : (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {monthlySummary.map((summary, index) => (
+        {monthlySummary
+          .filter(summary => summary.year === selectedYear)
+          .map((summary, index) => (
           <motion.div
             key={`${summary.year}-${summary.month}`}
             initial={{ opacity: 0, y: 20 }}
@@ -1096,6 +1127,7 @@ const History = ({ onPrev, initialMonth }) => {
           </motion.div>
         ))}
       </div>
+      )}
     </motion.div>
   )
 }
