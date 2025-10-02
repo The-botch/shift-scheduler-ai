@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import { Users, X, DollarSign, Clock, TrendingUp, Calendar, Award, FileText, Edit3 } from 'lucide-react'
+import { Users, X, DollarSign, Clock, TrendingUp, Calendar, Award, FileText, Edit3, Database } from 'lucide-react'
 import Papa from 'papaparse'
 import { validateStaffCSV } from '../../utils/csvHelper'
 import { calculatePayslip } from '../../utils/salaryCalculator'
@@ -71,11 +71,6 @@ const StaffManagement = () => {
       const shiftPatternsText = await shiftPatternsResponse.text()
       const shiftPatternsParsed = Papa.parse(shiftPatternsText, { header: true, skipEmptyLines: true })
 
-      // Load shift_history_2023-2024.csv for performance data (全期間シフト履歴)
-      const shiftsResponse = await fetch('/data/history/shift_history_2023-2024.csv')
-      const shiftsText = await shiftsResponse.text()
-      const shiftsParsed = Papa.parse(shiftsText, { header: true, skipEmptyLines: true })
-
       // 時刻からシフトパターンを推測する関数
       const inferPatternCode = (startTime, endTime, patterns) => {
         // 完全一致を探す
@@ -127,113 +122,94 @@ const StaffManagement = () => {
         return 'その他'
       }
 
-      // スタッフ別シフト履歴を集計（2024年のみ）
+      // IndexedDBから実績データのみを取得して集計
       const performanceMap = {}
-      const currentYear = 2024
-      shiftsParsed.data.forEach(shift => {
-        // 2024年のデータのみを集計
-        if (parseInt(shift.year) !== currentYear) return
-
-        const staffName = shift.staff_name
-        if (!performanceMap[staffName]) {
-          performanceMap[staffName] = {
-            totalDays: 0,
-            totalHours: 0,
-            totalWage: 0,
-            weekdayDays: 0,
-            weekendDays: 0,
-            shiftPatterns: {}, // シフトパターン別カウント
-            modifiedCount: 0,
-            shifts: [],
-            monthlyStats: {} // 月別統計
-          }
-        }
-
-        const perf = performanceMap[staffName]
-        perf.totalDays += 1
-        const hours = parseFloat(shift.actual_hours || 0)
-        const wage = parseFloat(shift.daily_wage || 0)
-        perf.totalHours += hours
-        perf.totalWage += wage
-
-        // 月別統計
-        const monthKey = `${shift.year}-${String(shift.month).padStart(2, '0')}`
-        if (!perf.monthlyStats[monthKey]) {
-          perf.monthlyStats[monthKey] = {
-            days: 0,
-            hours: 0,
-            wage: 0
-          }
-        }
-        perf.monthlyStats[monthKey].days += 1
-        perf.monthlyStats[monthKey].hours += hours
-        perf.monthlyStats[monthKey].wage += wage
-
-        // 曜日判定
-        const dayOfWeek = shift.day_of_week
-        if (dayOfWeek === '土' || dayOfWeek === '日') {
-          perf.weekendDays += 1
-        } else {
-          perf.weekdayDays += 1
-        }
-
-        // シフトパターン別カウント（時刻から推測）
-        const patternCode = shift.pattern_code || inferPatternCode(shift.start_time, shift.end_time, shiftPatternsParsed.data)
-        if (!perf.shiftPatterns[patternCode]) {
-          perf.shiftPatterns[patternCode] = 0
-        }
-        perf.shiftPatterns[patternCode] += 1
-
-        // 変更フラグ
-        if (shift.modified_flag === 'TRUE') {
-          perf.modifiedCount += 1
-        }
-
-        // シフト詳細を保存（最新100件まで）
-        if (perf.shifts.length < 100) {
-          perf.shifts.push({
-            year: shift.year,
-            month: shift.month,
-            date: shift.date,
-            dayOfWeek: shift.day_of_week,
-            startTime: shift.start_time,
-            endTime: shift.end_time,
-            hours: shift.actual_hours,
-            wage: shift.daily_wage
-          })
-        }
-      })
-
-      // IndexedDBから2024年実績データを取得して追加
       const { openDB } = await import('../../utils/indexedDB')
       await openDB()
 
-      // 各スタッフの実績データをIndexedDBから取得
+      // 各スタッフの実績データをIndexedDBから取得して集計
       for (const staff of staffParsed.data) {
         try {
           const workHistory = await getStaffWorkHistory(staff.staff_id)
           const payrollHistory = await getStaffPayrollHistory(staff.staff_id)
 
-          if (workHistory.length > 0 || payrollHistory.length > 0) {
-            // 実績データがある場合はperformanceMapに追加情報として保存
-            if (!performanceMap[staff.name]) {
-              performanceMap[staff.name] = {
-                totalDays: 0,
-                totalHours: 0,
-                totalWage: 0,
-                weekdayDays: 0,
-                weekendDays: 0,
-                shiftPatterns: {},
-                modifiedCount: 0,
-                shifts: [],
-                monthlyStats: {}
-              }
+          // 実績データがある場合のみperformanceMapに登録
+          if (workHistory.length > 0 && payrollHistory.length > 0) {
+            performanceMap[staff.name] = {
+              totalDays: 0,
+              totalHours: 0,
+              totalWage: 0,
+              weekdayDays: 0,
+              weekendDays: 0,
+              shiftPatterns: {},
+              modifiedCount: 0,
+              shifts: [],
+              monthlyStats: {}
             }
 
-            performanceMap[staff.name].actualData = {
-              workHistory,
-              payrollHistory
-            }
+            const perf = performanceMap[staff.name]
+
+            // 労働時間実績から集計
+            workHistory.forEach(shift => {
+              perf.totalDays += 1
+              const hours = parseFloat(shift.actual_hours || 0)
+              perf.totalHours += hours
+
+              // 月別統計
+              const monthKey = `${shift.year}-${String(shift.month).padStart(2, '0')}`
+              if (!perf.monthlyStats[monthKey]) {
+                perf.monthlyStats[monthKey] = {
+                  days: 0,
+                  hours: 0,
+                  wage: 0
+                }
+              }
+              perf.monthlyStats[monthKey].days += 1
+              perf.monthlyStats[monthKey].hours += hours
+
+              // 曜日判定（日付から計算）
+              const date = new Date(shift.year, shift.month - 1, shift.date)
+              const dayOfWeek = date.getDay()
+              if (dayOfWeek === 0 || dayOfWeek === 6) {
+                perf.weekendDays += 1
+              } else {
+                perf.weekdayDays += 1
+              }
+
+              // シフトパターン別カウント
+              const patternCode = inferPatternCode(shift.scheduled_start, shift.scheduled_end, shiftPatternsParsed.data)
+              if (!perf.shiftPatterns[patternCode]) {
+                perf.shiftPatterns[patternCode] = 0
+              }
+              perf.shiftPatterns[patternCode] += 1
+
+              // シフト詳細を保存（最新100件まで）
+              if (perf.shifts.length < 100) {
+                const weekdays = ['日', '月', '火', '水', '木', '金', '土']
+                perf.shifts.push({
+                  year: shift.year,
+                  month: shift.month,
+                  date: shift.date,
+                  dayOfWeek: weekdays[dayOfWeek],
+                  startTime: shift.actual_start,
+                  endTime: shift.actual_end,
+                  hours: shift.actual_hours,
+                  wage: 0 // 後で給与明細から設定
+                })
+              }
+            })
+
+            // 給与明細から総給与を集計
+            payrollHistory.forEach(payroll => {
+              const wage = parseInt(payroll.gross_salary || 0)
+              perf.totalWage += wage
+
+              // 月別統計に給与を追加
+              const monthKey = `${payroll.year}-${String(payroll.month).padStart(2, '0')}`
+              if (perf.monthlyStats[monthKey]) {
+                perf.monthlyStats[monthKey].wage += wage
+              }
+            })
           }
         } catch (err) {
           console.log(`実績データ取得エラー (${staff.name}):`, err)
@@ -430,8 +406,14 @@ const StaffManagement = () => {
                 </Card>
               </div>
 
-              {/* 全期間実績 */}
-              {staffPerformance[selectedStaff.name] && (() => {
+              {/* 実績データ */}
+              <div>
+                <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-blue-600" />
+                  実績（2024年）
+                </h3>
+
+                {staffPerformance[selectedStaff.name] ? (() => {
                 // 総給与の計算: 正社員・業務委託は固定給×月数、時給制のみ実績ベース
                 const monthCount = Object.keys(staffPerformance[selectedStaff.name].monthlyStats).length
                 let totalWage = 0
@@ -450,11 +432,6 @@ const StaffManagement = () => {
 
                 return (
                   <div>
-                    <h3 className="text-lg font-bold mb-3 flex items-center gap-2">
-                      <TrendingUp className="h-5 w-5 text-blue-600" />
-                      実績（2024年）
-                    </h3>
-
                     {/* サマリー（実績） */}
                     <div className="grid grid-cols-3 gap-4 mb-4">
                       <Card className="bg-blue-50 border-blue-200">
@@ -917,7 +894,24 @@ const StaffManagement = () => {
 
                 </div>
               )
-            })()}
+            })() : (
+              <Card className="bg-gray-50 border-2 border-gray-300">
+                <CardContent className="p-8 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                      <Database className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-gray-700 mb-1">実績データが登録されていません</p>
+                      <p className="text-sm text-gray-500">
+                        実績管理画面から労働時間実績と給与明細をインポートすると、ここに実績データが表示されます
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+              </div>
             </CardContent>
           </Card>
         </motion.div>
