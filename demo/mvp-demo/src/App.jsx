@@ -8,7 +8,6 @@ import FirstPlan from './components/screens/FirstPlan'
 import LineShiftInput from './components/screens/LineShiftInput'
 import Monitoring from './components/screens/Monitoring'
 import SecondPlan from './components/screens/SecondPlan'
-import FinalDistribution from './components/screens/FinalDistribution'
 import StaffManagement from './components/screens/StaffManagement'
 import StoreManagement from './components/screens/StoreManagement'
 import ConstraintManagement from './components/screens/ConstraintManagement'
@@ -328,8 +327,6 @@ function App() {
         />
       case 2:
         return <SecondPlan onNext={approveSecondPlan} onPrev={prevStep} onMarkUnsaved={() => setHasUnsavedChanges(true)} onMarkSaved={() => setHasUnsavedChanges(false)} />
-      case 3:
-        return <FinalDistribution onNext={nextStep} onPrev={prevStep} />
       default:
         return <Dashboard
           onNext={nextStep}
