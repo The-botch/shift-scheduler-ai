@@ -4,7 +4,11 @@ import './App.css'
 
 // Screen Components
 import Dashboard from './components/screens/Dashboard'
+import DataImport from './components/screens/DataImport'
 import FirstPlan from './components/screens/FirstPlan'
+import HopeCollection from './components/screens/HopeCollection'
+import StaffInput from './components/screens/StaffInput'
+import Monitoring from './components/screens/Monitoring'
 import ChatModification from './components/screens/ChatModification'
 
 // UI Components
@@ -62,50 +66,7 @@ const Stepper = ({ currentStep, onStepClick }) => {
   )
 }
 
-// Placeholder components for remaining screens
-const DataImport = ({ onNext, onPrev }) => (
-  <div className="container mx-auto px-4 py-8">
-    <h1 className="text-4xl font-bold mb-4">データ導入（CSV）</h1>
-    <p className="text-gray-600 mb-8">スタッフ情報とシフト制約をCSVファイルから取り込みます</p>
-    <div className="flex justify-between">
-      <Button variant="outline" onClick={onPrev}>戻る</Button>
-      <Button onClick={onNext}>次へ</Button>
-    </div>
-  </div>
-)
-
-const HopeCollection = ({ onNext, onPrev }) => (
-  <div className="container mx-auto px-4 py-8">
-    <h1 className="text-4xl font-bold mb-4">希望回収設定</h1>
-    <p className="text-gray-600 mb-8">スタッフ希望収集用のリンクを生成・配布します</p>
-    <div className="flex justify-between">
-      <Button variant="outline" onClick={onPrev}>戻る</Button>
-      <Button onClick={onNext}>次へ</Button>
-    </div>
-  </div>
-)
-
-const StaffInput = ({ onNext, onPrev }) => (
-  <div className="container mx-auto px-4 py-8">
-    <h1 className="text-4xl font-bold mb-4">スタッフ入力</h1>
-    <p className="text-gray-600 mb-8">モバイル対応の希望入力フォームです</p>
-    <div className="flex justify-between">
-      <Button variant="outline" onClick={onPrev}>戻る</Button>
-      <Button onClick={onNext}>次へ</Button>
-    </div>
-  </div>
-)
-
-const Monitoring = ({ onNext, onPrev }) => (
-  <div className="container mx-auto px-4 py-8">
-    <h1 className="text-4xl font-bold mb-4">モニタリング</h1>
-    <p className="text-gray-600 mb-8">スタッフの提出状況を監視・催促します</p>
-    <div className="flex justify-between">
-      <Button variant="outline" onClick={onPrev}>戻る</Button>
-      <Button onClick={onNext}>次へ</Button>
-    </div>
-  </div>
-)
+// Remaining placeholder components
 
 const SecondPlan = ({ onNext, onPrev }) => (
   <div className="container mx-auto px-4 py-8">
@@ -174,13 +135,13 @@ function App() {
       case 6:
         return <Monitoring onNext={nextStep} onPrev={prevStep} />
       case 7:
-        return <SecondPlan onNext={nextStep} onPrev={prevStep} />
+        return <div className="container mx-auto px-4 py-8 text-center"><h1 className="text-2xl font-bold">第2案生成</h1><p className="text-gray-600 mt-4">実装予定</p><div className="mt-8"><button onClick={prevStep} className="mr-4 px-4 py-2 border rounded">戻る</button><button onClick={nextStep} className="px-4 py-2 bg-blue-600 text-white rounded">次へ</button></div></div>
       case 8:
         return <ChatModification onNext={nextStep} onPrev={prevStep} />
       case 9:
-        return <FinalDistribution onNext={nextStep} onPrev={prevStep} />
+        return <div className="container mx-auto px-4 py-8 text-center"><h1 className="text-2xl font-bold">確定・配布</h1><p className="text-gray-600 mt-4">実装予定</p><div className="mt-8"><button onClick={prevStep} className="mr-4 px-4 py-2 border rounded">戻る</button><button onClick={nextStep} className="px-4 py-2 bg-blue-600 text-white rounded">次へ</button></div></div>
       case 10:
-        return <History onNext={nextStep} onPrev={prevStep} />
+        return <div className="container mx-auto px-4 py-8 text-center"><h1 className="text-2xl font-bold">履歴・監査</h1><p className="text-gray-600 mt-4">実装予定</p><div className="mt-8"><button onClick={prevStep} className="mr-4 px-4 py-2 border rounded">戻る</button></div></div>
       default:
         return <Dashboard onNext={nextStep} />
     }
