@@ -54,16 +54,11 @@ const CSVActions = ({
         <Download className="h-4 w-4 mr-2" />
         CSVエクスポート
       </Button>
-      <label>
-        <Button
-          size="sm"
-          variant="secondary"
-          as="span"
-          className="bg-white text-blue-700 hover:bg-gray-100 cursor-pointer"
-        >
-          <Upload className="h-4 w-4 mr-2" />
+      <label className="cursor-pointer">
+        <div className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2 bg-white text-blue-700 hover:bg-gray-100 border border-input">
+          <Upload className="h-4 w-4" />
           CSVインポート
-        </Button>
+        </div>
         <input
           type="file"
           accept=".csv"

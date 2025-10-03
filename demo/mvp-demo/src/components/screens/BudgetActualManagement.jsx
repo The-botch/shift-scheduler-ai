@@ -42,6 +42,7 @@ const BudgetActualManagement = () => {
   const [diffAnalysis, setDiffAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
   const [selectedYear, setSelectedYear] = useState(2024)
+  const [monthlyPL, setMonthlyPL] = useState([])
 
   // IndexedDB内のデータ件数を取得
   useEffect(() => {
@@ -58,8 +59,10 @@ const BudgetActualManagement = () => {
       const forecastDataStr = localStorage.getItem('sales_forecast_data')
       const forecastData = forecastDataStr ? JSON.parse(forecastDataStr) : []
 
-      // 月ごとのステータスを生成
+      // 月ごとのステータスとPLデータを生成
       const months = []
+      const plData = []
+
       for (let month = 1; month <= 12; month++) {
         const monthWorkHours = await getActualShifts(selectedYear, month)
         const monthPayroll = await getPayroll(selectedYear, month)
@@ -78,9 +81,63 @@ const BudgetActualManagement = () => {
           hasSalesActual: monthSalesActual.length > 0,
           hasForecast: monthForecast.length > 0
         })
+
+        // PL計算
+        const salesForecast = monthForecast.length > 0 ? parseInt(monthForecast[0].forecasted_sales || 0) : 0
+        const salesActual = monthSalesActual.length > 0 ? parseInt(monthSalesActual[0].actual_sales || 0) : 0
+
+        const laborCostForecast = monthForecast.length > 0 ? parseInt(monthForecast[0].required_labor_cost || 0) : 0
+        const laborCostActual = monthPayroll.reduce((sum, p) => sum + parseInt(p.gross_salary || 0), 0)
+
+        const commuteForecast = monthForecast.length > 0 ? monthPayroll.length * 8000 : 0 // 仮の値
+        const commuteActual = monthPayroll.reduce((sum, p) => sum + parseInt(p.commute_allowance || 0), 0)
+
+        const profitForecast = salesForecast - laborCostForecast - commuteForecast
+        const profitActual = salesActual - laborCostActual - commuteActual
+
+        const profitRateForecast = salesForecast > 0 ? (profitForecast / salesForecast * 100) : 0
+        const profitRateActual = salesActual > 0 ? (profitActual / salesActual * 100) : 0
+
+        const laborRateForecast = salesForecast > 0 ? (laborCostForecast / salesForecast * 100) : 0
+        const laborRateActual = salesActual > 0 ? (laborCostActual / salesActual * 100) : 0
+
+        const commuteRateForecast = salesForecast > 0 ? (commuteForecast / salesForecast * 100) : 0
+        const commuteRateActual = salesActual > 0 ? (commuteActual / salesActual * 100) : 0
+
+        plData.push({
+          month,
+          year: selectedYear,
+          salesForecast,
+          salesActual,
+          salesDiff: salesActual - salesForecast,
+          salesDiffPercent: salesForecast > 0 ? ((salesActual - salesForecast) / salesForecast * 100) : 0,
+          laborCostForecast,
+          laborCostActual,
+          laborCostDiff: laborCostActual - laborCostForecast,
+          laborCostDiffPercent: laborCostForecast > 0 ? ((laborCostActual - laborCostForecast) / laborCostForecast * 100) : 0,
+          laborRateForecast,
+          laborRateActual,
+          laborRateDiff: laborRateActual - laborRateForecast,
+          commuteForecast,
+          commuteActual,
+          commuteDiff: commuteActual - commuteForecast,
+          commuteDiffPercent: commuteForecast > 0 ? ((commuteActual - commuteForecast) / commuteForecast * 100) : 0,
+          commuteRateForecast,
+          commuteRateActual,
+          commuteRateDiff: commuteRateActual - commuteRateForecast,
+          profitForecast,
+          profitActual,
+          profitDiff: profitActual - profitForecast,
+          profitDiffPercent: profitForecast !== 0 ? ((profitActual - profitForecast) / Math.abs(profitForecast) * 100) : 0,
+          profitRateForecast,
+          profitRateActual,
+          profitRateDiff: profitRateActual - profitRateForecast,
+          hasData: monthForecast.length > 0 || monthSalesActual.length > 0 || monthPayroll.length > 0
+        })
       }
 
       setMonthlyStatus(months)
+      setMonthlyPL(plData)
     } catch (error) {
       console.error('ステータス読み込みエラー:', error)
     }
@@ -1286,6 +1343,274 @@ const BudgetActualManagement = () => {
             </CardContent>
           </Card>
         </div>
+
+        {/* 月別PL表 */}
+        <Card className="shadow-lg">
+          <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-700 text-white">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-6 w-6" />
+              <CardTitle className="text-xl">月別損益計算書（{selectedYear}年）</CardTitle>
+            </div>
+          </CardHeader>
+          <CardContent className="p-6">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse">
+                <thead>
+                  <tr className="border-b-2 border-gray-300">
+                    <th className="sticky left-0 bg-white px-4 py-3 text-left font-bold border-r-2 border-gray-300 min-w-[120px]">項目</th>
+                    {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => (
+                      <th key={month} className="px-3 py-3 text-center font-semibold border-r border-gray-200 min-w-[100px]">
+                        {month}月
+                      </th>
+                    ))}
+                    <th className="px-4 py-3 text-center font-bold bg-blue-50 border-l-2 border-gray-300 min-w-[120px]">年間合計</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* 売上 */}
+                  <tr className="border-b-2 border-gray-300 hover:bg-gray-50">
+                    <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300">売上</td>
+                    {monthlyPL.map(pl => {
+                      const hasActual = pl.salesActual > 0
+                      const displayValue = hasActual ? pl.salesActual : pl.salesForecast
+                      const diff = pl.salesActual - pl.salesForecast
+                      const bgColor = !hasActual ? 'bg-gray-50' : diff > 0 ? 'bg-green-50' : diff < 0 ? 'bg-red-50' : 'bg-white'
+
+                      return (
+                        <td key={pl.month} className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}>
+                          {displayValue > 0 ? (
+                            <>
+                              <span className={!hasActual ? 'text-gray-500' : ''}>{!hasActual && '(予) '}¥{displayValue.toLocaleString()}</span>
+                              {hasActual && (
+                                <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                  予測: ¥{pl.salesForecast.toLocaleString()}<br/>
+                                  差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()} ({pl.salesDiffPercent >= 0 ? '+' : ''}{pl.salesDiffPercent.toFixed(1)}%)
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              )}
+                            </>
+                          ) : '-'}
+                        </td>
+                      )
+                    })}
+                    <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                      ¥{monthlyPL.reduce((sum, pl) => sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast), 0).toLocaleString()}
+                    </td>
+                  </tr>
+
+                  {/* 人件費 */}
+                  <tr className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300">人件費</td>
+                    {monthlyPL.map(pl => {
+                      const hasActual = pl.laborCostActual > 0
+                      const displayValue = hasActual ? pl.laborCostActual : pl.laborCostForecast
+                      const diff = pl.laborCostActual - pl.laborCostForecast
+                      const bgColor = !hasActual ? 'bg-gray-50' : diff > 0 ? 'bg-red-50' : diff < 0 ? 'bg-green-50' : 'bg-white'
+
+                      return (
+                        <td key={pl.month} className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}>
+                          {displayValue > 0 ? (
+                            <>
+                              <span className={!hasActual ? 'text-gray-500' : ''}>{!hasActual && '(予) '}¥{displayValue.toLocaleString()}</span>
+                              {hasActual && (
+                                <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                  予測: ¥{pl.laborCostForecast.toLocaleString()}<br/>
+                                  差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()} ({pl.laborCostDiffPercent >= 0 ? '+' : ''}{pl.laborCostDiffPercent.toFixed(1)}%)
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              )}
+                            </>
+                          ) : '-'}
+                        </td>
+                      )
+                    })}
+                    <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                      ¥{monthlyPL.reduce((sum, pl) => sum + (pl.laborCostActual > 0 ? pl.laborCostActual : pl.laborCostForecast), 0).toLocaleString()}
+                    </td>
+                  </tr>
+
+                  {/* 人件費率 */}
+                  <tr className="border-b-2 border-gray-300 hover:bg-gray-50">
+                    <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs">　人件費率</td>
+                    {monthlyPL.map(pl => {
+                      const hasActual = pl.laborRateActual !== 0 || pl.salesActual > 0
+                      const displayValue = hasActual ? pl.laborRateActual : pl.laborRateForecast
+                      const diff = pl.laborRateActual - pl.laborRateForecast
+                      const bgColor = !hasActual ? 'bg-gray-50' : diff > 0 ? 'bg-red-50' : diff < 0 ? 'bg-green-50' : 'bg-white'
+
+                      return (
+                        <td key={pl.month} className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}>
+                          {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
+                            <>
+                              <span className={!hasActual ? 'text-gray-500' : ''}>{!hasActual && '(予) '}{displayValue.toFixed(1)}%</span>
+                              {hasActual && (
+                                <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                  予測: {pl.laborRateForecast.toFixed(1)}%<br/>
+                                  差分: {diff >= 0 ? '+' : ''}{diff.toFixed(1)}pt
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              )}
+                            </>
+                          ) : '-'}
+                        </td>
+                      )
+                    })}
+                    <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                      {(() => {
+                        const totalSales = monthlyPL.reduce((sum, pl) => sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast), 0)
+                        const totalLabor = monthlyPL.reduce((sum, pl) => sum + (pl.laborCostActual > 0 ? pl.laborCostActual : pl.laborCostForecast), 0)
+                        return totalSales > 0 ? `${(totalLabor / totalSales * 100).toFixed(1)}%` : '-'
+                      })()}
+                    </td>
+                  </tr>
+
+                  {/* 交通費 */}
+                  <tr className="border-b border-gray-200 hover:bg-gray-50">
+                    <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300">交通費</td>
+                    {monthlyPL.map(pl => {
+                      const hasActual = pl.commuteActual > 0
+                      const displayValue = hasActual ? pl.commuteActual : pl.commuteForecast
+                      const diff = pl.commuteActual - pl.commuteForecast
+                      const bgColor = !hasActual ? 'bg-gray-50' : diff > 0 ? 'bg-red-50' : diff < 0 ? 'bg-green-50' : 'bg-white'
+
+                      return (
+                        <td key={pl.month} className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}>
+                          {displayValue > 0 ? (
+                            <>
+                              <span className={!hasActual ? 'text-gray-500' : ''}>{!hasActual && '(予) '}¥{displayValue.toLocaleString()}</span>
+                              {hasActual && (
+                                <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                  予測: ¥{pl.commuteForecast.toLocaleString()}<br/>
+                                  差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()} ({pl.commuteDiffPercent >= 0 ? '+' : ''}{pl.commuteDiffPercent.toFixed(1)}%)
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              )}
+                            </>
+                          ) : '-'}
+                        </td>
+                      )
+                    })}
+                    <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                      ¥{monthlyPL.reduce((sum, pl) => sum + (pl.commuteActual > 0 ? pl.commuteActual : pl.commuteForecast), 0).toLocaleString()}
+                    </td>
+                  </tr>
+
+                  {/* 交通費率 */}
+                  <tr className="border-b-2 border-gray-300 hover:bg-gray-50">
+                    <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs">　交通費率</td>
+                    {monthlyPL.map(pl => {
+                      const hasActual = pl.commuteRateActual !== 0 || pl.salesActual > 0
+                      const displayValue = hasActual ? pl.commuteRateActual : pl.commuteRateForecast
+                      const diff = pl.commuteRateActual - pl.commuteRateForecast
+                      const bgColor = !hasActual ? 'bg-gray-50' : diff > 0 ? 'bg-red-50' : diff < 0 ? 'bg-green-50' : 'bg-white'
+
+                      return (
+                        <td key={pl.month} className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}>
+                          {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
+                            <>
+                              <span className={!hasActual ? 'text-gray-500' : ''}>{!hasActual && '(予) '}{displayValue.toFixed(1)}%</span>
+                              {hasActual && (
+                                <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                  予測: {pl.commuteRateForecast.toFixed(1)}%<br/>
+                                  差分: {diff >= 0 ? '+' : ''}{diff.toFixed(1)}pt
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              )}
+                            </>
+                          ) : '-'}
+                        </td>
+                      )
+                    })}
+                    <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                      {(() => {
+                        const totalSales = monthlyPL.reduce((sum, pl) => sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast), 0)
+                        const totalCommute = monthlyPL.reduce((sum, pl) => sum + (pl.commuteActual > 0 ? pl.commuteActual : pl.commuteForecast), 0)
+                        return totalSales > 0 ? `${(totalCommute / totalSales * 100).toFixed(1)}%` : '-'
+                      })()}
+                    </td>
+                  </tr>
+
+                  {/* 営業利益 */}
+                  <tr className="border-b border-gray-200 bg-yellow-50 hover:bg-yellow-100">
+                    <td className="sticky left-0 bg-yellow-50 px-4 py-2 font-bold border-r-2 border-gray-300">営業利益</td>
+                    {monthlyPL.map(pl => {
+                      const hasActual = pl.profitActual !== 0 || pl.salesActual > 0
+                      const displayValue = hasActual ? pl.profitActual : pl.profitForecast
+                      const diff = pl.profitActual - pl.profitForecast
+                      let bgColor = 'bg-yellow-50'
+                      if (hasActual) {
+                        bgColor = diff > 0 ? 'bg-green-100' : diff < 0 ? 'bg-red-100' : 'bg-yellow-50'
+                      }
+                      const textColor = displayValue >= 0 ? 'text-green-700' : 'text-red-700'
+
+                      return (
+                        <td key={pl.month} className={`px-3 py-2 text-right border-r border-gray-100 font-semibold ${bgColor} ${textColor} relative group ${hasActual ? 'cursor-help' : ''}`}>
+                          {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
+                            <>
+                              <span>{!hasActual && <span className="text-gray-500">(予) </span>}¥{displayValue.toLocaleString()}</span>
+                              {hasActual && (
+                                <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                  予測: ¥{pl.profitForecast.toLocaleString()}<br/>
+                                  差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()}
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              )}
+                            </>
+                          ) : '-'}
+                        </td>
+                      )
+                    })}
+                    <td className="px-4 py-2 text-right font-bold bg-blue-100 border-l-2 border-gray-300 text-green-800">
+                      ¥{monthlyPL.reduce((sum, pl) => sum + (pl.profitActual !== 0 || pl.salesActual > 0 ? pl.profitActual : pl.profitForecast), 0).toLocaleString()}
+                    </td>
+                  </tr>
+
+                  {/* 営業利益率 */}
+                  <tr className="hover:bg-gray-50">
+                    <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs whitespace-nowrap">　利益率</td>
+                    {monthlyPL.map(pl => {
+                      const hasActual = pl.profitRateActual !== 0 || pl.salesActual > 0
+                      const displayValue = hasActual ? pl.profitRateActual : pl.profitRateForecast
+                      const diff = pl.profitRateActual - pl.profitRateForecast
+                      const bgColor = !hasActual ? 'bg-gray-50' : diff > 0 ? 'bg-green-50' : diff < 0 ? 'bg-red-50' : 'bg-white'
+
+                      return (
+                        <td key={pl.month} className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}>
+                          {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
+                            <>
+                              <span className={!hasActual ? 'text-gray-500' : ''}>{!hasActual && '(予) '}{displayValue.toFixed(1)}%</span>
+                              {hasActual && (
+                                <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                  予測: {pl.profitRateForecast.toFixed(1)}%<br/>
+                                  差分: {diff >= 0 ? '+' : ''}{diff.toFixed(1)}pt
+                                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                </div>
+                              )}
+                            </>
+                          ) : '-'}
+                        </td>
+                      )
+                    })}
+                    <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                      {(() => {
+                        const totalSales = monthlyPL.reduce((sum, pl) => sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast), 0)
+                        const totalProfit = monthlyPL.reduce((sum, pl) => sum + (pl.profitActual !== 0 || pl.salesActual > 0 ? pl.profitActual : pl.profitForecast), 0)
+                        return totalSales > 0 ? `${(totalProfit / totalSales * 100).toFixed(1)}%` : '-'
+                      })()}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+              <p className="text-sm text-green-800">
+                <span className="font-bold">凡例:</span>
+                <span className="ml-4 inline-block px-2 py-1 bg-green-50 border border-green-200 text-xs">緑背景</span> = 実績が予測より良好
+                <span className="ml-2 inline-block px-2 py-1 bg-red-50 border border-red-200 text-xs">赤背景</span> = 実績が予測より悪化
+              </p>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* 月別インポートステータス */}
         <Card>
