@@ -5,7 +5,7 @@ AIによる自動シフト生成システムのMVPデモアプリケーション
 ## 📚 ドキュメント
 
 - [プロダクト概要のLP](https://claude.ai/public/artifacts/0f62011c-69c4-4e2f-abfc-01e52b5323a9)
-- [アーキテクチャー設計書並びにシステム構成](https://claude.ai/public/artifacts/6480b2f5-6f71-456b-a184-74fa83ffe577)
+- [アーキテクチャー設計書並びにシステム構成](https://sysdiag-datorr.manus.space)
 
 ## デモ起動方法
 
