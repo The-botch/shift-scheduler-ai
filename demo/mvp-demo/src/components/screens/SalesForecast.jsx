@@ -32,7 +32,7 @@ const SalesForecast = () => {
   }
 
   const validateSalesForecastCSV = (data) => {
-    const requiredColumns = ['forecast_id', 'year', 'month', 'store_id', 'forecasted_sales', 'required_staff_count', 'required_hours']
+    const requiredColumns = ['forecast_id', 'year', 'month', 'store_id', 'forecasted_sales', 'required_labor_cost', 'required_hours']
 
     if (!data || data.length === 0) {
       throw new Error('CSVファイルが空です')
@@ -55,9 +55,13 @@ const SalesForecast = () => {
   const calculateYearlyTotals = () => {
     const yearlyForecasts = forecasts.filter(f => parseInt(f.year) === selectedYear)
 
+    const totalSales = yearlyForecasts.reduce((sum, f) => sum + parseInt(f.forecasted_sales || 0), 0)
+    const totalLaborCost = yearlyForecasts.reduce((sum, f) => sum + parseInt(f.required_labor_cost || 0), 0)
+
     return {
-      totalSales: yearlyForecasts.reduce((sum, f) => sum + parseInt(f.forecasted_sales || 0), 0),
-      avgStaffCount: Math.round(yearlyForecasts.reduce((sum, f) => sum + parseInt(f.required_staff_count || 0), 0) / yearlyForecasts.length),
+      totalSales,
+      totalLaborCost,
+      laborCostRatio: totalSales > 0 ? ((totalLaborCost / totalSales) * 100).toFixed(1) : 0,
       totalHours: yearlyForecasts.reduce((sum, f) => sum + parseInt(f.required_hours || 0), 0),
       monthCount: yearlyForecasts.length
     }
@@ -138,13 +142,13 @@ const SalesForecast = () => {
 
                 <Card className="bg-gradient-to-br from-purple-50 to-purple-100 border-2 border-purple-300">
                   <CardContent className="p-6 text-center">
-                    <Users className="h-8 w-8 text-purple-600 mx-auto mb-2" />
-                    <div className="text-sm text-purple-700 mb-1">平均必要人員</div>
+                    <DollarSign className="h-8 w-8 text-purple-600 mx-auto mb-2" />
+                    <div className="text-sm text-purple-700 mb-1">年間必要人件費</div>
                     <div className="text-3xl font-bold text-purple-800">
-                      {yearlyTotals.avgStaffCount}名
+                      ¥{yearlyTotals.totalLaborCost.toLocaleString()}
                     </div>
                     <div className="text-xs text-purple-600 mt-1">
-                      {yearlyTotals.monthCount}ヶ月平均
+                      人件費率 {yearlyTotals.laborCostRatio}%
                     </div>
                   </CardContent>
                 </Card>
@@ -203,9 +207,15 @@ const SalesForecast = () => {
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-gray-600">必要人員:</span>
+                              <span className="text-gray-600">必要人件費:</span>
                               <span className="font-semibold text-purple-700">
-                                {data.required_staff_count}名
+                                ¥{parseInt(data.required_labor_cost).toLocaleString()}
+                              </span>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-gray-600">人件費率:</span>
+                              <span className="font-semibold text-orange-700">
+                                {((parseInt(data.required_labor_cost) / parseInt(data.forecasted_sales)) * 100).toFixed(1)}%
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
