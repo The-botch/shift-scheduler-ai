@@ -2,16 +2,10 @@ import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
+import AppHeader from '../shared/AppHeader'
 import {
   TrendingUp,
   DollarSign,
-  Calendar as CalendarIcon,
-  Users,
-  FolderOpen,
-  ClipboardList,
-  Store,
-  Shield,
-  MessageSquare,
   Database,
   Clock,
   BarChart3
@@ -34,18 +28,9 @@ const pageTransition = {
 }
 
 const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaffManagement, onStoreManagement, onConstraintManagement, onLineMessages, onBudgetActualManagement }) => {
-  const [currentTime, setCurrentTime] = useState(new Date())
   const [annualSummary, setAnnualSummary] = useState(null)
   const [loadingAnnualSummary, setLoadingAnnualSummary] = useState(true)
   const [monthlyData, setMonthlyData] = useState([])
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentTime(new Date())
-    }, 1000)
-
-    return () => clearInterval(timer)
-  }, [])
 
   useEffect(() => {
     loadAnnualSummary()
@@ -248,15 +233,6 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
     return months
   }
 
-  const formatDate = (date) => {
-    const year = date.getFullYear()
-    const month = date.getMonth() + 1
-    const day = date.getDate()
-    const weekdays = ['日', '月', '火', '水', '木', '金', '土']
-    const weekday = weekdays[date.getDay()]
-    return `${year}年${month}月${day}日（${weekday}）`
-  }
-
   return (
     <motion.div
       initial="initial"
@@ -264,57 +240,21 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="container mx-auto px-4 py-8"
+      className="min-h-screen bg-slate-50"
     >
-      {/* ヘッダー */}
-      <div className="mb-8">
-        {/* 日付と時刻 */}
-        <div className="flex items-center text-sm text-gray-500 mb-6">
-          <CalendarIcon className="h-4 w-4 mr-2" />
-          <span>{formatDate(currentTime)}</span>
-        </div>
+      <AppHeader
+        onHome={() => window.location.reload()}
+        onShiftManagement={onShiftManagement}
+        onLineMessages={onLineMessages}
+        onMonitoring={onMonitoring}
+        onStaffManagement={onStaffManagement}
+        onStoreManagement={onStoreManagement}
+        onConstraintManagement={onConstraintManagement}
+        onBudgetActualManagement={onBudgetActualManagement}
+      />
 
-        {/* トップバー：右上にナビゲーション */}
-        <div className="flex justify-end items-center mb-4">
-          <div className="flex space-x-3">
-            <Button variant="outline" size="sm" onClick={onShiftManagement}>
-              <FolderOpen className="h-4 w-4 mr-2" />
-              シフト管理
-            </Button>
-            <Button variant="outline" size="sm" onClick={onLineMessages} className="bg-blue-50 border-blue-300">
-              <MessageSquare className="h-4 w-4 mr-2" />
-              メッセージ管理
-            </Button>
-            <Button variant="outline" size="sm" onClick={onMonitoring} className="bg-blue-50 border-blue-300">
-              <ClipboardList className="h-4 w-4 mr-2" />
-              シフト希望管理
-            </Button>
-            <Button variant="outline" size="sm" onClick={onStaffManagement} className="bg-blue-50 border-blue-300">
-              <Users className="h-4 w-4 mr-2" />
-              スタッフ管理
-            </Button>
-            <Button variant="outline" size="sm" onClick={onStoreManagement} className="bg-green-50 border-green-300">
-              <Store className="h-4 w-4 mr-2" />
-              店舗管理
-            </Button>
-            <Button variant="outline" size="sm" onClick={onConstraintManagement} className="bg-purple-50 border-purple-300">
-              <Shield className="h-4 w-4 mr-2" />
-              制約管理
-            </Button>
-            <Button variant="outline" size="sm" onClick={onBudgetActualManagement} className="bg-indigo-50 border-indigo-300">
-              <TrendingUp className="h-4 w-4 mr-2" />
-              予実管理
-            </Button>
-          </div>
-        </div>
-
-        {/* タイトル */}
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            KPIダッシュボード
-          </h1>
-        </div>
-      </div>
+      {/* メインコンテンツ */}
+      <div className="app-container">
 
       {/* 年次予実差分サマリー - コンパクト版 */}
       {!loadingAnnualSummary && (
@@ -677,6 +617,7 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
           </div>
         </motion.div>
       )}
+      </div>
     </motion.div>
   )
 }

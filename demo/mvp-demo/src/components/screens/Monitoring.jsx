@@ -17,6 +17,7 @@ import {
 import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'
 import { AnimatePresence } from 'framer-motion'
+import AppHeader from '../shared/AppHeader'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -252,15 +253,18 @@ const Monitoring = ({ onNext, onPrev }) => {
   }
 
   return (
-    <motion.div
-      initial="initial"
-      animate="in"
-      exit="out"
-      variants={pageVariants}
-      transition={pageTransition}
-      className="container mx-auto px-4 py-8"
-    >
-      <div className="mb-8">
+    <div className="min-h-screen bg-slate-50">
+      <AppHeader />
+
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="app-container"
+      >
+        <div className="mb-8">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
           シフト希望管理
         </h1>
@@ -557,7 +561,8 @@ const Monitoring = ({ onNext, onPrev }) => {
         )}
       </AnimatePresence>
 
-    </motion.div>
+      </motion.div>
+    </div>
   )
 }
 

@@ -14,6 +14,7 @@ import {
   History as HistoryIcon
 } from 'lucide-react'
 import History from './History'
+import AppHeader from '../shared/AppHeader'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -114,15 +115,18 @@ const ShiftManagement = ({ onNext, onPrev, onCreateShift, shiftStatus }) => {
   }
 
   return (
-    <motion.div
-      initial="initial"
-      animate="in"
-      exit="out"
-      variants={pageVariants}
-      transition={pageTransition}
-      className="container mx-auto px-4 py-8"
-    >
-      <div className="mb-8">
+    <div className="min-h-screen bg-slate-50">
+      <AppHeader onHome={onPrev} />
+
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="app-container"
+      >
+        <div className="mb-8">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
           シフト管理
         </h1>
@@ -256,7 +260,8 @@ const ShiftManagement = ({ onNext, onPrev, onCreateShift, shiftStatus }) => {
 
         </div>
       )}
-    </motion.div>
+      </motion.div>
+    </div>
   )
 }
 

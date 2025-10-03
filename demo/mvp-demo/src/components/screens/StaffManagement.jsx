@@ -8,6 +8,7 @@ import { validateStaffCSV } from '../../utils/csvHelper'
 import { calculatePayslip } from '../../utils/salaryCalculator'
 import { getStaffWorkHistory, getStaffPayrollHistory } from '../../utils/indexedDB'
 import CSVActions from '../shared/CSVActions'
+import AppHeader from '../shared/AppHeader'
 
 const StaffManagement = () => {
   const [staffList, setStaffList] = useState([])
@@ -920,14 +921,17 @@ const StaffManagement = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Card className="shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
+    <div className="min-h-screen bg-slate-50">
+      <AppHeader />
+
+      <div className="app-container">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card className="shadow-lg">
+            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <Users className="h-8 w-8" />
@@ -1106,6 +1110,7 @@ const StaffManagement = () => {
           </CardContent>
         </Card>
       </motion.div>
+      </div>
     </div>
   )
 }

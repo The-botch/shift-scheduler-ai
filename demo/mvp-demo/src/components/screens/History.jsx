@@ -23,6 +23,7 @@ import {
 import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'
 import { exportCSV, generateFilename } from '../../utils/csvHelper'
+import AppHeader from '../shared/AppHeader'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -686,19 +687,23 @@ const History = ({ onPrev, initialMonth }) => {
 
   if (loading) {
     return (
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-        className="container mx-auto px-4 py-8"
-      >
-        <div className="flex flex-col items-center justify-center min-h-[400px]">
+      <div className="min-h-screen bg-slate-50">
+        <AppHeader onHome={onPrev} />
+
+        <motion.div
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+          className="app-container"
+        >
+          <div className="flex flex-col items-center justify-center min-h-[400px]">
           <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
           <p className="text-lg text-gray-600">履歴データを読み込んでいます...</p>
-        </div>
-      </motion.div>
+          </div>
+        </motion.div>
+      </div>
     )
   }
 
@@ -802,15 +807,18 @@ const History = ({ onPrev, initialMonth }) => {
   // 詳細表示の場合
   if (selectedMonth) {
     return (
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-        className="container mx-auto px-4 py-8"
-      >
-        <div className="mb-8">
+      <div className="min-h-screen bg-slate-50">
+        <AppHeader onHome={onPrev} />
+
+        <motion.div
+          initial="initial"
+          animate="in"
+          exit="out"
+          variants={pageVariants}
+          transition={pageTransition}
+          className="app-container"
+        >
+          <div className="mb-8">
           <Button
             variant="outline"
             onClick={backToSummary}
@@ -995,21 +1003,25 @@ const History = ({ onPrev, initialMonth }) => {
             />
           )}
         </AnimatePresence>
-      </motion.div>
+        </motion.div>
+      </div>
     )
   }
 
   // 月次サマリー表示
   return (
-    <motion.div
-      initial="initial"
-      animate="in"
-      exit="out"
-      variants={pageVariants}
-      transition={pageTransition}
-      className="container mx-auto px-4 py-8"
-    >
-      <div className="mb-8">
+    <div className="min-h-screen bg-slate-50">
+      <AppHeader onHome={onPrev} />
+
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="app-container"
+      >
+        <div className="mb-8">
         <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
           シフト履歴
         </h1>
@@ -1128,7 +1140,8 @@ const History = ({ onPrev, initialMonth }) => {
         ))}
       </div>
       )}
-    </motion.div>
+      </motion.div>
+    </div>
   )
 }
 

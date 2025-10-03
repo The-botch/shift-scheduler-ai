@@ -13,6 +13,7 @@ import {
   Edit3
 } from 'lucide-react'
 import Papa from 'papaparse'
+import AppHeader from '../shared/AppHeader'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -252,15 +253,18 @@ const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
   }
 
   return (
-    <motion.div
-      initial="initial"
-      animate="in"
-      exit="out"
-      variants={pageVariants}
-      transition={pageTransition}
-      className="container mx-auto px-4 py-8"
-    >
-      {/* スタッフのスマホ画面風デモ */}
+    <div className="min-h-screen bg-slate-50">
+      <AppHeader />
+
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="app-container"
+      >
+        {/* スタッフのスマホ画面風デモ */}
       <div className="flex justify-center">
         <div className="w-full max-w-[380px]">
           <Card className="shadow-2xl border-4 border-gray-800 rounded-[2rem] overflow-hidden bg-white">
@@ -582,7 +586,8 @@ const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
           </Card>
         </div>
       </div>
-    </motion.div>
+      </motion.div>
+    </div>
   )
 }
 

@@ -16,6 +16,7 @@ import {
 } from '../../utils/indexedDB'
 import { INDEXED_DB, STORAGE_KEYS } from '../../config'
 import { PAGE_VARIANTS, PAGE_TRANSITION } from '../../config/display'
+import AppHeader from '../shared/AppHeader'
 
 const BudgetActualManagement = () => {
   const [workHoursFile, setWorkHoursFile] = useState(null)
@@ -828,15 +829,18 @@ const BudgetActualManagement = () => {
   // 差分分析画面
   if (selectedMonth && diffAnalysis) {
     return (
-      <motion.div
-        variants={PAGE_VARIANTS}
-        initial="initial"
-        animate="in"
-        exit="out"
-        transition={PAGE_TRANSITION}
-        className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6"
-      >
-        <div className="max-w-7xl mx-auto space-y-6">
+      <div className="min-h-screen bg-slate-50">
+        <AppHeader />
+
+        <motion.div
+          variants={PAGE_VARIANTS}
+          initial="initial"
+          animate="in"
+          exit="out"
+          transition={PAGE_TRANSITION}
+          className="app-container"
+        >
+          <div className="max-w-7xl mx-auto space-y-6">
           {/* ヘッダー */}
           <div>
             <Button variant="outline" onClick={backToList} className="mb-4">
@@ -954,22 +958,26 @@ const BudgetActualManagement = () => {
               </div>
             </CardContent>
           </Card>
-        </div>
-      </motion.div>
+          </div>
+        </motion.div>
+      </div>
     )
   }
 
   // 通常のインポート画面
   return (
-    <motion.div
-      variants={PAGE_VARIANTS}
-      initial="initial"
-      animate="in"
-      exit="out"
-      transition={PAGE_TRANSITION}
-      className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 p-6"
-    >
-      <div className="max-w-7xl mx-auto space-y-6">
+    <div className="min-h-screen bg-slate-50">
+      <AppHeader />
+
+      <motion.div
+        variants={PAGE_VARIANTS}
+        initial="initial"
+        animate="in"
+        exit="out"
+        transition={PAGE_TRANSITION}
+        className="app-container"
+      >
+        <div className="max-w-7xl mx-auto space-y-6">
         {/* ヘッダー */}
         <div className="flex items-center justify-between">
           <div>
@@ -1688,8 +1696,9 @@ const BudgetActualManagement = () => {
             </div>
           </CardContent>
         </Card>
-      </div>
-    </motion.div>
+        </div>
+      </motion.div>
+    </div>
   )
 }
 

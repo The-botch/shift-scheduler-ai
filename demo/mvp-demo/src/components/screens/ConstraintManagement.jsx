@@ -5,6 +5,7 @@ import { Button } from '../ui/button'
 import { Shield, AlertTriangle, Download, Upload, BookOpen } from 'lucide-react'
 import Papa from 'papaparse'
 import { exportCSV as exportCSVHelper, importCSV, validateConstraintCSV, generateFilename } from '../../utils/csvHelper'
+import AppHeader from '../shared/AppHeader'
 
 const ConstraintManagement = () => {
   const [laborLaws, setLaborLaws] = useState([])
@@ -129,13 +130,16 @@ const ConstraintManagement = () => {
   const groupedLaws = groupByCategory()
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Card className="shadow-lg">
+    <div className="min-h-screen bg-slate-50">
+      <AppHeader />
+
+      <div className="app-container">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card className="shadow-lg">
           <CardHeader className="bg-gradient-to-r from-purple-600 to-purple-700 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -272,6 +276,7 @@ const ConstraintManagement = () => {
           </CardContent>
         </Card>
       </motion.div>
+      </div>
     </div>
   )
 }

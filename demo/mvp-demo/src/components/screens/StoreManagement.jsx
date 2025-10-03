@@ -5,6 +5,7 @@ import { Store, Clock, MapPin, Phone, Briefcase } from 'lucide-react'
 import Papa from 'papaparse'
 import { validateStoreCSV } from '../../utils/csvHelper'
 import CSVActions from '../shared/CSVActions'
+import AppHeader from '../shared/AppHeader'
 
 const StoreManagement = () => {
   const [stores, setStores] = useState([])
@@ -99,13 +100,16 @@ const StoreManagement = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
-        <Card className="shadow-lg">
+    <div className="min-h-screen bg-slate-50">
+      <AppHeader />
+
+      <div className="app-container">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <Card className="shadow-lg">
           <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -227,6 +231,7 @@ const StoreManagement = () => {
           </CardContent>
         </Card>
       </motion.div>
+      </div>
     </div>
   )
 }
