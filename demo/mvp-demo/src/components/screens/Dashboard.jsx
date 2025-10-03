@@ -17,7 +17,7 @@ import {
   BarChart3
 } from 'lucide-react'
 import Papa from 'papaparse'
-import { getAllData } from '../../utils/indexedDB'
+import { getAllData, getAllSalesActual } from '../../utils/indexedDB'
 import { INDEXED_DB } from '../../config/constants'
 
 const pageVariants = {
@@ -56,10 +56,12 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
       // Load all actual data from IndexedDB
       const actualShifts = await getAllData(INDEXED_DB.STORES.ACTUAL_SHIFTS)
       const actualPayroll = await getAllData(INDEXED_DB.STORES.PAYROLL)
+      const actualSales = await getAllSalesActual()
 
       // Filter to only include 2024 data
       const actualShifts2024 = actualShifts.filter(shift => shift.year === 2024)
       const actualPayroll2024 = actualPayroll.filter(payroll => payroll.year === 2024)
+      const actualSales2024 = actualSales.filter(sale => sale.year === 2024)
 
       // If no actual data exists, don't show the summary
       if (actualShifts2024.length === 0 || actualPayroll2024.length === 0) {
@@ -68,11 +70,11 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
       }
 
       // Load planned shifts from CSV
-      const response = await fetch('/data/history/shift_history_2023-2024.csv')
-      const text = await response.text()
+      const shiftsResponse = await fetch('/data/history/shift_history_2023-2024.csv')
+      const shiftsText = await shiftsResponse.text()
 
-      const result = await new Promise((resolve) => {
-        Papa.parse(text, {
+      const shiftsResult = await new Promise((resolve) => {
+        Papa.parse(shiftsText, {
           header: true,
           dynamicTyping: true,
           skipEmptyLines: true,
@@ -81,10 +83,25 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
       })
 
       // Filter to only include 2024 data
-      const plannedShifts2024 = result.data.filter(shift => shift.year === 2024)
+      const plannedShifts2024 = shiftsResult.data.filter(shift => shift.year === 2024)
+
+      // Load sales forecast from CSV
+      const forecastResponse = await fetch('/data/forecast/sales_forecast_2024.csv')
+      const forecastText = await forecastResponse.text()
+
+      const forecastResult = await new Promise((resolve) => {
+        Papa.parse(forecastText, {
+          header: true,
+          dynamicTyping: false,
+          skipEmptyLines: true,
+          complete: resolve
+        })
+      })
+
+      const salesForecast2024 = forecastResult.data.filter(f => parseInt(f.year) === 2024)
 
       // Calculate annual summary
-      const summary = calculateAnnualSummary(plannedShifts2024, actualShifts2024, actualPayroll2024)
+      const summary = calculateAnnualSummary(plannedShifts2024, actualShifts2024, actualPayroll2024, salesForecast2024, actualSales2024)
       setAnnualSummary(summary)
     } catch (err) {
       console.error('年次サマリー読み込みエラー:', err)
@@ -94,7 +111,7 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
     }
   }
 
-  const calculateAnnualSummary = (plannedShifts, actualShifts, actualPayroll) => {
+  const calculateAnnualSummary = (plannedShifts, actualShifts, actualPayroll, salesForecast, actualSales) => {
     const summary = {
       year: 2024,
       plannedShifts: plannedShifts.length,
@@ -107,7 +124,12 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
       actualCost: 0,
       costDiff: 0,
       costDiffPercent: 0,
-      monthsWithData: new Set()
+      forecastSales: 0,
+      actualSalesTotal: 0,
+      salesDiff: 0,
+      salesDiffPercent: 0,
+      monthsWithData: new Set(),
+      monthsWithSalesData: new Set()
     }
 
     // Calculate planned totals
@@ -126,6 +148,17 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
       summary.actualCost += parseInt(payroll.gross_salary || 0)
     })
 
+    // Calculate sales forecast
+    salesForecast.forEach(forecast => {
+      summary.forecastSales += parseInt(forecast.forecasted_sales || 0)
+    })
+
+    // Calculate actual sales
+    actualSales.forEach(sale => {
+      summary.actualSalesTotal += parseInt(sale.actual_sales || 0)
+      summary.monthsWithSalesData.add(`${sale.year}-${sale.month}`)
+    })
+
     // Calculate differences
     summary.shiftCountDiff = summary.actualShifts - summary.plannedShifts
     summary.hoursDiff = summary.actualHours - summary.plannedHours
@@ -134,6 +167,17 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
       ? ((summary.costDiff / summary.plannedCost) * 100).toFixed(1)
       : 0
     summary.monthsCount = summary.monthsWithData.size
+
+    // Calculate sales difference (only for months with actual sales data)
+    if (summary.monthsWithSalesData.size > 0) {
+      const avgForecastPerMonth = summary.forecastSales / 12
+      const forecastForActualMonths = avgForecastPerMonth * summary.monthsWithSalesData.size
+      summary.salesDiff = summary.actualSalesTotal - forecastForActualMonths
+      summary.salesDiffPercent = forecastForActualMonths > 0
+        ? ((summary.salesDiff / forecastForActualMonths) * 100).toFixed(1)
+        : 0
+    }
+    summary.salesMonthsCount = summary.monthsWithSalesData.size
 
     return summary
   }
@@ -273,23 +317,32 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
                   </div>
                 </div>
 
-                {/* 人件費乖離率 */}
-                <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-amber-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="h-5 w-5 text-amber-600" />
-                    <p className="text-sm font-semibold text-gray-600">人件費乖離率</p>
+                {/* 売上 */}
+                {annualSummary.salesMonthsCount > 0 ? (
+                  <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-green-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="h-5 w-5 text-green-600" />
+                      <p className="text-sm font-semibold text-gray-600">売上</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">予測: <span className="font-bold text-gray-700">¥{((annualSummary.forecastSales / 12) * annualSummary.salesMonthsCount).toLocaleString()}</span></p>
+                      <p className="text-xs text-gray-500">実績: <span className="font-bold text-gray-700">¥{annualSummary.actualSalesTotal.toLocaleString()}</span></p>
+                      <p className={`text-lg font-bold mt-2 ${annualSummary.salesDiff > 0 ? 'text-green-600' : annualSummary.salesDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                        {annualSummary.salesDiff > 0 ? '+' : ''}¥{annualSummary.salesDiff.toLocaleString()}
+                      </p>
+                    </div>
                   </div>
-                  <div className="flex items-center justify-center h-16">
-                    <p className={`text-3xl font-bold ${Math.abs(parseFloat(annualSummary.costDiffPercent)) > 5 ? 'text-red-600' : Math.abs(parseFloat(annualSummary.costDiffPercent)) > 2 ? 'text-yellow-600' : 'text-green-600'}`}>
-                      {annualSummary.costDiffPercent > 0 ? '+' : ''}{annualSummary.costDiffPercent}%
-                    </p>
+                ) : (
+                  <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-gray-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="h-5 w-5 text-gray-400" />
+                      <p className="text-sm font-semibold text-gray-600">売上</p>
+                    </div>
+                    <div className="flex items-center justify-center h-16">
+                      <p className="text-xs text-gray-400 text-center">売上実績データがありません</p>
+                    </div>
                   </div>
-                  <p className="text-xs text-center text-gray-500 mt-2">
-                    {Math.abs(parseFloat(annualSummary.costDiffPercent)) <= 2 && '目標範囲内'}
-                    {Math.abs(parseFloat(annualSummary.costDiffPercent)) > 2 && Math.abs(parseFloat(annualSummary.costDiffPercent)) <= 5 && '注意が必要'}
-                    {Math.abs(parseFloat(annualSummary.costDiffPercent)) > 5 && '要対策'}
-                  </p>
-                </div>
+                )}
               </div>
 
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -352,7 +405,7 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
 
                 return (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
                       {/* シフト数 */}
                       <div className="bg-white p-5 rounded-lg shadow-md border-2 border-blue-200">
                         <div className="flex items-center gap-2 mb-3">
@@ -430,6 +483,55 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
                           </div>
                         </div>
                       </div>
+
+                      {/* 売上 */}
+                      {annualSummary.salesMonthsCount > 0 ? (
+                        (() => {
+                          const avgSalesPerMonth = annualSummary.actualSalesTotal / annualSummary.salesMonthsCount
+                          const predictedSales = Math.round(avgSalesPerMonth * remainingMonths)
+                          const totalSales = annualSummary.actualSalesTotal + predictedSales
+                          const plannedAnnualSales = annualSummary.forecastSales
+                          const salesDiff = totalSales - plannedAnnualSales
+                          const salesDiffPercent = ((salesDiff / plannedAnnualSales) * 100).toFixed(1)
+
+                          return (
+                            <div className="bg-white p-5 rounded-lg shadow-md border-2 border-green-200">
+                              <div className="flex items-center gap-2 mb-3">
+                                <TrendingUp className="h-5 w-5 text-green-600" />
+                                <p className="text-sm font-semibold text-gray-600">売上（年間）</p>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-xs text-gray-500">
+                                  <span>実績（{annualSummary.salesMonthsCount}ヶ月）:</span>
+                                  <span className="font-bold">¥{annualSummary.actualSalesTotal.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-500">
+                                  <span>予測（{12 - annualSummary.salesMonthsCount}ヶ月）:</span>
+                                  <span className="font-bold">¥{predictedSales.toLocaleString()}</span>
+                                </div>
+                                <div className="h-px bg-gray-300 my-2"></div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm font-semibold text-gray-700">着地見込み:</span>
+                                  <span className="text-2xl font-bold text-green-600">¥{totalSales.toLocaleString()}</span>
+                                </div>
+                                <div className={`text-xs text-right ${salesDiff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  予定比 {salesDiff > 0 ? '+' : ''}¥{salesDiff.toLocaleString()} ({salesDiffPercent > 0 ? '+' : ''}{salesDiffPercent}%)
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })()
+                      ) : (
+                        <div className="bg-white p-5 rounded-lg shadow-md border-2 border-gray-200">
+                          <div className="flex items-center gap-2 mb-3">
+                            <TrendingUp className="h-5 w-5 text-gray-400" />
+                            <p className="text-sm font-semibold text-gray-600">売上（年間）</p>
+                          </div>
+                          <div className="flex items-center justify-center h-32">
+                            <p className="text-xs text-gray-400 text-center">売上実績データがありません</p>
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
