@@ -158,6 +158,12 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
     >
       {/* ヘッダー */}
       <div className="mb-8">
+        {/* 日付と時刻 */}
+        <div className="flex items-center text-sm text-gray-500 mb-6">
+          <CalendarIcon className="h-4 w-4 mr-2" />
+          <span>{formatDate(currentTime)}</span>
+        </div>
+
         {/* トップバー：右上にナビゲーション */}
         <div className="flex justify-end items-center mb-4">
           <div className="flex space-x-3">
@@ -194,14 +200,9 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
 
         {/* タイトル */}
         <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            シフト管理ダッシュボード
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+            KPIダッシュボード
           </h1>
-          <p className="text-lg text-gray-600">AIによる自動シフト生成から配布まで</p>
-          <div className="flex items-center mt-2 text-sm text-gray-500">
-            <CalendarIcon className="h-4 w-4 mr-2" />
-            <span>{formatDate(currentTime)}</span>
-          </div>
         </div>
       </div>
 
