@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import {
   saveActualShifts,
   savePayroll,
+  saveSalesActual,
   getActualShifts,
   getPayroll,
+  getSalesActual,
   getCount,
   clearStore
 } from '../../utils/indexedDB'
@@ -18,14 +20,18 @@ import { PAGE_VARIANTS, PAGE_TRANSITION } from '../../config/display'
 const ActualDataImport = () => {
   const [workHoursFile, setWorkHoursFile] = useState(null)
   const [payrollFile, setPayrollFile] = useState(null)
+  const [salesActualFile, setSalesActualFile] = useState(null)
   const [workHoursPreview, setWorkHoursPreview] = useState([])
   const [payrollPreview, setPayrollPreview] = useState([])
+  const [salesActualPreview, setSalesActualPreview] = useState([])
   const [workHoursData, setWorkHoursData] = useState([])
   const [payrollData, setPayrollData] = useState([])
+  const [salesActualData, setSalesActualData] = useState([])
   const [importing, setImporting] = useState(false)
   const [importStatus, setImportStatus] = useState({
     workHours: { status: 'idle', message: '' },
-    payroll: { status: 'idle', message: '' }
+    payroll: { status: 'idle', message: '' },
+    salesActual: { status: 'idle', message: '' }
   })
   const [monthlyStatus, setMonthlyStatus] = useState([])
   const [selectedMonth, setSelectedMonth] = useState(null)
@@ -41,20 +47,24 @@ const ActualDataImport = () => {
     try {
       const workHoursCount = await getCount(INDEXED_DB.STORES.ACTUAL_SHIFTS)
       const payrollCount = await getCount(INDEXED_DB.STORES.PAYROLL)
+      const salesActualCount = await getCount(INDEXED_DB.STORES.SALES_ACTUAL)
 
       // 月ごとのステータスを生成
       const months = []
       for (let month = 1; month <= 12; month++) {
         const monthWorkHours = await getActualShifts(2024, month)
         const monthPayroll = await getPayroll(2024, month)
+        const monthSalesActual = await getSalesActual(2024, month)
 
         months.push({
           month,
           year: 2024,
           workHoursCount: monthWorkHours.length,
           payrollCount: monthPayroll.length,
+          salesActualCount: monthSalesActual.length,
           hasWorkHours: monthWorkHours.length > 0,
-          hasPayroll: monthPayroll.length > 0
+          hasPayroll: monthPayroll.length > 0,
+          hasSalesActual: monthSalesActual.length > 0
         })
       }
 
@@ -72,9 +82,12 @@ const ActualDataImport = () => {
     if (type === 'workHours') {
       setWorkHoursFile(file)
       parseCSV(file, 'workHours')
-    } else {
+    } else if (type === 'payroll') {
       setPayrollFile(file)
       parseCSV(file, 'payroll')
+    } else if (type === 'salesActual') {
+      setSalesActualFile(file)
+      parseCSV(file, 'salesActual')
     }
   }
 
@@ -87,24 +100,21 @@ const ActualDataImport = () => {
         if (type === 'workHours') {
           setWorkHoursData(result.data)
           setWorkHoursPreview(result.data.slice(0, 5))
-        } else {
+        } else if (type === 'payroll') {
           setPayrollData(result.data)
           setPayrollPreview(result.data.slice(0, 5))
+        } else if (type === 'salesActual') {
+          setSalesActualData(result.data)
+          setSalesActualPreview(result.data.slice(0, 5))
         }
       },
       error: (error) => {
         console.error('CSV解析エラー:', error)
-        if (type === 'workHours') {
-          setImportStatus(prev => ({
-            ...prev,
-            workHours: { status: 'error', message: 'CSV解析に失敗しました' }
-          }))
-        } else {
-          setImportStatus(prev => ({
-            ...prev,
-            payroll: { status: 'error', message: 'CSV解析に失敗しました' }
-          }))
-        }
+        const statusKey = type === 'workHours' ? 'workHours' : type === 'payroll' ? 'payroll' : 'salesActual'
+        setImportStatus(prev => ({
+          ...prev,
+          [statusKey]: { status: 'error', message: 'CSV解析に失敗しました' }
+        }))
       }
     })
   }
@@ -158,9 +168,30 @@ const ActualDataImport = () => {
         }
       })
 
+      // 売上実績CSVをロード
+      const salesActualResponse = await fetch('/data/actual/sales_actual_2024.csv')
+      const salesActualText = await salesActualResponse.text()
+
+      Papa.parse(salesActualText, {
+        header: true,
+        skipEmptyLines: true,
+        complete: (result) => {
+          // 現在月以前のデータのみをフィルタ
+          const filteredData = result.data.filter(row => {
+            const year = parseInt(row.year)
+            const month = parseInt(row.month)
+            return year < currentYear || (year === currentYear && month <= currentMonth)
+          })
+          setSalesActualData(filteredData)
+          setSalesActualPreview(filteredData.slice(0, 5))
+          setSalesActualFile({ name: 'sales_actual_2024.csv (サンプル)' })
+        }
+      })
+
       setImportStatus({
         workHours: { status: 'idle', message: '' },
-        payroll: { status: 'idle', message: '' }
+        payroll: { status: 'idle', message: '' },
+        salesActual: { status: 'idle', message: '' }
       })
     } catch (error) {
       console.error('サンプルデータロードエラー:', error)
@@ -336,6 +367,77 @@ const ActualDataImport = () => {
     }
   }
 
+  // 売上実績のインポート
+  const importSalesActual = async () => {
+    if (!salesActualData.length) {
+      setImportStatus(prev => ({
+        ...prev,
+        salesActual: { status: 'error', message: 'データがありません' }
+      }))
+      return
+    }
+
+    // 現在の月チェック（デモでは2024年10月として固定）
+    const currentYear = 2024
+    const currentMonth = 10
+
+    // 未来のデータが含まれていないかチェック
+    const futureData = salesActualData.filter(row => {
+      const year = parseInt(row.year)
+      const month = parseInt(row.month)
+      return year > currentYear || (year === currentYear && month > currentMonth)
+    })
+
+    if (futureData.length > 0) {
+      alert(`未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`)
+      setImportStatus(prev => ({
+        ...prev,
+        salesActual: { status: 'error', message: '未来のデータが含まれています' }
+      }))
+      return
+    }
+
+    setImporting(true)
+    setImportStatus(prev => ({
+      ...prev,
+      salesActual: { status: 'loading', message: 'インポート中...' }
+    }))
+
+    try {
+      // データの変換と検証
+      const formattedData = salesActualData.map(row => ({
+        actual_id: row.actual_id,
+        year: parseInt(row.year),
+        month: parseInt(row.month),
+        store_id: parseInt(row.store_id),
+        actual_sales: parseInt(row.actual_sales),
+        daily_average: parseInt(row.daily_average),
+        notes: row.notes || ''
+      }))
+
+      const result = await saveSalesActual(formattedData)
+
+      setImportStatus(prev => ({
+        ...prev,
+        salesActual: {
+          status: 'success',
+          message: `${formattedData.length}件のデータをインポートしました`
+        }
+      }))
+
+      // ステータスを更新
+      await loadImportStatus()
+    } catch (error) {
+      console.error('インポートエラー:', error)
+      setImportStatus(prev => ({
+        ...prev,
+        salesActual: { status: 'error', message: `エラー: ${error.message}` }
+      }))
+    } finally {
+      setImporting(false)
+    }
+  }
+
   // データクリア
   const clearAllData = async () => {
     if (!confirm('全てのインポートデータを削除しますか？この操作は取り消せません。')) {
@@ -345,10 +447,12 @@ const ActualDataImport = () => {
     try {
       await clearStore(INDEXED_DB.STORES.ACTUAL_SHIFTS)
       await clearStore(INDEXED_DB.STORES.PAYROLL)
+      await clearStore(INDEXED_DB.STORES.SALES_ACTUAL)
       await loadImportStatus()
       setImportStatus({
         workHours: { status: 'idle', message: '' },
-        payroll: { status: 'idle', message: '' }
+        payroll: { status: 'idle', message: '' },
+        salesActual: { status: 'idle', message: '' }
       })
       alert('データを削除しました')
     } catch (error) {
@@ -694,7 +798,7 @@ const ActualDataImport = () => {
         </div>
 
         {/* インポートセクション */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 労働時間実績 */}
           <Card>
             <CardHeader>
@@ -858,6 +962,89 @@ const ActualDataImport = () => {
               )}
             </CardContent>
           </Card>
+
+          {/* 売上実績 */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <TrendingUp className="h-5 w-5 text-purple-600" />
+                売上実績
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  CSVファイルを選択
+                </label>
+                <input
+                  type="file"
+                  accept=".csv"
+                  onChange={(e) => handleFileSelect(e, 'salesActual')}
+                  className="block w-full text-sm text-gray-500
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded-full file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-purple-50 file:text-purple-700
+                    hover:file:bg-purple-100"
+                />
+              </div>
+
+              {salesActualFile && (
+                <div className="bg-purple-50 p-3 rounded-lg">
+                  <p className="text-sm font-medium text-purple-900">{salesActualFile.name}</p>
+                  <p className="text-xs text-purple-700 mt-1">
+                    {salesActualData.length}件のレコード
+                  </p>
+                </div>
+              )}
+
+              {salesActualPreview.length > 0 && (
+                <div className="border rounded-lg overflow-hidden">
+                  <div className="bg-gray-50 px-3 py-2 border-b">
+                    <p className="text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
+                  </div>
+                  <div className="overflow-x-auto max-h-48">
+                    <table className="w-full text-xs">
+                      <thead className="bg-gray-100">
+                        <tr>
+                          <th className="px-2 py-1 text-left">年月</th>
+                          <th className="px-2 py-1 text-right">売上</th>
+                          <th className="px-2 py-1 text-left">備考</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {salesActualPreview.map((row, i) => (
+                          <tr key={i} className="border-t">
+                            <td className="px-2 py-1">{row.year}/{row.month}</td>
+                            <td className="px-2 py-1 text-right">
+                              ¥{parseInt(row.actual_sales).toLocaleString()}
+                            </td>
+                            <td className="px-2 py-1 text-xs text-gray-600">{row.notes}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              <Button
+                onClick={importSalesActual}
+                disabled={!salesActualData.length || importing}
+                className="w-full"
+              >
+                <Upload className="h-4 w-4 mr-2" />
+                インポート
+              </Button>
+
+              {importStatus.salesActual.status !== 'idle' && (
+                <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                  {getStatusIcon(importStatus.salesActual.status)}
+                  <span className="text-sm">{importStatus.salesActual.message}</span>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
 
         {/* 月別インポートステータス */}
@@ -900,6 +1087,16 @@ const ActualDataImport = () => {
                       )}
                       <span className={month.hasPayroll ? 'text-green-700' : 'text-gray-400'}>
                         給与 {month.payrollCount}件
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-center gap-1 text-xs">
+                      {month.hasSalesActual ? (
+                        <CheckCircle className="h-3 w-3 text-green-500" />
+                      ) : (
+                        <XCircle className="h-3 w-3 text-gray-300" />
+                      )}
+                      <span className={month.hasSalesActual ? 'text-green-700' : 'text-gray-400'}>
+                        売上 {month.salesActualCount}件
                       </span>
                     </div>
                   </div>
