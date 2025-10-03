@@ -631,9 +631,14 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                 </div>
 
                 <div className="grid grid-cols-7 gap-1">
+                  {/* 2024年10月1日は火曜日なので、空白セルを2つ追加（日曜・月曜） */}
+                  {[0, 1].map(i => (
+                    <div key={`empty-${i}`} className="p-1"></div>
+                  ))}
                   {shiftData.map((dayData, index) => {
-                    const dayOfWeek = new Date(dayData.fullDate).getDay()
-                    const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+                    // 2024年10月1日は火曜日、日曜始まりのカレンダーなので+2
+                    const dayOfWeekIndex = (dayData.date - 1 + 2) % 7
+                    const isWeekend = dayOfWeekIndex === 0 || dayOfWeekIndex === 6 // 日曜(0)と土曜(6)
                     const isChanged = changedDates.has(dayData.date)
 
                     return (
