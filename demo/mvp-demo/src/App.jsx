@@ -14,10 +14,11 @@ import ConstraintManagement from './components/screens/ConstraintManagement'
 import History from './components/screens/History'
 import ShiftManagement from './components/screens/ShiftManagement'
 import ActualDataImport from './components/screens/ActualDataImport'
+import SalesForecast from './components/screens/SalesForecast'
 
 // UI Components
 import { Button } from './components/ui/button'
-import { Menu, X, Home, FolderOpen, Users, History as HistoryIcon, MessageSquare, ClipboardList, Store, Shield, Database } from 'lucide-react'
+import { Menu, X, Home, FolderOpen, Users, History as HistoryIcon, MessageSquare, ClipboardList, Store, Shield, Database, TrendingUp } from 'lucide-react'
 
 function App() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -35,6 +36,7 @@ function App() {
   const [showLineMessages, setShowLineMessages] = useState(false)
   const [showMonitoring, setShowMonitoring] = useState(false)
   const [showActualDataImport, setShowActualDataImport] = useState(false)
+  const [showSalesForecast, setShowSalesForecast] = useState(false)
 
   const nextStep = () => {
     if (currentStep < 3) {
@@ -54,6 +56,7 @@ function App() {
     if (currentStep === 2 && (shiftStatus[10] === 'first_plan_approved' || shiftStatus[10] === 'completed')) {
       setCurrentStep(1)
       setShowShiftManagement(true)
+      setShowSalesForecast(false)
     } else if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
     }
@@ -85,6 +88,7 @@ function App() {
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowActualDataImport(false)
+    setShowSalesForecast(false)
     setIsMenuOpen(false)
   }
 
@@ -104,6 +108,7 @@ function App() {
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowActualDataImport(false)
+    setShowSalesForecast(false)
     setIsMenuOpen(false)
   }
 
@@ -123,6 +128,7 @@ function App() {
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowActualDataImport(false)
+    setShowSalesForecast(false)
     setIsMenuOpen(false)
   }
 
@@ -143,6 +149,7 @@ function App() {
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowActualDataImport(false)
+    setShowSalesForecast(false)
     setIsMenuOpen(false)
   }
 
@@ -162,6 +169,7 @@ function App() {
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowActualDataImport(false)
+    setShowSalesForecast(false)
     setIsMenuOpen(false)
   }
 
@@ -181,6 +189,7 @@ function App() {
     setShowHistory(false)
     setShowMonitoring(false)
     setShowActualDataImport(false)
+    setShowSalesForecast(false)
     setIsMenuOpen(false)
   }
 
@@ -200,6 +209,7 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowActualDataImport(false)
+    setShowSalesForecast(false)
     setIsMenuOpen(false)
   }
 
@@ -211,6 +221,27 @@ function App() {
       setHasUnsavedChanges(false)
     }
     setShowActualDataImport(true)
+    setShowMonitoring(false)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowConstraintManagement(false)
+    setShowHistory(false)
+    setShowLineMessages(false)
+    setShowSalesForecast(false)
+    setIsMenuOpen(false)
+  }
+
+  const goToSalesForecast = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。売上予測管理画面に移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowSalesForecast(true)
+    setShowActualDataImport(false)
     setShowMonitoring(false)
     setShowShiftManagement(false)
     setShowFirstPlanFromShiftMgmt(false)
@@ -242,6 +273,7 @@ function App() {
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowActualDataImport(false)
+    setShowSalesForecast(false)
     setIsMenuOpen(false)
   }
 
@@ -289,6 +321,7 @@ function App() {
     setHasUnsavedChanges(false)
     setShowFirstPlanFromShiftMgmt(false)
     setShowShiftManagement(true)
+    setShowSalesForecast(false)
   }
 
   const goToSecondPlanFromFirstPlan = () => {
@@ -340,6 +373,10 @@ function App() {
 
     if (showActualDataImport) {
       return <ActualDataImport />
+    }
+
+    if (showSalesForecast) {
+      return <SalesForecast />
     }
 
     if (showShiftManagement) {
@@ -462,6 +499,13 @@ function App() {
           >
             <Database className="h-5 w-5 text-gray-600" />
             <span className="font-medium text-gray-800">実績管理</span>
+          </button>
+          <button
+            onClick={goToSalesForecast}
+            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
+          >
+            <TrendingUp className="h-5 w-5 text-gray-600" />
+            <span className="font-medium text-gray-800">売上予測管理</span>
           </button>
         </div>
       )}

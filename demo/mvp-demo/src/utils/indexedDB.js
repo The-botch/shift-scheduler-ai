@@ -35,6 +35,17 @@ export const openDB = () => {
         payrollStore.createIndex('staff_id', 'staff_id', { unique: false })
         payrollStore.createIndex('year_month', ['year', 'month'], { unique: false })
       }
+
+      // sales_actual ストア
+      if (!db.objectStoreNames.contains(STORES.SALES_ACTUAL)) {
+        const salesActualStore = db.createObjectStore(STORES.SALES_ACTUAL, {
+          keyPath: 'actual_id'
+        })
+        salesActualStore.createIndex('year', 'year', { unique: false })
+        salesActualStore.createIndex('month', 'month', { unique: false })
+        salesActualStore.createIndex('store_id', 'store_id', { unique: false })
+        salesActualStore.createIndex('year_month', ['year', 'month'], { unique: false })
+      }
     }
   })
 }
@@ -203,4 +214,19 @@ export const getStaffPayrollHistory = (staffId) => {
 // スタッフの労働時間履歴を取得
 export const getStaffWorkHistory = (staffId) => {
   return getDataByStaffId(STORES.ACTUAL_SHIFTS, staffId)
+}
+
+// 売上実績データの保存
+export const saveSalesActual = (sales) => {
+  return saveBulkData(STORES.SALES_ACTUAL, sales)
+}
+
+// 売上実績データの取得
+export const getSalesActual = (year, month) => {
+  return getDataByYearMonth(STORES.SALES_ACTUAL, year, month)
+}
+
+// 全売上実績データの取得
+export const getAllSalesActual = () => {
+  return getAllData(STORES.SALES_ACTUAL)
 }

@@ -58,10 +58,11 @@ export const STORAGE_KEYS = {
 // IndexedDB 設定
 export const INDEXED_DB = {
   DB_NAME: 'shift_management',
-  VERSION: 1,
+  VERSION: 2,
   STORES: {
     ACTUAL_SHIFTS: 'actual_shifts',
-    PAYROLL: 'payroll'
+    PAYROLL: 'payroll',
+    SALES_ACTUAL: 'sales_actual'
   }
 }
 
