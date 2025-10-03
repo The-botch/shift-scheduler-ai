@@ -50,12 +50,6 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
       const actualPayroll2024 = actualPayroll.filter(payroll => payroll.year === 2024)
       const actualSales2024 = actualSales.filter(sale => sale.year === 2024)
 
-      // If no actual data exists, don't show the summary
-      if (actualShifts2024.length === 0 || actualPayroll2024.length === 0) {
-        setAnnualSummary(null)
-        return
-      }
-
       // Load planned shifts from CSV
       const shiftsResponse = await fetch('/data/history/shift_history_2023-2024.csv')
       const shiftsText = await shiftsResponse.text()
@@ -87,13 +81,19 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
 
       const salesForecast2024 = forecastResult.data.filter(f => parseInt(f.year) === 2024)
 
-      // Calculate annual summary
-      const summary = calculateAnnualSummary(plannedShifts2024, actualShifts2024, actualPayroll2024, salesForecast2024, actualSales2024)
-      setAnnualSummary(summary)
+      // Always set monthlyData (empty array if no actual data) to show graph framework
+      setMonthlyData([])
 
-      // Calculate monthly data for graphs
-      const monthly = calculateMonthlyData(plannedShifts2024, actualShifts2024, actualPayroll2024, salesForecast2024, actualSales2024)
-      setMonthlyData(monthly)
+      // Calculate annual summary only if actual data exists
+      if (actualShifts2024.length > 0 && actualPayroll2024.length > 0) {
+        const summary = calculateAnnualSummary(plannedShifts2024, actualShifts2024, actualPayroll2024, salesForecast2024, actualSales2024)
+        setAnnualSummary(summary)
+
+        const monthly = calculateMonthlyData(plannedShifts2024, actualShifts2024, actualPayroll2024, salesForecast2024, actualSales2024)
+        setMonthlyData(monthly)
+      } else {
+        setAnnualSummary(null)
+      }
     } catch (err) {
       console.error('年次サマリー読み込みエラー:', err)
       setAnnualSummary(null)
@@ -447,7 +447,7 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
       )}
 
       {/* グラフ可視化セクション */}
-      {!loadingAnnualSummary && annualSummary && monthlyData.length > 0 && (
+      {!loadingAnnualSummary && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -516,18 +516,18 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
             <CardContent className="p-6">
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={monthlyData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                  <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '12px' }} />
-                  <YAxis stroke="#64748b" style={{ fontSize: '12px' }} tickFormatter={(value) => `¥${(value / 1000).toLocaleString()}k`} />
-                  <Tooltip
-                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
-                    formatter={(value) => `¥${value?.toLocaleString() || 0}`}
-                  />
-                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
-                  <Bar dataKey="plannedCost" fill="#cbd5e1" name="計画人件費" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="actualCost" fill="#64748b" name="実績人件費" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '12px' }} />
+                    <YAxis stroke="#64748b" style={{ fontSize: '12px' }} tickFormatter={(value) => `¥${(value / 1000).toLocaleString()}k`} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                      formatter={(value) => `¥${value?.toLocaleString() || 0}`}
+                    />
+                    <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                    <Bar dataKey="plannedCost" fill="#cbd5e1" name="計画人件費" radius={[4, 4, 0, 0]} />
+                    <Bar dataKey="actualCost" fill="#64748b" name="実績人件費" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
             </CardContent>
           </Card>
 
@@ -544,33 +544,33 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
               <CardContent className="p-6">
                 <ResponsiveContainer width="100%" height={280}>
                   <LineChart data={monthlyData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '11px' }} />
-                    <YAxis stroke="#64748b" style={{ fontSize: '11px' }} tickFormatter={(value) => `¥${(value / 1000).toLocaleString()}k`} />
-                    <Tooltip
-                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
-                      formatter={(value) => value !== null ? `¥${value?.toLocaleString()}` : 'データなし'}
-                    />
-                    <Legend wrapperStyle={{ paddingTop: '15px', fontSize: '12px' }} />
-                    <Line
-                      type="monotone"
-                      dataKey="plannedProfit"
-                      stroke="#94a3b8"
-                      strokeWidth={2}
-                      name="計画利益"
-                      dot={{ r: 3 }}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="actualProfit"
-                      stroke="#475569"
-                      strokeWidth={2.5}
-                      name="実績利益"
-                      dot={{ r: 4, fill: '#475569' }}
-                      connectNulls={false}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '11px' }} />
+                      <YAxis stroke="#64748b" style={{ fontSize: '11px' }} tickFormatter={(value) => `¥${(value / 1000).toLocaleString()}k`} />
+                      <Tooltip
+                        contentStyle={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                        formatter={(value) => value !== null ? `¥${value?.toLocaleString()}` : 'データなし'}
+                      />
+                      <Legend wrapperStyle={{ paddingTop: '15px', fontSize: '12px' }} />
+                      <Line
+                        type="monotone"
+                        dataKey="plannedProfit"
+                        stroke="#94a3b8"
+                        strokeWidth={2}
+                        name="計画利益"
+                        dot={{ r: 3 }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="actualProfit"
+                        stroke="#475569"
+                        strokeWidth={2.5}
+                        name="実績利益"
+                        dot={{ r: 4, fill: '#475569' }}
+                        connectNulls={false}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
               </CardContent>
             </Card>
 

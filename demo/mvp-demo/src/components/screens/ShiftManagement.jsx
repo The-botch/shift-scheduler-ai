@@ -28,7 +28,20 @@ const pageTransition = {
   duration: 0.5
 }
 
-const ShiftManagement = ({ onNext, onPrev, onCreateShift, shiftStatus }) => {
+const ShiftManagement = ({
+  onNext,
+  onPrev,
+  onCreateShift,
+  shiftStatus,
+  onHome,
+  onShiftManagement,
+  onLineMessages,
+  onMonitoring,
+  onStaffManagement,
+  onStoreManagement,
+  onConstraintManagement,
+  onBudgetActualManagement
+}) => {
   const [selectedYear, setSelectedYear] = useState(2024)
   const [activeTab, setActiveTab] = useState('management') // 'management' or 'history'
   const [initialHistoryMonth, setInitialHistoryMonth] = useState(null)
@@ -116,7 +129,16 @@ const ShiftManagement = ({ onNext, onPrev, onCreateShift, shiftStatus }) => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AppHeader onHome={onPrev} />
+      <AppHeader
+        onHome={onHome}
+        onShiftManagement={onShiftManagement}
+        onLineMessages={onLineMessages}
+        onMonitoring={onMonitoring}
+        onStaffManagement={onStaffManagement}
+        onStoreManagement={onStoreManagement}
+        onConstraintManagement={onConstraintManagement}
+        onBudgetActualManagement={onBudgetActualManagement}
+      />
 
       <motion.div
         initial="initial"

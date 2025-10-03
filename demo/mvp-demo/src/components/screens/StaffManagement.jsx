@@ -10,7 +10,16 @@ import { getStaffWorkHistory, getStaffPayrollHistory } from '../../utils/indexed
 import CSVActions from '../shared/CSVActions'
 import AppHeader from '../shared/AppHeader'
 
-const StaffManagement = () => {
+const StaffManagement = ({
+  onHome,
+  onShiftManagement,
+  onLineMessages,
+  onMonitoring,
+  onStaffManagement,
+  onStoreManagement,
+  onConstraintManagement,
+  onBudgetActualManagement
+}) => {
   const [staffList, setStaffList] = useState([])
   const [roles, setRoles] = useState([])
   const [employmentTypes, setEmploymentTypes] = useState([])
@@ -922,7 +931,16 @@ const StaffManagement = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AppHeader />
+      <AppHeader
+        onHome={onHome}
+        onShiftManagement={onShiftManagement}
+        onLineMessages={onLineMessages}
+        onMonitoring={onMonitoring}
+        onStaffManagement={onStaffManagement}
+        onStoreManagement={onStoreManagement}
+        onConstraintManagement={onConstraintManagement}
+        onBudgetActualManagement={onBudgetActualManagement}
+      />
 
       <div className="app-container">
         <motion.div

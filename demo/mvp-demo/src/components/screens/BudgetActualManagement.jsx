@@ -18,7 +18,16 @@ import { INDEXED_DB, STORAGE_KEYS } from '../../config'
 import { PAGE_VARIANTS, PAGE_TRANSITION } from '../../config/display'
 import AppHeader from '../shared/AppHeader'
 
-const BudgetActualManagement = () => {
+const BudgetActualManagement = ({
+  onHome,
+  onShiftManagement,
+  onLineMessages,
+  onMonitoring,
+  onStaffManagement,
+  onStoreManagement,
+  onConstraintManagement,
+  onBudgetActualManagement
+}) => {
   const [workHoursFile, setWorkHoursFile] = useState(null)
   const [payrollFile, setPayrollFile] = useState(null)
   const [salesActualFile, setSalesActualFile] = useState(null)
@@ -830,7 +839,16 @@ const BudgetActualManagement = () => {
   if (selectedMonth && diffAnalysis) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <AppHeader />
+        <AppHeader
+          onHome={onHome}
+          onShiftManagement={onShiftManagement}
+          onLineMessages={onLineMessages}
+          onMonitoring={onMonitoring}
+          onStaffManagement={onStaffManagement}
+          onStoreManagement={onStoreManagement}
+          onConstraintManagement={onConstraintManagement}
+          onBudgetActualManagement={onBudgetActualManagement}
+        />
 
         <motion.div
           variants={PAGE_VARIANTS}
@@ -967,7 +985,16 @@ const BudgetActualManagement = () => {
   // 通常のインポート画面
   return (
     <div className="min-h-screen bg-slate-50">
-      <AppHeader />
+      <AppHeader
+        onHome={onHome}
+        onShiftManagement={onShiftManagement}
+        onLineMessages={onLineMessages}
+        onMonitoring={onMonitoring}
+        onStaffManagement={onStaffManagement}
+        onStoreManagement={onStoreManagement}
+        onConstraintManagement={onConstraintManagement}
+        onBudgetActualManagement={onBudgetActualManagement}
+      />
 
       <motion.div
         variants={PAGE_VARIANTS}

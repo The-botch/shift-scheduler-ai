@@ -7,7 +7,16 @@ import Papa from 'papaparse'
 import { exportCSV as exportCSVHelper, importCSV, validateConstraintCSV, generateFilename } from '../../utils/csvHelper'
 import AppHeader from '../shared/AppHeader'
 
-const ConstraintManagement = () => {
+const ConstraintManagement = ({
+  onHome,
+  onShiftManagement,
+  onLineMessages,
+  onMonitoring,
+  onStaffManagement,
+  onStoreManagement,
+  onConstraintManagement,
+  onBudgetActualManagement
+}) => {
   const [laborLaws, setLaborLaws] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -131,7 +140,16 @@ const ConstraintManagement = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AppHeader />
+      <AppHeader
+        onHome={onHome}
+        onShiftManagement={onShiftManagement}
+        onLineMessages={onLineMessages}
+        onMonitoring={onMonitoring}
+        onStaffManagement={onStaffManagement}
+        onStoreManagement={onStoreManagement}
+        onConstraintManagement={onConstraintManagement}
+        onBudgetActualManagement={onBudgetActualManagement}
+      />
 
       <div className="app-container">
         <motion.div

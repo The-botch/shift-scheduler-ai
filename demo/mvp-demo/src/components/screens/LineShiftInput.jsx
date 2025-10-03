@@ -163,7 +163,19 @@ const DetailInputModal = ({ date, shiftPatterns, onSave, onCancel, existing }) =
   )
 }
 
-const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
+const LineShiftInput = ({
+  onNext,
+  onPrev,
+  shiftStatus,
+  onHome,
+  onShiftManagement,
+  onLineMessages,
+  onMonitoring,
+  onStaffManagement,
+  onStoreManagement,
+  onConstraintManagement,
+  onBudgetActualManagement
+}) => {
   const [datePreferences, setDatePreferences] = useState({}) // { date: { patterns: ['EARLY', 'MID'], comment: '' } }
   const [showLineMessage, setShowLineMessage] = useState(true)
   const [showLiffApp, setShowLiffApp] = useState(false)
@@ -254,7 +266,16 @@ const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AppHeader />
+      <AppHeader
+        onHome={onHome}
+        onShiftManagement={onShiftManagement}
+        onLineMessages={onLineMessages}
+        onMonitoring={onMonitoring}
+        onStaffManagement={onStaffManagement}
+        onStoreManagement={onStoreManagement}
+        onConstraintManagement={onConstraintManagement}
+        onBudgetActualManagement={onBudgetActualManagement}
+      />
 
       <motion.div
         initial="initial"

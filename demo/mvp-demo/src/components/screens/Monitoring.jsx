@@ -31,7 +31,18 @@ const pageTransition = {
   duration: 0.5
 }
 
-const Monitoring = ({ onNext, onPrev }) => {
+const Monitoring = ({
+  onNext,
+  onPrev,
+  onHome,
+  onShiftManagement,
+  onLineMessages,
+  onMonitoring,
+  onStaffManagement,
+  onStoreManagement,
+  onConstraintManagement,
+  onBudgetActualManagement
+}) => {
   const [staffStatus, setStaffStatus] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedStaff, setSelectedStaff] = useState(null)
@@ -254,7 +265,16 @@ const Monitoring = ({ onNext, onPrev }) => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AppHeader />
+      <AppHeader
+        onHome={onHome}
+        onShiftManagement={onShiftManagement}
+        onLineMessages={onLineMessages}
+        onMonitoring={onMonitoring}
+        onStaffManagement={onStaffManagement}
+        onStoreManagement={onStoreManagement}
+        onConstraintManagement={onConstraintManagement}
+        onBudgetActualManagement={onBudgetActualManagement}
+      />
 
       <motion.div
         initial="initial"

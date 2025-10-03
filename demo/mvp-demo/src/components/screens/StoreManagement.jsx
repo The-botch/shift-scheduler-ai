@@ -7,7 +7,16 @@ import { validateStoreCSV } from '../../utils/csvHelper'
 import CSVActions from '../shared/CSVActions'
 import AppHeader from '../shared/AppHeader'
 
-const StoreManagement = () => {
+const StoreManagement = ({
+  onHome,
+  onShiftManagement,
+  onLineMessages,
+  onMonitoring,
+  onStaffManagement,
+  onStoreManagement,
+  onConstraintManagement,
+  onBudgetActualManagement
+}) => {
   const [stores, setStores] = useState([])
   const [constraints, setConstraints] = useState([])
   const [loading, setLoading] = useState(true)
@@ -101,7 +110,16 @@ const StoreManagement = () => {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <AppHeader />
+      <AppHeader
+        onHome={onHome}
+        onShiftManagement={onShiftManagement}
+        onLineMessages={onLineMessages}
+        onMonitoring={onMonitoring}
+        onStaffManagement={onStaffManagement}
+        onStoreManagement={onStoreManagement}
+        onConstraintManagement={onConstraintManagement}
+        onBudgetActualManagement={onBudgetActualManagement}
+      />
 
       <div className="app-container">
         <motion.div

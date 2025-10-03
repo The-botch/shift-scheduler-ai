@@ -317,31 +317,96 @@ function App() {
 
   const renderCurrentScreen = () => {
     if (showStaffManagement) {
-      return <StaffManagement />
+      return <StaffManagement
+        onHome={goToDashboard}
+        onShiftManagement={goToShiftManagement}
+        onLineMessages={goToLineMessages}
+        onMonitoring={goToMonitoring}
+        onStaffManagement={goToStaffManagement}
+        onStoreManagement={goToStoreManagement}
+        onConstraintManagement={goToConstraintManagement}
+        onBudgetActualManagement={goToBudgetActualManagement}
+      />
     }
 
     if (showStoreManagement) {
-      return <StoreManagement />
+      return <StoreManagement
+        onHome={goToDashboard}
+        onShiftManagement={goToShiftManagement}
+        onLineMessages={goToLineMessages}
+        onMonitoring={goToMonitoring}
+        onStaffManagement={goToStaffManagement}
+        onStoreManagement={goToStoreManagement}
+        onConstraintManagement={goToConstraintManagement}
+        onBudgetActualManagement={goToBudgetActualManagement}
+      />
     }
 
     if (showConstraintManagement) {
-      return <ConstraintManagement />
+      return <ConstraintManagement
+        onHome={goToDashboard}
+        onShiftManagement={goToShiftManagement}
+        onLineMessages={goToLineMessages}
+        onMonitoring={goToMonitoring}
+        onStaffManagement={goToStaffManagement}
+        onStoreManagement={goToStoreManagement}
+        onConstraintManagement={goToConstraintManagement}
+        onBudgetActualManagement={goToBudgetActualManagement}
+      />
     }
 
     if (showHistory) {
-      return <History onPrev={backFromHistory} />
+      return <History
+        onPrev={backFromHistory}
+        onHome={goToDashboard}
+        onShiftManagement={goToShiftManagement}
+        onLineMessages={goToLineMessages}
+        onMonitoring={goToMonitoring}
+        onStaffManagement={goToStaffManagement}
+        onStoreManagement={goToStoreManagement}
+        onConstraintManagement={goToConstraintManagement}
+        onBudgetActualManagement={goToBudgetActualManagement}
+      />
     }
 
     if (showLineMessages) {
-      return <LineShiftInput shiftStatus={shiftStatus} />
+      return <LineShiftInput
+        shiftStatus={shiftStatus}
+        onHome={goToDashboard}
+        onShiftManagement={goToShiftManagement}
+        onLineMessages={goToLineMessages}
+        onMonitoring={goToMonitoring}
+        onStaffManagement={goToStaffManagement}
+        onStoreManagement={goToStoreManagement}
+        onConstraintManagement={goToConstraintManagement}
+        onBudgetActualManagement={goToBudgetActualManagement}
+      />
     }
 
     if (showMonitoring) {
-      return <Monitoring />
+      return <Monitoring
+        onHome={goToDashboard}
+        onShiftManagement={goToShiftManagement}
+        onLineMessages={goToLineMessages}
+        onMonitoring={goToMonitoring}
+        onStaffManagement={goToStaffManagement}
+        onStoreManagement={goToStoreManagement}
+        onConstraintManagement={goToConstraintManagement}
+        onBudgetActualManagement={goToBudgetActualManagement}
+      />
     }
 
     if (showBudgetActualManagement) {
-      return <BudgetActualManagement />
+      return <BudgetActualManagement
+        onHome={goToDashboard}
+        onShiftManagement={goToShiftManagement}
+        onLineMessages={goToLineMessages}
+        onMonitoring={goToMonitoring}
+        onStaffManagement={goToStaffManagement}
+        onStoreManagement={goToStoreManagement}
+        onConstraintManagement={goToConstraintManagement}
+        onBudgetActualManagement={goToBudgetActualManagement}
+      />
     }
 
     if (showShiftManagement) {
@@ -349,6 +414,14 @@ function App() {
         onPrev={backFromShiftManagement}
         onCreateShift={goToFirstPlanFromShiftMgmt}
         shiftStatus={shiftStatus}
+        onHome={goToDashboard}
+        onShiftManagement={goToShiftManagement}
+        onLineMessages={goToLineMessages}
+        onMonitoring={goToMonitoring}
+        onStaffManagement={goToStaffManagement}
+        onStoreManagement={goToStoreManagement}
+        onConstraintManagement={goToConstraintManagement}
+        onBudgetActualManagement={goToBudgetActualManagement}
       />
     }
 

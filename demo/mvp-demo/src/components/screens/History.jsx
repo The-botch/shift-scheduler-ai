@@ -145,7 +145,18 @@ const CalendarView = ({ selectedMonth, calendarData, onDayClick }) => {
   )
 }
 
-const History = ({ onPrev, initialMonth }) => {
+const History = ({
+  onPrev,
+  initialMonth,
+  onHome,
+  onShiftManagement,
+  onLineMessages,
+  onMonitoring,
+  onStaffManagement,
+  onStoreManagement,
+  onConstraintManagement,
+  onBudgetActualManagement
+}) => {
   const [loading, setLoading] = useState(true)
   const [monthlySummary, setMonthlySummary] = useState([])
   const [shiftHistory, setShiftHistory] = useState([])
@@ -688,7 +699,16 @@ const History = ({ onPrev, initialMonth }) => {
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <AppHeader onHome={onPrev} />
+        <AppHeader
+        onHome={onHome}
+        onShiftManagement={onShiftManagement}
+        onLineMessages={onLineMessages}
+        onMonitoring={onMonitoring}
+        onStaffManagement={onStaffManagement}
+        onStoreManagement={onStoreManagement}
+        onConstraintManagement={onConstraintManagement}
+        onBudgetActualManagement={onBudgetActualManagement}
+      />
 
         <motion.div
           initial="initial"
@@ -808,7 +828,16 @@ const History = ({ onPrev, initialMonth }) => {
   if (selectedMonth) {
     return (
       <div className="min-h-screen bg-slate-50">
-        <AppHeader onHome={onPrev} />
+        <AppHeader
+        onHome={onHome}
+        onShiftManagement={onShiftManagement}
+        onLineMessages={onLineMessages}
+        onMonitoring={onMonitoring}
+        onStaffManagement={onStaffManagement}
+        onStoreManagement={onStoreManagement}
+        onConstraintManagement={onConstraintManagement}
+        onBudgetActualManagement={onBudgetActualManagement}
+      />
 
         <motion.div
           initial="initial"
@@ -1011,7 +1040,16 @@ const History = ({ onPrev, initialMonth }) => {
   // 月次サマリー表示
   return (
     <div className="min-h-screen bg-slate-50">
-      <AppHeader onHome={onPrev} />
+      <AppHeader
+        onHome={onHome}
+        onShiftManagement={onShiftManagement}
+        onLineMessages={onLineMessages}
+        onMonitoring={onMonitoring}
+        onStaffManagement={onStaffManagement}
+        onStoreManagement={onStoreManagement}
+        onConstraintManagement={onConstraintManagement}
+        onBudgetActualManagement={onBudgetActualManagement}
+      />
 
       <motion.div
         initial="initial"
