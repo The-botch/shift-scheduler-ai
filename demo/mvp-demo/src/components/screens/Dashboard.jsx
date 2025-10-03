@@ -32,7 +32,7 @@ const pageTransition = {
   duration: 0.5
 }
 
-const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaffManagement, onStoreManagement, onConstraintManagement, onLineMessages, onActualDataImport, onSalesForecast }) => {
+const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaffManagement, onStoreManagement, onConstraintManagement, onLineMessages, onBudgetActualManagement }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [annualSummary, setAnnualSummary] = useState(null)
   const [loadingAnnualSummary, setLoadingAnnualSummary] = useState(true)
@@ -256,13 +256,9 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
               <Shield className="h-4 w-4 mr-2" />
               制約管理
             </Button>
-            <Button variant="outline" size="sm" onClick={onActualDataImport} className="bg-orange-50 border-orange-300">
-              <Database className="h-4 w-4 mr-2" />
-              実績管理
-            </Button>
-            <Button variant="outline" size="sm" onClick={onSalesForecast} className="bg-indigo-50 border-indigo-300">
+            <Button variant="outline" size="sm" onClick={onBudgetActualManagement} className="bg-indigo-50 border-indigo-300">
               <TrendingUp className="h-4 w-4 mr-2" />
-              売上予測管理
+              予実管理
             </Button>
           </div>
         </div>
@@ -276,7 +272,7 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
       </div>
 
       {/* 年次予実差分サマリー */}
-      {!loadingAnnualSummary && annualSummary && (
+      {!loadingAnnualSummary && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -290,12 +286,30 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
                   <BarChart3 className="h-8 w-8" />
                   <CardTitle className="text-2xl">2024年 予実差分サマリー</CardTitle>
                 </div>
-                <div className="text-sm bg-white/20 px-3 py-1 rounded-full">
-                  {annualSummary.monthsCount}ヶ月分のデータ
-                </div>
+                {annualSummary && (
+                  <div className="text-sm bg-white/20 px-3 py-1 rounded-full">
+                    {annualSummary.monthsCount}ヶ月分のデータ
+                  </div>
+                )}
               </div>
             </CardHeader>
             <CardContent className="p-6">
+              {!annualSummary ? (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
+                    <Database className="h-8 w-8 text-gray-400" />
+                  </div>
+                  <p className="text-lg font-bold text-gray-700 mb-1">実績データがインポートされていません</p>
+                  <p className="text-sm text-gray-500 text-center max-w-md">
+                    予実管理画面から労働時間実績と給与明細をインポートすると、ここに予実差分が表示されます
+                  </p>
+                  <Button onClick={onBudgetActualManagement} className="mt-4">
+                    <TrendingUp className="h-4 w-4 mr-2" />
+                    予実管理へ
+                  </Button>
+                </div>
+              ) : (
+              <>
               <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 {/* シフト数 */}
                 <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-blue-200">
@@ -405,6 +419,8 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
                   ※ 実績データが登録されている月のみを集計しています。詳細な月別分析は「実績管理」画面から確認できます。
                 </p>
               </div>
+              </>
+              )}
             </CardContent>
           </Card>
         </motion.div>

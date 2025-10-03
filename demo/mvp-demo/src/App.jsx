@@ -13,8 +13,7 @@ import StoreManagement from './components/screens/StoreManagement'
 import ConstraintManagement from './components/screens/ConstraintManagement'
 import History from './components/screens/History'
 import ShiftManagement from './components/screens/ShiftManagement'
-import ActualDataImport from './components/screens/ActualDataImport'
-import SalesForecast from './components/screens/SalesForecast'
+import BudgetActualManagement from './components/screens/BudgetActualManagement'
 
 // UI Components
 import { Button } from './components/ui/button'
@@ -35,8 +34,7 @@ function App() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showLineMessages, setShowLineMessages] = useState(false)
   const [showMonitoring, setShowMonitoring] = useState(false)
-  const [showActualDataImport, setShowActualDataImport] = useState(false)
-  const [showSalesForecast, setShowSalesForecast] = useState(false)
+  const [showBudgetActualManagement, setShowBudgetActualManagement] = useState(false)
 
   const nextStep = () => {
     if (currentStep < 3) {
@@ -56,7 +54,7 @@ function App() {
     if (currentStep === 2 && (shiftStatus[10] === 'first_plan_approved' || shiftStatus[10] === 'completed')) {
       setCurrentStep(1)
       setShowShiftManagement(true)
-      setShowSalesForecast(false)
+      setShowBudgetActualManagement(false)
     } else if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
     }
@@ -87,8 +85,7 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
-    setShowActualDataImport(false)
-    setShowSalesForecast(false)
+    setShowBudgetActualManagement(false)
     setIsMenuOpen(false)
   }
 
@@ -107,8 +104,7 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
-    setShowActualDataImport(false)
-    setShowSalesForecast(false)
+    setShowBudgetActualManagement(false)
     setIsMenuOpen(false)
   }
 
@@ -127,8 +123,7 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
-    setShowActualDataImport(false)
-    setShowSalesForecast(false)
+    setShowBudgetActualManagement(false)
     setIsMenuOpen(false)
   }
 
@@ -148,8 +143,7 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
-    setShowActualDataImport(false)
-    setShowSalesForecast(false)
+    setShowBudgetActualManagement(false)
     setIsMenuOpen(false)
   }
 
@@ -168,8 +162,7 @@ function App() {
     setShowConstraintManagement(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
-    setShowActualDataImport(false)
-    setShowSalesForecast(false)
+    setShowBudgetActualManagement(false)
     setIsMenuOpen(false)
   }
 
@@ -188,8 +181,7 @@ function App() {
     setShowConstraintManagement(false)
     setShowHistory(false)
     setShowMonitoring(false)
-    setShowActualDataImport(false)
-    setShowSalesForecast(false)
+    setShowBudgetActualManagement(false)
     setIsMenuOpen(false)
   }
 
@@ -208,40 +200,18 @@ function App() {
     setShowConstraintManagement(false)
     setShowHistory(false)
     setShowLineMessages(false)
-    setShowActualDataImport(false)
-    setShowSalesForecast(false)
+    setShowBudgetActualManagement(false)
     setIsMenuOpen(false)
   }
 
-  const goToActualDataImport = () => {
+  const goToBudgetActualManagement = () => {
     if (hasUnsavedChanges) {
-      if (!window.confirm('変更が保存されていません。実績インポート画面に移動しますか？')) {
+      if (!window.confirm('変更が保存されていません。予実管理画面に移動しますか？')) {
         return
       }
       setHasUnsavedChanges(false)
     }
-    setShowActualDataImport(true)
-    setShowMonitoring(false)
-    setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
-    setShowStaffManagement(false)
-    setShowStoreManagement(false)
-    setShowConstraintManagement(false)
-    setShowHistory(false)
-    setShowLineMessages(false)
-    setShowSalesForecast(false)
-    setIsMenuOpen(false)
-  }
-
-  const goToSalesForecast = () => {
-    if (hasUnsavedChanges) {
-      if (!window.confirm('変更が保存されていません。売上予測管理画面に移動しますか？')) {
-        return
-      }
-      setHasUnsavedChanges(false)
-    }
-    setShowSalesForecast(true)
-    setShowActualDataImport(false)
+    setShowBudgetActualManagement(true)
     setShowMonitoring(false)
     setShowShiftManagement(false)
     setShowFirstPlanFromShiftMgmt(false)
@@ -272,8 +242,7 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
-    setShowActualDataImport(false)
-    setShowSalesForecast(false)
+    setShowBudgetActualManagement(false)
     setIsMenuOpen(false)
   }
 
@@ -321,7 +290,7 @@ function App() {
     setHasUnsavedChanges(false)
     setShowFirstPlanFromShiftMgmt(false)
     setShowShiftManagement(true)
-    setShowSalesForecast(false)
+    setShowBudgetActualManagement(false)
   }
 
   const goToSecondPlanFromFirstPlan = () => {
@@ -342,7 +311,7 @@ function App() {
     setShowLineInput(false)
     setShowMonitoring(false)
     setShowFirstPlanFromShiftMgmt(false)
-    setShowActualDataImport(false)
+    setShowBudgetActualManagement(false)
     setShowHistory(true)
   }
 
@@ -371,12 +340,8 @@ function App() {
       return <Monitoring />
     }
 
-    if (showActualDataImport) {
-      return <ActualDataImport />
-    }
-
-    if (showSalesForecast) {
-      return <SalesForecast />
+    if (showBudgetActualManagement) {
+      return <BudgetActualManagement />
     }
 
     if (showShiftManagement) {
@@ -408,8 +373,7 @@ function App() {
           onStoreManagement={goToStoreManagement}
           onConstraintManagement={goToConstraintManagement}
           onLineMessages={goToLineMessages}
-          onActualDataImport={goToActualDataImport}
-          onSalesForecast={goToSalesForecast}
+          onBudgetActualManagement={goToBudgetActualManagement}
         />
       case 2:
         return <SecondPlan onNext={approveSecondPlan} onPrev={prevStep} onMarkUnsaved={() => setHasUnsavedChanges(true)} onMarkSaved={() => setHasUnsavedChanges(false)} />
@@ -423,8 +387,7 @@ function App() {
           onStoreManagement={goToStoreManagement}
           onConstraintManagement={goToConstraintManagement}
           onLineMessages={goToLineMessages}
-          onActualDataImport={goToActualDataImport}
-          onSalesForecast={goToSalesForecast}
+          onBudgetActualManagement={goToBudgetActualManagement}
         />
     }
   }
@@ -496,18 +459,11 @@ function App() {
             <span className="font-medium text-gray-800">制約管理</span>
           </button>
           <button
-            onClick={goToActualDataImport}
-            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
-          >
-            <Database className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">実績管理</span>
-          </button>
-          <button
-            onClick={goToSalesForecast}
+            onClick={goToBudgetActualManagement}
             className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
           >
             <TrendingUp className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">売上予測管理</span>
+            <span className="font-medium text-gray-800">予実管理</span>
           </button>
         </div>
       )}
@@ -521,7 +477,7 @@ function App() {
             showHistory ? 'history' :
             showShiftManagement ? 'shift-management' :
             showFirstPlanFromShiftMgmt ? 'first-plan-shift-mgmt' :
-            showActualDataImport ? 'actual-data-import' :
+            showBudgetActualManagement ? 'budget-actual-management' :
             currentStep
           }>
             {renderCurrentScreen()}

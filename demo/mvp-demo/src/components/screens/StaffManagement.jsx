@@ -1025,6 +1025,23 @@ const StaffManagement = () => {
                 <div className="w-1 h-6 bg-orange-600 rounded"></div>
                 スタッフ一覧 ({staffList.length}名)
               </h3>
+              {staffList.length === 0 ? (
+                <Card className="bg-gray-50 border-2 border-gray-300">
+                  <CardContent className="p-8 text-center">
+                    <div className="flex flex-col items-center gap-3">
+                      <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                        <Users className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <div>
+                        <p className="text-lg font-bold text-gray-700 mb-1">スタッフデータがありません</p>
+                        <p className="text-sm text-gray-500">
+                          CSVインポートボタンからスタッフデータをインポートしてください
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-full bg-white border border-gray-200">
                   <thead className="bg-gray-50">
@@ -1083,6 +1100,7 @@ const StaffManagement = () => {
                   </tbody>
                 </table>
               </div>
+              )}
             </div>
             )}
           </CardContent>
