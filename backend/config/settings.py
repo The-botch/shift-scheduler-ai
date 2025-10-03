@@ -161,3 +161,6 @@ CORS_ALLOW_CREDENTIALS = True
 
 # CSV data directory
 CSV_DATA_DIR = BASE_DIR.parent / "demo" / "mvp-demo" / "public" / "data"
+
+# OpenAI API
+OPENAI_API_KEY = config('OPENAI_API_KEY', default='')

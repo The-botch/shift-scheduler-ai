@@ -17,6 +17,7 @@ from .serializers import (
     StaffAvailabilitySerializer,
     WebhookLogSerializer
 )
+from .ai_service import AIService
 
 
 class ShiftRequestViewSet(viewsets.ModelViewSet):
