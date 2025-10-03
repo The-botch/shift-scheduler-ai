@@ -515,8 +515,14 @@ const ActualDataImport = () => {
         return
       }
 
+      // 売上実績データを取得
+      const actualSales = await getSalesActual(monthData.year, monthData.month)
+
+      // 売上予測データを取得
+      const salesForecast = await loadSalesForecast(monthData.year, monthData.month)
+
       // 差分を分析
-      const analysis = analyzeDifference(plannedShifts, actualShifts, actualPayroll)
+      const analysis = analyzeDifference(plannedShifts, actualShifts, actualPayroll, salesForecast, actualSales)
       setDiffAnalysis(analysis)
     } catch (error) {
       console.error('差分分析エラー:', error)
@@ -551,8 +557,31 @@ const ActualDataImport = () => {
     }
   }
 
+  // 売上予測データを読み込み
+  const loadSalesForecast = async (year, month) => {
+    try {
+      const response = await fetch('/data/forecast/sales_forecast_2024.csv')
+      const text = await response.text()
+
+      const result = await new Promise((resolve) => {
+        Papa.parse(text, {
+          header: true,
+          dynamicTyping: false,
+          skipEmptyLines: true,
+          complete: resolve
+        })
+      })
+
+      // 該当月のデータをフィルタ
+      return result.data.filter(f => parseInt(f.year) === year && parseInt(f.month) === month)
+    } catch (error) {
+      console.error('売上予測読み込みエラー:', error)
+      return []
+    }
+  }
+
   // 予実差分を分析
-  const analyzeDifference = (plannedShifts, actualShifts, actualPayroll) => {
+  const analyzeDifference = (plannedShifts, actualShifts, actualPayroll, salesForecast, actualSales) => {
     const analysis = {
       summary: {
         plannedShifts: plannedShifts.length,
@@ -563,7 +592,13 @@ const ActualDataImport = () => {
         hoursDiff: 0,
         plannedCost: 0,
         actualCost: 0,
-        costDiff: 0
+        costDiff: 0,
+        forecastSales: salesForecast.length > 0 ? parseInt(salesForecast[0].forecasted_sales || 0) : 0,
+        actualSalesTotal: actualSales.length > 0 ? parseInt(actualSales[0].actual_sales || 0) : 0,
+        salesDiff: 0,
+        plannedProfit: 0,
+        actualProfit: 0,
+        profitDiff: 0
       },
       staffAnalysis: {},
       dateAnalysis: {}
@@ -626,6 +661,12 @@ const ActualDataImport = () => {
     analysis.summary.hoursDiff = analysis.summary.actualHours - analysis.summary.plannedHours
     analysis.summary.costDiff = analysis.summary.actualCost - analysis.summary.plannedCost
 
+    // 売上と利益の差分を計算
+    analysis.summary.salesDiff = analysis.summary.actualSalesTotal - analysis.summary.forecastSales
+    analysis.summary.plannedProfit = analysis.summary.forecastSales - analysis.summary.plannedCost
+    analysis.summary.actualProfit = analysis.summary.actualSalesTotal - analysis.summary.actualCost
+    analysis.summary.profitDiff = analysis.summary.actualProfit - analysis.summary.plannedProfit
+
     Object.values(analysis.staffAnalysis).forEach(staff => {
       staff.hoursDiff = staff.actualHours - staff.plannedHours
       staff.costDiff = (staff.actualCost || 0) - (staff.plannedCost || 0)
@@ -674,7 +715,7 @@ const ActualDataImport = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="bg-white p-4 rounded-lg">
                   <p className="text-xs text-gray-600 mb-1">シフト数</p>
                   <p className="text-sm">予定: <span className="font-bold">{diffAnalysis.summary.plannedShifts}</span></p>
@@ -700,13 +741,20 @@ const ActualDataImport = () => {
                   </p>
                 </div>
                 <div className="bg-white p-4 rounded-lg">
-                  <p className="text-xs text-gray-600 mb-1">コスト比率</p>
-                  <p className="text-2xl font-bold text-orange-900">
-                    {diffAnalysis.summary.plannedCost > 0
-                      ? ((diffAnalysis.summary.actualCost / diffAnalysis.summary.plannedCost) * 100).toFixed(1)
-                      : '0.0'}%
+                  <p className="text-xs text-gray-600 mb-1">売上</p>
+                  <p className="text-sm">予測: <span className="font-bold">¥{diffAnalysis.summary.forecastSales.toLocaleString()}</span></p>
+                  <p className="text-sm">実績: <span className="font-bold">¥{diffAnalysis.summary.actualSalesTotal.toLocaleString()}</span></p>
+                  <p className={`text-sm font-bold mt-2 ${diffAnalysis.summary.salesDiff > 0 ? 'text-green-600' : diffAnalysis.summary.salesDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                    差分: {diffAnalysis.summary.salesDiff > 0 ? '+' : ''}¥{diffAnalysis.summary.salesDiff.toLocaleString()}
                   </p>
-                  <p className="text-xs text-gray-500 mt-1">実績/予定</p>
+                </div>
+                <div className="bg-white p-4 rounded-lg">
+                  <p className="text-xs text-gray-600 mb-1">利益</p>
+                  <p className="text-sm">予定: <span className="font-bold">¥{diffAnalysis.summary.plannedProfit.toLocaleString()}</span></p>
+                  <p className="text-sm">実績: <span className="font-bold">¥{diffAnalysis.summary.actualProfit.toLocaleString()}</span></p>
+                  <p className={`text-sm font-bold mt-2 ${diffAnalysis.summary.profitDiff > 0 ? 'text-green-600' : diffAnalysis.summary.profitDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                    差分: {diffAnalysis.summary.profitDiff > 0 ? '+' : ''}¥{diffAnalysis.summary.profitDiff.toLocaleString()}
+                  </p>
                 </div>
               </div>
             </CardContent>

@@ -409,6 +409,7 @@ function App() {
           onConstraintManagement={goToConstraintManagement}
           onLineMessages={goToLineMessages}
           onActualDataImport={goToActualDataImport}
+          onSalesForecast={goToSalesForecast}
         />
       case 2:
         return <SecondPlan onNext={approveSecondPlan} onPrev={prevStep} onMarkUnsaved={() => setHasUnsavedChanges(true)} onMarkSaved={() => setHasUnsavedChanges(false)} />
@@ -423,6 +424,7 @@ function App() {
           onConstraintManagement={goToConstraintManagement}
           onLineMessages={goToLineMessages}
           onActualDataImport={goToActualDataImport}
+          onSalesForecast={goToSalesForecast}
         />
     }
   }

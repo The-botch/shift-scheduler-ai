@@ -32,7 +32,7 @@ const pageTransition = {
   duration: 0.5
 }
 
-const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaffManagement, onStoreManagement, onConstraintManagement, onLineMessages, onActualDataImport }) => {
+const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaffManagement, onStoreManagement, onConstraintManagement, onLineMessages, onActualDataImport, onSalesForecast }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [annualSummary, setAnnualSummary] = useState(null)
   const [loadingAnnualSummary, setLoadingAnnualSummary] = useState(true)
@@ -179,6 +179,27 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
     }
     summary.salesMonthsCount = summary.monthsWithSalesData.size
 
+    // Calculate profit (sales - labor cost)
+    if (summary.salesMonthsCount > 0 && summary.monthsCount > 0) {
+      // Calculate profit for the same months
+      const avgForecastPerMonth = summary.forecastSales / 12
+      const forecastForActualMonths = avgForecastPerMonth * summary.monthsCount
+      const plannedProfit = forecastForActualMonths - summary.plannedCost
+      const actualProfit = (summary.actualSalesTotal / summary.salesMonthsCount * summary.monthsCount) - summary.actualCost
+
+      summary.plannedProfit = Math.round(plannedProfit)
+      summary.actualProfit = Math.round(actualProfit)
+      summary.profitDiff = summary.actualProfit - summary.plannedProfit
+      summary.profitDiffPercent = summary.plannedProfit !== 0
+        ? ((summary.profitDiff / summary.plannedProfit) * 100).toFixed(1)
+        : 0
+    } else {
+      summary.plannedProfit = 0
+      summary.actualProfit = 0
+      summary.profitDiff = 0
+      summary.profitDiffPercent = 0
+    }
+
     return summary
   }
 
@@ -239,6 +260,10 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
               <Database className="h-4 w-4 mr-2" />
               実績管理
             </Button>
+            <Button variant="outline" size="sm" onClick={onSalesForecast} className="bg-indigo-50 border-indigo-300">
+              <TrendingUp className="h-4 w-4 mr-2" />
+              売上予測管理
+            </Button>
           </div>
         </div>
 
@@ -271,7 +296,7 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
               </div>
             </CardHeader>
             <CardContent className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
                 {/* シフト数 */}
                 <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-blue-200">
                   <div className="flex items-center gap-2 mb-2">
@@ -343,6 +368,33 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
                     </div>
                   </div>
                 )}
+
+                {/* 利益 */}
+                {annualSummary.salesMonthsCount > 0 ? (
+                  <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-indigo-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="h-5 w-5 text-indigo-600" />
+                      <p className="text-sm font-semibold text-gray-600">利益</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-xs text-gray-500">予定: <span className="font-bold text-gray-700">¥{annualSummary.plannedProfit.toLocaleString()}</span></p>
+                      <p className="text-xs text-gray-500">実績: <span className="font-bold text-gray-700">¥{annualSummary.actualProfit.toLocaleString()}</span></p>
+                      <p className={`text-lg font-bold mt-2 ${annualSummary.profitDiff > 0 ? 'text-green-600' : annualSummary.profitDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                        {annualSummary.profitDiff > 0 ? '+' : ''}¥{annualSummary.profitDiff.toLocaleString()}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-gray-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <DollarSign className="h-5 w-5 text-gray-400" />
+                      <p className="text-sm font-semibold text-gray-600">利益</p>
+                    </div>
+                    <div className="flex items-center justify-center h-16">
+                      <p className="text-xs text-gray-400 text-center">売上実績データがありません</p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -405,7 +457,7 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
 
                 return (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
                       {/* シフト数 */}
                       <div className="bg-white p-5 rounded-lg shadow-md border-2 border-blue-200">
                         <div className="flex items-center gap-2 mb-3">
@@ -526,6 +578,56 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
                           <div className="flex items-center gap-2 mb-3">
                             <TrendingUp className="h-5 w-5 text-gray-400" />
                             <p className="text-sm font-semibold text-gray-600">売上（年間）</p>
+                          </div>
+                          <div className="flex items-center justify-center h-32">
+                            <p className="text-xs text-gray-400 text-center">売上実績データがありません</p>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* 利益 */}
+                      {annualSummary.salesMonthsCount > 0 ? (
+                        (() => {
+                          const avgSalesPerMonth = annualSummary.actualSalesTotal / annualSummary.salesMonthsCount
+                          const avgProfitPerMonth = annualSummary.actualProfit / annualSummary.monthsCount
+                          const predictedProfit = Math.round(avgProfitPerMonth * remainingMonths)
+                          const totalProfit = annualSummary.actualProfit + predictedProfit
+                          const plannedAnnualProfit = Math.round((annualSummary.plannedProfit / annualSummary.monthsCount) * 12)
+                          const profitDiff = totalProfit - plannedAnnualProfit
+                          const profitDiffPercent = plannedAnnualProfit !== 0 ? ((profitDiff / plannedAnnualProfit) * 100).toFixed(1) : 0
+
+                          return (
+                            <div className="bg-white p-5 rounded-lg shadow-md border-2 border-indigo-200">
+                              <div className="flex items-center gap-2 mb-3">
+                                <DollarSign className="h-5 w-5 text-indigo-600" />
+                                <p className="text-sm font-semibold text-gray-600">利益（年間）</p>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex justify-between text-xs text-gray-500">
+                                  <span>実績（{annualSummary.monthsCount}ヶ月）:</span>
+                                  <span className="font-bold">¥{annualSummary.actualProfit.toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-xs text-gray-500">
+                                  <span>予測（{remainingMonths}ヶ月）:</span>
+                                  <span className="font-bold">¥{predictedProfit.toLocaleString()}</span>
+                                </div>
+                                <div className="h-px bg-gray-300 my-2"></div>
+                                <div className="flex justify-between items-center">
+                                  <span className="text-sm font-semibold text-gray-700">着地見込み:</span>
+                                  <span className="text-2xl font-bold text-indigo-600">¥{totalProfit.toLocaleString()}</span>
+                                </div>
+                                <div className={`text-xs text-right ${profitDiff > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                                  予定比 {profitDiff > 0 ? '+' : ''}¥{profitDiff.toLocaleString()} ({profitDiffPercent > 0 ? '+' : ''}{profitDiffPercent}%)
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })()
+                      ) : (
+                        <div className="bg-white p-5 rounded-lg shadow-md border-2 border-gray-200">
+                          <div className="flex items-center gap-2 mb-3">
+                            <DollarSign className="h-5 w-5 text-gray-400" />
+                            <p className="text-sm font-semibold text-gray-600">利益（年間）</p>
                           </div>
                           <div className="flex items-center justify-center h-32">
                             <p className="text-xs text-gray-400 text-center">売上実績データがありません</p>
