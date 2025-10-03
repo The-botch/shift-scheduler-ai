@@ -19,6 +19,7 @@ import {
 import Papa from 'papaparse'
 import { getAllData, getAllSalesActual } from '../../utils/indexedDB'
 import { INDEXED_DB } from '../../config/constants'
+import { LineChart, Line, BarChart, Bar, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -36,6 +37,7 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
   const [currentTime, setCurrentTime] = useState(new Date())
   const [annualSummary, setAnnualSummary] = useState(null)
   const [loadingAnnualSummary, setLoadingAnnualSummary] = useState(true)
+  const [monthlyData, setMonthlyData] = useState([])
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -103,6 +105,10 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
       // Calculate annual summary
       const summary = calculateAnnualSummary(plannedShifts2024, actualShifts2024, actualPayroll2024, salesForecast2024, actualSales2024)
       setAnnualSummary(summary)
+
+      // Calculate monthly data for graphs
+      const monthly = calculateMonthlyData(plannedShifts2024, actualShifts2024, actualPayroll2024, salesForecast2024, actualSales2024)
+      setMonthlyData(monthly)
     } catch (err) {
       console.error('年次サマリー読み込みエラー:', err)
       setAnnualSummary(null)
@@ -203,6 +209,45 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
     return summary
   }
 
+  const calculateMonthlyData = (plannedShifts, actualShifts, actualPayroll, salesForecast, actualSales) => {
+    const months = []
+
+    for (let month = 1; month <= 12; month++) {
+      const monthPlannedShifts = plannedShifts.filter(s => s.month === month)
+      const monthActualShifts = actualShifts.filter(s => s.month === month)
+      const monthActualPayroll = actualPayroll.filter(p => p.month === month)
+      const monthForecast = salesForecast.filter(f => parseInt(f.month) === month)
+      const monthSales = actualSales.filter(s => s.month === month)
+
+      const plannedCost = monthPlannedShifts.reduce((sum, s) => sum + parseFloat(s.daily_wage || 0), 0)
+      const actualCost = monthActualPayroll.reduce((sum, p) => sum + parseInt(p.gross_salary || 0), 0)
+      const forecastSales = monthForecast.length > 0 ? parseInt(monthForecast[0].forecasted_sales || 0) : 0
+      const actualSalesValue = monthSales.length > 0 ? parseInt(monthSales[0].actual_sales || 0) : 0
+
+      const plannedProfit = forecastSales - plannedCost
+      const actualProfit = actualSalesValue > 0 ? actualSalesValue - actualCost : null
+
+      const laborCostRatePlanned = forecastSales > 0 ? (plannedCost / forecastSales * 100) : 0
+      const laborCostRateActual = actualSalesValue > 0 ? (actualCost / actualSalesValue * 100) : null
+
+      months.push({
+        month: `${month}月`,
+        monthNum: month,
+        forecastSales,
+        actualSales: actualSalesValue || null,
+        plannedCost: Math.round(plannedCost),
+        actualCost: actualCost || null,
+        plannedProfit: Math.round(plannedProfit),
+        actualProfit: actualProfit !== null ? Math.round(actualProfit) : null,
+        laborCostRatePlanned: laborCostRatePlanned.toFixed(1),
+        laborCostRateActual: laborCostRateActual !== null ? laborCostRateActual.toFixed(1) : null,
+        hasActualData: monthActualShifts.length > 0 && monthActualPayroll.length > 0
+      })
+    }
+
+    return months
+  }
+
   const formatDate = (date) => {
     const year = date.getFullYear()
     const month = date.getMonth() + 1
@@ -271,400 +316,365 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
         </div>
       </div>
 
-      {/* 年次予実差分サマリー */}
+      {/* 年次予実差分サマリー - コンパクト版 */}
       {!loadingAnnualSummary && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
-          className="mb-8"
+          className="mb-6"
         >
-          <Card className="shadow-xl border-2 border-orange-300 bg-gradient-to-br from-orange-50 to-amber-50">
-            <CardHeader className="bg-gradient-to-r from-orange-600 to-amber-600 text-white">
-              <div className="flex items-center justify-between">
+          {!annualSummary ? (
+            <Card className="border border-gray-200">
+              <CardContent className="p-6">
                 <div className="flex items-center gap-3">
-                  <BarChart3 className="h-8 w-8" />
-                  <CardTitle className="text-2xl">2024年 予実差分サマリー</CardTitle>
-                </div>
-                {annualSummary && (
-                  <div className="text-sm bg-white/20 px-3 py-1 rounded-full">
-                    {annualSummary.monthsCount}ヶ月分のデータ
+                  <Database className="h-5 w-5 text-gray-400" />
+                  <div>
+                    <p className="text-sm font-semibold text-gray-700">実績データがありません</p>
+                    <p className="text-xs text-gray-500">予実管理画面からデータをインポートしてください</p>
                   </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              {!annualSummary ? (
-                <div className="flex flex-col items-center justify-center py-12">
-                  <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center mb-4">
-                    <Database className="h-8 w-8 text-gray-400" />
-                  </div>
-                  <p className="text-lg font-bold text-gray-700 mb-1">実績データがインポートされていません</p>
-                  <p className="text-sm text-gray-500 text-center max-w-md">
-                    予実管理画面から労働時間実績と給与明細をインポートすると、ここに予実差分が表示されます
-                  </p>
-                  <Button onClick={onBudgetActualManagement} className="mt-4">
-                    <TrendingUp className="h-4 w-4 mr-2" />
+                  <Button onClick={onBudgetActualManagement} size="sm" className="ml-auto">
                     予実管理へ
                   </Button>
                 </div>
-              ) : (
-              <>
-              <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                {/* シフト数 */}
-                <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-blue-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <CalendarIcon className="h-5 w-5 text-blue-600" />
-                    <p className="text-sm font-semibold text-gray-600">シフト数</p>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card className="border border-slate-200 shadow-sm">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4 text-slate-700" />
+                    <h3 className="text-sm font-semibold text-slate-900">2024年 予実差分サマリー</h3>
                   </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-500">予定: <span className="font-bold text-gray-700">{annualSummary.plannedShifts.toLocaleString()}</span></p>
-                    <p className="text-xs text-gray-500">実績: <span className="font-bold text-gray-700">{annualSummary.actualShifts.toLocaleString()}</span></p>
-                    <p className={`text-lg font-bold mt-2 ${annualSummary.shiftCountDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {annualSummary.shiftCountDiff > 0 ? '+' : ''}{annualSummary.shiftCountDiff.toLocaleString()}
-                    </p>
-                  </div>
+                  <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">
+                    {annualSummary.monthsCount}ヶ月分
+                  </span>
                 </div>
-
-                {/* 労働時間 */}
-                <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-purple-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Clock className="h-5 w-5 text-purple-600" />
-                    <p className="text-sm font-semibold text-gray-600">総労働時間</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-500">予定: <span className="font-bold text-gray-700">{annualSummary.plannedHours.toLocaleString()}h</span></p>
-                    <p className="text-xs text-gray-500">実績: <span className="font-bold text-gray-700">{annualSummary.actualHours.toLocaleString()}h</span></p>
-                    <p className={`text-lg font-bold mt-2 ${annualSummary.hoursDiff > 0 ? 'text-red-600' : annualSummary.hoursDiff < 0 ? 'text-green-600' : 'text-gray-600'}`}>
-                      {annualSummary.hoursDiff > 0 ? '+' : ''}{annualSummary.hoursDiff.toFixed(1)}h
-                    </p>
-                  </div>
-                </div>
-
-                {/* 人件費 */}
-                <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-red-200">
-                  <div className="flex items-center gap-2 mb-2">
-                    <DollarSign className="h-5 w-5 text-red-600" />
-                    <p className="text-sm font-semibold text-gray-600">人件費</p>
-                  </div>
-                  <div className="space-y-1">
-                    <p className="text-xs text-gray-500">予定: <span className="font-bold text-gray-700">¥{annualSummary.plannedCost.toLocaleString()}</span></p>
-                    <p className="text-xs text-gray-500">実績: <span className="font-bold text-gray-700">¥{annualSummary.actualCost.toLocaleString()}</span></p>
-                    <p className={`text-lg font-bold mt-2 ${annualSummary.costDiff > 0 ? 'text-red-600' : annualSummary.costDiff < 0 ? 'text-green-600' : 'text-gray-600'}`}>
-                      {annualSummary.costDiff > 0 ? '+' : ''}¥{annualSummary.costDiff.toLocaleString()}
-                    </p>
-                  </div>
-                </div>
-
-                {/* 売上 */}
                 {annualSummary.salesMonthsCount > 0 ? (
-                  <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-green-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <TrendingUp className="h-5 w-5 text-green-600" />
-                      <p className="text-sm font-semibold text-gray-600">売上</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-gray-500">予測: <span className="font-bold text-gray-700">¥{((annualSummary.forecastSales / 12) * annualSummary.salesMonthsCount).toLocaleString()}</span></p>
-                      <p className="text-xs text-gray-500">実績: <span className="font-bold text-gray-700">¥{annualSummary.actualSalesTotal.toLocaleString()}</span></p>
-                      <p className={`text-lg font-bold mt-2 ${annualSummary.salesDiff > 0 ? 'text-green-600' : annualSummary.salesDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-white border border-slate-200 rounded-lg p-3">
+                      <p className="text-xs font-medium text-slate-600 mb-1">売上</p>
+                      <p className={`text-xl font-bold ${annualSummary.salesDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}>
                         {annualSummary.salesDiff > 0 ? '+' : ''}¥{annualSummary.salesDiff.toLocaleString()}
                       </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        ({annualSummary.salesDiffPercent > 0 ? '+' : ''}{annualSummary.salesDiffPercent}%)
+                      </p>
                     </div>
-                  </div>
-                ) : (
-                  <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-gray-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <TrendingUp className="h-5 w-5 text-gray-400" />
-                      <p className="text-sm font-semibold text-gray-600">売上</p>
+                    <div className="bg-white border border-slate-200 rounded-lg p-3">
+                      <p className="text-xs font-medium text-slate-600 mb-1">人件費</p>
+                      <p className={`text-xl font-bold ${annualSummary.costDiff > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                        {annualSummary.costDiff > 0 ? '+' : ''}¥{annualSummary.costDiff.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        ({annualSummary.costDiffPercent > 0 ? '+' : ''}{annualSummary.costDiffPercent}%)
+                      </p>
                     </div>
-                    <div className="flex items-center justify-center h-16">
-                      <p className="text-xs text-gray-400 text-center">売上実績データがありません</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* 利益 */}
-                {annualSummary.salesMonthsCount > 0 ? (
-                  <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-indigo-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <DollarSign className="h-5 w-5 text-indigo-600" />
-                      <p className="text-sm font-semibold text-gray-600">利益</p>
-                    </div>
-                    <div className="space-y-1">
-                      <p className="text-xs text-gray-500">予定: <span className="font-bold text-gray-700">¥{annualSummary.plannedProfit.toLocaleString()}</span></p>
-                      <p className="text-xs text-gray-500">実績: <span className="font-bold text-gray-700">¥{annualSummary.actualProfit.toLocaleString()}</span></p>
-                      <p className={`text-lg font-bold mt-2 ${annualSummary.profitDiff > 0 ? 'text-green-600' : annualSummary.profitDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
+                    <div className="bg-white border border-slate-200 rounded-lg p-3">
+                      <p className="text-xs font-medium text-slate-600 mb-1">営業利益</p>
+                      <p className={`text-xl font-bold ${annualSummary.profitDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}>
                         {annualSummary.profitDiff > 0 ? '+' : ''}¥{annualSummary.profitDiff.toLocaleString()}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        ({annualSummary.profitDiffPercent > 0 ? '+' : ''}{annualSummary.profitDiffPercent}%)
+                      </p>
+                    </div>
+                    <div className="bg-white border border-slate-200 rounded-lg p-3">
+                      <p className="text-xs font-medium text-slate-600 mb-1">人件費率</p>
+                      <p className={`text-xl font-bold ${(() => {
+                        const plannedRate = annualSummary.plannedCost / (annualSummary.forecastSales / 12 * annualSummary.monthsCount) * 100
+                        const actualRate = annualSummary.actualCost / annualSummary.actualSalesTotal * 100
+                        return actualRate < plannedRate ? 'text-blue-600' : 'text-red-600'
+                      })()}`}>
+                        {(() => {
+                          const plannedRate = annualSummary.plannedCost / (annualSummary.forecastSales / 12 * annualSummary.monthsCount) * 100
+                          const actualRate = annualSummary.actualCost / annualSummary.actualSalesTotal * 100
+                          const diff = actualRate - plannedRate
+                          return `${diff > 0 ? '+' : ''}${diff.toFixed(1)}pt`
+                        })()}
+                      </p>
+                      <p className="text-xs text-slate-500 mt-1">
+                        実績 {(annualSummary.actualCost / annualSummary.actualSalesTotal * 100).toFixed(1)}%
                       </p>
                     </div>
                   </div>
                 ) : (
-                  <div className="bg-white p-5 rounded-lg shadow-sm border-2 border-gray-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <DollarSign className="h-5 w-5 text-gray-400" />
-                      <p className="text-sm font-semibold text-gray-600">利益</p>
-                    </div>
-                    <div className="flex items-center justify-center h-16">
-                      <p className="text-xs text-gray-400 text-center">売上実績データがありません</p>
-                    </div>
+                  <div className="text-center p-4 bg-slate-50 rounded-lg">
+                    <p className="text-sm text-slate-600">売上実績データがありません</p>
                   </div>
                 )}
-              </div>
-
-              <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <p className="text-sm text-blue-800">
-                  <span className="font-bold">分析期間:</span> 2024年1月〜{annualSummary.monthsCount}月 ({annualSummary.monthsCount}ヶ月分のデータ)
-                </p>
-                <p className="text-xs text-blue-600 mt-1">
-                  ※ 実績データが登録されている月のみを集計しています。詳細な月別分析は「実績管理」画面から確認できます。
-                </p>
-              </div>
-              </>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </motion.div>
       )}
 
-      {/* 2024年着地見込み */}
+      {/* 2024年着地見込み - コンパクト版 */}
       {!loadingAnnualSummary && annualSummary && annualSummary.monthsCount < 12 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.4 }}
-          className="mb-8"
+          className="mb-6"
         >
-          <Card className="shadow-xl border-2 border-purple-300 bg-gradient-to-br from-purple-50 to-indigo-50">
-            <CardHeader className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <TrendingUp className="h-8 w-8" />
-                  <CardTitle className="text-2xl">2024年 着地見込み</CardTitle>
-                </div>
-                <div className="text-sm bg-white/20 px-3 py-1 rounded-full">
-                  実績{annualSummary.monthsCount}ヶ月 + 予測{12 - annualSummary.monthsCount}ヶ月
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
+          <Card className="border border-slate-200 shadow-sm">
+            <CardContent className="p-4">
               {(() => {
                 const remainingMonths = 12 - annualSummary.monthsCount
-                const avgShiftsPerMonth = annualSummary.actualShifts / annualSummary.monthsCount
-                const avgHoursPerMonth = annualSummary.actualHours / annualSummary.monthsCount
                 const avgCostPerMonth = annualSummary.actualCost / annualSummary.monthsCount
-
-                const predictedShifts = Math.round(avgShiftsPerMonth * remainingMonths)
-                const predictedHours = avgHoursPerMonth * remainingMonths
                 const predictedCost = Math.round(avgCostPerMonth * remainingMonths)
-
-                const totalShifts = annualSummary.actualShifts + predictedShifts
-                const totalHours = annualSummary.actualHours + predictedHours
                 const totalCost = annualSummary.actualCost + predictedCost
-
-                // 予定との比較
-                const plannedAnnualShifts = Math.round((annualSummary.plannedShifts / annualSummary.monthsCount) * 12)
-                const plannedAnnualHours = (annualSummary.plannedHours / annualSummary.monthsCount) * 12
                 const plannedAnnualCost = Math.round((annualSummary.plannedCost / annualSummary.monthsCount) * 12)
-
-                const shiftDiff = totalShifts - plannedAnnualShifts
-                const hoursDiff = totalHours - plannedAnnualHours
                 const costDiff = totalCost - plannedAnnualCost
-                const costDiffPercent = ((costDiff / plannedAnnualCost) * 100).toFixed(1)
 
                 return (
                   <>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
-                      {/* シフト数 */}
-                      <div className="bg-white p-5 rounded-lg shadow-md border-2 border-blue-200">
-                        <div className="flex items-center gap-2 mb-3">
-                          <CalendarIcon className="h-5 w-5 text-blue-600" />
-                          <p className="text-sm font-semibold text-gray-600">シフト数（年間）</p>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>実績（{annualSummary.monthsCount}ヶ月）:</span>
-                            <span className="font-bold">{annualSummary.actualShifts.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>予測（{remainingMonths}ヶ月）:</span>
-                            <span className="font-bold">{predictedShifts.toLocaleString()}</span>
-                          </div>
-                          <div className="h-px bg-gray-300 my-2"></div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-gray-700">着地見込み:</span>
-                            <span className="text-2xl font-bold text-blue-600">{totalShifts.toLocaleString()}</span>
-                          </div>
-                          <div className={`text-xs text-right ${shiftDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                            予定比 {shiftDiff > 0 ? '+' : ''}{shiftDiff.toLocaleString()}
-                          </div>
-                        </div>
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4 text-slate-700" />
+                        <h3 className="text-sm font-semibold text-slate-900">2024年 着地見込み</h3>
                       </div>
-
-                      {/* 労働時間 */}
-                      <div className="bg-white p-5 rounded-lg shadow-md border-2 border-purple-200">
-                        <div className="flex items-center gap-2 mb-3">
-                          <Clock className="h-5 w-5 text-purple-600" />
-                          <p className="text-sm font-semibold text-gray-600">総労働時間（年間）</p>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>実績（{annualSummary.monthsCount}ヶ月）:</span>
-                            <span className="font-bold">{annualSummary.actualHours.toLocaleString()}h</span>
-                          </div>
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>予測（{remainingMonths}ヶ月）:</span>
-                            <span className="font-bold">{predictedHours.toFixed(1)}h</span>
-                          </div>
-                          <div className="h-px bg-gray-300 my-2"></div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-gray-700">着地見込み:</span>
-                            <span className="text-2xl font-bold text-purple-600">{totalHours.toFixed(1)}h</span>
-                          </div>
-                          <div className={`text-xs text-right ${hoursDiff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            予定比 {hoursDiff > 0 ? '+' : ''}{hoursDiff.toFixed(1)}h
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 人件費 */}
-                      <div className="bg-white p-5 rounded-lg shadow-md border-2 border-red-200">
-                        <div className="flex items-center gap-2 mb-3">
-                          <DollarSign className="h-5 w-5 text-red-600" />
-                          <p className="text-sm font-semibold text-gray-600">人件費（年間）</p>
-                        </div>
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>実績（{annualSummary.monthsCount}ヶ月）:</span>
-                            <span className="font-bold">¥{annualSummary.actualCost.toLocaleString()}</span>
-                          </div>
-                          <div className="flex justify-between text-xs text-gray-500">
-                            <span>予測（{remainingMonths}ヶ月）:</span>
-                            <span className="font-bold">¥{predictedCost.toLocaleString()}</span>
-                          </div>
-                          <div className="h-px bg-gray-300 my-2"></div>
-                          <div className="flex justify-between items-center">
-                            <span className="text-sm font-semibold text-gray-700">着地見込み:</span>
-                            <span className="text-2xl font-bold text-red-600">¥{totalCost.toLocaleString()}</span>
-                          </div>
-                          <div className={`text-xs text-right ${costDiff > 0 ? 'text-red-600' : 'text-green-600'}`}>
-                            予定比 {costDiff > 0 ? '+' : ''}¥{costDiff.toLocaleString()} ({costDiffPercent > 0 ? '+' : ''}{costDiffPercent}%)
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* 売上 */}
-                      {annualSummary.salesMonthsCount > 0 ? (
-                        (() => {
-                          const avgSalesPerMonth = annualSummary.actualSalesTotal / annualSummary.salesMonthsCount
-                          const predictedSales = Math.round(avgSalesPerMonth * remainingMonths)
-                          const totalSales = annualSummary.actualSalesTotal + predictedSales
-                          const plannedAnnualSales = annualSummary.forecastSales
-                          const salesDiff = totalSales - plannedAnnualSales
-                          const salesDiffPercent = ((salesDiff / plannedAnnualSales) * 100).toFixed(1)
-
-                          return (
-                            <div className="bg-white p-5 rounded-lg shadow-md border-2 border-green-200">
-                              <div className="flex items-center gap-2 mb-3">
-                                <TrendingUp className="h-5 w-5 text-green-600" />
-                                <p className="text-sm font-semibold text-gray-600">売上（年間）</p>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-xs text-gray-500">
-                                  <span>実績（{annualSummary.salesMonthsCount}ヶ月）:</span>
-                                  <span className="font-bold">¥{annualSummary.actualSalesTotal.toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between text-xs text-gray-500">
-                                  <span>予測（{12 - annualSummary.salesMonthsCount}ヶ月）:</span>
-                                  <span className="font-bold">¥{predictedSales.toLocaleString()}</span>
-                                </div>
-                                <div className="h-px bg-gray-300 my-2"></div>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm font-semibold text-gray-700">着地見込み:</span>
-                                  <span className="text-2xl font-bold text-green-600">¥{totalSales.toLocaleString()}</span>
-                                </div>
-                                <div className={`text-xs text-right ${salesDiff > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  予定比 {salesDiff > 0 ? '+' : ''}¥{salesDiff.toLocaleString()} ({salesDiffPercent > 0 ? '+' : ''}{salesDiffPercent}%)
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })()
-                      ) : (
-                        <div className="bg-white p-5 rounded-lg shadow-md border-2 border-gray-200">
-                          <div className="flex items-center gap-2 mb-3">
-                            <TrendingUp className="h-5 w-5 text-gray-400" />
-                            <p className="text-sm font-semibold text-gray-600">売上（年間）</p>
-                          </div>
-                          <div className="flex items-center justify-center h-32">
-                            <p className="text-xs text-gray-400 text-center">売上実績データがありません</p>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 利益 */}
-                      {annualSummary.salesMonthsCount > 0 ? (
-                        (() => {
-                          const avgSalesPerMonth = annualSummary.actualSalesTotal / annualSummary.salesMonthsCount
-                          const avgProfitPerMonth = annualSummary.actualProfit / annualSummary.monthsCount
-                          const predictedProfit = Math.round(avgProfitPerMonth * remainingMonths)
-                          const totalProfit = annualSummary.actualProfit + predictedProfit
-                          const plannedAnnualProfit = Math.round((annualSummary.plannedProfit / annualSummary.monthsCount) * 12)
-                          const profitDiff = totalProfit - plannedAnnualProfit
-                          const profitDiffPercent = plannedAnnualProfit !== 0 ? ((profitDiff / plannedAnnualProfit) * 100).toFixed(1) : 0
-
-                          return (
-                            <div className="bg-white p-5 rounded-lg shadow-md border-2 border-indigo-200">
-                              <div className="flex items-center gap-2 mb-3">
-                                <DollarSign className="h-5 w-5 text-indigo-600" />
-                                <p className="text-sm font-semibold text-gray-600">利益（年間）</p>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="flex justify-between text-xs text-gray-500">
-                                  <span>実績（{annualSummary.monthsCount}ヶ月）:</span>
-                                  <span className="font-bold">¥{annualSummary.actualProfit.toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between text-xs text-gray-500">
-                                  <span>予測（{remainingMonths}ヶ月）:</span>
-                                  <span className="font-bold">¥{predictedProfit.toLocaleString()}</span>
-                                </div>
-                                <div className="h-px bg-gray-300 my-2"></div>
-                                <div className="flex justify-between items-center">
-                                  <span className="text-sm font-semibold text-gray-700">着地見込み:</span>
-                                  <span className="text-2xl font-bold text-indigo-600">¥{totalProfit.toLocaleString()}</span>
-                                </div>
-                                <div className={`text-xs text-right ${profitDiff > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                                  予定比 {profitDiff > 0 ? '+' : ''}¥{profitDiff.toLocaleString()} ({profitDiffPercent > 0 ? '+' : ''}{profitDiffPercent}%)
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })()
-                      ) : (
-                        <div className="bg-white p-5 rounded-lg shadow-md border-2 border-gray-200">
-                          <div className="flex items-center gap-2 mb-3">
-                            <DollarSign className="h-5 w-5 text-gray-400" />
-                            <p className="text-sm font-semibold text-gray-600">利益（年間）</p>
-                          </div>
-                          <div className="flex items-center justify-center h-32">
-                            <p className="text-xs text-gray-400 text-center">売上実績データがありません</p>
-                          </div>
-                        </div>
-                      )}
+                      <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">
+                        実績{annualSummary.monthsCount}ヶ月 + 予測{remainingMonths}ヶ月
+                      </span>
                     </div>
+                    {annualSummary.salesMonthsCount > 0 ? (
+                      (() => {
+                        const avgSalesPerMonth = annualSummary.actualSalesTotal / annualSummary.salesMonthsCount
+                        const predictedSales = Math.round(avgSalesPerMonth * remainingMonths)
+                        const totalSales = annualSummary.actualSalesTotal + predictedSales
+                        const salesDiff = totalSales - annualSummary.forecastSales
+                        const salesDiffPercent = ((salesDiff / annualSummary.forecastSales) * 100).toFixed(1)
 
-                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                      <p className="text-sm text-purple-800">
-                        <span className="font-bold">予測方法:</span> {annualSummary.monthsCount}ヶ月の実績平均を基に、残り{remainingMonths}ヶ月を予測
-                      </p>
-                      <p className="text-xs text-purple-600 mt-1">
-                        ※ 月平均: シフト{Math.round(avgShiftsPerMonth)}回、労働時間{avgHoursPerMonth.toFixed(1)}h、人件費¥{Math.round(avgCostPerMonth).toLocaleString()}
-                      </p>
-                    </div>
+                        const avgProfitPerMonth = annualSummary.actualProfit / annualSummary.monthsCount
+                        const predictedProfit = Math.round(avgProfitPerMonth * remainingMonths)
+                        const totalProfit = annualSummary.actualProfit + predictedProfit
+                        const plannedAnnualProfit = Math.round((annualSummary.plannedProfit / annualSummary.monthsCount) * 12)
+                        const profitDiff = totalProfit - plannedAnnualProfit
+                        const profitDiffPercent = plannedAnnualProfit !== 0 ? ((profitDiff / plannedAnnualProfit) * 100).toFixed(1) : 0
+
+                        const costDiffPercent = ((costDiff / plannedAnnualCost) * 100).toFixed(1)
+
+                        const plannedLaborRate = (plannedAnnualCost / annualSummary.forecastSales * 100)
+                        const forecastLaborRate = (totalCost / totalSales * 100)
+                        const laborRateDiff = forecastLaborRate - plannedLaborRate
+
+                        return (
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                            <div className="bg-white border border-slate-200 rounded-lg p-3">
+                              <p className="text-xs font-medium text-slate-600 mb-1">売上（年間）</p>
+                              <p className="text-xl font-bold text-slate-900">¥{totalSales.toLocaleString()}</p>
+                              <p className={`text-xs mt-1 ${salesDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                予定比 {salesDiff > 0 ? '+' : ''}¥{salesDiff.toLocaleString()} ({salesDiffPercent > 0 ? '+' : ''}{salesDiffPercent}%)
+                              </p>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-lg p-3">
+                              <p className="text-xs font-medium text-slate-600 mb-1">人件費（年間）</p>
+                              <p className="text-xl font-bold text-slate-900">¥{totalCost.toLocaleString()}</p>
+                              <p className={`text-xs mt-1 ${costDiff > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                                予定比 {costDiff > 0 ? '+' : ''}¥{costDiff.toLocaleString()} ({costDiffPercent > 0 ? '+' : ''}{costDiffPercent}%)
+                              </p>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-lg p-3">
+                              <p className="text-xs font-medium text-slate-600 mb-1">営業利益（年間）</p>
+                              <p className="text-xl font-bold text-slate-900">¥{totalProfit.toLocaleString()}</p>
+                              <p className={`text-xs mt-1 ${profitDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                予定比 {profitDiff > 0 ? '+' : ''}¥{profitDiff.toLocaleString()} ({profitDiffPercent > 0 ? '+' : ''}{profitDiffPercent}%)
+                              </p>
+                            </div>
+                            <div className="bg-white border border-slate-200 rounded-lg p-3">
+                              <p className="text-xs font-medium text-slate-600 mb-1">人件費率（見込）</p>
+                              <p className="text-xl font-bold text-slate-900">{forecastLaborRate.toFixed(1)}%</p>
+                              <p className={`text-xs mt-1 ${laborRateDiff < 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                                予定比 {laborRateDiff > 0 ? '+' : ''}{laborRateDiff.toFixed(1)}pt
+                              </p>
+                            </div>
+                          </div>
+                        )
+                      })()
+                    ) : (
+                      <div className="text-center p-4 bg-slate-50 rounded-lg">
+                        <p className="text-sm text-slate-600">売上実績データがありません</p>
+                      </div>
+                    )}
                   </>
                 )
               })()}
             </CardContent>
           </Card>
+        </motion.div>
+      )}
+
+      {/* グラフ可視化セクション */}
+      {!loadingAnnualSummary && annualSummary && monthlyData.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+          className="space-y-8"
+        >
+          {/* 売上推移グラフ */}
+          <Card className="border border-slate-200 shadow-sm">
+            <CardHeader className="bg-white border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="h-5 w-5 text-slate-700" />
+                <CardTitle className="text-base font-semibold text-slate-900">売上推移（予測 vs 実績）</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={monthlyData}>
+                  <defs>
+                    <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#94a3b8" stopOpacity={0}/>
+                    </linearGradient>
+                    <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#475569" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#475569" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#64748b" style={{ fontSize: '12px' }} tickFormatter={(value) => `¥${(value / 1000).toLocaleString()}k`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                    formatter={(value) => `¥${value?.toLocaleString() || 0}`}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                  <Area
+                    type="monotone"
+                    dataKey="forecastSales"
+                    stroke="#94a3b8"
+                    strokeWidth={2}
+                    fill="url(#colorForecast)"
+                    name="予測売上"
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="actualSales"
+                    stroke="#475569"
+                    strokeWidth={2.5}
+                    fill="url(#colorActual)"
+                    name="実績売上"
+                    connectNulls={false}
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* 人件費推移グラフ */}
+          <Card className="border border-slate-200 shadow-sm">
+            <CardHeader className="bg-white border-b border-slate-200">
+              <div className="flex items-center gap-3">
+                <DollarSign className="h-5 w-5 text-slate-700" />
+                <CardTitle className="text-base font-semibold text-slate-900">人件費推移（計画 vs 実績）</CardTitle>
+              </div>
+            </CardHeader>
+            <CardContent className="p-6">
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={monthlyData}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                  <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '12px' }} />
+                  <YAxis stroke="#64748b" style={{ fontSize: '12px' }} tickFormatter={(value) => `¥${(value / 1000).toLocaleString()}k`} />
+                  <Tooltip
+                    contentStyle={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                    formatter={(value) => `¥${value?.toLocaleString() || 0}`}
+                  />
+                  <Legend wrapperStyle={{ paddingTop: '20px' }} />
+                  <Bar dataKey="plannedCost" fill="#cbd5e1" name="計画人件費" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="actualCost" fill="#64748b" name="実績人件費" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+
+          {/* 利益推移と人件費率の2段グラフ */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* 利益推移グラフ */}
+            <Card className="border border-slate-200 shadow-sm">
+              <CardHeader className="bg-white border-b border-slate-200">
+                <div className="flex items-center gap-3">
+                  <BarChart3 className="h-5 w-5 text-slate-700" />
+                  <CardTitle className="text-base font-semibold text-slate-900">月次利益推移</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '11px' }} />
+                    <YAxis stroke="#64748b" style={{ fontSize: '11px' }} tickFormatter={(value) => `¥${(value / 1000).toLocaleString()}k`} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                      formatter={(value) => value !== null ? `¥${value?.toLocaleString()}` : 'データなし'}
+                    />
+                    <Legend wrapperStyle={{ paddingTop: '15px', fontSize: '12px' }} />
+                    <Line
+                      type="monotone"
+                      dataKey="plannedProfit"
+                      stroke="#94a3b8"
+                      strokeWidth={2}
+                      name="計画利益"
+                      dot={{ r: 3 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="actualProfit"
+                      stroke="#475569"
+                      strokeWidth={2.5}
+                      name="実績利益"
+                      dot={{ r: 4, fill: '#475569' }}
+                      connectNulls={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* 人件費率推移グラフ */}
+            <Card className="border border-slate-200 shadow-sm">
+              <CardHeader className="bg-white border-b border-slate-200">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="h-5 w-5 text-slate-700" />
+                  <CardTitle className="text-base font-semibold text-slate-900">人件費率推移</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                <ResponsiveContainer width="100%" height={280}>
+                  <LineChart data={monthlyData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '11px' }} />
+                    <YAxis stroke="#64748b" style={{ fontSize: '11px' }} tickFormatter={(value) => `${value}%`} domain={[0, 50]} />
+                    <Tooltip
+                      contentStyle={{ backgroundColor: '#fff', border: '1px solid #cbd5e1', borderRadius: '6px' }}
+                      formatter={(value) => value !== null ? `${value}%` : 'データなし'}
+                    />
+                    <Legend wrapperStyle={{ paddingTop: '15px', fontSize: '12px' }} />
+                    <Line
+                      type="monotone"
+                      dataKey="laborCostRatePlanned"
+                      stroke="#94a3b8"
+                      strokeWidth={2}
+                      name="計画人件費率"
+                      dot={{ r: 3 }}
+                    />
+                    <Line
+                      type="monotone"
+                      dataKey="laborCostRateActual"
+                      stroke="#475569"
+                      strokeWidth={2.5}
+                      name="実績人件費率"
+                      dot={{ r: 4, fill: '#475569' }}
+                      connectNulls={false}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </div>
         </motion.div>
       )}
     </motion.div>
