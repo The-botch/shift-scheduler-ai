@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>テストメニュー - シフト管理システム</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      overflow: hidden;
+    }
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 40px;
+      text-align: center;
+    }
+    .header h1 {
+      font-size: 32px;
+      margin-bottom: 10px;
+    }
+    .header p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+    .content {
+      padding: 40px;
+    }
+    .test-category {
+      margin-bottom: 40px;
+    }
+    .test-category h2 {
+      color: #333;
+      font-size: 24px;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #667eea;
+    }
+    .test-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+    }
+    .test-card {
+      background: #f9f9f9;
+      border-radius: 8px;
+      padding: 20px;
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+    }
+    .test-card:hover {
+      border-color: #667eea;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.2);
+      transform: translateY(-2px);
+    }
+    .test-card h3 {
+      color: #667eea;
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    .test-card p {
+      color: #666;
+      font-size: 14px;
+      line-height: 1.6;
+      margin-bottom: 15px;
+    }
+    .test-card a {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      padding: 10px 20px;
+      border-radius: 5px;
+      text-decoration: none;
+      font-size: 14px;
+      transition: background 0.3s ease;
+    }
+    .test-card a:hover {
+      background: #5568d3;
+    }
+    .badge {
+      display: inline-block;
+      background: #4CAF50;
+      color: white;
+      padding: 3px 8px;
+      border-radius: 3px;
+      font-size: 11px;
+      margin-left: 8px;
+    }
+    .badge.new {
+      background: #ff9800;
+    }
+    .info-box {
+      background: #e3f2fd;
+      border-left: 4px solid #2196F3;
+      padding: 15px;
+      border-radius: 4px;
+      margin-bottom: 30px;
+    }
+    .info-box h3 {
+      color: #1976D2;
+      font-size: 16px;
+      margin-bottom: 8px;
+    }
+    .info-box p {
+      color: #555;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .footer {
+      text-align: center;
+      padding: 20px;
+      color: #999;
+      font-size: 12px;
+      border-top: 1px solid #eee;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🧪 テストメニュー</h1>
+      <p>シフト管理システム - 開発・検証用テストページ一覧</p>
+    </div>
+
+    <div class="content">
+      <div class="info-box">
+        <h3>📌 このページについて</h3>
+        <p>
+          本体のソースコードから分離されたテスト用のページ一覧です。
+          各テストページで機能の動作確認やデータのバリデーションを実行できます。
+        </p>
+      </div>
+
+      <!-- バリデーションテスト -->
+      <div class="test-category">
+        <h2>🔍 バリデーション機能テスト</h2>
+        <div class="test-list">
+          <div class="test-card">
+            <h3>基本バリデーションテスト<span class="badge">Ready</span></h3>
+            <p>
+              現在のシフトデータ（transactions/shift.csv）に対してハード制約チェックを実行します。
+              全15種類のバリデーションルールを検証できます。
+            </p>
+            <a href="./validation/test-validator.html">テスト実行 →</a>
+          </div>
+
+          <div class="test-card">
+            <h3>2024年9月実績テスト<span class="badge new">New</span></h3>
+            <p>
+              過去の実績データから2024年9月分のシフトを抽出し、バリデーションを実行します。
+              実際の運用データでの検証が可能です。
+            </p>
+            <a href="./validation/test-september-2024.html">テスト実行 →</a>
+          </div>
+        </div>
+      </div>
+
+      <!-- 今後追加予定のテスト -->
+      <div class="test-category">
+        <h2>🚧 今後追加予定</h2>
+        <div class="test-list">
+          <div class="test-card" style="opacity: 0.6;">
+            <h3>GPT-4シフト生成テスト</h3>
+            <p>
+              OpenAI APIを使用したシフト自動生成機能のテストページ。
+              プロンプトの調整と生成結果の確認が可能です。
+            </p>
+            <a href="#" style="background: #ccc; cursor: not-allowed;">準備中</a>
+          </div>
+
+          <div class="test-card" style="opacity: 0.6;">
+            <h3>パフォーマンステスト</h3>
+            <p>
+              大量データでのバリデーション処理速度や、
+              メモリ使用量などのパフォーマンスを計測します。
+            </p>
+            <a href="#" style="background: #ccc; cursor: not-allowed;">準備中</a>
+          </div>
+
+          <div class="test-card" style="opacity: 0.6;">
+            <h3>UIコンポーネントテスト</h3>
+            <p>
+              個別のReactコンポーネントの動作確認とビジュアルテストを行います。
+            </p>
+            <a href="#" style="background: #ccc; cursor: not-allowed;">準備中</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="footer">
+      シフト管理システム MVP - 開発用テスト環境
+    </div>
+  </div>
+</body>
+</html>

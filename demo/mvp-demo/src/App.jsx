@@ -14,6 +14,7 @@ import ConstraintManagement from './components/screens/ConstraintManagement'
 import History from './components/screens/History'
 import ShiftManagement from './components/screens/ShiftManagement'
 import BudgetActualManagement from './components/screens/BudgetActualManagement'
+import DevTools from './components/screens/DevTools'
 
 // UI Components
 import { Button } from './components/ui/button'
@@ -35,6 +36,7 @@ function App() {
   const [showLineMessages, setShowLineMessages] = useState(false)
   const [showMonitoring, setShowMonitoring] = useState(false)
   const [showBudgetActualManagement, setShowBudgetActualManagement] = useState(false)
+  const [showDevTools, setShowDevTools] = useState(false)
 
   const nextStep = () => {
     if (currentStep < 3) {
@@ -212,6 +214,27 @@ function App() {
       setHasUnsavedChanges(false)
     }
     setShowBudgetActualManagement(true)
+    setShowMonitoring(false)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowConstraintManagement(false)
+    setShowHistory(false)
+    setShowLineMessages(false)
+    setShowDevTools(false)
+    setIsMenuOpen(false)
+  }
+
+  const goToDevTools = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。開発者ツールに移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowDevTools(true)
+    setShowBudgetActualManagement(false)
     setShowMonitoring(false)
     setShowShiftManagement(false)
     setShowFirstPlanFromShiftMgmt(false)
@@ -409,6 +432,19 @@ function App() {
       />
     }
 
+    if (showDevTools) {
+      return <DevTools
+        onHome={goToDashboard}
+        onShiftManagement={goToShiftManagement}
+        onLineMessages={goToLineMessages}
+        onMonitoring={goToMonitoring}
+        onStaffManagement={goToStaffManagement}
+        onStoreManagement={goToStoreManagement}
+        onConstraintManagement={goToConstraintManagement}
+        onBudgetActualManagement={goToBudgetActualManagement}
+      />
+    }
+
     if (showShiftManagement) {
       return <ShiftManagement
         onPrev={backFromShiftManagement}
@@ -447,6 +483,7 @@ function App() {
           onConstraintManagement={goToConstraintManagement}
           onLineMessages={goToLineMessages}
           onBudgetActualManagement={goToBudgetActualManagement}
+          onDevTools={goToDevTools}
         />
       case 2:
         return <SecondPlan onNext={approveSecondPlan} onPrev={prevStep} onMarkUnsaved={() => setHasUnsavedChanges(true)} onMarkSaved={() => setHasUnsavedChanges(false)} />
@@ -461,6 +498,7 @@ function App() {
           onConstraintManagement={goToConstraintManagement}
           onLineMessages={goToLineMessages}
           onBudgetActualManagement={goToBudgetActualManagement}
+          onDevTools={goToDevTools}
         />
     }
   }

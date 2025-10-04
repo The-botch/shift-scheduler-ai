@@ -143,3 +143,6 @@ build/
 # Temporary files
 *.tmp
 *.temp
+
+# AI conversation logs
+public/logs/ai_conversations/*.csv

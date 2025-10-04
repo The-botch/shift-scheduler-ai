@@ -27,7 +27,7 @@ const pageTransition = {
   duration: 0.5
 }
 
-const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaffManagement, onStoreManagement, onConstraintManagement, onLineMessages, onBudgetActualManagement }) => {
+const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaffManagement, onStoreManagement, onConstraintManagement, onLineMessages, onBudgetActualManagement, onDevTools }) => {
   const [annualSummary, setAnnualSummary] = useState(null)
   const [loadingAnnualSummary, setLoadingAnnualSummary] = useState(true)
   const [monthlyData, setMonthlyData] = useState([])
@@ -251,6 +251,7 @@ const Dashboard = ({ onNext, onHistory, onShiftManagement, onMonitoring, onStaff
         onStoreManagement={onStoreManagement}
         onConstraintManagement={onConstraintManagement}
         onBudgetActualManagement={onBudgetActualManagement}
+        onDevTools={onDevTools}
       />
 
       {/* メインコンテンツ */}

@@ -9,7 +9,8 @@ import {
   Users,
   Store,
   Shield,
-  TrendingUp
+  TrendingUp,
+  Code2
 } from 'lucide-react'
 
 const AppHeader = ({
@@ -20,7 +21,8 @@ const AppHeader = ({
   onStaffManagement,
   onStoreManagement,
   onConstraintManagement,
-  onBudgetActualManagement
+  onBudgetActualManagement,
+  onDevTools
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
 
@@ -102,6 +104,12 @@ const AppHeader = ({
               <Button variant="ghost" size="sm" onClick={onBudgetActualManagement} className="text-slate-700">
                 <TrendingUp className="h-4 w-4 mr-1.5" />
                 予実管理
+              </Button>
+            )}
+            {onDevTools && (
+              <Button variant="ghost" size="sm" onClick={onDevTools} className="text-slate-700 border border-dashed border-slate-300">
+                <Code2 className="h-4 w-4 mr-1.5" />
+                開発ツール
               </Button>
             )}
           </nav>

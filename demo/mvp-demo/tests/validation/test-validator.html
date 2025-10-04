@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シフトバリデーションテスト</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #333;
+      border-bottom: 3px solid #4CAF50;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #555;
+      margin-top: 30px;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 16px;
+      margin: 10px 5px;
+    }
+    button:hover {
+      background-color: #45a049;
+    }
+    button:disabled {
+      background-color: #ccc;
+      cursor: not-allowed;
+    }
+    .results {
+      margin-top: 20px;
+      padding: 20px;
+      background-color: #f9f9f9;
+      border-radius: 4px;
+      border-left: 4px solid #4CAF50;
+    }
+    .error {
+      background-color: #ffebee;
+      border-left: 4px solid #f44336;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .warning {
+      background-color: #fff3e0;
+      border-left: 4px solid #ff9800;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .success {
+      background-color: #e8f5e9;
+      border-left: 4px solid #4CAF50;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 4px;
+    }
+    .summary {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 15px;
+      margin: 20px 0;
+    }
+    .summary-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      border-radius: 8px;
+      text-align: center;
+    }
+    .summary-card.errors {
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    .summary-card.warnings {
+      background: linear-gradient(135deg, #fad0c4 0%, #ffd1ff 100%);
+      color: #333;
+    }
+    .summary-card h3 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: normal;
+      opacity: 0.9;
+    }
+    .summary-card .count {
+      font-size: 36px;
+      font-weight: bold;
+      margin: 10px 0;
+    }
+    pre {
+      background-color: #f4f4f4;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+      font-size: 12px;
+    }
+    .loading {
+      text-align: center;
+      padding: 20px;
+      color: #666;
+    }
+    .issue-list {
+      list-style: none;
+      padding: 0;
+    }
+    .issue-list li {
+      margin: 8px 0;
+      padding: 8px;
+      background: white;
+      border-radius: 4px;
+    }
+    .rule-id {
+      display: inline-block;
+      background: #333;
+      color: white;
+      padding: 2px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      margin-right: 8px;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔍 シフトバリデーションテスト</h1>
+
+    <div>
+      <button id="runValidation">バリデーション実行</button>
+      <button id="clearResults">結果をクリア</button>
+    </div>
+
+    <div id="loading" class="loading" style="display: none;">
+      バリデーション実行中...
+    </div>
+
+    <div id="results"></div>
+  </div>
+
+  <script type="module">
+    import { validateShifts, loadConstraintRules } from '../../src/utils/shiftValidator.js'
+    import Papa from 'papaparse'
+
+    const runValidationBtn = document.getElementById('runValidation')
+    const clearResultsBtn = document.getElementById('clearResults')
+    const resultsDiv = document.getElementById('results')
+    const loadingDiv = document.getElementById('loading')
+
+    // シフトデータを読み込む
+    async function loadShifts() {
+      const response = await fetch('/data/transactions/shift.csv')
+      const csvText = await response.text()
+
+      return new Promise((resolve, reject) => {
+        Papa.parse(csvText, {
+          header: true,
+          skipEmptyLines: true,
+          complete: (result) => resolve(result.data),
+          error: (error) => reject(error)
+        })
+      })
+    }
+
+    // バリデーション実行
+    runValidationBtn.addEventListener('click', async () => {
+      try {
+        runValidationBtn.disabled = true
+        loadingDiv.style.display = 'block'
+        resultsDiv.innerHTML = ''
+
+        console.log('シフトデータを読み込み中...')
+        const shifts = await loadShifts()
+        console.log(`${shifts.length}件のシフトを読み込みました`)
+
+        console.log('バリデーション実行中...')
+        const result = await validateShifts(shifts)
+        console.log('バリデーション結果:', result)
+
+        displayResults(result)
+      } catch (error) {
+        console.error('バリデーションエラー:', error)
+        resultsDiv.innerHTML = `
+          <div class="error">
+            <h3>エラーが発生しました</h3>
+            <p>${error.message}</p>
+            <pre>${error.stack}</pre>
+          </div>
+        `
+      } finally {
+        runValidationBtn.disabled = false
+        loadingDiv.style.display = 'none'
+      }
+    })
+
+    // 結果表示
+    function displayResults(result) {
+      let html = '<h2>バリデーション結果</h2>'
+
+      // サマリーカード
+      html += '<div class="summary">'
+      html += `
+        <div class="summary-card ${result.isValid ? '' : 'errors'}">
+          <h3>総合判定</h3>
+          <div class="count">${result.isValid ? '✓' : '✗'}</div>
+          <p>${result.isValid ? '問題なし' : '要修正'}</p>
+        </div>
+        <div class="summary-card errors">
+          <h3>エラー</h3>
+          <div class="count">${result.errorCount}</div>
+          <p>件</p>
+        </div>
+        <div class="summary-card warnings">
+          <h3>警告</h3>
+          <div class="count">${result.warningCount}</div>
+          <p>件</p>
+        </div>
+      `
+      html += '</div>'
+
+      // エラー一覧
+      if (result.errors.length > 0) {
+        html += '<h2>❌ エラー一覧</h2>'
+        html += '<ul class="issue-list">'
+        result.errors.forEach((error, index) => {
+          html += `
+            <li class="error">
+              <span class="rule-id">${error.rule_id}</span>
+              <strong>${error.message}</strong>
+              ${error.law_reference ? `<br><small>📜 ${error.law_reference}</small>` : ''}
+              ${error.shift_date ? `<br><small>📅 ${error.shift_date}</small>` : ''}
+            </li>
+          `
+        })
+        html += '</ul>'
+      }
+
+      // 警告一覧
+      if (result.warnings.length > 0) {
+        html += '<h2>⚠️ 警告一覧</h2>'
+        html += '<ul class="issue-list">'
+        result.warnings.forEach((warning, index) => {
+          html += `
+            <li class="warning">
+              <span class="rule-id">${warning.rule_id}</span>
+              <strong>${warning.message}</strong>
+              ${warning.law_reference ? `<br><small>📜 ${warning.law_reference}</small>` : ''}
+              ${warning.shift_date ? `<br><small>📅 ${warning.shift_date}</small>` : ''}
+            </li>
+          `
+        })
+        html += '</ul>'
+      }
+
+      // 成功メッセージ
+      if (result.isValid) {
+        html += '<div class="success"><h3>✅ 全てのハード制約をクリアしています！</h3></div>'
+      }
+
+      // JSON結果
+      html += '<h2>詳細結果 (JSON)</h2>'
+      html += `<pre>${JSON.stringify(result, null, 2)}</pre>`
+
+      resultsDiv.innerHTML = html
+    }
+
+    // 結果クリア
+    clearResultsBtn.addEventListener('click', () => {
+      resultsDiv.innerHTML = ''
+    })
+  </script>
+</body>
+</html>
