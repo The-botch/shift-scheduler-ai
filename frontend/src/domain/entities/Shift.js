@@ -38,7 +38,13 @@ export class Shift {
    */
   calculateWorkHours() {
     const start = this.parseTime(this.startTime)
-    const end = this.parseTime(this.endTime)
+    let end = this.parseTime(this.endTime)
+
+    // 終了時刻が開始時刻より小さい場合（日をまたぐ場合）、24時間を加算
+    if (end < start) {
+      end += 24 * 60
+    }
+
     const totalMinutes = end - start - this.breakMinutes
     return (totalMinutes / 60).toFixed(2)
   }

@@ -42,4 +42,5 @@ class Logger {
 // デフォルトロガーをエクスポート
 export const logger = new Logger(import.meta.env.VITE_LOG_LEVEL || 'INFO')
 
+export { Logger }
 export default logger
