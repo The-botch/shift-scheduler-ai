@@ -10,7 +10,12 @@
  * @param {Array} insuranceRates - 保険料率マスタ
  * @returns {Object} 社会保険料の内訳
  */
-export const calculateSocialInsurance = (grossSalary, employmentType, hasSocialInsurance, insuranceRates) => {
+export const calculateSocialInsurance = (
+  grossSalary,
+  employmentType,
+  hasSocialInsurance,
+  insuranceRates
+) => {
   if (!hasSocialInsurance || employmentType === 'hourly') {
     // 時給制は雇用保険のみ
     const employmentInsurance = insuranceRates.find(r => r.rate_type === 'employment_insurance')
@@ -23,7 +28,7 @@ export const calculateSocialInsurance = (grossSalary, employmentType, hasSocialI
       pension: 0,
       employmentInsurance: employmentInsuranceFee,
       workersCompensation: 0,
-      total: employmentInsuranceFee
+      total: employmentInsuranceFee,
     }
   }
 
@@ -49,7 +54,7 @@ export const calculateSocialInsurance = (grossSalary, employmentType, hasSocialI
     pension: pensionFee,
     employmentInsurance: employmentInsuranceFee,
     workersCompensation: 0, // 労災は全額事業主負担
-    total: healthInsuranceFee + pensionFee + employmentInsuranceFee
+    total: healthInsuranceFee + pensionFee + employmentInsuranceFee,
   }
 }
 
@@ -86,12 +91,14 @@ export const calculateIncomeTax = (taxableIncome, taxBrackets) => {
   const taxableAmount = Math.max(0, annualIncome - employmentIncomeDeduction - basicDeduction)
 
   // 税率表から該当する税率を探す
-  const bracket = taxBrackets.find(b =>
-    taxableAmount >= b.income_from && taxableAmount <= b.income_to
-  ) || taxBrackets[taxBrackets.length - 1]
+  const bracket =
+    taxBrackets.find(b => taxableAmount >= b.income_from && taxableAmount <= b.income_to) ||
+    taxBrackets[taxBrackets.length - 1]
 
   // 所得税計算
-  const annualTax = Math.floor(taxableAmount * (parseFloat(bracket.tax_rate) / 100) - parseFloat(bracket.deduction))
+  const annualTax = Math.floor(
+    taxableAmount * (parseFloat(bracket.tax_rate) / 100) - parseFloat(bracket.deduction)
+  )
 
   // 月額に換算
   return Math.floor(annualTax / 12)
@@ -102,7 +109,7 @@ export const calculateIncomeTax = (taxableIncome, taxBrackets) => {
  * @param {number} taxableIncome - 課税所得
  * @returns {number} 住民税額
  */
-export const calculateResidentTax = (taxableIncome) => {
+export const calculateResidentTax = taxableIncome => {
   // 簡易計算：課税所得の10%
   const annualIncome = taxableIncome * 12
   const annualTax = Math.floor(annualIncome * 0.1)
@@ -117,9 +124,14 @@ export const calculateResidentTax = (taxableIncome) => {
  * @param {string} employmentType - 雇用形態
  * @returns {Object} 交通費情報
  */
-export const calculateCommuteAllowance = (commuteDistance, workDays, commuteAllowances, employmentType) => {
-  const allowance = commuteAllowances.find(a =>
-    commuteDistance >= a.distance_from_km && commuteDistance < a.distance_to_km
+export const calculateCommuteAllowance = (
+  commuteDistance,
+  workDays,
+  commuteAllowances,
+  employmentType
+) => {
+  const allowance = commuteAllowances.find(
+    a => commuteDistance >= a.distance_from_km && commuteDistance < a.distance_to_km
   )
 
   if (!allowance) {
@@ -131,16 +143,13 @@ export const calculateCommuteAllowance = (commuteDistance, workDays, commuteAllo
   if (employmentType === 'monthly' || employmentType === 'contract') {
     totalAllowance = allowance.monthly_max
   } else {
-    totalAllowance = Math.min(
-      allowance.daily_allowance * workDays,
-      allowance.monthly_max
-    )
+    totalAllowance = Math.min(allowance.daily_allowance * workDays, allowance.monthly_max)
   }
 
   return {
     dailyAllowance: allowance.daily_allowance,
     totalAllowance,
-    monthlyMax: allowance.monthly_max
+    monthlyMax: allowance.monthly_max,
   }
 }
 
@@ -202,6 +211,6 @@ export const calculatePayslip = (staff, performance, masterData) => {
     totalDeductions,
     netSalary,
     workDays: performance.totalDays,
-    workHours: performance.totalHours
+    workHours: performance.totalHours,
   }
 }

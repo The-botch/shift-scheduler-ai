@@ -10,21 +10,21 @@ const BACKEND_API_URL = 'http://localhost:3001'
  * @param {string} storeId - 店舗ID
  * @returns {Promise<Object>} Vector Store情報
  */
-export const createVectorStore = async (storeId) => {
+export const createVectorStore = async storeId => {
   try {
     const response = await fetch(`${BACKEND_API_URL}/api/openai/vector_stores`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         name: `shift-scheduler-${storeId}`,
         metadata: {
           storeId,
           type: 'master_data',
-          createdAt: new Date().toISOString()
-        }
-      })
+          createdAt: new Date().toISOString(),
+        },
+      }),
     })
 
     if (!response.ok) {
@@ -44,15 +44,15 @@ export const createVectorStore = async (storeId) => {
  * @param {string} filePath - CSVファイルのパス
  * @returns {Promise<Object>} アップロードされたファイル情報
  */
-export const uploadFile = async (filePath) => {
+export const uploadFile = async filePath => {
   try {
     // バックエンド経由でファイルをアップロード
     const response = await fetch(`${BACKEND_API_URL}/api/openai/files`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ filePath })
+      body: JSON.stringify({ filePath }),
     })
 
     if (!response.ok) {
@@ -74,17 +74,22 @@ export const uploadFile = async (filePath) => {
  */
 export const addFileToVectorStore = async (vectorStoreId, fileId) => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/openai/vector_stores/${vectorStoreId}/files`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ file_id: fileId })
-    })
+    const response = await fetch(
+      `${BACKEND_API_URL}/api/openai/vector_stores/${vectorStoreId}/files`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ file_id: fileId }),
+      }
+    )
 
     if (!response.ok) {
       const error = await response.json()
-      throw new Error(`Vector Storeへのファイル追加失敗: ${error.error?.message || response.statusText}`)
+      throw new Error(
+        `Vector Storeへのファイル追加失敗: ${error.error?.message || response.statusText}`
+      )
     }
 
     return await response.json()
@@ -113,7 +118,7 @@ export const setupVectorStore = async (storeId, onProgress) => {
       '/data/master/staff_skills.csv',
       '/data/master/staff_certifications.csv',
       '/data/history/shift_history_2023-2024.csv',
-      '/data/history/shift_monthly_summary.csv'
+      '/data/history/shift_monthly_summary.csv',
     ]
 
     const total = files.length + 1 // +1 for Vector Store creation
@@ -147,12 +152,12 @@ export const setupVectorStore = async (storeId, onProgress) => {
  * @param {string} vectorStoreId - Vector Store ID
  * @returns {Promise<Object>} Assistant情報
  */
-export const createAssistant = async (vectorStoreId) => {
+export const createAssistant = async vectorStoreId => {
   try {
     const response = await fetch(`${BACKEND_API_URL}/api/openai/assistants`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         name: 'Shift Scheduler Assistant',
@@ -227,16 +232,13 @@ from datetime import datetime
 
 **繰り返し: ステップバイステップの説明は不要です。CSVファイルとJSONサマリーのみ出力してください。**`,
         model: 'gpt-4o',
-        tools: [
-          { type: 'file_search' },
-          { type: 'code_interpreter' }
-        ],
+        tools: [{ type: 'file_search' }, { type: 'code_interpreter' }],
         tool_resources: {
           file_search: {
-            vector_store_ids: [vectorStoreId]
-          }
-        }
-      })
+            vector_store_ids: [vectorStoreId],
+          },
+        },
+      }),
     })
 
     if (!response.ok) {
@@ -260,9 +262,9 @@ export const createThread = async () => {
     const response = await fetch(`${BACKEND_API_URL}/api/openai/threads`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
-      body: JSON.stringify({})
+      body: JSON.stringify({}),
     })
 
     if (!response.ok) {
@@ -288,12 +290,12 @@ export const addMessage = async (threadId, content) => {
     const response = await fetch(`${BACKEND_API_URL}/api/openai/threads/${threadId}/messages`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         role: 'user',
-        content
-      })
+        content,
+      }),
     })
 
     if (!response.ok) {
@@ -319,12 +321,12 @@ export const createRun = async (threadId, assistantId) => {
     const response = await fetch(`${BACKEND_API_URL}/api/openai/threads/${threadId}/runs`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         assistant_id: assistantId,
-        max_completion_tokens: 16000 // 最大16000トークンまで出力可能
-      })
+        max_completion_tokens: 16000, // 最大16000トークンまで出力可能
+      }),
     })
 
     if (!response.ok) {
@@ -347,12 +349,15 @@ export const createRun = async (threadId, assistantId) => {
  */
 export const getRunStatus = async (threadId, runId) => {
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/openai/threads/${threadId}/runs/${runId}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
+    const response = await fetch(
+      `${BACKEND_API_URL}/api/openai/threads/${threadId}/runs/${runId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
       }
-    })
+    )
 
     if (!response.ok) {
       const error = await response.json()
@@ -371,13 +376,13 @@ export const getRunStatus = async (threadId, runId) => {
  * @param {string} threadId - Thread ID
  * @returns {Promise<Object>} メッセージ一覧
  */
-export const getMessages = async (threadId) => {
+export const getMessages = async threadId => {
   try {
     const response = await fetch(`${BACKEND_API_URL}/api/openai/threads/${threadId}/messages`, {
       method: 'GET',
       headers: {
-        'Content-Type': 'application/json'
-      }
+        'Content-Type': 'application/json',
+      },
     })
 
     if (!response.ok) {
@@ -397,10 +402,10 @@ export const getMessages = async (threadId) => {
  * @param {string} fileId - ファイルID
  * @returns {Promise<string>} ファイルの内容（テキスト）
  */
-export const downloadFile = async (fileId) => {
+export const downloadFile = async fileId => {
   try {
     const response = await fetch(`${BACKEND_API_URL}/api/openai/files/${fileId}/content`, {
-      method: 'GET'
+      method: 'GET',
     })
 
     if (!response.ok) {
@@ -427,7 +432,7 @@ export const downloadFile = async (fileId) => {
  * @param {Function} params.onProgress - 進捗コールバック
  * @returns {Promise<Object>} 生成結果
  */
-export const generateShiftWithAssistant = async (params) => {
+export const generateShiftWithAssistant = async params => {
   const {
     year,
     month,
@@ -435,7 +440,7 @@ export const generateShiftWithAssistant = async (params) => {
     assistantId: existingAssistantId,
     additionalConstraints = [],
     customPrompt,
-    onProgress
+    onProgress,
   } = params
 
   try {
@@ -452,7 +457,9 @@ export const generateShiftWithAssistant = async (params) => {
     // 3. プロンプトを作成（customPromptが必須）
     const prompt = customPrompt
     if (!prompt) {
-      throw new Error('customPromptが指定されていません。プロンプトは呼び出し側で生成してください。')
+      throw new Error(
+        'customPromptが指定されていません。プロンプトは呼び出し側で生成してください。'
+      )
     }
 
     // 4. メッセージ追加
@@ -468,7 +475,11 @@ export const generateShiftWithAssistant = async (params) => {
     let pollCount = 0
     const maxPolls = 300 // 最大300秒（5分）待機
 
-    while (runStatus.status !== 'completed' && runStatus.status !== 'failed' && pollCount < maxPolls) {
+    while (
+      runStatus.status !== 'completed' &&
+      runStatus.status !== 'failed' &&
+      pollCount < maxPolls
+    ) {
       await new Promise(resolve => setTimeout(resolve, 1000))
       runStatus = await getRunStatus(thread.id, run.id)
       pollCount++
@@ -548,14 +559,14 @@ export const generateShiftWithAssistant = async (params) => {
       summary: summaryJson, // パースされたサマリー情報
       citations: textContent?.text?.annotations || [],
       assistantId: assistant.id,
-      threadId: thread.id
+      threadId: thread.id,
     }
   } catch (error) {
     console.error('シフト生成エラー:', error)
     return {
       success: false,
       error: error.message,
-      message: `エラーが発生しました: ${error.message}`
+      message: `エラーが発生しました: ${error.message}`,
     }
   }
 }

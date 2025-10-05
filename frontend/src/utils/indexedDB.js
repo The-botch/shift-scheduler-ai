@@ -11,13 +11,13 @@ export const openDB = () => {
     request.onerror = () => reject(request.error)
     request.onsuccess = () => resolve(request.result)
 
-    request.onupgradeneeded = (event) => {
+    request.onupgradeneeded = event => {
       const db = event.target.result
 
       // actual_shifts ストア
       if (!db.objectStoreNames.contains(STORES.ACTUAL_SHIFTS)) {
         const actualShiftsStore = db.createObjectStore(STORES.ACTUAL_SHIFTS, {
-          keyPath: 'shift_id'
+          keyPath: 'shift_id',
         })
         actualShiftsStore.createIndex('year', 'year', { unique: false })
         actualShiftsStore.createIndex('month', 'month', { unique: false })
@@ -28,7 +28,7 @@ export const openDB = () => {
       // payroll ストア
       if (!db.objectStoreNames.contains(STORES.PAYROLL)) {
         const payrollStore = db.createObjectStore(STORES.PAYROLL, {
-          keyPath: 'payroll_id'
+          keyPath: 'payroll_id',
         })
         payrollStore.createIndex('year', 'year', { unique: false })
         payrollStore.createIndex('month', 'month', { unique: false })
@@ -39,7 +39,7 @@ export const openDB = () => {
       // sales_actual ストア
       if (!db.objectStoreNames.contains(STORES.SALES_ACTUAL)) {
         const salesActualStore = db.createObjectStore(STORES.SALES_ACTUAL, {
-          keyPath: 'actual_id'
+          keyPath: 'actual_id',
         })
         salesActualStore.createIndex('year', 'year', { unique: false })
         salesActualStore.createIndex('month', 'month', { unique: false })
@@ -61,7 +61,7 @@ export const saveBulkData = async (storeName, data) => {
     let successCount = 0
     let errorCount = 0
 
-    data.forEach((item) => {
+    data.forEach(item => {
       const request = store.put(item)
       request.onsuccess = () => successCount++
       request.onerror = () => errorCount++
@@ -80,7 +80,7 @@ export const saveBulkData = async (storeName, data) => {
 }
 
 // データを取得（全件）
-export const getAllData = async (storeName) => {
+export const getAllData = async storeName => {
   const db = await openDB()
 
   return new Promise((resolve, reject) => {
@@ -145,7 +145,7 @@ export const getDataByStaffId = async (storeName, staffId) => {
 }
 
 // データを削除（全件）
-export const clearStore = async (storeName) => {
+export const clearStore = async storeName => {
   const db = await openDB()
 
   return new Promise((resolve, reject) => {
@@ -166,7 +166,7 @@ export const clearStore = async (storeName) => {
 }
 
 // データ件数を取得
-export const getCount = async (storeName) => {
+export const getCount = async storeName => {
   const db = await openDB()
 
   return new Promise((resolve, reject) => {
@@ -187,12 +187,12 @@ export const getCount = async (storeName) => {
 }
 
 // 実績労働時間データの保存
-export const saveActualShifts = (shifts) => {
+export const saveActualShifts = shifts => {
   return saveBulkData(STORES.ACTUAL_SHIFTS, shifts)
 }
 
 // 給与明細データの保存
-export const savePayroll = (payroll) => {
+export const savePayroll = payroll => {
   return saveBulkData(STORES.PAYROLL, payroll)
 }
 
@@ -207,17 +207,17 @@ export const getPayroll = (year, month) => {
 }
 
 // スタッフの給与履歴を取得
-export const getStaffPayrollHistory = (staffId) => {
+export const getStaffPayrollHistory = staffId => {
   return getDataByStaffId(STORES.PAYROLL, staffId)
 }
 
 // スタッフの労働時間履歴を取得
-export const getStaffWorkHistory = (staffId) => {
+export const getStaffWorkHistory = staffId => {
   return getDataByStaffId(STORES.ACTUAL_SHIFTS, staffId)
 }
 
 // 売上実績データの保存
-export const saveSalesActual = (sales) => {
+export const saveSalesActual = sales => {
   return saveBulkData(STORES.SALES_ACTUAL, sales)
 }
 

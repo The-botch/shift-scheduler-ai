@@ -15,30 +15,30 @@ export const sendToChatGPT = async (prompt, options = {}) => {
     model = import.meta.env.VITE_OPENAI_MODEL || 'gpt-4',
     maxTokens = parseInt(import.meta.env.VITE_OPENAI_MAX_TOKENS) || 2000,
     temperature = 0.7,
-    systemMessage = 'あなたはシフト管理システムの専門家AIアシスタントです。'
+    systemMessage = 'あなたはシフト管理システムの専門家AIアシスタントです。',
   } = options
 
   try {
     const response = await fetch(`${BACKEND_API_URL}/api/openai/chat/completions`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model,
         messages: [
           {
             role: 'system',
-            content: systemMessage
+            content: systemMessage,
           },
           {
             role: 'user',
-            content: prompt
-          }
+            content: prompt,
+          },
         ],
         max_tokens: maxTokens,
-        temperature
-      })
+        temperature,
+      }),
     })
 
     if (!response.ok) {
@@ -55,14 +55,14 @@ export const sendToChatGPT = async (prompt, options = {}) => {
       message: data.choices[0]?.message?.content || '',
       usage: data.usage,
       model: data.model,
-      rawResponse: data
+      rawResponse: data,
     }
   } catch (error) {
     console.error('ChatGPT API Error:', error)
     return {
       success: false,
       error: error.message,
-      message: `エラーが発生しました: ${error.message}`
+      message: `エラーが発生しました: ${error.message}`,
     }
   }
 }
@@ -73,15 +73,8 @@ export const sendToChatGPT = async (prompt, options = {}) => {
  * @param {Object} params - シフト生成パラメータ
  * @returns {string} 構築されたプロンプト
  */
-export const buildShiftGenerationPrompt = (params) => {
-  const {
-    month,
-    year,
-    staffCount,
-    constraints = [],
-    preferences = [],
-    budgetLimit
-  } = params
+export const buildShiftGenerationPrompt = params => {
+  const { month, year, staffCount, constraints = [], preferences = [], budgetLimit } = params
 
   let prompt = `\n---\n\n## 追加の制約・要望\n\n`
 
@@ -134,7 +127,7 @@ export const buildShiftGenerationPrompt = (params) => {
  * @param {Object} validationResult - バリデーション結果
  * @returns {Promise<Object>} 分析結果
  */
-export const analyzeValidationResult = async (validationResult) => {
+export const analyzeValidationResult = async validationResult => {
   const prompt = `
 以下のシフトバリデーション結果を分析し、改善提案をしてください。
 
@@ -159,6 +152,7 @@ ${validationResult.warnings.map((w, i) => `${i + 1}. [${w.rule_id}] ${w.message}
 `
 
   return await sendToChatGPT(prompt, {
-    systemMessage: 'あなたはシフト管理の専門家です。バリデーション結果を分析し、実用的な改善提案を行ってください。'
+    systemMessage:
+      'あなたはシフト管理の専門家です。バリデーション結果を分析し、実用的な改善提案を行ってください。',
   })
 }

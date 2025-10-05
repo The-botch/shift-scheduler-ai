@@ -18,7 +18,7 @@ const config = {
   colors,
   paths,
   display,
-  shiftPatterns
+  shiftPatterns,
 }
 
 export default config

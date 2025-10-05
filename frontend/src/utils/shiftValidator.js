@@ -11,7 +11,7 @@ import { createError, createWarning } from '../config/validationMessages.js'
  * @param {string} csvPath - CSVファイルのパス
  * @returns {Promise<Array>} パースされた制約ルールの配列
  */
-export const loadConstraintRules = async (csvPath) => {
+export const loadConstraintRules = async csvPath => {
   try {
     const response = await fetch(csvPath)
     const csvText = await response.text()
@@ -20,16 +20,16 @@ export const loadConstraintRules = async (csvPath) => {
       Papa.parse(csvText, {
         header: true,
         skipEmptyLines: true,
-        complete: (result) => {
+        complete: result => {
           if (result.errors.length > 0) {
             reject(new Error(`CSV parse error: ${result.errors[0].message}`))
           } else {
             resolve(result.data)
           }
         },
-        error: (error) => {
+        error: error => {
           reject(error)
-        }
+        },
       })
     })
   } catch (error) {
@@ -46,13 +46,13 @@ export const loadAllConstraintRules = async () => {
     const [validationRules, laborLawRules, managementRules] = await Promise.all([
       loadConstraintRules('/data/master/shift_validation_rules.csv'),
       loadConstraintRules('/data/master/labor_law_constraints.csv'),
-      loadConstraintRules('/data/master/labor_management_rules.csv')
+      loadConstraintRules('/data/master/labor_management_rules.csv'),
     ])
 
     return {
       validationRules: validationRules.filter(r => r.check_level === 'ERROR'),
       laborLawRules: laborLawRules.filter(r => r.penalty_level === 'critical'),
-      managementRules: managementRules.filter(r => r.priority === 'HIGH')
+      managementRules: managementRules.filter(r => r.priority === 'HIGH'),
     }
   } catch (error) {
     throw new Error(`Failed to load all constraint rules: ${error.message}`)
@@ -244,10 +244,10 @@ export class ShiftValidator {
         {
           shift_id: shift.shift_id,
           staff_id: shift.staff_id,
-          shift_date: shift.shift_date
+          shift_date: shift.shift_date,
         },
         {
-          staffName: staff.name
+          staffName: staff.name,
         }
       )
       this.addError(error)
@@ -264,21 +264,21 @@ export class ShiftValidator {
     const context = {
       shift_id: shift.shift_id,
       staff_id: shift.staff_id,
-      shift_date: shift.shift_date
+      shift_date: shift.shift_date,
     }
 
     if (workHours > 8 && breakMinutes < 60) {
       const error = createError('VAL003', context, {
         workHours: 8,
         requiredBreak: 60,
-        actualBreak: breakMinutes
+        actualBreak: breakMinutes,
       })
       this.addError(error)
     } else if (workHours > 6 && breakMinutes < 45) {
       const error = createError('VAL003', context, {
         workHours: 6,
         requiredBreak: 45,
-        actualBreak: breakMinutes
+        actualBreak: breakMinutes,
       })
       this.addError(error)
     }
@@ -294,8 +294,8 @@ export class ShiftValidator {
     prevDate.setDate(prevDate.getDate() - 1)
     const prevDateStr = prevDate.toISOString().split('T')[0]
 
-    const prevShift = allShifts.find(s =>
-      s.staff_id == shift.staff_id && s.shift_date === prevDateStr
+    const prevShift = allShifts.find(
+      s => s.staff_id == shift.staff_id && s.shift_date === prevDateStr
     )
 
     if (prevShift) {
@@ -311,10 +311,10 @@ export class ShiftValidator {
           {
             shift_id: shift.shift_id,
             staff_id: shift.staff_id,
-            shift_date: shift.shift_date
+            shift_date: shift.shift_date,
           },
           {
-            intervalHours: intervalHours.toFixed(1)
+            intervalHours: intervalHours.toFixed(1),
           }
         )
         this.addWarning(warning)
@@ -335,11 +335,11 @@ export class ShiftValidator {
         {
           shift_id: shift.shift_id,
           staff_id: shift.staff_id,
-          shift_date: shift.shift_date
+          shift_date: shift.shift_date,
         },
         {
           staffName: staff.name,
-          hours: workHours
+          hours: workHours,
         }
       )
       this.addError(error)
@@ -351,9 +351,7 @@ export class ShiftValidator {
    */
   checkConsecutiveDays(staffId, staff, shifts) {
     // 日付でソート
-    const sortedShifts = [...shifts].sort((a, b) =>
-      new Date(a.shift_date) - new Date(b.shift_date)
-    )
+    const sortedShifts = [...shifts].sort((a, b) => new Date(a.shift_date) - new Date(b.shift_date))
 
     let consecutiveDays = 1
     let maxConsecutiveDays = 1
@@ -378,13 +376,13 @@ export class ShiftValidator {
 
     if (maxConsecutiveDays > 12) {
       const error = createError('LM005', context, {
-        consecutiveDays: maxConsecutiveDays
+        consecutiveDays: maxConsecutiveDays,
       })
       this.addError(error)
     } else if (maxConsecutiveDays > maxAllowed) {
       const warning = createWarning('LM004', context, {
         consecutiveDays: maxConsecutiveDays,
-        recommendedMax: maxAllowed
+        recommendedMax: maxAllowed,
       })
       this.addWarning(warning)
     }
@@ -420,11 +418,11 @@ export class ShiftValidator {
           'LAW_002',
           {
             staff_id: staffId,
-            week_start: weekStart
+            week_start: weekStart,
           },
           {
             hours: hours.toFixed(1),
-            maxHours: maxWeeklyHours
+            maxHours: maxWeeklyHours,
           }
         )
         this.addError(error)
@@ -444,7 +442,7 @@ export class ShiftValidator {
       if (!monthlyHours[monthKey]) {
         monthlyHours[monthKey] = {
           totalHours: 0,
-          baseHours: parseFloat(staff.max_hours_per_week || 40) * 4 // 週40h × 4週
+          baseHours: parseFloat(staff.max_hours_per_week || 40) * 4, // 週40h × 4週
         }
       }
       monthlyHours[monthKey].totalHours += parseFloat(shift.total_hours || 0)
@@ -458,10 +456,10 @@ export class ShiftValidator {
           'LAW_011',
           {
             staff_id: staffId,
-            month: month
+            month: month,
           },
           {
-            overtimeHours: overtimeHours.toFixed(1)
+            overtimeHours: overtimeHours.toFixed(1),
           }
         )
         this.addError(error)
@@ -483,8 +481,8 @@ export class ShiftValidator {
       summary: {
         total_issues: this.errors.length + this.warnings.length,
         critical_issues: this.errors.length,
-        warnings: this.warnings.length
-      }
+        warnings: this.warnings.length,
+      },
     }
   }
 
@@ -517,11 +515,11 @@ export class ShiftValidator {
  * @param {Array} shifts - バリデーション対象のシフトデータ
  * @returns {Promise<Object>} バリデーション結果
  */
-export const validateShifts = async (shifts) => {
+export const validateShifts = async shifts => {
   try {
     const [staffMaster, constraintRules] = await Promise.all([
       loadStaffMaster(),
-      loadAllConstraintRules()
+      loadAllConstraintRules(),
     ])
 
     const validator = new ShiftValidator(staffMaster, constraintRules)

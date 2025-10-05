@@ -16,7 +16,7 @@ import {
   Maximize2,
   GripVertical,
   AlertTriangle,
-  Upload
+  Upload,
 } from 'lucide-react'
 import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'
@@ -24,13 +24,13 @@ import ShiftTimeline from '../shared/ShiftTimeline'
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
   in: { opacity: 1, y: 0 },
-  out: { opacity: 0, y: -20 }
+  out: { opacity: 0, y: -20 },
 }
 
 const pageTransition = {
   type: 'tween',
   ease: 'anticipate',
-  duration: 0.5
+  duration: 0.5,
 }
 
 const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) => {
@@ -41,18 +41,27 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
   const [stats, setStats] = useState({
     totalShifts: 0,
     totalHours: 0,
-    staffCount: 0
+    staffCount: 0,
   })
 
   // チャット機能関連の状態変数
   const [messages, setMessages] = useState([
-    { id: 1, type: 'system', content: '第1案が生成されました。この案で問題なければ次のステップへ進んでください。修正が必要な場合は、自然言語で指示をお願いします。', time: '14:30' }
+    {
+      id: 1,
+      type: 'system',
+      content:
+        '第1案が生成されました。この案で問題なければ次のステップへ進んでください。修正が必要な場合は、自然言語で指示をお願いします。',
+      time: '14:30',
+    },
   ])
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const [pendingChange, setPendingChange] = useState(null)
   const [isChatMinimized, setIsChatMinimized] = useState(false)
-  const [chatPosition, setChatPosition] = useState({ x: window.innerWidth - 336, y: window.innerHeight - 520 })
+  const [chatPosition, setChatPosition] = useState({
+    x: window.innerWidth - 336,
+    y: window.innerHeight - 520,
+  })
   const [chatSize, setChatSize] = useState({ width: 320, height: 500 })
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
@@ -68,7 +77,6 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
   useEffect(() => {
     loadShiftData()
   }, [])
-
 
   const loadShiftData = async () => {
     try {
@@ -89,7 +97,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
           dynamicTyping: true,
           skipEmptyLines: true,
           complete: resolve,
-          error: reject
+          error: reject,
         })
       })
 
@@ -103,7 +111,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
           dynamicTyping: true,
           skipEmptyLines: true,
           complete: resolve,
-          error: reject
+          error: reject,
         })
       })
 
@@ -117,7 +125,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
           dynamicTyping: true,
           skipEmptyLines: true,
           complete: resolve,
-          error: reject
+          error: reject,
         })
       })
 
@@ -133,7 +141,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
         staffMap[staff.staff_id] = {
           name: staff.name,
           role_id: staff.role_id,
-          role_name: rolesMap[staff.role_id] || 'スタッフ'
+          role_name: rolesMap[staff.role_id] || 'スタッフ',
         }
       })
 
@@ -148,9 +156,9 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
         groupedByDate[date].push({
           name: staffInfo.name,
           role: staffInfo.role_name,
-          time: `${shift.start_time?.substring(0,5)}-${shift.end_time?.substring(0,5)}`,
+          time: `${shift.start_time?.substring(0, 5)}-${shift.end_time?.substring(0, 5)}`,
           skill: shift.skill_level || 3,
-          hours: shift.total_hours || 0
+          hours: shift.total_hours || 0,
         })
       })
 
@@ -161,7 +169,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
       const formattedData = sortedDates.map((date, index) => ({
         date: index + 1,
         fullDate: date,
-        shifts: groupedByDate[date]
+        shifts: groupedByDate[date],
       }))
 
       console.log('CSVから読み込んだデータ:', formattedData.length, '日分')
@@ -179,7 +187,6 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
       setStats({ totalShifts, totalHours, staffCount })
 
       setLoading(false)
-
     } catch (err) {
       console.error('データ読み込みエラー:', err)
       setShiftData([])
@@ -198,14 +205,14 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
   }
 
   // CSVインポート処理
-  const handleCSVImport = (event) => {
+  const handleCSVImport = event => {
     const file = event.target.files[0]
     if (!file) return
 
     setGenerating(true)
 
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = e => {
       const csvContent = e.target.result
 
       // CSVをパース
@@ -213,7 +220,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
         header: true,
         dynamicTyping: true,
         skipEmptyLines: true,
-        complete: (result) => {
+        complete: result => {
           console.log('✅ CSVファイルをインポートしました:', file.name, result.data.length, '件')
 
           // インポートしたデータを既存のshiftData形式に変換
@@ -229,7 +236,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                 date: parseInt(date),
                 shifts: [],
                 totalStaff: 0,
-                totalHours: 0
+                totalHours: 0,
               }
             }
 
@@ -242,7 +249,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
               name: row.staff_name || row.name || 'スタッフ',
               time: `${row.start_time || '09:00'}-${row.end_time || '18:00'}`,
               role: row.role || 'スタッフ',
-              hours: hours
+              hours: hours,
             })
 
             groupedByDate[date].totalStaff++
@@ -262,7 +269,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
           setStats({
             totalShifts,
             totalHours,
-            staffCount
+            staffCount,
           })
 
           setGenerating(false)
@@ -272,14 +279,14 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
             日数: importedShiftData.length,
             シフト数: totalShifts,
             スタッフ数: staffCount,
-            総労働時間: totalHours
+            総労働時間: totalHours,
           })
         },
-        error: (error) => {
+        error: error => {
           console.error('CSVパースエラー:', error)
           setGenerating(false)
           alert('CSVファイルの読み込みに失敗しました')
-        }
+        },
       })
     }
 
@@ -300,7 +307,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
       status: 'first_plan_approved',
       approvedAt: new Date().toISOString(),
       shifts: shiftData,
-      stats: stats
+      stats: stats,
     }
 
     // LocalStorageに保存
@@ -314,7 +321,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
   }
 
   // タイムライン表示用の関数
-  const handleDayClick = (dayData) => {
+  const handleDayClick = dayData => {
     // FirstPlanのデータ形式をShiftTimeline用に変換
     const formattedShifts = dayData.shifts.map((shift, index) => {
       const [startTime, endTime] = shift.time.split('-')
@@ -325,7 +332,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
         end_time: endTime,
         role: shift.role || 'スタッフ',
         planned_hours: shift.hours,
-        modified_flag: shift.changed || false
+        modified_flag: shift.changed || false,
       }
     })
     setDayShifts(formattedShifts)
@@ -347,19 +354,19 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
   }
 
   // ドラッグハンドラー
-  const handleDragStart = (e) => {
+  const handleDragStart = e => {
     setIsDragging(true)
     setDragStart({
       x: e.clientX - chatPosition.x,
-      y: e.clientY - chatPosition.y
+      y: e.clientY - chatPosition.y,
     })
   }
 
-  const handleDrag = (e) => {
+  const handleDrag = e => {
     if (isDragging) {
       setChatPosition({
         x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
+        y: e.clientY - dragStart.y,
       })
     }
   }
@@ -369,19 +376,19 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
   }
 
   // リサイズハンドラー
-  const handleResizeStart = (e) => {
+  const handleResizeStart = e => {
     e.stopPropagation()
     setIsResizing(true)
     setDragStart({ x: e.clientX, y: e.clientY })
   }
 
-  const handleResize = (e) => {
+  const handleResize = e => {
     if (isResizing) {
       const deltaX = e.clientX - dragStart.x
       const deltaY = e.clientY - dragStart.y
       setChatSize({
         width: Math.max(280, chatSize.width + deltaX),
-        height: Math.max(300, chatSize.height + deltaY)
+        height: Math.max(300, chatSize.height + deltaY),
       })
       setDragStart({ x: e.clientX, y: e.clientY })
     }
@@ -423,12 +430,15 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
           'スキルレベル: ★★★★ → ★★★★★に向上',
           '田中さんの週間勤務: 32時間 → 28時間',
           '佐藤さんの週間勤務: 32時間 → 36時間',
-          'サービス品質が向上'
+          'サービス品質が向上',
         ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
+        question: 'この変更を実行しますか？「OK」と入力してください。',
       },
-      changes: [{ date: 5, action: 'modify', staff: '田中', newStaff: '佐藤', time: '9-17', skill: 5 }],
-      response: '✅ 変更を実行しました\n• 5日の田中さんを佐藤さんに変更\n• スキルレベルが★★★★★に向上\n• サービス品質が改善'
+      changes: [
+        { date: 5, action: 'modify', staff: '田中', newStaff: '佐藤', time: '9-17', skill: 5 },
+      ],
+      response:
+        '✅ 変更を実行しました\n• 5日の田中さんを佐藤さんに変更\n• スキルレベルが★★★★★に向上\n• サービス品質が改善',
     },
     '10日に山田さんを追加してください': {
       analysis: {
@@ -437,12 +447,13 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
           '10日の人員不足が解消されます',
           '山田さんの週間勤務: 30時間 → 34時間',
           '充足率: 85% → 88%に向上',
-          '業務の安定性が向上'
+          '業務の安定性が向上',
         ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
+        question: 'この変更を実行しますか？「OK」と入力してください。',
       },
       changes: [{ date: 10, action: 'add', staff: '山田', time: '13-17', skill: 3 }],
-      response: '✅ 変更を実行しました\n• 10日に山田さんを追加配置\n• 人員不足を解消\n• 充足率88%に向上'
+      response:
+        '✅ 変更を実行しました\n• 10日に山田さんを追加配置\n• 人員不足を解消\n• 充足率88%に向上',
     },
     '15日の鈴木さんを削除してください': {
       analysis: {
@@ -451,12 +462,13 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
           '15日の人員過多(3名→2名)が解消',
           '鈴木さんの週間勤務: 34時間 → 30時間',
           '人件費削減: ¥4,000',
-          '適正人員配置に調整'
+          '適正人員配置に調整',
         ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
+        question: 'この変更を実行しますか？「OK」と入力してください。',
       },
       changes: [{ date: 15, action: 'remove', staff: '鈴木' }],
-      response: '✅ 変更を実行しました\n• 15日の鈴木さんを削除\n• 人員過多を解消(3名→2名)\n• 人件費¥4,000削減'
+      response:
+        '✅ 変更を実行しました\n• 15日の鈴木さんを削除\n• 人員過多を解消(3名→2名)\n• 人件費¥4,000削減',
     },
     '20日の高橋さんを午前シフトに変更してください': {
       analysis: {
@@ -465,12 +477,13 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
           '午前の人員不足が解消',
           '高橋さんの希望適合度: 65% → 82%に向上',
           '午後は佐藤さんを自動配置',
-          '全体満足度が向上'
+          '全体満足度が向上',
         ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
+        question: 'この変更を実行しますか？「OK」と入力してください。',
       },
       changes: [{ date: 20, action: 'modify', staff: '高橋', time: '9-13', skill: 4 }],
-      response: '✅ 変更を実行しました\n• 20日の高橋さんを午前シフトに変更\n• 希望適合度82%に向上\n• 午前の人員不足を解消'
+      response:
+        '✅ 変更を実行しました\n• 20日の高橋さんを午前シフトに変更\n• 希望適合度82%に向上\n• 午前の人員不足を解消',
     },
     '25日の午後スタッフを1名減らしてください': {
       analysis: {
@@ -479,16 +492,17 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
           '25日午後の人員過多が解消',
           '伊藤さんの週間勤務: 33時間 → 29時間',
           '人件費削減: ¥3,200',
-          '適正人員に調整'
+          '適正人員に調整',
         ],
-        question: 'この変更を実行しますか？「OK」と入力してください。'
+        question: 'この変更を実行しますか？「OK」と入力してください。',
       },
       changes: [{ date: 25, action: 'remove', staff: '伊藤' }],
-      response: '✅ 変更を実行しました\n• 25日午後の伊藤さんを削除\n• 人員過多を解消\n• 人件費¥3,200削減'
-    }
+      response:
+        '✅ 変更を実行しました\n• 25日午後の伊藤さんを削除\n• 人員過多を解消\n• 人件費¥3,200削減',
+    },
   }
 
-  const applyShiftChanges = (changes) => {
+  const applyShiftChanges = changes => {
     // 変更があったことをマーク
     if (onMarkUnsaved) {
       onMarkUnsaved()
@@ -511,7 +525,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
               time: change.time,
               skill: change.skill,
               hours: 4,
-              changed: true
+              changed: true,
             })
           } else if (change.action === 'modify') {
             const shiftIndex = newData[dayIndex].shifts.findIndex(s => s.name === change.staff)
@@ -523,14 +537,14 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                   time: change.time,
                   skill: change.skill,
                   hours: 4,
-                  changed: true
+                  changed: true,
                 }
               } else {
                 // 時間変更
                 newData[dayIndex].shifts[shiftIndex] = {
                   ...newData[dayIndex].shifts[shiftIndex],
                   time: change.time,
-                  changed: true
+                  changed: true,
                 }
               }
             }
@@ -551,7 +565,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
       id: messages.length + 1,
       type: 'user',
       content: textToSend,
-      time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
     }
 
     setMessages(prev => [...prev, newMessage])
@@ -561,14 +575,19 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
     scrollToBottom()
 
     // 承認待ち状態の処理
-    if (pendingChange && (currentInput.toLowerCase().includes('ok') || currentInput.includes('はい') || currentInput.includes('実行'))) {
+    if (
+      pendingChange &&
+      (currentInput.toLowerCase().includes('ok') ||
+        currentInput.includes('はい') ||
+        currentInput.includes('実行'))
+    ) {
       setTimeout(() => {
         applyShiftChanges(pendingChange.changes)
         const aiResponse = {
           id: messages.length + 2,
           type: 'assistant',
           content: pendingChange.response,
-          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
         }
         setMessages(prev => [...prev, aiResponse])
         setIsTyping(false)
@@ -590,7 +609,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
           id: messages.length + 2,
           type: 'assistant',
           content: analysisContent,
-          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
         }
         setMessages(prev => [...prev, aiResponse])
         setPendingChange(pattern)
@@ -599,8 +618,9 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
         const aiResponse = {
           id: messages.length + 2,
           type: 'assistant',
-          content: '申し訳ございませんが、その指示は認識できませんでした。以下の例を参考にしてください：\n\n• 5日の田中さんを佐藤さんに変更してください\n• 10日に山田さんを追加してください\n• 15日の鈴木さんを削除してください\n• 20日の高橋さんを午前シフトに変更してください',
-          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+          content:
+            '申し訳ございませんが、その指示は認識できませんでした。以下の例を参考にしてください：\n\n• 5日の田中さんを佐藤さんに変更してください\n• 10日に山田さんを追加してください\n• 15日の鈴木さんを削除してください\n• 20日の高橋さんを午前シフトに変更してください',
+          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
         }
         setMessages(prev => [...prev, aiResponse])
         scrollToBottom()
@@ -638,7 +658,12 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
     >
       {/* ナビゲーション */}
       <div className="flex justify-end items-center mb-8">
-        <Button onClick={handleApprove} size="sm" disabled={!generated} className="bg-gradient-to-r from-green-600 to-green-700">
+        <Button
+          onClick={handleApprove}
+          size="sm"
+          disabled={!generated}
+          className="bg-gradient-to-r from-green-600 to-green-700"
+        >
           <CheckCircle className="mr-2 h-4 w-4" />
           シフトを承認・確定
         </Button>
@@ -657,14 +682,11 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
         <Card className="shadow-lg border-0">
           <CardContent className="p-12 text-center">
             {generating ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
                   >
                     <Sparkles className="h-12 w-12 text-purple-600" />
                   </motion.div>
@@ -675,7 +697,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                     <motion.div
                       className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full"
                       initial={{ width: 0 }}
-                      animate={{ width: "100%" }}
+                      animate={{ width: '100%' }}
                       transition={{ duration: 3 }}
                     />
                   </div>
@@ -719,10 +741,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                     className="hidden"
                     id="csv-upload-first-plan"
                   />
-                  <label
-                    htmlFor="csv-upload-first-plan"
-                    className="inline-block w-full"
-                  >
+                  <label htmlFor="csv-upload-first-plan" className="inline-block w-full">
                     <div className="w-full cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 bg-background h-11 px-8">
                       <Upload className="mr-2 h-5 w-5" />
                       CSVファイルをインポート
@@ -769,19 +788,26 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                       <motion.div
                         key={index}
                         className={`p-1 border rounded min-h-[60px] cursor-pointer hover:shadow-md transition-shadow ${
-                          isChanged ? 'bg-green-50 border-green-400 hover:bg-green-100' :
-                          isWeekend ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' : 'border-gray-200 hover:bg-gray-50'
+                          isChanged
+                            ? 'bg-green-50 border-green-400 hover:bg-green-100'
+                            : isWeekend
+                              ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                              : 'border-gray-200 hover:bg-gray-50'
                         }`}
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
                         transition={{ delay: index * 0.01 }}
                         onClick={() => handleDayClick(dayData)}
                       >
-                        <div className={`text-xs font-bold mb-0.5 ${
-                          isChanged ? 'text-green-700' : 'text-gray-700'
-                        }`}>
+                        <div
+                          className={`text-xs font-bold mb-0.5 ${
+                            isChanged ? 'text-green-700' : 'text-gray-700'
+                          }`}
+                        >
                           {dayData.date}
-                          {isChanged && <CheckCircle className="h-2.5 w-2.5 inline ml-1 text-green-600" />}
+                          {isChanged && (
+                            <CheckCircle className="h-2.5 w-2.5 inline ml-1 text-green-600" />
+                          )}
                         </div>
                         {dayData.shifts.slice(0, 2).map((shift, idx) => (
                           <motion.div
@@ -795,7 +821,9 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                             animate={{ opacity: 1 }}
                             transition={{ delay: index * 0.01 + idx * 0.05 }}
                           >
-                            <div className="font-medium text-green-800 text-xs leading-tight">{shift.name}</div>
+                            <div className="font-medium text-green-800 text-xs leading-tight">
+                              {shift.name}
+                            </div>
                           </motion.div>
                         ))}
                         {dayData.shifts.length > 2 && (
@@ -836,7 +864,9 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">総労働時間</span>
-                    <span className="text-2xl font-bold text-green-600">{stats.totalHours.toFixed(1)}h</span>
+                    <span className="text-2xl font-bold text-green-600">
+                      {stats.totalHours.toFixed(1)}h
+                    </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-600">カバレッジ</span>
@@ -927,7 +957,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                 top: `${chatPosition.y}px`,
                 width: `${chatSize.width}px`,
                 height: `${chatSize.height}px`,
-                cursor: isDragging ? 'move' : 'default'
+                cursor: isDragging ? 'move' : 'default',
               }}
             >
               <div
@@ -957,15 +987,19 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                       animate={{ opacity: 1, y: 0 }}
                       className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className={`max-w-xs px-3 py-2 rounded-lg text-sm whitespace-pre-line ${
-                        message.type === 'user'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-gray-100 text-gray-800'
-                      }`}>
+                      <div
+                        className={`max-w-xs px-3 py-2 rounded-lg text-sm whitespace-pre-line ${
+                          message.type === 'user'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
                         <div>{message.content}</div>
-                        <div className={`text-xs mt-1 ${
-                          message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
-                        }`}>
+                        <div
+                          className={`text-xs mt-1 ${
+                            message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                          }`}
+                        >
                           {message.time}
                         </div>
                       </div>
@@ -980,8 +1014,14 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                       <div className="bg-gray-100 px-3 py-2 rounded-lg">
                         <div className="flex space-x-1">
                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          <div
+                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                            style={{ animationDelay: '0.1s' }}
+                          ></div>
+                          <div
+                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                            style={{ animationDelay: '0.2s' }}
+                          ></div>
                         </div>
                       </div>
                     </motion.div>
@@ -1005,7 +1045,10 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                             id: messages.length + 1,
                             type: 'assistant',
                             content: '変更をキャンセルしました。',
-                            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+                            time: new Date().toLocaleTimeString('ja-JP', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            }),
                           }
                           setMessages(prev => [...prev, cancelMessage])
                         }}
@@ -1021,12 +1064,16 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                       <input
                         type="text"
                         value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
+                        onChange={e => setInputValue(e.target.value)}
                         placeholder="修正指示を入力..."
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                        onKeyPress={e => e.key === 'Enter' && sendMessage()}
                       />
-                      <Button onClick={sendMessage} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                      <Button
+                        onClick={sendMessage}
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
                         <Send className="h-4 w-4" />
                       </Button>
                     </div>
@@ -1039,7 +1086,7 @@ const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) =>
                 onMouseDown={handleResizeStart}
                 style={{
                   background: 'linear-gradient(135deg, transparent 50%, #cbd5e1 50%)',
-                  borderBottomRightRadius: '0.5rem'
+                  borderBottomRightRadius: '0.5rem',
                 }}
               />
             </motion.div>

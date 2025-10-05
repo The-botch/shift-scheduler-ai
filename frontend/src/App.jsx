@@ -18,7 +18,20 @@ import DevTools from './dev/DevTools'
 
 // UI Components
 import { Button } from './components/ui/button'
-import { Menu, X, Home, FolderOpen, Users, History as HistoryIcon, MessageSquare, ClipboardList, Store, Shield, Database, TrendingUp } from 'lucide-react'
+import {
+  Menu,
+  X,
+  Home,
+  FolderOpen,
+  Users,
+  History as HistoryIcon,
+  MessageSquare,
+  ClipboardList,
+  Store,
+  Shield,
+  Database,
+  TrendingUp,
+} from 'lucide-react'
 
 function App() {
   const [currentStep, setCurrentStep] = useState(1)
@@ -53,7 +66,10 @@ function App() {
     }
 
     // 第2案画面からの戻りの場合、シフト管理に戻す（第1案仮承認済みまたは確定済みの場合）
-    if (currentStep === 2 && (shiftStatus[10] === 'first_plan_approved' || shiftStatus[10] === 'completed')) {
+    if (
+      currentStep === 2 &&
+      (shiftStatus[10] === 'first_plan_approved' || shiftStatus[10] === 'completed')
+    ) {
       setCurrentStep(1)
       setShowShiftManagement(true)
       setShowBudgetActualManagement(false)
@@ -62,7 +78,7 @@ function App() {
     }
   }
 
-  const goToStep = (step) => {
+  const goToStep = step => {
     if (hasUnsavedChanges) {
       if (!window.confirm('変更が保存されていません。画面を移動しますか？')) {
         return
@@ -330,8 +346,6 @@ function App() {
     setShowShiftManagement(false)
     setShowStaffManagement(false)
     setShowStoreManagement(false)
-    setShowConstraints(false)
-    setShowLineInput(false)
     setShowMonitoring(false)
     setShowFirstPlanFromShiftMgmt(false)
     setShowBudgetActualManagement(false)
@@ -340,166 +354,197 @@ function App() {
 
   const renderCurrentScreen = () => {
     if (showStaffManagement) {
-      return <StaffManagement
-        onHome={goToDashboard}
-        onShiftManagement={goToShiftManagement}
-        onLineMessages={goToLineMessages}
-        onMonitoring={goToMonitoring}
-        onStaffManagement={goToStaffManagement}
-        onStoreManagement={goToStoreManagement}
-        onConstraintManagement={goToConstraintManagement}
-        onBudgetActualManagement={goToBudgetActualManagement}
-      />
+      return (
+        <StaffManagement
+          onHome={goToDashboard}
+          onShiftManagement={goToShiftManagement}
+          onLineMessages={goToLineMessages}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+          onBudgetActualManagement={goToBudgetActualManagement}
+        />
+      )
     }
 
     if (showStoreManagement) {
-      return <StoreManagement
-        onHome={goToDashboard}
-        onShiftManagement={goToShiftManagement}
-        onLineMessages={goToLineMessages}
-        onMonitoring={goToMonitoring}
-        onStaffManagement={goToStaffManagement}
-        onStoreManagement={goToStoreManagement}
-        onConstraintManagement={goToConstraintManagement}
-        onBudgetActualManagement={goToBudgetActualManagement}
-      />
+      return (
+        <StoreManagement
+          onHome={goToDashboard}
+          onShiftManagement={goToShiftManagement}
+          onLineMessages={goToLineMessages}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+          onBudgetActualManagement={goToBudgetActualManagement}
+        />
+      )
     }
 
     if (showConstraintManagement) {
-      return <ConstraintManagement
-        onHome={goToDashboard}
-        onShiftManagement={goToShiftManagement}
-        onLineMessages={goToLineMessages}
-        onMonitoring={goToMonitoring}
-        onStaffManagement={goToStaffManagement}
-        onStoreManagement={goToStoreManagement}
-        onConstraintManagement={goToConstraintManagement}
-        onBudgetActualManagement={goToBudgetActualManagement}
-      />
+      return (
+        <ConstraintManagement
+          onHome={goToDashboard}
+          onShiftManagement={goToShiftManagement}
+          onLineMessages={goToLineMessages}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+          onBudgetActualManagement={goToBudgetActualManagement}
+        />
+      )
     }
 
     if (showHistory) {
-      return <History
-        onPrev={backFromHistory}
-        onHome={goToDashboard}
-        onShiftManagement={goToShiftManagement}
-        onLineMessages={goToLineMessages}
-        onMonitoring={goToMonitoring}
-        onStaffManagement={goToStaffManagement}
-        onStoreManagement={goToStoreManagement}
-        onConstraintManagement={goToConstraintManagement}
-        onBudgetActualManagement={goToBudgetActualManagement}
-      />
+      return (
+        <History
+          onPrev={backFromHistory}
+          onHome={goToDashboard}
+          onShiftManagement={goToShiftManagement}
+          onLineMessages={goToLineMessages}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+          onBudgetActualManagement={goToBudgetActualManagement}
+        />
+      )
     }
 
     if (showLineMessages) {
-      return <LineShiftInput
-        shiftStatus={shiftStatus}
-        onHome={goToDashboard}
-        onShiftManagement={goToShiftManagement}
-        onLineMessages={goToLineMessages}
-        onMonitoring={goToMonitoring}
-        onStaffManagement={goToStaffManagement}
-        onStoreManagement={goToStoreManagement}
-        onConstraintManagement={goToConstraintManagement}
-        onBudgetActualManagement={goToBudgetActualManagement}
-      />
+      return (
+        <LineShiftInput
+          shiftStatus={shiftStatus}
+          onHome={goToDashboard}
+          onShiftManagement={goToShiftManagement}
+          onLineMessages={goToLineMessages}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+          onBudgetActualManagement={goToBudgetActualManagement}
+        />
+      )
     }
 
     if (showMonitoring) {
-      return <Monitoring
-        onHome={goToDashboard}
-        onShiftManagement={goToShiftManagement}
-        onLineMessages={goToLineMessages}
-        onMonitoring={goToMonitoring}
-        onStaffManagement={goToStaffManagement}
-        onStoreManagement={goToStoreManagement}
-        onConstraintManagement={goToConstraintManagement}
-        onBudgetActualManagement={goToBudgetActualManagement}
-      />
+      return (
+        <Monitoring
+          onHome={goToDashboard}
+          onShiftManagement={goToShiftManagement}
+          onLineMessages={goToLineMessages}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+          onBudgetActualManagement={goToBudgetActualManagement}
+        />
+      )
     }
 
     if (showBudgetActualManagement) {
-      return <BudgetActualManagement
-        onHome={goToDashboard}
-        onShiftManagement={goToShiftManagement}
-        onLineMessages={goToLineMessages}
-        onMonitoring={goToMonitoring}
-        onStaffManagement={goToStaffManagement}
-        onStoreManagement={goToStoreManagement}
-        onConstraintManagement={goToConstraintManagement}
-        onBudgetActualManagement={goToBudgetActualManagement}
-      />
+      return (
+        <BudgetActualManagement
+          onHome={goToDashboard}
+          onShiftManagement={goToShiftManagement}
+          onLineMessages={goToLineMessages}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+          onBudgetActualManagement={goToBudgetActualManagement}
+        />
+      )
     }
 
     if (showDevTools) {
-      return <DevTools
-        onHome={goToDashboard}
-        onShiftManagement={goToShiftManagement}
-        onLineMessages={goToLineMessages}
-        onMonitoring={goToMonitoring}
-        onStaffManagement={goToStaffManagement}
-        onStoreManagement={goToStoreManagement}
-        onConstraintManagement={goToConstraintManagement}
-        onBudgetActualManagement={goToBudgetActualManagement}
-      />
+      return (
+        <DevTools
+          onHome={goToDashboard}
+          onShiftManagement={goToShiftManagement}
+          onLineMessages={goToLineMessages}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+          onBudgetActualManagement={goToBudgetActualManagement}
+        />
+      )
     }
 
     if (showShiftManagement) {
-      return <ShiftManagement
-        onPrev={backFromShiftManagement}
-        onCreateShift={goToFirstPlanFromShiftMgmt}
-        shiftStatus={shiftStatus}
-        onHome={goToDashboard}
-        onShiftManagement={goToShiftManagement}
-        onLineMessages={goToLineMessages}
-        onMonitoring={goToMonitoring}
-        onStaffManagement={goToStaffManagement}
-        onStoreManagement={goToStoreManagement}
-        onConstraintManagement={goToConstraintManagement}
-        onBudgetActualManagement={goToBudgetActualManagement}
-      />
+      return (
+        <ShiftManagement
+          onPrev={backFromShiftManagement}
+          onCreateShift={goToFirstPlanFromShiftMgmt}
+          shiftStatus={shiftStatus}
+          onHome={goToDashboard}
+          onShiftManagement={goToShiftManagement}
+          onLineMessages={goToLineMessages}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+          onBudgetActualManagement={goToBudgetActualManagement}
+        />
+      )
     }
 
     if (showFirstPlanFromShiftMgmt) {
-      return <FirstPlan
-        onNext={goToSecondPlanFromFirstPlan}
-        onPrev={backToShiftManagementFromFirstPlan}
-        onApprove={approveFirstPlan}
-        onMarkUnsaved={() => setHasUnsavedChanges(true)}
-        onMarkSaved={() => setHasUnsavedChanges(false)}
-      />
+      return (
+        <FirstPlan
+          onNext={goToSecondPlanFromFirstPlan}
+          onPrev={backToShiftManagementFromFirstPlan}
+          onApprove={approveFirstPlan}
+          onMarkUnsaved={() => setHasUnsavedChanges(true)}
+          onMarkSaved={() => setHasUnsavedChanges(false)}
+        />
+      )
     }
 
     switch (currentStep) {
       case 1:
-        return <Dashboard
-          onNext={nextStep}
-          onHistory={goToHistory}
-          onShiftManagement={goToShiftManagement}
-          onMonitoring={goToMonitoring}
-          onStaffManagement={goToStaffManagement}
-          onStoreManagement={goToStoreManagement}
-          onConstraintManagement={goToConstraintManagement}
-          onLineMessages={goToLineMessages}
-          onBudgetActualManagement={goToBudgetActualManagement}
-          onDevTools={goToDevTools}
-        />
+        return (
+          <Dashboard
+            onNext={nextStep}
+            onHistory={goToHistory}
+            onShiftManagement={goToShiftManagement}
+            onMonitoring={goToMonitoring}
+            onStaffManagement={goToStaffManagement}
+            onStoreManagement={goToStoreManagement}
+            onConstraintManagement={goToConstraintManagement}
+            onLineMessages={goToLineMessages}
+            onBudgetActualManagement={goToBudgetActualManagement}
+            onDevTools={goToDevTools}
+          />
+        )
       case 2:
-        return <SecondPlan onNext={approveSecondPlan} onPrev={prevStep} onMarkUnsaved={() => setHasUnsavedChanges(true)} onMarkSaved={() => setHasUnsavedChanges(false)} />
+        return (
+          <SecondPlan
+            onNext={approveSecondPlan}
+            onPrev={prevStep}
+            onMarkUnsaved={() => setHasUnsavedChanges(true)}
+            onMarkSaved={() => setHasUnsavedChanges(false)}
+          />
+        )
       default:
-        return <Dashboard
-          onNext={nextStep}
-          onHistory={goToHistory}
-          onShiftManagement={goToShiftManagement}
-          onMonitoring={goToMonitoring}
-          onStaffManagement={goToStaffManagement}
-          onStoreManagement={goToStoreManagement}
-          onConstraintManagement={goToConstraintManagement}
-          onLineMessages={goToLineMessages}
-          onBudgetActualManagement={goToBudgetActualManagement}
-          onDevTools={goToDevTools}
-        />
+        return (
+          <Dashboard
+            onNext={nextStep}
+            onHistory={goToHistory}
+            onShiftManagement={goToShiftManagement}
+            onMonitoring={goToMonitoring}
+            onStaffManagement={goToStaffManagement}
+            onStoreManagement={goToStoreManagement}
+            onConstraintManagement={goToConstraintManagement}
+            onLineMessages={goToLineMessages}
+            onBudgetActualManagement={goToBudgetActualManagement}
+            onDevTools={goToDevTools}
+          />
+        )
     }
   }
 
@@ -581,16 +626,25 @@ function App() {
 
       <div className="flex-1">
         <AnimatePresence mode="wait">
-          <div key={
-            showStaffManagement ? 'staff-management' :
-            showStoreManagement ? 'store-management' :
-            showConstraintManagement ? 'constraint-management' :
-            showHistory ? 'history' :
-            showShiftManagement ? 'shift-management' :
-            showFirstPlanFromShiftMgmt ? 'first-plan-shift-mgmt' :
-            showBudgetActualManagement ? 'budget-actual-management' :
-            currentStep
-          }>
+          <div
+            key={
+              showStaffManagement
+                ? 'staff-management'
+                : showStoreManagement
+                  ? 'store-management'
+                  : showConstraintManagement
+                    ? 'constraint-management'
+                    : showHistory
+                      ? 'history'
+                      : showShiftManagement
+                        ? 'shift-management'
+                        : showFirstPlanFromShiftMgmt
+                          ? 'first-plan-shift-mgmt'
+                          : showBudgetActualManagement
+                            ? 'budget-actual-management'
+                            : currentStep
+            }
+          >
             {renderCurrentScreen()}
           </div>
         </AnimatePresence>

@@ -14,7 +14,7 @@ export const ERROR_MESSAGES = {
     template: '18歳未満のスタッフ「{staffName}」は深夜時間帯(22:00-05:00)に配置できません',
     lawReference: '労働基準法第61条',
     level: 'ERROR',
-    autoAction: '自動削除'
+    autoAction: '自動削除',
   },
   // ... 他のメッセージ
 }
@@ -29,14 +29,16 @@ import { createError, createWarning } from '../config/validationMessages.js'
 
 // エラーを作成
 const error = createError(
-  'VAL001',                    // メッセージコード
-  {                            // コンテキスト情報
+  'VAL001', // メッセージコード
+  {
+    // コンテキスト情報
     shift_id: shift.shift_id,
     staff_id: shift.staff_id,
-    shift_date: shift.shift_date
+    shift_date: shift.shift_date,
   },
-  {                            // テンプレートパラメータ
-    staffName: staff.name
+  {
+    // テンプレートパラメータ
+    staffName: staff.name,
   }
 )
 
@@ -45,10 +47,10 @@ const warning = createWarning(
   'VAL004',
   {
     shift_id: shift.shift_id,
-    staff_id: shift.staff_id
+    staff_id: shift.staff_id,
   },
   {
-    intervalHours: 10.5
+    intervalHours: 10.5,
   }
 )
 ```
@@ -85,6 +87,7 @@ const errorMessages = getMessagesByLevel('ERROR')
 ## メッセージコード一覧
 
 ### shift_validation_rules.csv 対応
+
 - **VAL001-VAL015**: シフトバリデーションルール
   - VAL001: 18歳未満深夜勤務禁止
   - VAL002: 法定労働時間超過
@@ -94,6 +97,7 @@ const errorMessages = getMessagesByLevel('ERROR')
   - その他...
 
 ### labor_law_constraints.csv 対応
+
 - **LAW_001-LAW_012**: 労働法制約
   - LAW_001: 1日労働時間上限
   - LAW_002: 週間労働時間上限
@@ -102,6 +106,7 @@ const errorMessages = getMessagesByLevel('ERROR')
   - その他...
 
 ### labor_management_rules.csv 対応
+
 - **LM001-LM015**: 労務管理ルール
   - LM001: 土日勤務偏り
   - LM002: 希望シフト反映率
@@ -110,6 +115,7 @@ const errorMessages = getMessagesByLevel('ERROR')
   - その他...
 
 ### システムエラー
+
 - **STAFF_NOT_FOUND**: スタッフマスタ不在
 - **INVALID_DATA**: データ不正
 
@@ -127,19 +133,15 @@ export const ERROR_MESSAGES = {
     template: '新しいルール: {param1} が {param2} を超えています',
     lawReference: '関連法令',
     level: 'ERROR',
-    autoAction: 'ブロック'
-  }
+    autoAction: 'ブロック',
+  },
 }
 ```
 
 2. バリデーターで使用
 
 ```javascript
-const error = createError(
-  'NEW_RULE_001',
-  { shift_id: 123 },
-  { param1: '値1', param2: '値2' }
-)
+const error = createError('NEW_RULE_001', { shift_id: 123 }, { param1: '値1', param2: '値2' })
 ```
 
 ## テンプレート変数の命名規則
@@ -165,13 +167,13 @@ export const ERROR_MESSAGES = {
     category: '法令',
     template: {
       ja: '18歳未満のスタッフ「{staffName}」は...',
-      en: 'Staff "{staffName}" under 18 cannot...'
+      en: 'Staff "{staffName}" under 18 cannot...',
     },
     lawReference: {
       ja: '労働基準法第61条',
-      en: 'Labor Standards Act Article 61'
-    }
-  }
+      en: 'Labor Standards Act Article 61',
+    },
+  },
 }
 ```
 

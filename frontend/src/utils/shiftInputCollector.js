@@ -7,7 +7,7 @@ import Papa from 'papaparse'
 /**
  * CSVファイルを読み込む共通関数
  */
-const loadCSV = async (path) => {
+const loadCSV = async path => {
   try {
     const response = await fetch(path)
     const csvText = await response.text()
@@ -16,8 +16,8 @@ const loadCSV = async (path) => {
       Papa.parse(csvText, {
         header: true,
         skipEmptyLines: true,
-        complete: (result) => resolve(result.data),
-        error: (error) => reject(error)
+        complete: result => resolve(result.data),
+        error: error => reject(error),
       })
     })
   } catch (error) {
@@ -31,12 +31,12 @@ const loadCSV = async (path) => {
  * @param {Object} inputs - collectAllInputsで収集したデータ
  * @returns {Object} 優先順位別に分類された要件リスト
  */
-export const analyzeRequirementPriorities = (inputs) => {
+export const analyzeRequirementPriorities = inputs => {
   const requirements = {
     CRITICAL: [],
     HIGH: [],
     MEDIUM: [],
-    LOW: []
+    LOW: [],
   }
 
   // 1. 法的要件から分析
@@ -50,7 +50,7 @@ export const analyzeRequirementPriorities = (inputs) => {
           name: law.description,
           complianceRate: '100%',
           description: law.reference,
-          consequence: '法令違反・罰則対象'
+          consequence: '法令違反・罰則対象',
         })
       } else if (law.penaltyLevel === 'high') {
         requirements.HIGH.push({
@@ -58,7 +58,7 @@ export const analyzeRequirementPriorities = (inputs) => {
           id: law.id,
           name: law.description,
           complianceRate: '80%以上推奨',
-          description: law.reference
+          description: law.reference,
         })
       }
     })
@@ -71,7 +71,7 @@ export const analyzeRequirementPriorities = (inputs) => {
         name: rule.description,
         complianceRate: '100%',
         description: `${rule.category}の必須チェック`,
-        consequence: '自動ブロック・却下'
+        consequence: '自動ブロック・却下',
       })
     })
 
@@ -84,7 +84,7 @@ export const analyzeRequirementPriorities = (inputs) => {
           id: rule.id,
           name: rule.description,
           complianceRate: '80%以上推奨',
-          description: rule.category
+          description: rule.category,
         })
       } else if (priority === 'MEDIUM') {
         requirements.MEDIUM.push({
@@ -92,7 +92,7 @@ export const analyzeRequirementPriorities = (inputs) => {
           id: rule.id,
           name: rule.description,
           complianceRate: '70%以上推奨',
-          description: rule.category
+          description: rule.category,
         })
       } else if (priority === 'LOW') {
         requirements.LOW.push({
@@ -100,7 +100,7 @@ export const analyzeRequirementPriorities = (inputs) => {
           id: rule.id,
           name: rule.description,
           complianceRate: '参考値',
-          description: rule.category
+          description: rule.category,
         })
       }
     })
@@ -116,7 +116,7 @@ export const analyzeRequirementPriorities = (inputs) => {
           id: constraint.id,
           name: constraint.description,
           complianceRate: '90%以上推奨',
-          description: constraint.constraint_type
+          description: constraint.constraint_type,
         })
       } else if (priority === 'medium') {
         requirements.MEDIUM.push({
@@ -124,7 +124,7 @@ export const analyzeRequirementPriorities = (inputs) => {
           id: constraint.id,
           name: constraint.description,
           complianceRate: '70%以上推奨',
-          description: constraint.constraint_type
+          description: constraint.constraint_type,
         })
       }
     })
@@ -137,7 +137,7 @@ export const analyzeRequirementPriorities = (inputs) => {
       id: 'STAFF_PREF',
       name: 'スタッフの希望シフト反映',
       complianceRate: '70%以上推奨',
-      description: 'スタッフ満足度向上のため希望を可能な限り反映'
+      description: 'スタッフ満足度向上のため希望を可能な限り反映',
     })
   }
 
@@ -152,8 +152,8 @@ export const analyzeRequirementPriorities = (inputs) => {
       criticalCount: requirements.CRITICAL.length,
       highCount: requirements.HIGH.length,
       mediumCount: requirements.MEDIUM.length,
-      lowCount: requirements.LOW.length
-    }
+      lowCount: requirements.LOW.length,
+    },
   }
 }
 
@@ -165,13 +165,13 @@ export const collectLegalRequirements = async () => {
   const files = [
     '/data/master/labor_law_constraints.csv',
     '/data/master/labor_management_rules.csv',
-    '/data/master/shift_validation_rules.csv'
+    '/data/master/shift_validation_rules.csv',
   ]
 
   const [laborLawConstraints, laborManagementRules, validationRules] = await Promise.all([
     loadCSV(files[0]),
     loadCSV(files[1]),
-    loadCSV(files[2])
+    loadCSV(files[2]),
   ])
 
   return {
@@ -184,27 +184,32 @@ export const collectLegalRequirements = async () => {
         category: rule.category,
         description: rule.description,
         penaltyLevel: rule.penalty_level,
-        reference: rule.legal_reference
+        reference: rule.legal_reference,
       })),
       laborManagementRules: laborManagementRules.map(rule => ({
         id: rule.rule_id,
         category: rule.category,
         description: rule.description,
-        priority: rule.priority
+        priority: rule.priority,
       })),
-      validationRules: validationRules.filter(r => r.check_level === 'ERROR').map(rule => ({
-        id: rule.validation_id,
-        category: rule.check_category,
-        description: rule.description
-      }))
+      validationRules: validationRules
+        .filter(r => r.check_level === 'ERROR')
+        .map(rule => ({
+          id: rule.validation_id,
+          category: rule.check_category,
+          description: rule.description,
+        })),
     },
     summary: {
-      totalConstraints: laborLawConstraints.length + laborManagementRules.length + validationRules.filter(r => r.check_level === 'ERROR').length,
+      totalConstraints:
+        laborLawConstraints.length +
+        laborManagementRules.length +
+        validationRules.filter(r => r.check_level === 'ERROR').length,
       criticalCount: laborLawConstraints.filter(r => r.penalty_level === 'critical').length,
       laborLawCount: laborLawConstraints.length,
       laborManagementCount: laborManagementRules.length,
-      validationRulesCount: validationRules.filter(r => r.check_level === 'ERROR').length
-    }
+      validationRulesCount: validationRules.filter(r => r.check_level === 'ERROR').length,
+    },
   }
 }
 
@@ -213,15 +218,9 @@ export const collectLegalRequirements = async () => {
  * @returns {Promise<Object>} 店舗制約の情報
  */
 export const collectStoreConstraints = async () => {
-  const files = [
-    '/data/master/stores.csv',
-    '/data/master/store_constraints.csv'
-  ]
+  const files = ['/data/master/stores.csv', '/data/master/store_constraints.csv']
 
-  const [stores, storeConstraints] = await Promise.all([
-    loadCSV(files[0]),
-    loadCSV(files[1])
-  ])
+  const [stores, storeConstraints] = await Promise.all([loadCSV(files[0]), loadCSV(files[1])])
 
   return {
     source: '店舗制約情報',
@@ -233,7 +232,7 @@ export const collectStoreConstraints = async () => {
         name: store.store_name,
         openTime: store.open_time,
         closeTime: store.close_time,
-        address: store.address
+        address: store.address,
       })),
       constraints: storeConstraints.map(c => ({
         id: c.constraint_id,
@@ -241,15 +240,15 @@ export const collectStoreConstraints = async () => {
         type: c.constraint_type,
         value: c.constraint_value,
         description: c.description,
-        priority: c.priority
-      }))
+        priority: c.priority,
+      })),
     },
     summary: {
       totalStores: stores.length,
       totalConstraints: storeConstraints.length,
       storesCount: stores.length,
-      constraintsCount: storeConstraints.length
-    }
+      constraintsCount: storeConstraints.length,
+    },
   }
 }
 
@@ -262,13 +261,13 @@ export const collectHistoricalShifts = async (months = 3) => {
   const files = [
     '/data/history/shift_history_2023-2024.csv',
     '/data/history/shift_monthly_summary.csv',
-    '/data/history/staff_monthly_performance.csv'
+    '/data/history/staff_monthly_performance.csv',
   ]
 
   const [shiftHistory, monthlySummary, performanceData] = await Promise.all([
     loadCSV(files[0]),
     loadCSV(files[1]),
-    loadCSV(files[2])
+    loadCSV(files[2]),
   ])
 
   // 直近N ヶ月のデータをフィルタ
@@ -287,18 +286,22 @@ export const collectHistoricalShifts = async (months = 3) => {
     data: {
       recentShifts: recentHistory.slice(0, 100), // 最新100件
       monthlySummary: monthlySummary.slice(-months),
-      staffPerformance: performanceData
+      staffPerformance: performanceData,
     },
     summary: {
       periodMonths: months,
       totalShiftRecords: recentHistory.length,
-      avgDailyStaff: monthlySummary.length > 0
-        ? (monthlySummary.reduce((sum, m) => sum + parseFloat(m.avg_daily_staff || 0), 0) / monthlySummary.length).toFixed(1)
-        : 0,
+      avgDailyStaff:
+        monthlySummary.length > 0
+          ? (
+              monthlySummary.reduce((sum, m) => sum + parseFloat(m.avg_daily_staff || 0), 0) /
+              monthlySummary.length
+            ).toFixed(1)
+          : 0,
       shiftsCount: shiftHistory.length,
       monthlySummariesCount: monthlySummary.length,
-      staffPerformanceCount: performanceData.length
-    }
+      staffPerformanceCount: performanceData.length,
+    },
   }
 }
 
@@ -312,22 +315,22 @@ export const collectSalesForecast = async (year, month) => {
   const files = [
     '/data/forecast/sales_forecast_2024.csv',
     '/data/actual/sales_actual_2024.csv',
-    '/data/transactions/demand_forecasts.csv'
+    '/data/transactions/demand_forecasts.csv',
   ]
 
   const [forecast, actual, demandForecasts] = await Promise.all([
     loadCSV(files[0]),
     loadCSV(files[1]),
-    loadCSV(files[2])
+    loadCSV(files[2]),
   ])
 
   // 対象月のデータをフィルタ
-  const targetForecast = forecast.filter(f =>
-    parseInt(f.year) === year && parseInt(f.month) === month
+  const targetForecast = forecast.filter(
+    f => parseInt(f.year) === year && parseInt(f.month) === month
   )
 
-  const targetDemand = demandForecasts.filter(d =>
-    d.forecast_date && d.forecast_date.startsWith(`${year}-${String(month).padStart(2, '0')}`)
+  const targetDemand = demandForecasts.filter(
+    d => d.forecast_date && d.forecast_date.startsWith(`${year}-${String(month).padStart(2, '0')}`)
   )
 
   return {
@@ -337,19 +340,25 @@ export const collectSalesForecast = async (year, month) => {
     data: {
       monthlyForecast: targetForecast,
       demandForecasts: targetDemand,
-      previousActual: actual.filter(a =>
-        parseInt(a.year) === year && parseInt(a.month) === month - 1
-      )
+      previousActual: actual.filter(
+        a => parseInt(a.year) === year && parseInt(a.month) === month - 1
+      ),
     },
     summary: {
       targetMonth: `${year}年${month}月`,
-      forecastedSales: targetForecast.reduce((sum, f) => sum + parseFloat(f.forecasted_sales || 0), 0),
-      forecastedTraffic: targetForecast.reduce((sum, f) => sum + parseFloat(f.forecasted_traffic || 0), 0),
+      forecastedSales: targetForecast.reduce(
+        (sum, f) => sum + parseFloat(f.forecasted_sales || 0),
+        0
+      ),
+      forecastedTraffic: targetForecast.reduce(
+        (sum, f) => sum + parseFloat(f.forecasted_traffic || 0),
+        0
+      ),
       peakDays: targetDemand.filter(d => d.demand_level === 'high').length,
       forecastRecordsCount: forecast.length,
       actualRecordsCount: actual.length,
-      demandForecastsCount: demandForecasts.length
-    }
+      demandForecastsCount: demandForecasts.length,
+    },
   }
 }
 
@@ -365,7 +374,7 @@ export const collectStaffData = async (year, month) => {
     '/data/master/staff_skills.csv',
     '/data/master/staff_certifications.csv',
     `/data/transactions/shift_preferences_${year}_${String(month).padStart(2, '0')}.csv`,
-    '/data/transactions/availability_requests.csv'
+    '/data/transactions/availability_requests.csv',
   ]
 
   const [staff, skills, certifications, preferences, availability] = await Promise.all([
@@ -373,7 +382,7 @@ export const collectStaffData = async (year, month) => {
     loadCSV(files[1]),
     loadCSV(files[2]),
     loadCSV(files[3]),
-    loadCSV(files[4])
+    loadCSV(files[4]),
   ])
 
   return {
@@ -387,7 +396,7 @@ export const collectStaffData = async (year, month) => {
         hourlyWage: parseFloat(s.hourly_wage),
         maxHoursPerWeek: parseInt(s.max_hours_per_week),
         employmentType: s.employment_type,
-        availableShifts: s.available_shifts
+        availableShifts: s.available_shifts,
       })),
       skills: skills,
       certifications: certifications,
@@ -395,22 +404,23 @@ export const collectStaffData = async (year, month) => {
         staffId: p.staff_id,
         date: p.preferred_date,
         shift: p.preferred_shift,
-        priority: p.priority
+        priority: p.priority,
       })),
-      availability: availability
+      availability: availability,
     },
     summary: {
       totalStaff: staff.length,
       totalPreferences: preferences.length,
-      preferenceCoverage: preferences.length > 0
-        ? `${((preferences.filter(p => p.priority === 'high').length / preferences.length) * 100).toFixed(1)}% が高優先度`
-        : '0%',
+      preferenceCoverage:
+        preferences.length > 0
+          ? `${((preferences.filter(p => p.priority === 'high').length / preferences.length) * 100).toFixed(1)}% が高優先度`
+          : '0%',
       staffCount: staff.length,
       skillsCount: skills.length,
       certificationsCount: certifications.length,
       preferencesCount: preferences.length,
-      availabilityCount: availability.length
-    }
+      availabilityCount: availability.length,
+    },
   }
 }
 
@@ -423,17 +433,40 @@ export const collectStaffData = async (year, month) => {
 export const collectJapaneseEvents = async (year, month) => {
   // 日本の祝日データ（簡易版）
   const holidays2024 = {
-    1: [{ day: 1, name: '元日' }, { day: 8, name: '成人の日' }],
-    2: [{ day: 11, name: '建国記念の日' }, { day: 12, name: '振替休日' }, { day: 23, name: '天皇誕生日' }],
+    1: [
+      { day: 1, name: '元日' },
+      { day: 8, name: '成人の日' },
+    ],
+    2: [
+      { day: 11, name: '建国記念の日' },
+      { day: 12, name: '振替休日' },
+      { day: 23, name: '天皇誕生日' },
+    ],
     3: [{ day: 20, name: '春分の日' }],
     4: [{ day: 29, name: '昭和の日' }],
-    5: [{ day: 3, name: '憲法記念日' }, { day: 4, name: 'みどりの日' }, { day: 5, name: 'こどもの日' }, { day: 6, name: '振替休日' }],
+    5: [
+      { day: 3, name: '憲法記念日' },
+      { day: 4, name: 'みどりの日' },
+      { day: 5, name: 'こどもの日' },
+      { day: 6, name: '振替休日' },
+    ],
     7: [{ day: 15, name: '海の日' }],
-    8: [{ day: 11, name: '山の日' }, { day: 12, name: '振替休日' }],
-    9: [{ day: 16, name: '敬老の日' }, { day: 22, name: '秋分の日' }, { day: 23, name: '振替休日' }],
+    8: [
+      { day: 11, name: '山の日' },
+      { day: 12, name: '振替休日' },
+    ],
+    9: [
+      { day: 16, name: '敬老の日' },
+      { day: 22, name: '秋分の日' },
+      { day: 23, name: '振替休日' },
+    ],
     10: [{ day: 14, name: 'スポーツの日' }],
-    11: [{ day: 3, name: '文化の日' }, { day: 4, name: '振替休日' }, { day: 23, name: '勤労感謝の日' }],
-    12: []
+    11: [
+      { day: 3, name: '文化の日' },
+      { day: 4, name: '振替休日' },
+      { day: 23, name: '勤労感謝の日' },
+    ],
+    12: [],
   }
 
   const monthHolidays = holidays2024[month] || []
@@ -446,27 +479,33 @@ export const collectJapaneseEvents = async (year, month) => {
       holidays: monthHolidays.map(h => ({
         date: `${year}-${String(month).padStart(2, '0')}-${String(h.day).padStart(2, '0')}`,
         name: h.name,
-        impact: 'high' // 祝日は高影響
+        impact: 'high', // 祝日は高影響
       })),
-      seasonalEvents: getSeasonalEvents(month)
+      seasonalEvents: getSeasonalEvents(month),
     },
     summary: {
       holidayCount: monthHolidays.length,
       expectedHighDemandDays: monthHolidays.length + getSeasonalEvents(month).length,
-      seasonalEventsCount: getSeasonalEvents(month).length
-    }
+      seasonalEventsCount: getSeasonalEvents(month).length,
+    },
   }
 }
 
 /**
  * 季節イベントを取得
  */
-const getSeasonalEvents = (month) => {
+const getSeasonalEvents = month => {
   const events = {
     1: [{ name: '初売り', period: '1/1-1/3', impact: 'very_high' }],
     2: [{ name: 'バレンタインデー', period: '2/10-2/14', impact: 'high' }],
-    3: [{ name: 'ホワイトデー', period: '3/10-3/14', impact: 'medium' }, { name: '春休み', period: '3/20-3/31', impact: 'high' }],
-    4: [{ name: '新学期', period: '4/1-4/10', impact: 'medium' }, { name: 'GW前半', period: '4/27-4/30', impact: 'high' }],
+    3: [
+      { name: 'ホワイトデー', period: '3/10-3/14', impact: 'medium' },
+      { name: '春休み', period: '3/20-3/31', impact: 'high' },
+    ],
+    4: [
+      { name: '新学期', period: '4/1-4/10', impact: 'medium' },
+      { name: 'GW前半', period: '4/27-4/30', impact: 'high' },
+    ],
     5: [{ name: 'ゴールデンウィーク', period: '5/1-5/6', impact: 'very_high' }],
     6: [{ name: '梅雨シーズン', period: '6/10-6/30', impact: 'low' }],
     7: [{ name: '夏休み開始', period: '7/20-7/31', impact: 'high' }],
@@ -474,7 +513,10 @@ const getSeasonalEvents = (month) => {
     9: [{ name: 'シルバーウィーク', period: '9/14-9/23', impact: 'high' }],
     10: [{ name: 'ハロウィン', period: '10/25-10/31', impact: 'medium' }],
     11: [{ name: 'ブラックフライデー', period: '11/23-11/25', impact: 'high' }],
-    12: [{ name: 'クリスマス', period: '12/20-12/25', impact: 'very_high' }, { name: '年末商戦', period: '12/26-12/31', impact: 'very_high' }]
+    12: [
+      { name: 'クリスマス', period: '12/20-12/25', impact: 'very_high' },
+      { name: '年末商戦', period: '12/26-12/31', impact: 'very_high' },
+    ],
   }
   return events[month] || []
 }
@@ -488,50 +530,50 @@ export const INPUT_CATEGORIES = {
     name: '法的要件',
     description: '労働基準法、労務管理ルール（ハード制約）',
     required: true,
-    defaultEnabled: true
+    defaultEnabled: true,
   },
   store: {
     id: 'store',
     name: '店舗制約',
     description: '営業時間、必要人員数、配置ルール',
     required: true,
-    defaultEnabled: true
+    defaultEnabled: true,
   },
   history: {
     id: 'history',
     name: '過去実績',
     description: '過去3ヶ月のシフト履歴・勤務傾向',
     required: false,
-    defaultEnabled: true
+    defaultEnabled: true,
   },
   sales: {
     id: 'sales',
     name: '売上予測',
     description: '月次売上予測・需要予測・繁忙時間帯',
     required: false,
-    defaultEnabled: true
+    defaultEnabled: true,
   },
   staff: {
     id: 'staff',
     name: 'スタッフ情報',
     description: 'スタッフマスタ・スキル・シフト希望',
     required: true,
-    defaultEnabled: true
+    defaultEnabled: true,
   },
   calendar: {
     id: 'calendar',
     name: 'カレンダー',
     description: '祝日・季節イベント（GW、お盆など）',
     required: false,
-    defaultEnabled: true
+    defaultEnabled: true,
   },
   weather: {
     id: 'weather',
     name: '天気',
     description: '過去1年分の天気・気温データ',
     required: false,
-    defaultEnabled: false
-  }
+    defaultEnabled: false,
+  },
 }
 
 /**
@@ -545,13 +587,13 @@ export const collectWeatherData = async (year, month) => {
   const weatherHistory = await loadCSV(files[0])
 
   // 対象月のデータをフィルタ
-  const targetMonthData = weatherHistory.filter(w =>
-    parseInt(w.year) === year && parseInt(w.month) === month
+  const targetMonthData = weatherHistory.filter(
+    w => parseInt(w.year) === year && parseInt(w.month) === month
   )
 
   // 過去同月のデータ（前年）
-  const lastYearData = weatherHistory.filter(w =>
-    parseInt(w.year) === year - 1 && parseInt(w.month) === month
+  const lastYearData = weatherHistory.filter(
+    w => parseInt(w.year) === year - 1 && parseInt(w.month) === month
   )
 
   return {
@@ -560,18 +602,24 @@ export const collectWeatherData = async (year, month) => {
     files: files,
     data: {
       currentMonth: targetMonthData,
-      lastYearSameMonth: lastYearData
+      lastYearSameMonth: lastYearData,
     },
     summary: {
       targetMonth: `${year}年${month}月`,
-      rainyDays: targetMonthData.filter(d => d.weather_condition?.includes('雨') || d.weather_condition?.includes('雪')).length,
-      avgTemperature: targetMonthData.length > 0
-        ? (targetMonthData.reduce((sum, d) => sum + parseFloat(d.temperature_avg || 0), 0) / targetMonthData.length).toFixed(1)
-        : 0,
+      rainyDays: targetMonthData.filter(
+        d => d.weather_condition?.includes('雨') || d.weather_condition?.includes('雪')
+      ).length,
+      avgTemperature:
+        targetMonthData.length > 0
+          ? (
+              targetMonthData.reduce((sum, d) => sum + parseFloat(d.temperature_avg || 0), 0) /
+              targetMonthData.length
+            ).toFixed(1)
+          : 0,
       totalWeatherRecords: weatherHistory.length,
       currentMonthRecords: targetMonthData.length,
-      lastYearRecords: lastYearData.length
-    }
+      lastYearRecords: lastYearData.length,
+    },
   }
 }
 
@@ -595,7 +643,7 @@ export const collectAllInputs = async (year, month, enabledCategories = {}) => {
     sales: enabledCategories.sales !== false,
     staff: enabledCategories.staff !== false,
     calendar: enabledCategories.calendar !== false,
-    weather: enabledCategories.weather === true
+    weather: enabledCategories.weather === true,
   }
 
   const promises = []
@@ -648,29 +696,31 @@ export const collectAllInputs = async (year, month, enabledCategories = {}) => {
       targetPeriod: `${year}年${month}月`,
       collectionTimeMs: collectionTime,
       dataVersion: '1.0.0',
-      enabledCategories: enabled
+      enabledCategories: enabled,
     },
     inputs,
     priorities, // 優先順位分析結果を保存
     summary: {
       totalDataSources: Object.keys(inputs).length,
-      enabledCategories: Object.entries(enabled).filter(([k, v]) => v).map(([k]) => INPUT_CATEGORIES[k].name),
+      enabledCategories: Object.entries(enabled)
+        .filter(([k, v]) => v)
+        .map(([k]) => INPUT_CATEGORIES[k].name),
       readyForGeneration: true,
       warnings: [],
       prioritiesAnalyzed: {
         critical: priorities.summary.criticalCount,
         high: priorities.summary.highCount,
         medium: priorities.summary.mediumCount,
-        low: priorities.summary.lowCount
-      }
-    }
+        low: priorities.summary.lowCount,
+      },
+    },
   }
 }
 
 /**
  * インプットデータをテキスト形式で整形（GPTプロンプト用）
  */
-export const formatInputsForPrompt = (inputs) => {
+export const formatInputsForPrompt = inputs => {
   let prompt = `# シフト生成指示\n\n`
   prompt += `収集したインプットデータをもとに、${inputs.metadata.targetPeriod}のシフトスケジュールを作成してください。\n`
   prompt += `シフトを検討する際は、各要件の重要度に従って優先順位をつけてシフトを検討してください。\n\n`

@@ -1,6 +1,19 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Upload, CheckCircle, XCircle, FileText, DollarSign, Database, Download, TrendingUp, ArrowLeft, Users, Clock, AlertTriangle } from 'lucide-react'
+import {
+  Upload,
+  CheckCircle,
+  XCircle,
+  FileText,
+  DollarSign,
+  Database,
+  Download,
+  TrendingUp,
+  ArrowLeft,
+  Users,
+  Clock,
+  AlertTriangle,
+} from 'lucide-react'
 import Papa from 'papaparse'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -12,7 +25,7 @@ import {
   getPayroll,
   getSalesActual,
   getCount,
-  clearStore
+  clearStore,
 } from '../../utils/indexedDB'
 import { INDEXED_DB, STORAGE_KEYS } from '../../config'
 import { PAGE_VARIANTS, PAGE_TRANSITION } from '../../config/display'
@@ -31,7 +44,7 @@ const ActualDataImport = () => {
   const [importStatus, setImportStatus] = useState({
     workHours: { status: 'idle', message: '' },
     payroll: { status: 'idle', message: '' },
-    salesActual: { status: 'idle', message: '' }
+    salesActual: { status: 'idle', message: '' },
   })
   const [monthlyStatus, setMonthlyStatus] = useState([])
   const [selectedMonth, setSelectedMonth] = useState(null)
@@ -64,7 +77,7 @@ const ActualDataImport = () => {
           salesActualCount: monthSalesActual.length,
           hasWorkHours: monthWorkHours.length > 0,
           hasPayroll: monthPayroll.length > 0,
-          hasSalesActual: monthSalesActual.length > 0
+          hasSalesActual: monthSalesActual.length > 0,
         })
       }
 
@@ -96,7 +109,7 @@ const ActualDataImport = () => {
     Papa.parse(file, {
       header: true,
       skipEmptyLines: true,
-      complete: (result) => {
+      complete: result => {
         if (type === 'workHours') {
           setWorkHoursData(result.data)
           setWorkHoursPreview(result.data.slice(0, 5))
@@ -108,14 +121,15 @@ const ActualDataImport = () => {
           setSalesActualPreview(result.data.slice(0, 5))
         }
       },
-      error: (error) => {
+      error: error => {
         console.error('CSV解析エラー:', error)
-        const statusKey = type === 'workHours' ? 'workHours' : type === 'payroll' ? 'payroll' : 'salesActual'
+        const statusKey =
+          type === 'workHours' ? 'workHours' : type === 'payroll' ? 'payroll' : 'salesActual'
         setImportStatus(prev => ({
           ...prev,
-          [statusKey]: { status: 'error', message: 'CSV解析に失敗しました' }
+          [statusKey]: { status: 'error', message: 'CSV解析に失敗しました' },
         }))
-      }
+      },
     })
   }
 
@@ -135,7 +149,7 @@ const ActualDataImport = () => {
       Papa.parse(workHoursText, {
         header: true,
         skipEmptyLines: true,
-        complete: (result) => {
+        complete: result => {
           // 現在月以前のデータのみをフィルタ
           const filteredData = result.data.filter(row => {
             const year = parseInt(row.year)
@@ -145,7 +159,7 @@ const ActualDataImport = () => {
           setWorkHoursData(filteredData)
           setWorkHoursPreview(filteredData.slice(0, 5))
           setWorkHoursFile({ name: 'work_hours_2024.csv (サンプル)' })
-        }
+        },
       })
 
       // 給与明細CSVをロード
@@ -155,7 +169,7 @@ const ActualDataImport = () => {
       Papa.parse(payrollText, {
         header: true,
         skipEmptyLines: true,
-        complete: (result) => {
+        complete: result => {
           // 現在月以前のデータのみをフィルタ
           const filteredData = result.data.filter(row => {
             const year = parseInt(row.year)
@@ -165,7 +179,7 @@ const ActualDataImport = () => {
           setPayrollData(filteredData)
           setPayrollPreview(filteredData.slice(0, 5))
           setPayrollFile({ name: 'payroll_2024.csv (サンプル)' })
-        }
+        },
       })
 
       // 売上実績CSVをロード
@@ -175,7 +189,7 @@ const ActualDataImport = () => {
       Papa.parse(salesActualText, {
         header: true,
         skipEmptyLines: true,
-        complete: (result) => {
+        complete: result => {
           // 現在月以前のデータのみをフィルタ
           const filteredData = result.data.filter(row => {
             const year = parseInt(row.year)
@@ -185,13 +199,13 @@ const ActualDataImport = () => {
           setSalesActualData(filteredData)
           setSalesActualPreview(filteredData.slice(0, 5))
           setSalesActualFile({ name: 'sales_actual_2024.csv (サンプル)' })
-        }
+        },
       })
 
       setImportStatus({
         workHours: { status: 'idle', message: '' },
         payroll: { status: 'idle', message: '' },
-        salesActual: { status: 'idle', message: '' }
+        salesActual: { status: 'idle', message: '' },
       })
     } catch (error) {
       console.error('サンプルデータロードエラー:', error)
@@ -206,7 +220,7 @@ const ActualDataImport = () => {
     if (!workHoursData.length) {
       setImportStatus(prev => ({
         ...prev,
-        workHours: { status: 'error', message: 'データがありません' }
+        workHours: { status: 'error', message: 'データがありません' },
       }))
       return
     }
@@ -223,10 +237,12 @@ const ActualDataImport = () => {
     })
 
     if (futureData.length > 0) {
-      alert(`未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`)
+      alert(
+        `未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`
+      )
       setImportStatus(prev => ({
         ...prev,
-        workHours: { status: 'error', message: '未来のデータが含まれています' }
+        workHours: { status: 'error', message: '未来のデータが含まれています' },
       }))
       return
     }
@@ -234,7 +250,7 @@ const ActualDataImport = () => {
     setImporting(true)
     setImportStatus(prev => ({
       ...prev,
-      workHours: { status: 'loading', message: 'インポート中...' }
+      workHours: { status: 'loading', message: 'インポート中...' },
     }))
 
     try {
@@ -256,7 +272,7 @@ const ActualDataImport = () => {
         overtime_minutes: parseInt(row.overtime_minutes),
         is_late: row.is_late === 'TRUE',
         is_early_leave: row.is_early_leave === 'TRUE',
-        notes: row.notes || ''
+        notes: row.notes || '',
       }))
 
       const result = await saveActualShifts(formattedData)
@@ -265,8 +281,8 @@ const ActualDataImport = () => {
         ...prev,
         workHours: {
           status: 'success',
-          message: `${formattedData.length}件のデータをインポートしました`
-        }
+          message: `${formattedData.length}件のデータをインポートしました`,
+        },
       }))
 
       // ステータスを更新
@@ -275,7 +291,7 @@ const ActualDataImport = () => {
       console.error('インポートエラー:', error)
       setImportStatus(prev => ({
         ...prev,
-        workHours: { status: 'error', message: `エラー: ${error.message}` }
+        workHours: { status: 'error', message: `エラー: ${error.message}` },
       }))
     } finally {
       setImporting(false)
@@ -287,7 +303,7 @@ const ActualDataImport = () => {
     if (!payrollData.length) {
       setImportStatus(prev => ({
         ...prev,
-        payroll: { status: 'error', message: 'データがありません' }
+        payroll: { status: 'error', message: 'データがありません' },
       }))
       return
     }
@@ -304,10 +320,12 @@ const ActualDataImport = () => {
     })
 
     if (futureData.length > 0) {
-      alert(`未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`)
+      alert(
+        `未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`
+      )
       setImportStatus(prev => ({
         ...prev,
-        payroll: { status: 'error', message: '未来のデータが含まれています' }
+        payroll: { status: 'error', message: '未来のデータが含まれています' },
       }))
       return
     }
@@ -315,7 +333,7 @@ const ActualDataImport = () => {
     setImporting(true)
     setImportStatus(prev => ({
       ...prev,
-      payroll: { status: 'loading', message: 'インポート中...' }
+      payroll: { status: 'loading', message: 'インポート中...' },
     }))
 
     try {
@@ -341,7 +359,7 @@ const ActualDataImport = () => {
         total_deduction: parseInt(row.total_deduction),
         net_salary: parseInt(row.net_salary),
         payment_date: row.payment_date,
-        payment_status: row.payment_status
+        payment_status: row.payment_status,
       }))
 
       const result = await savePayroll(formattedData)
@@ -350,8 +368,8 @@ const ActualDataImport = () => {
         ...prev,
         payroll: {
           status: 'success',
-          message: `${formattedData.length}件のデータをインポートしました`
-        }
+          message: `${formattedData.length}件のデータをインポートしました`,
+        },
       }))
 
       // ステータスを更新
@@ -360,7 +378,7 @@ const ActualDataImport = () => {
       console.error('インポートエラー:', error)
       setImportStatus(prev => ({
         ...prev,
-        payroll: { status: 'error', message: `エラー: ${error.message}` }
+        payroll: { status: 'error', message: `エラー: ${error.message}` },
       }))
     } finally {
       setImporting(false)
@@ -372,7 +390,7 @@ const ActualDataImport = () => {
     if (!salesActualData.length) {
       setImportStatus(prev => ({
         ...prev,
-        salesActual: { status: 'error', message: 'データがありません' }
+        salesActual: { status: 'error', message: 'データがありません' },
       }))
       return
     }
@@ -389,10 +407,12 @@ const ActualDataImport = () => {
     })
 
     if (futureData.length > 0) {
-      alert(`未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`)
+      alert(
+        `未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`
+      )
       setImportStatus(prev => ({
         ...prev,
-        salesActual: { status: 'error', message: '未来のデータが含まれています' }
+        salesActual: { status: 'error', message: '未来のデータが含まれています' },
       }))
       return
     }
@@ -400,7 +420,7 @@ const ActualDataImport = () => {
     setImporting(true)
     setImportStatus(prev => ({
       ...prev,
-      salesActual: { status: 'loading', message: 'インポート中...' }
+      salesActual: { status: 'loading', message: 'インポート中...' },
     }))
 
     try {
@@ -412,7 +432,7 @@ const ActualDataImport = () => {
         store_id: parseInt(row.store_id),
         actual_sales: parseInt(row.actual_sales),
         daily_average: parseInt(row.daily_average),
-        notes: row.notes || ''
+        notes: row.notes || '',
       }))
 
       const result = await saveSalesActual(formattedData)
@@ -421,8 +441,8 @@ const ActualDataImport = () => {
         ...prev,
         salesActual: {
           status: 'success',
-          message: `${formattedData.length}件のデータをインポートしました`
-        }
+          message: `${formattedData.length}件のデータをインポートしました`,
+        },
       }))
 
       // ステータスを更新
@@ -431,7 +451,7 @@ const ActualDataImport = () => {
       console.error('インポートエラー:', error)
       setImportStatus(prev => ({
         ...prev,
-        salesActual: { status: 'error', message: `エラー: ${error.message}` }
+        salesActual: { status: 'error', message: `エラー: ${error.message}` },
       }))
     } finally {
       setImporting(false)
@@ -452,7 +472,7 @@ const ActualDataImport = () => {
       setImportStatus({
         workHours: { status: 'idle', message: '' },
         payroll: { status: 'idle', message: '' },
-        salesActual: { status: 'idle', message: '' }
+        salesActual: { status: 'idle', message: '' },
       })
       alert('データを削除しました')
     } catch (error) {
@@ -461,21 +481,23 @@ const ActualDataImport = () => {
     }
   }
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = status => {
     switch (status) {
       case 'success':
         return <CheckCircle className="h-5 w-5 text-green-500" />
       case 'error':
         return <XCircle className="h-5 w-5 text-red-500" />
       case 'loading':
-        return <div className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        return (
+          <div className="h-5 w-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        )
       default:
         return null
     }
   }
 
   // 月をクリックして予実差分を分析
-  const handleMonthClick = async (monthData) => {
+  const handleMonthClick = async monthData => {
     if (!monthData.hasWorkHours || !monthData.hasPayroll) {
       alert('実績データが不完全です。労働時間実績と給与明細の両方をインポートしてください。')
       return
@@ -522,7 +544,13 @@ const ActualDataImport = () => {
       const salesForecast = await loadSalesForecast(monthData.year, monthData.month)
 
       // 差分を分析
-      const analysis = analyzeDifference(plannedShifts, actualShifts, actualPayroll, salesForecast, actualSales)
+      const analysis = analyzeDifference(
+        plannedShifts,
+        actualShifts,
+        actualPayroll,
+        salesForecast,
+        actualSales
+      )
       setDiffAnalysis(analysis)
     } catch (error) {
       console.error('差分分析エラー:', error)
@@ -540,12 +568,12 @@ const ActualDataImport = () => {
       const response = await fetch('/data/history/shift_history_2023-2024.csv')
       const text = await response.text()
 
-      const result = await new Promise((resolve) => {
+      const result = await new Promise(resolve => {
         Papa.parse(text, {
           header: true,
           dynamicTyping: true,
           skipEmptyLines: true,
-          complete: resolve
+          complete: resolve,
         })
       })
 
@@ -563,12 +591,12 @@ const ActualDataImport = () => {
       const response = await fetch('/data/forecast/sales_forecast_2024.csv')
       const text = await response.text()
 
-      const result = await new Promise((resolve) => {
+      const result = await new Promise(resolve => {
         Papa.parse(text, {
           header: true,
           dynamicTyping: false,
           skipEmptyLines: true,
-          complete: resolve
+          complete: resolve,
         })
       })
 
@@ -581,7 +609,13 @@ const ActualDataImport = () => {
   }
 
   // 予実差分を分析
-  const analyzeDifference = (plannedShifts, actualShifts, actualPayroll, salesForecast, actualSales) => {
+  const analyzeDifference = (
+    plannedShifts,
+    actualShifts,
+    actualPayroll,
+    salesForecast,
+    actualSales
+  ) => {
     const analysis = {
       summary: {
         plannedShifts: plannedShifts.length,
@@ -593,15 +627,16 @@ const ActualDataImport = () => {
         plannedCost: 0,
         actualCost: 0,
         costDiff: 0,
-        forecastSales: salesForecast.length > 0 ? parseInt(salesForecast[0].forecasted_sales || 0) : 0,
+        forecastSales:
+          salesForecast.length > 0 ? parseInt(salesForecast[0].forecasted_sales || 0) : 0,
         actualSalesTotal: actualSales.length > 0 ? parseInt(actualSales[0].actual_sales || 0) : 0,
         salesDiff: 0,
         plannedProfit: 0,
         actualProfit: 0,
-        profitDiff: 0
+        profitDiff: 0,
       },
       staffAnalysis: {},
-      dateAnalysis: {}
+      dateAnalysis: {},
     }
 
     // 予定データを集計
@@ -623,7 +658,7 @@ const ActualDataImport = () => {
           plannedHours: 0,
           actualHours: 0,
           hoursDiff: 0,
-          differences: []
+          differences: [],
         }
       }
       analysis.staffAnalysis[shift.staff_id].actualDays += 1
@@ -649,12 +684,14 @@ const ActualDataImport = () => {
           plannedHours: 0,
           actualHours: 0,
           hoursDiff: 0,
-          differences: []
+          differences: [],
         }
       }
       analysis.staffAnalysis[shift.staff_id].plannedDays += 1
       analysis.staffAnalysis[shift.staff_id].plannedHours += parseFloat(shift.actual_hours || 0)
-      analysis.staffAnalysis[shift.staff_id].plannedCost = (analysis.staffAnalysis[shift.staff_id].plannedCost || 0) + parseFloat(shift.daily_wage || 0)
+      analysis.staffAnalysis[shift.staff_id].plannedCost =
+        (analysis.staffAnalysis[shift.staff_id].plannedCost || 0) +
+        parseFloat(shift.daily_wage || 0)
     })
 
     // 差分を計算
@@ -701,9 +738,7 @@ const ActualDataImport = () => {
             <h1 className="text-3xl font-bold text-gray-900">
               {selectedMonth.year}年{selectedMonth.month}月 予実差分分析
             </h1>
-            <p className="text-gray-600 mt-1">
-              予定シフトと実績データの差分を分析します
-            </p>
+            <p className="text-gray-600 mt-1">予定シフトと実績データの差分を分析します</p>
           </div>
 
           {/* サマリー */}
@@ -718,42 +753,101 @@ const ActualDataImport = () => {
               <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                 <div className="bg-white p-4 rounded-lg">
                   <p className="text-xs text-gray-600 mb-1">シフト数</p>
-                  <p className="text-sm">予定: <span className="font-bold">{diffAnalysis.summary.plannedShifts}</span></p>
-                  <p className="text-sm">実績: <span className="font-bold">{diffAnalysis.summary.actualShifts}</span></p>
-                  <p className={`text-sm font-bold mt-2 ${diffAnalysis.summary.shiftCountDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    差分: {diffAnalysis.summary.shiftCountDiff > 0 ? '+' : ''}{diffAnalysis.summary.shiftCountDiff}
+                  <p className="text-sm">
+                    予定: <span className="font-bold">{diffAnalysis.summary.plannedShifts}</span>
+                  </p>
+                  <p className="text-sm">
+                    実績: <span className="font-bold">{diffAnalysis.summary.actualShifts}</span>
+                  </p>
+                  <p
+                    className={`text-sm font-bold mt-2 ${diffAnalysis.summary.shiftCountDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                  >
+                    差分: {diffAnalysis.summary.shiftCountDiff > 0 ? '+' : ''}
+                    {diffAnalysis.summary.shiftCountDiff}
                   </p>
                 </div>
                 <div className="bg-white p-4 rounded-lg">
                   <p className="text-xs text-gray-600 mb-1">総労働時間</p>
-                  <p className="text-sm">予定: <span className="font-bold">{diffAnalysis.summary.plannedHours.toFixed(1)}h</span></p>
-                  <p className="text-sm">実績: <span className="font-bold">{diffAnalysis.summary.actualHours.toFixed(1)}h</span></p>
-                  <p className={`text-sm font-bold mt-2 ${diffAnalysis.summary.hoursDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                    差分: {diffAnalysis.summary.hoursDiff > 0 ? '+' : ''}{diffAnalysis.summary.hoursDiff.toFixed(1)}h
+                  <p className="text-sm">
+                    予定:{' '}
+                    <span className="font-bold">
+                      {diffAnalysis.summary.plannedHours.toFixed(1)}h
+                    </span>
+                  </p>
+                  <p className="text-sm">
+                    実績:{' '}
+                    <span className="font-bold">
+                      {diffAnalysis.summary.actualHours.toFixed(1)}h
+                    </span>
+                  </p>
+                  <p
+                    className={`text-sm font-bold mt-2 ${diffAnalysis.summary.hoursDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                  >
+                    差分: {diffAnalysis.summary.hoursDiff > 0 ? '+' : ''}
+                    {diffAnalysis.summary.hoursDiff.toFixed(1)}h
                   </p>
                 </div>
                 <div className="bg-white p-4 rounded-lg">
                   <p className="text-xs text-gray-600 mb-1">人件費</p>
-                  <p className="text-sm">予定: <span className="font-bold">¥{diffAnalysis.summary.plannedCost.toLocaleString()}</span></p>
-                  <p className="text-sm">実績: <span className="font-bold">¥{diffAnalysis.summary.actualCost.toLocaleString()}</span></p>
-                  <p className={`text-sm font-bold mt-2 ${diffAnalysis.summary.costDiff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                    差分: {diffAnalysis.summary.costDiff > 0 ? '+' : ''}¥{diffAnalysis.summary.costDiff.toLocaleString()}
+                  <p className="text-sm">
+                    予定:{' '}
+                    <span className="font-bold">
+                      ¥{diffAnalysis.summary.plannedCost.toLocaleString()}
+                    </span>
+                  </p>
+                  <p className="text-sm">
+                    実績:{' '}
+                    <span className="font-bold">
+                      ¥{diffAnalysis.summary.actualCost.toLocaleString()}
+                    </span>
+                  </p>
+                  <p
+                    className={`text-sm font-bold mt-2 ${diffAnalysis.summary.costDiff >= 0 ? 'text-red-600' : 'text-green-600'}`}
+                  >
+                    差分: {diffAnalysis.summary.costDiff > 0 ? '+' : ''}¥
+                    {diffAnalysis.summary.costDiff.toLocaleString()}
                   </p>
                 </div>
                 <div className="bg-white p-4 rounded-lg">
                   <p className="text-xs text-gray-600 mb-1">売上</p>
-                  <p className="text-sm">予測: <span className="font-bold">¥{diffAnalysis.summary.forecastSales.toLocaleString()}</span></p>
-                  <p className="text-sm">実績: <span className="font-bold">¥{diffAnalysis.summary.actualSalesTotal.toLocaleString()}</span></p>
-                  <p className={`text-sm font-bold mt-2 ${diffAnalysis.summary.salesDiff > 0 ? 'text-green-600' : diffAnalysis.summary.salesDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                    差分: {diffAnalysis.summary.salesDiff > 0 ? '+' : ''}¥{diffAnalysis.summary.salesDiff.toLocaleString()}
+                  <p className="text-sm">
+                    予測:{' '}
+                    <span className="font-bold">
+                      ¥{diffAnalysis.summary.forecastSales.toLocaleString()}
+                    </span>
+                  </p>
+                  <p className="text-sm">
+                    実績:{' '}
+                    <span className="font-bold">
+                      ¥{diffAnalysis.summary.actualSalesTotal.toLocaleString()}
+                    </span>
+                  </p>
+                  <p
+                    className={`text-sm font-bold mt-2 ${diffAnalysis.summary.salesDiff > 0 ? 'text-green-600' : diffAnalysis.summary.salesDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}
+                  >
+                    差分: {diffAnalysis.summary.salesDiff > 0 ? '+' : ''}¥
+                    {diffAnalysis.summary.salesDiff.toLocaleString()}
                   </p>
                 </div>
                 <div className="bg-white p-4 rounded-lg">
                   <p className="text-xs text-gray-600 mb-1">利益</p>
-                  <p className="text-sm">予定: <span className="font-bold">¥{diffAnalysis.summary.plannedProfit.toLocaleString()}</span></p>
-                  <p className="text-sm">実績: <span className="font-bold">¥{diffAnalysis.summary.actualProfit.toLocaleString()}</span></p>
-                  <p className={`text-sm font-bold mt-2 ${diffAnalysis.summary.profitDiff > 0 ? 'text-green-600' : diffAnalysis.summary.profitDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                    差分: {diffAnalysis.summary.profitDiff > 0 ? '+' : ''}¥{diffAnalysis.summary.profitDiff.toLocaleString()}
+                  <p className="text-sm">
+                    予定:{' '}
+                    <span className="font-bold">
+                      ¥{diffAnalysis.summary.plannedProfit.toLocaleString()}
+                    </span>
+                  </p>
+                  <p className="text-sm">
+                    実績:{' '}
+                    <span className="font-bold">
+                      ¥{diffAnalysis.summary.actualProfit.toLocaleString()}
+                    </span>
+                  </p>
+                  <p
+                    className={`text-sm font-bold mt-2 ${diffAnalysis.summary.profitDiff > 0 ? 'text-green-600' : diffAnalysis.summary.profitDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}
+                  >
+                    差分: {diffAnalysis.summary.profitDiff > 0 ? '+' : ''}¥
+                    {diffAnalysis.summary.profitDiff.toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -777,28 +871,40 @@ const ActualDataImport = () => {
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
-                    <Card className={`border-2 ${Math.abs(staff.hoursDiff) > 3 ? 'border-orange-400 bg-orange-50' : 'border-gray-200'}`}>
+                    <Card
+                      className={`border-2 ${Math.abs(staff.hoursDiff) > 3 ? 'border-orange-400 bg-orange-50' : 'border-gray-200'}`}
+                    >
                       <CardContent className="p-4">
                         <h4 className="font-bold text-md mb-3">{staff.staff_name}</h4>
                         <div className="space-y-2 text-sm">
                           <div className="flex justify-between">
                             <span className="text-gray-600">予定勤務:</span>
-                            <span className="font-medium">{staff.plannedDays}日 / {staff.plannedHours.toFixed(1)}h</span>
+                            <span className="font-medium">
+                              {staff.plannedDays}日 / {staff.plannedHours.toFixed(1)}h
+                            </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">実績勤務:</span>
-                            <span className="font-medium">{staff.actualDays}日 / {staff.actualHours.toFixed(1)}h</span>
+                            <span className="font-medium">
+                              {staff.actualDays}日 / {staff.actualHours.toFixed(1)}h
+                            </span>
                           </div>
                           <div className="flex justify-between border-t pt-2">
                             <span className="text-gray-600">時間差分:</span>
-                            <span className={`font-bold ${staff.hoursDiff > 0 ? 'text-green-600' : staff.hoursDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                              {staff.hoursDiff > 0 ? '+' : ''}{staff.hoursDiff.toFixed(1)}h
+                            <span
+                              className={`font-bold ${staff.hoursDiff > 0 ? 'text-green-600' : staff.hoursDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}
+                            >
+                              {staff.hoursDiff > 0 ? '+' : ''}
+                              {staff.hoursDiff.toFixed(1)}h
                             </span>
                           </div>
                           <div className="flex justify-between">
                             <span className="text-gray-600">費用差分:</span>
-                            <span className={`font-bold ${staff.costDiff > 0 ? 'text-red-600' : staff.costDiff < 0 ? 'text-green-600' : 'text-gray-600'}`}>
-                              {staff.costDiff > 0 ? '+' : ''}¥{(staff.costDiff || 0).toLocaleString()}
+                            <span
+                              className={`font-bold ${staff.costDiff > 0 ? 'text-red-600' : staff.costDiff < 0 ? 'text-green-600' : 'text-gray-600'}`}
+                            >
+                              {staff.costDiff > 0 ? '+' : ''}¥
+                              {(staff.costDiff || 0).toLocaleString()}
                             </span>
                           </div>
                         </div>
@@ -834,11 +940,20 @@ const ActualDataImport = () => {
             </p>
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" onClick={loadSampleData} disabled={importing} className="text-blue-600 border-blue-600">
+            <Button
+              variant="outline"
+              onClick={loadSampleData}
+              disabled={importing}
+              className="text-blue-600 border-blue-600"
+            >
               <Download className="h-4 w-4 mr-2" />
               サンプルデータをロード
             </Button>
-            <Button variant="outline" onClick={clearAllData} className="text-red-600 border-red-600">
+            <Button
+              variant="outline"
+              onClick={clearAllData}
+              className="text-red-600 border-red-600"
+            >
               <Database className="h-4 w-4 mr-2" />
               データクリア
             </Button>
@@ -863,7 +978,7 @@ const ActualDataImport = () => {
                 <input
                   type="file"
                   accept=".csv"
-                  onChange={(e) => handleFileSelect(e, 'workHours')}
+                  onChange={e => handleFileSelect(e, 'workHours')}
                   className="block w-full text-sm text-gray-500
                     file:mr-4 file:py-2 file:px-4
                     file:rounded-full file:border-0
@@ -876,9 +991,7 @@ const ActualDataImport = () => {
               {workHoursFile && (
                 <div className="bg-blue-50 p-3 rounded-lg">
                   <p className="text-sm font-medium text-blue-900">{workHoursFile.name}</p>
-                  <p className="text-xs text-blue-700 mt-1">
-                    {workHoursData.length}件のレコード
-                  </p>
+                  <p className="text-xs text-blue-700 mt-1">{workHoursData.length}件のレコード</p>
                 </div>
               )}
 
@@ -900,7 +1013,9 @@ const ActualDataImport = () => {
                         {workHoursPreview.map((row, i) => (
                           <tr key={i} className="border-t">
                             <td className="px-2 py-1">{row.staff_name}</td>
-                            <td className="px-2 py-1">{row.month}/{row.date}</td>
+                            <td className="px-2 py-1">
+                              {row.month}/{row.date}
+                            </td>
                             <td className="px-2 py-1">{row.actual_hours}h</td>
                           </tr>
                         ))}
@@ -944,7 +1059,7 @@ const ActualDataImport = () => {
                 <input
                   type="file"
                   accept=".csv"
-                  onChange={(e) => handleFileSelect(e, 'payroll')}
+                  onChange={e => handleFileSelect(e, 'payroll')}
                   className="block w-full text-sm text-gray-500
                     file:mr-4 file:py-2 file:px-4
                     file:rounded-full file:border-0
@@ -957,9 +1072,7 @@ const ActualDataImport = () => {
               {payrollFile && (
                 <div className="bg-green-50 p-3 rounded-lg">
                   <p className="text-sm font-medium text-green-900">{payrollFile.name}</p>
-                  <p className="text-xs text-green-700 mt-1">
-                    {payrollData.length}件のレコード
-                  </p>
+                  <p className="text-xs text-green-700 mt-1">{payrollData.length}件のレコード</p>
                 </div>
               )}
 
@@ -981,7 +1094,9 @@ const ActualDataImport = () => {
                         {payrollPreview.map((row, i) => (
                           <tr key={i} className="border-t">
                             <td className="px-2 py-1">{row.staff_name}</td>
-                            <td className="px-2 py-1">{row.year}/{row.month}</td>
+                            <td className="px-2 py-1">
+                              {row.year}/{row.month}
+                            </td>
                             <td className="px-2 py-1 text-right">
                               ¥{parseInt(row.net_salary).toLocaleString()}
                             </td>
@@ -1027,7 +1142,7 @@ const ActualDataImport = () => {
                 <input
                   type="file"
                   accept=".csv"
-                  onChange={(e) => handleFileSelect(e, 'salesActual')}
+                  onChange={e => handleFileSelect(e, 'salesActual')}
                   className="block w-full text-sm text-gray-500
                     file:mr-4 file:py-2 file:px-4
                     file:rounded-full file:border-0
@@ -1063,7 +1178,9 @@ const ActualDataImport = () => {
                       <tbody>
                         {salesActualPreview.map((row, i) => (
                           <tr key={i} className="border-t">
-                            <td className="px-2 py-1">{row.year}/{row.month}</td>
+                            <td className="px-2 py-1">
+                              {row.year}/{row.month}
+                            </td>
                             <td className="px-2 py-1 text-right">
                               ¥{parseInt(row.actual_sales).toLocaleString()}
                             </td>
@@ -1105,7 +1222,7 @@ const ActualDataImport = () => {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-              {monthlyStatus.map((month) => (
+              {monthlyStatus.map(month => (
                 <div
                   key={month.month}
                   onClick={() => handleMonthClick(month)}

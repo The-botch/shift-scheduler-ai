@@ -31,8 +31,16 @@ const SalesForecast = () => {
     }
   }
 
-  const validateSalesForecastCSV = (data) => {
-    const requiredColumns = ['forecast_id', 'year', 'month', 'store_id', 'forecasted_sales', 'required_labor_cost', 'required_hours']
+  const validateSalesForecastCSV = data => {
+    const requiredColumns = [
+      'forecast_id',
+      'year',
+      'month',
+      'store_id',
+      'forecasted_sales',
+      'required_labor_cost',
+      'required_hours',
+    ]
 
     if (!data || data.length === 0) {
       throw new Error('CSVファイルが空です')
@@ -48,22 +56,28 @@ const SalesForecast = () => {
     return true
   }
 
-  const getMonthlyData = (month) => {
+  const getMonthlyData = month => {
     return forecasts.find(f => parseInt(f.year) === selectedYear && parseInt(f.month) === month)
   }
 
   const calculateYearlyTotals = () => {
     const yearlyForecasts = forecasts.filter(f => parseInt(f.year) === selectedYear)
 
-    const totalSales = yearlyForecasts.reduce((sum, f) => sum + parseInt(f.forecasted_sales || 0), 0)
-    const totalLaborCost = yearlyForecasts.reduce((sum, f) => sum + parseInt(f.required_labor_cost || 0), 0)
+    const totalSales = yearlyForecasts.reduce(
+      (sum, f) => sum + parseInt(f.forecasted_sales || 0),
+      0
+    )
+    const totalLaborCost = yearlyForecasts.reduce(
+      (sum, f) => sum + parseInt(f.required_labor_cost || 0),
+      0
+    )
 
     return {
       totalSales,
       totalLaborCost,
       laborCostRatio: totalSales > 0 ? ((totalLaborCost / totalSales) * 100).toFixed(1) : 0,
       totalHours: yearlyForecasts.reduce((sum, f) => sum + parseInt(f.required_hours || 0), 0),
-      monthCount: yearlyForecasts.length
+      monthCount: yearlyForecasts.length,
     }
   }
 
@@ -107,19 +121,11 @@ const SalesForecast = () => {
           <CardContent className="p-6">
             {/* 年選択 */}
             <div className="flex items-center justify-center gap-4 mb-8">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedYear(selectedYear - 1)}
-              >
+              <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear - 1)}>
                 <ChevronLeft className="h-4 w-4" />
               </Button>
               <div className="text-2xl font-bold">{selectedYear}年</div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSelectedYear(selectedYear + 1)}
-              >
+              <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear + 1)}>
                 <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
@@ -135,7 +141,10 @@ const SalesForecast = () => {
                       ¥{yearlyTotals.totalSales.toLocaleString()}
                     </div>
                     <div className="text-xs text-blue-600 mt-1">
-                      月平均 ¥{Math.round(yearlyTotals.totalSales / yearlyTotals.monthCount).toLocaleString()}
+                      月平均 ¥
+                      {Math.round(
+                        yearlyTotals.totalSales / yearlyTotals.monthCount
+                      ).toLocaleString()}
                     </div>
                   </CardContent>
                 </Card>
@@ -161,7 +170,11 @@ const SalesForecast = () => {
                       {yearlyTotals.totalHours.toLocaleString()}h
                     </div>
                     <div className="text-xs text-green-600 mt-1">
-                      月平均 {Math.round(yearlyTotals.totalHours / yearlyTotals.monthCount).toLocaleString()}h
+                      月平均{' '}
+                      {Math.round(
+                        yearlyTotals.totalHours / yearlyTotals.monthCount
+                      ).toLocaleString()}
+                      h
                     </div>
                   </CardContent>
                 </Card>
@@ -215,7 +228,12 @@ const SalesForecast = () => {
                             <div className="flex items-center justify-between">
                               <span className="text-gray-600">人件費率:</span>
                               <span className="font-semibold text-orange-700">
-                                {((parseInt(data.required_labor_cost) / parseInt(data.forecasted_sales)) * 100).toFixed(1)}%
+                                {(
+                                  (parseInt(data.required_labor_cost) /
+                                    parseInt(data.forecasted_sales)) *
+                                  100
+                                ).toFixed(1)}
+                                %
                               </span>
                             </div>
                             <div className="flex items-center justify-between">
@@ -231,9 +249,7 @@ const SalesForecast = () => {
                             )}
                           </div>
                         ) : (
-                          <div className="text-center py-4 text-gray-400 text-sm">
-                            データなし
-                          </div>
+                          <div className="text-center py-4 text-gray-400 text-sm">データなし</div>
                         )}
                       </CardContent>
                     </Card>
@@ -244,12 +260,8 @@ const SalesForecast = () => {
 
             {forecasts.filter(f => parseInt(f.year) === selectedYear).length === 0 && (
               <div className="text-center py-12">
-                <p className="text-gray-500 mb-2">
-                  {selectedYear}年の売上予測データがありません
-                </p>
-                <p className="text-sm text-gray-400">
-                  CSVファイルをインポートしてください
-                </p>
+                <p className="text-gray-500 mb-2">{selectedYear}年の売上予測データがありません</p>
+                <p className="text-sm text-gray-400">CSVファイルをインポートしてください</p>
               </div>
             )}
           </CardContent>

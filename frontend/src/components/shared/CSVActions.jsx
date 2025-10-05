@@ -8,7 +8,7 @@ const CSVActions = ({
   filename,
   onImport,
   validateFunction,
-  importConfirmMessage = '既存のデータを上書きします。よろしいですか？'
+  importConfirmMessage = '既存のデータを上書きします。よろしいですか？',
 }) => {
   const handleExportCSV = () => {
     const result = exportCSV(data, generateFilename(filename))
@@ -19,7 +19,7 @@ const CSVActions = ({
     }
   }
 
-  const handleImportCSV = (event) => {
+  const handleImportCSV = event => {
     const file = event.target.files[0]
     if (!file) return
 
@@ -30,12 +30,12 @@ const CSVActions = ({
 
     importCSV(
       file,
-      (importedData) => {
+      importedData => {
         onImport(importedData)
         alert(`✅ ${importedData.length}件のデータをインポートしました`)
         event.target.value = ''
       },
-      (error) => {
+      error => {
         alert(`❌ インポートエラー:\n${error}`)
         event.target.value = ''
       },
@@ -59,12 +59,7 @@ const CSVActions = ({
           <Upload className="h-4 w-4" />
           CSVインポート
         </div>
-        <input
-          type="file"
-          accept=".csv"
-          onChange={handleImportCSV}
-          className="hidden"
-        />
+        <input type="file" accept=".csv" onChange={handleImportCSV} className="hidden" />
       </label>
     </div>
   )

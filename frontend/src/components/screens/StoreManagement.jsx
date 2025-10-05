@@ -15,7 +15,7 @@ const StoreManagement = ({
   onStaffManagement,
   onStoreManagement,
   onConstraintManagement,
-  onBudgetActualManagement
+  onBudgetActualManagement,
 }) => {
   const [stores, setStores] = useState([])
   const [constraints, setConstraints] = useState([])
@@ -43,7 +43,10 @@ const StoreManagement = ({
       // Load employment_types.csv
       const employmentTypesResponse = await fetch('/data/master/employment_types.csv')
       const employmentTypesText = await employmentTypesResponse.text()
-      const employmentTypesParsed = Papa.parse(employmentTypesText, { header: true, skipEmptyLines: true })
+      const employmentTypesParsed = Papa.parse(employmentTypesText, {
+        header: true,
+        skipEmptyLines: true,
+      })
 
       setStores(storesParsed.data)
       setConstraints(constraintsParsed.data)
@@ -51,11 +54,11 @@ const StoreManagement = ({
 
       // デモ用の雇用形態別勤務条件を設定
       setEmploymentRequirements({
-        'FULL_TIME': { min_days: 20, description: '正社員は月20日以上勤務必須' },
-        'CONTRACT': { min_days: 18, description: '契約社員は月18日以上勤務必須' },
-        'PART_TIME': { min_days: 8, description: 'アルバイトは月8日以上勤務必須' },
-        'PART': { min_days: 10, description: 'パートは月10日以上勤務必須' },
-        'OUTSOURCE': { min_days: 15, description: '業務委託は月15日以上勤務必須' }
+        FULL_TIME: { min_days: 20, description: '正社員は月20日以上勤務必須' },
+        CONTRACT: { min_days: 18, description: '契約社員は月18日以上勤務必須' },
+        PART_TIME: { min_days: 8, description: 'アルバイトは月8日以上勤務必須' },
+        PART: { min_days: 10, description: 'パートは月10日以上勤務必須' },
+        OUTSOURCE: { min_days: 15, description: '業務委託は月15日以上勤務必須' },
       })
     } catch (error) {
       console.error('データの読み込みエラー:', error)
@@ -64,11 +67,11 @@ const StoreManagement = ({
     }
   }
 
-  const getConstraintsByStore = (storeId) => {
+  const getConstraintsByStore = storeId => {
     return constraints.filter(c => c.store_id === storeId && c.is_active === 'TRUE')
   }
 
-  const formatConstraintValue = (constraint) => {
+  const formatConstraintValue = constraint => {
     try {
       const value = JSON.parse(constraint.constraint_value)
       if (constraint.constraint_type === 'min_staff_per_hour') {
@@ -76,7 +79,9 @@ const StoreManagement = ({
       } else if (constraint.constraint_type === 'max_consecutive_days') {
         return `連続${value.max_days}日まで`
       } else if (constraint.constraint_type === 'required_skill_mix') {
-        const skills = Object.entries(value.skills).map(([skill, count]) => `${skill}:${count}名`).join(', ')
+        const skills = Object.entries(value.skills)
+          .map(([skill, count]) => `${skill}:${count}名`)
+          .join(', ')
         return `必要スキル: ${skills}`
       } else if (constraint.constraint_type === 'monthly_budget') {
         return `目標: ¥${value.target_cost?.toLocaleString()} / 上限: ¥${value.max_labor_cost?.toLocaleString()}`
@@ -87,15 +92,14 @@ const StoreManagement = ({
     }
   }
 
-  const getPriorityBadge = (priority) => {
+  const getPriorityBadge = priority => {
     const badges = {
       high: 'bg-red-100 text-red-800',
       medium: 'bg-yellow-100 text-yellow-800',
-      low: 'bg-green-100 text-green-800'
+      low: 'bg-green-100 text-green-800',
     }
     return badges[priority] || 'bg-gray-100 text-gray-800'
   }
-
 
   if (loading) {
     return (
@@ -128,127 +132,140 @@ const StoreManagement = ({
           transition={{ duration: 0.5 }}
         >
           <Card className="shadow-lg">
-          <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <Store className="h-8 w-8" />
-                <CardTitle className="text-2xl">店舗情報管理</CardTitle>
+            <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Store className="h-8 w-8" />
+                  <CardTitle className="text-2xl">店舗情報管理</CardTitle>
+                </div>
+                <CSVActions
+                  data={stores}
+                  filename="stores"
+                  onImport={setStores}
+                  validateFunction={validateStoreCSV}
+                  importConfirmMessage="既存の店舗データを上書きします。よろしいですか？"
+                />
               </div>
-              <CSVActions
-                data={stores}
-                filename="stores"
-                onImport={setStores}
-                validateFunction={validateStoreCSV}
-                importConfirmMessage="既存の店舗データを上書きします。よろしいですか？"
-              />
-            </div>
-          </CardHeader>
+            </CardHeader>
 
-          <CardContent className="p-6">
-            {stores.map((store) => {
-              const storeConstraints = getConstraintsByStore(store.store_id)
-              return (
-                <motion.div
-                  key={store.store_id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mb-8"
-                >
-                  {/* 店舗基本情報 */}
-                  <Card className="border-2 border-green-200 mb-4">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between mb-4">
-                        <div>
-                          <h3 className="text-2xl font-bold text-gray-800 mb-2">{store.store_name}</h3>
-                          <div className="text-sm text-gray-600 space-y-1">
-                            <div className="flex items-center gap-2">
-                              <MapPin className="h-4 w-4" />
-                              <span>{store.address}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Phone className="h-4 w-4" />
-                              <span>{store.phone_number}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                              <Clock className="h-4 w-4" />
-                              <span>営業時間: {store.business_hours_start} - {store.business_hours_end}</span>
+            <CardContent className="p-6">
+              {stores.map(store => {
+                const storeConstraints = getConstraintsByStore(store.store_id)
+                return (
+                  <motion.div
+                    key={store.store_id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-8"
+                  >
+                    {/* 店舗基本情報 */}
+                    <Card className="border-2 border-green-200 mb-4">
+                      <CardContent className="p-6">
+                        <div className="flex items-start justify-between mb-4">
+                          <div>
+                            <h3 className="text-2xl font-bold text-gray-800 mb-2">
+                              {store.store_name}
+                            </h3>
+                            <div className="text-sm text-gray-600 space-y-1">
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4" />
+                                <span>{store.address}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Phone className="h-4 w-4" />
+                                <span>{store.phone_number}</span>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                <span>
+                                  営業時間: {store.business_hours_start} -{' '}
+                                  {store.business_hours_end}
+                                </span>
+                              </div>
                             </div>
                           </div>
+                          <div className="text-right">
+                            <div className="text-sm text-gray-600 mb-1">店舗コード</div>
+                            <div className="font-mono font-bold text-lg">{store.store_code}</div>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <div className="text-sm text-gray-600 mb-1">店舗コード</div>
-                          <div className="font-mono font-bold text-lg">{store.store_code}</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+                      </CardContent>
+                    </Card>
 
-                  {/* 店舗制約情報 */}
-                  <div className="mb-6">
-                    <h4 className="text-lg font-bold mb-3 flex items-center gap-2">
-                      <div className="w-1 h-6 bg-green-600 rounded"></div>
-                      店舗制約条件 ({storeConstraints.length}件)
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {storeConstraints.map((constraint) => (
-                        <Card key={constraint.constraint_id} className="border hover:shadow-md transition-shadow">
-                          <CardContent className="p-4">
-                            <div className="flex items-start justify-between mb-2">
-                              <div className="font-semibold text-gray-800">
-                                {constraint.constraint_type}
-                              </div>
-                              <span className={`px-2 py-1 rounded-full text-xs ${getPriorityBadge(constraint.priority)}`}>
-                                {constraint.priority}
-                              </span>
-                            </div>
-                            <div className="text-sm text-gray-600 mb-2">
-                              {formatConstraintValue(constraint)}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {constraint.description}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 雇用形態別勤務条件 */}
-                  <div>
-                    <h4 className="text-lg font-bold mb-3 flex items-center gap-2">
-                      <div className="w-1 h-6 bg-purple-600 rounded"></div>
-                      <Briefcase className="h-5 w-5 text-purple-600" />
-                      雇用形態別勤務条件
-                    </h4>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {employmentTypes.map((type) => {
-                        const requirement = employmentRequirements[type.employment_code]
-                        return (
-                          <Card key={type.employment_type_id} className="border-2 border-purple-200 hover:shadow-md transition-shadow">
+                    {/* 店舗制約情報 */}
+                    <div className="mb-6">
+                      <h4 className="text-lg font-bold mb-3 flex items-center gap-2">
+                        <div className="w-1 h-6 bg-green-600 rounded"></div>
+                        店舗制約条件 ({storeConstraints.length}件)
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {storeConstraints.map(constraint => (
+                          <Card
+                            key={constraint.constraint_id}
+                            className="border hover:shadow-md transition-shadow"
+                          >
                             <CardContent className="p-4">
-                              <div className="font-bold text-gray-800 mb-2">{type.employment_name}</div>
-                              {requirement && (
-                                <>
-                                  <div className="text-2xl font-bold text-purple-600 mb-1">
-                                    月{requirement.min_days}日以上
-                                  </div>
-                                  <div className="text-xs text-gray-500">
-                                    {requirement.description}
-                                  </div>
-                                </>
-                              )}
+                              <div className="flex items-start justify-between mb-2">
+                                <div className="font-semibold text-gray-800">
+                                  {constraint.constraint_type}
+                                </div>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs ${getPriorityBadge(constraint.priority)}`}
+                                >
+                                  {constraint.priority}
+                                </span>
+                              </div>
+                              <div className="text-sm text-gray-600 mb-2">
+                                {formatConstraintValue(constraint)}
+                              </div>
+                              <div className="text-xs text-gray-500">{constraint.description}</div>
                             </CardContent>
                           </Card>
-                        )
-                      })}
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              )
-            })}
-          </CardContent>
-        </Card>
-      </motion.div>
+
+                    {/* 雇用形態別勤務条件 */}
+                    <div>
+                      <h4 className="text-lg font-bold mb-3 flex items-center gap-2">
+                        <div className="w-1 h-6 bg-purple-600 rounded"></div>
+                        <Briefcase className="h-5 w-5 text-purple-600" />
+                        雇用形態別勤務条件
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {employmentTypes.map(type => {
+                          const requirement = employmentRequirements[type.employment_code]
+                          return (
+                            <Card
+                              key={type.employment_type_id}
+                              className="border-2 border-purple-200 hover:shadow-md transition-shadow"
+                            >
+                              <CardContent className="p-4">
+                                <div className="font-bold text-gray-800 mb-2">
+                                  {type.employment_name}
+                                </div>
+                                {requirement && (
+                                  <>
+                                    <div className="text-2xl font-bold text-purple-600 mb-1">
+                                      月{requirement.min_days}日以上
+                                    </div>
+                                    <div className="text-xs text-gray-500">
+                                      {requirement.description}
+                                    </div>
+                                  </>
+                                )}
+                              </CardContent>
+                            </Card>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </motion.div>
+                )
+              })}
+            </CardContent>
+          </Card>
+        </motion.div>
       </div>
     </div>
   )

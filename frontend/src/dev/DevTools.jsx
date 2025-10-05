@@ -17,25 +17,29 @@ import {
   Copy,
   Check,
   FileEdit,
-  Loader2
+  Loader2,
 } from 'lucide-react'
 import Papa from 'papaparse'
 import { validateShifts } from '../utils/shiftValidator'
 import { getShiftCsvFiles, loadAndConvertShiftData } from '../utils/fileScanner'
 import { sendToChatGPT, buildShiftGenerationPrompt } from '../utils/openaiClient'
-import { collectAllInputs, formatInputsForPrompt, INPUT_CATEGORIES } from '../utils/shiftInputCollector'
+import {
+  collectAllInputs,
+  formatInputsForPrompt,
+  INPUT_CATEGORIES,
+} from '../utils/shiftInputCollector'
 import { setupVectorStore, generateShiftWithAssistant } from '../utils/assistantClient'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
   in: { opacity: 1, y: 0 },
-  out: { opacity: 0, y: -20 }
+  out: { opacity: 0, y: -20 },
 }
 
 const pageTransition = {
   type: 'tween',
   ease: 'anticipate',
-  duration: 0.5
+  duration: 0.5,
 }
 
 const DevTools = ({
@@ -46,7 +50,7 @@ const DevTools = ({
   onStaffManagement,
   onStoreManagement,
   onConstraintManagement,
-  onBudgetActualManagement
+  onBudgetActualManagement,
 }) => {
   const [validationResult, setValidationResult] = useState(null)
   const [validationLoading, setValidationLoading] = useState(false)
@@ -169,7 +173,7 @@ const DevTools = ({
       request.onerror = () => reject(request.error)
       request.onsuccess = () => resolve(request.result)
 
-      request.onupgradeneeded = (event) => {
+      request.onupgradeneeded = event => {
         const db = event.target.result
 
         // 対話ログ用のobjectStore
@@ -181,7 +185,10 @@ const DevTools = ({
 
         // バリデーションログ用のobjectStore
         if (!db.objectStoreNames.contains('validationLogs')) {
-          const validationStore = db.createObjectStore('validationLogs', { keyPath: 'id', autoIncrement: true })
+          const validationStore = db.createObjectStore('validationLogs', {
+            keyPath: 'id',
+            autoIncrement: true,
+          })
           validationStore.createIndex('timestamp', 'timestamp', { unique: false })
           validationStore.createIndex('conversationLogId', 'conversationLogId', { unique: false })
         }
@@ -190,7 +197,7 @@ const DevTools = ({
   }
 
   // ログをIndexedDBに保存
-  const saveLogToIndexedDB = async (logEntry) => {
+  const saveLogToIndexedDB = async logEntry => {
     try {
       const db = await openLogDB()
       const tx = db.transaction('logs', 'readwrite')
@@ -266,12 +273,14 @@ const DevTools = ({
         isValid: false,
         errorCount: 1,
         warningCount: 0,
-        errors: [{
-          rule_id: 'SYSTEM_ERROR',
-          message: error.message,
-          category: 'システム'
-        }],
-        warnings: []
+        errors: [
+          {
+            rule_id: 'SYSTEM_ERROR',
+            message: error.message,
+            category: 'システム',
+          },
+        ],
+        warnings: [],
       })
     } finally {
       setValidationLoading(false)
@@ -326,13 +335,13 @@ const DevTools = ({
   }
 
   // カテゴリートグルの変更
-  const toggleCategory = (categoryId) => {
+  const toggleCategory = categoryId => {
     const category = INPUT_CATEGORIES[categoryId]
     if (category.required) return // 必須カテゴリーは変更不可
 
     setEnabledCategories(prev => ({
       ...prev,
-      [categoryId]: !prev[categoryId]
+      [categoryId]: !prev[categoryId],
     }))
     // トグル変更時はインプットデータをクリア（再収集を促す）
     setInputData(null)
@@ -365,7 +374,8 @@ const DevTools = ({
           }
         })
 
-        const constraintsArray = aiPrompt.split('\n')
+        const constraintsArray = aiPrompt
+          .split('\n')
           .filter(line => line.trim())
           .map(line => line.trim())
 
@@ -441,7 +451,8 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
       }
 
       // パラメータを解析
-      const constraintsArray = aiPrompt.split('\n')
+      const constraintsArray = aiPrompt
+        .split('\n')
         .filter(line => line.trim())
         .map(line => line.trim())
 
@@ -458,7 +469,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
         staffCount: data ? data.inputs.staffData.summary.totalStaff : 5,
         budgetLimit: 1000000,
         constraints: constraintsArray,
-        preferences: []
+        preferences: [],
       })
 
       setGeneratedPrompt(prompt)
@@ -499,7 +510,11 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
 
   // Assistant IDとVector Store IDをリセット
   const resetAssistantSetup = () => {
-    if (window.confirm('AssistantとVector Storeの設定をリセットしますか？\n次回セットアップ時に新しいAssistantが作成されます。')) {
+    if (
+      window.confirm(
+        'AssistantとVector Storeの設定をリセットしますか？\n次回セットアップ時に新しいAssistantが作成されます。'
+      )
+    ) {
       localStorage.removeItem('assistantId')
       localStorage.removeItem('vectorStoreId')
       setAssistantId('')
@@ -550,7 +565,8 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
             }
           })
 
-          const constraintsArray = aiPrompt.split('\n')
+          const constraintsArray = aiPrompt
+            .split('\n')
             .filter(line => line.trim())
             .map(line => line.trim())
 
@@ -616,7 +632,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
           vectorStoreId,
           assistantId,
           customPrompt: finalPrompt,
-          onProgress: (msg) => setAiResponse(`生成中... ${msg}`)
+          onProgress: msg => setAiResponse(`生成中... ${msg}`),
         })
 
         if (result.assistantId && !assistantId) {
@@ -634,7 +650,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
               // CSVデータをパース
               const parsedCsv = Papa.parse(result.csvContent, {
                 header: true,
-                skipEmptyLines: true
+                skipEmptyLines: true,
               })
 
               const actualShiftCount = parsedCsv.data.length
@@ -647,12 +663,12 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
                 const saveResponse = await fetch('http://localhost:3001/api/save-csv', {
                   method: 'POST',
                   headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
                   },
                   body: JSON.stringify({
                     filename,
-                    content: result.csvContent
-                  })
+                    content: result.csvContent,
+                  }),
                 })
 
                 if (saveResponse.ok) {
@@ -668,7 +684,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
               // バリデーション用にshift_dateフィールドを追加（year, month, dateから生成）
               const shiftsWithDate = parsedCsv.data.map(shift => ({
                 ...shift,
-                shift_date: `${shift.year}-${String(shift.month).padStart(2, '0')}-${String(shift.date).padStart(2, '0')}`
+                shift_date: `${shift.year}-${String(shift.month).padStart(2, '0')}-${String(shift.date).padStart(2, '0')}`,
               }))
 
               // バリデーション実行
@@ -688,7 +704,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
                 totalStaff: 'N/A',
                 totalWorkHours: 'N/A',
                 estimatedCost: 'N/A',
-                constraintsViolations: 'N/A'
+                constraintsViolations: 'N/A',
               }
               const notes = result.summary?.notes || null
 
@@ -727,7 +743,12 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
               setGeneratedShiftValidation(validationResult)
 
               // ログには生のJSON応答を保存（バリデーション結果も一緒に）
-              await addToConversationLog(userInput, `Code Interpreter応答:\n${result.message}\n\nCSVシフト数: ${actualShiftCount}件`, 'generate', validationResult)
+              await addToConversationLog(
+                userInput,
+                `Code Interpreter応答:\n${result.message}\n\nCSVシフト数: ${actualShiftCount}件`,
+                'generate',
+                validationResult
+              )
             } else {
               // 従来のJSON形式の場合（後方互換性のため残す）
               console.warn('CSVファイルが見つかりませんでした。従来のJSON形式を試みます。')
@@ -743,7 +764,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
               try {
                 const parsedCsv = Papa.parse(shiftData.shifts_csv, {
                   header: true,
-                  skipEmptyLines: true
+                  skipEmptyLines: true,
                 })
 
                 if (parsedCsv.data && parsedCsv.data.length > 0) {
@@ -786,7 +807,12 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
               setGeneratedShiftValidation(validationResult)
 
               // ログには生のJSON応答を保存（バリデーション結果も一緒に）
-              await addToConversationLog(userInput, `JSON応答:\n${jsonResponse}`, 'generate', validationResult)
+              await addToConversationLog(
+                userInput,
+                `JSON応答:\n${jsonResponse}`,
+                'generate',
+                validationResult
+              )
             }
           } catch (parseError) {
             console.error('Parse error:', parseError)
@@ -808,7 +834,8 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
       const result = await sendToChatGPT(generatedPrompt, {
         maxTokens: 8000,
         temperature: 0.3,
-        systemMessage: 'あなたはシフト管理の専門家です。提供されたインプットデータを分析し、ハード制約を最優先し、ソフト制約を可能な限り満たすシフトを生成してください。必ず指定されたJSON形式で応答してください。重要: shifts_csvフィールドには対象月の全営業日分・全スタッフのシフトを1件も省略せず完全に出力してください。定休日は除き、営業日のみシフトを作成してください。"..."などの省略記号は絶対に使用しないでください。'
+        systemMessage:
+          'あなたはシフト管理の専門家です。提供されたインプットデータを分析し、ハード制約を最優先し、ソフト制約を可能な限り満たすシフトを生成してください。必ず指定されたJSON形式で応答してください。重要: shifts_csvフィールドには対象月の全営業日分・全スタッフのシフトを1件も省略せず完全に出力してください。定休日は除き、営業日のみシフトを作成してください。"..."などの省略記号は絶対に使用しないでください。',
       })
 
       if (result.success) {
@@ -827,7 +854,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
           try {
             const parsedCsv = Papa.parse(shiftData.shifts_csv, {
               header: true,
-              skipEmptyLines: true
+              skipEmptyLines: true,
             })
 
             if (parsedCsv.data && parsedCsv.data.length > 0) {
@@ -933,7 +960,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
       mode,
       userInput,
       aiResponse,
-      responseLength: aiResponse.length
+      responseLength: aiResponse.length,
     }
 
     // IndexedDBに即座に保存
@@ -959,7 +986,9 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
       setCurrentLogFile(nextFileNum)
       localStorage.setItem('currentLogFileNumber', nextFileNum.toString())
 
-      console.log(`📝 ログファイル #${currentLogFile} をダウンロードしました。次は #${nextFileNum} に保存されます。`)
+      console.log(
+        `📝 ログファイル #${currentLogFile} をダウンロードしました。次は #${nextFileNum} に保存されます。`
+      )
     }
   }
 
@@ -972,7 +1001,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
       errorCount: validationResult.errorCount,
       warningCount: validationResult.warningCount,
       errors: validationResult.errors,
-      warnings: validationResult.warnings
+      warnings: validationResult.warnings,
     }
 
     // IndexedDBに保存
@@ -991,12 +1020,14 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
       setCurrentValidationLogFile(nextFileNum)
       localStorage.setItem('currentValidationLogFileNumber', nextFileNum.toString())
 
-      console.log(`📋 バリデーションログファイル #${currentValidationLogFile} をダウンロードしました。次は #${nextFileNum} に保存されます。`)
+      console.log(
+        `📋 バリデーションログファイル #${currentValidationLogFile} をダウンロードしました。次は #${nextFileNum} に保存されます。`
+      )
     }
   }
 
   // バリデーションログをIndexedDBに保存
-  const saveValidationToIndexedDB = async (validationEntry) => {
+  const saveValidationToIndexedDB = async validationEntry => {
     try {
       const db = await openLogDB()
       const tx = db.transaction('validationLogs', 'readwrite')
@@ -1085,7 +1116,9 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
     exportLogsToFile(conversationLog, currentLogFile)
 
     // ダウンロード後もログは保持（手動の場合はクリアしない）
-    console.log(`📥 手動ダウンロード: conversation_log_${currentLogFile}.log (${conversationLog.length}件)`)
+    console.log(
+      `📥 手動ダウンロード: conversation_log_${currentLogFile}.log (${conversationLog.length}件)`
+    )
   }
 
   // 手動でバリデーションログを.log出力
@@ -1094,7 +1127,9 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
     exportValidationLogsToFile(validationLog, currentValidationLogFile)
 
     // ダウンロード後もログは保持（手動の場合はクリアしない）
-    console.log(`📥 手動ダウンロード: validation_log_${currentValidationLogFile}.log (${validationLog.length}件)`)
+    console.log(
+      `📥 手動ダウンロード: validation_log_${currentValidationLogFile}.log (${validationLog.length}件)`
+    )
   }
 
   // AI応答をクリップボードにコピー
@@ -1268,18 +1303,18 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
   }
 
   // CSVファイルインポート処理
-  const handleImportCSV = (event) => {
+  const handleImportCSV = event => {
     const file = event.target.files[0]
     if (!file) return
 
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = e => {
       const csvContent = e.target.result
 
       // CSVをパース
       const parsedCsv = Papa.parse(csvContent, {
         header: true,
-        skipEmptyLines: true
+        skipEmptyLines: true,
       })
 
       if (parsedCsv.data && parsedCsv.data.length > 0) {
@@ -1313,7 +1348,7 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
       // shift_dateフィールドを追加（year, month, dateから生成）
       const shiftsWithDate = importedShiftData.map(shift => ({
         ...shift,
-        shift_date: `${shift.year}-${String(shift.month).padStart(2, '0')}-${String(shift.date).padStart(2, '0')}`
+        shift_date: `${shift.year}-${String(shift.month).padStart(2, '0')}-${String(shift.date).padStart(2, '0')}`,
       }))
 
       // バリデーション実行
@@ -1412,80 +1447,83 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                 {aiMode === 'generate' && (
                   <>
                     {/* Vector Store管理 */}
-                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
-                        <h4 className="font-semibold text-gray-800 mb-3">Vector Store管理</h4>
-                        <div className="space-y-2">
-                          {vectorStoreId ? (
-                            <div className="bg-green-100 p-3 rounded border border-green-300">
-                              <div className="flex items-center gap-2 mb-1">
-                                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                                <span className="font-semibold text-green-800">セットアップ済み</span>
-                              </div>
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+                      <h4 className="font-semibold text-gray-800 mb-3">Vector Store管理</h4>
+                      <div className="space-y-2">
+                        {vectorStoreId ? (
+                          <div className="bg-green-100 p-3 rounded border border-green-300">
+                            <div className="flex items-center gap-2 mb-1">
+                              <CheckCircle2 className="h-4 w-4 text-green-600" />
+                              <span className="font-semibold text-green-800">セットアップ済み</span>
+                            </div>
+                            <div className="text-xs text-gray-600 font-mono">
+                              Vector Store ID: {vectorStoreId.substring(0, 20)}...
+                            </div>
+                            {assistantId && (
                               <div className="text-xs text-gray-600 font-mono">
-                                Vector Store ID: {vectorStoreId.substring(0, 20)}...
+                                Assistant ID: {assistantId.substring(0, 20)}...
                               </div>
-                              {assistantId && (
-                                <div className="text-xs text-gray-600 font-mono">
-                                  Assistant ID: {assistantId.substring(0, 20)}...
-                                </div>
+                            )}
+                            <Button
+                              onClick={resetAssistantSetup}
+                              size="sm"
+                              variant="outline"
+                              className="mt-2 h-6 text-xs text-red-600 border-red-300 hover:bg-red-50"
+                            >
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              リセット
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="bg-yellow-100 p-3 rounded border border-yellow-300">
+                            <p className="text-sm text-yellow-800 mb-2">
+                              ⚠️ Vector
+                              Storeが未セットアップです。初回のみセットアップが必要です（10件のCSVファイルをアップロード）。
+                            </p>
+                            <Button
+                              onClick={handleSetupVectorStore}
+                              disabled={isSettingUp}
+                              size="sm"
+                              className="bg-purple-600 hover:bg-purple-700 h-8"
+                            >
+                              {isSettingUp ? (
+                                <>
+                                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                  セットアップ中...
+                                </>
+                              ) : (
+                                <>
+                                  <Database className="h-3 w-3 mr-1" />
+                                  Vector Storeをセットアップ
+                                </>
                               )}
-                              <Button
-                                onClick={resetAssistantSetup}
-                                size="sm"
-                                variant="outline"
-                                className="mt-2 h-6 text-xs text-red-600 border-red-300 hover:bg-red-50"
-                              >
-                                <RefreshCw className="h-3 w-3 mr-1" />
-                                リセット
-                              </Button>
-                            </div>
-                          ) : (
-                            <div className="bg-yellow-100 p-3 rounded border border-yellow-300">
-                              <p className="text-sm text-yellow-800 mb-2">
-                                ⚠️ Vector Storeが未セットアップです。初回のみセットアップが必要です（10件のCSVファイルをアップロード）。
-                              </p>
-                              <Button
-                                onClick={handleSetupVectorStore}
-                                disabled={isSettingUp}
-                                size="sm"
-                                className="bg-purple-600 hover:bg-purple-700 h-8"
-                              >
-                                {isSettingUp ? (
-                                  <>
-                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                    セットアップ中...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Database className="h-3 w-3 mr-1" />
-                                    Vector Storeをセットアップ
-                                  </>
-                                )}
-                              </Button>
-                            </div>
-                          )}
+                            </Button>
+                          </div>
+                        )}
 
-                          {/* セットアップ進捗 */}
-                          {setupProgress.message && (
-                            <div className="bg-blue-50 p-2 rounded border border-blue-200">
-                              <div className="flex items-center justify-between text-xs">
-                                <span className="text-blue-800">{setupProgress.message}</span>
-                                <span className="text-blue-600 font-semibold">
-                                  {setupProgress.current}/{setupProgress.total}
-                                </span>
-                              </div>
-                              {setupProgress.total > 0 && (
-                                <div className="w-full bg-blue-200 rounded-full h-2 mt-1">
-                                  <div
-                                    className="bg-blue-600 h-2 rounded-full transition-all"
-                                    style={{ width: `${(setupProgress.current / setupProgress.total) * 100}%` }}
-                                  ></div>
-                                </div>
-                              )}
+                        {/* セットアップ進捗 */}
+                        {setupProgress.message && (
+                          <div className="bg-blue-50 p-2 rounded border border-blue-200">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="text-blue-800">{setupProgress.message}</span>
+                              <span className="text-blue-600 font-semibold">
+                                {setupProgress.current}/{setupProgress.total}
+                              </span>
                             </div>
-                          )}
-                        </div>
+                            {setupProgress.total > 0 && (
+                              <div className="w-full bg-blue-200 rounded-full h-2 mt-1">
+                                <div
+                                  className="bg-blue-600 h-2 rounded-full transition-all"
+                                  style={{
+                                    width: `${(setupProgress.current / setupProgress.total) * 100}%`,
+                                  }}
+                                ></div>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
+                    </div>
 
                     {/* 対象期間入力 */}
                     <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
@@ -1498,7 +1536,7 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                             min="2020"
                             max="2030"
                             value={targetYear}
-                            onChange={(e) => {
+                            onChange={e => {
                               setTargetYear(parseInt(e.target.value))
                               setInputData(null) // 期間変更時はデータクリア
                             }}
@@ -1512,7 +1550,7 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                             min="1"
                             max="12"
                             value={targetMonth}
-                            onChange={(e) => {
+                            onChange={e => {
                               setTargetMonth(parseInt(e.target.value))
                               setInputData(null) // 期間変更時はデータクリア
                             }}
@@ -1562,9 +1600,7 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                                   </span>
                                 )}
                               </div>
-                              <p className="text-xs text-gray-600 mt-1">
-                                {category.description}
-                              </p>
+                              <p className="text-xs text-gray-600 mt-1">{category.description}</p>
                             </div>
                           </label>
                         ))}
@@ -1601,15 +1637,22 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                         <div className="grid grid-cols-1 gap-2">
                           {Object.values(INPUT_CATEGORIES).map(category => {
                             const isEnabled = enabledCategories[category.id]
-                            const isCollected = inputData?.inputs?.[
-                              category.id === 'legal' ? 'legalRequirements' :
-                              category.id === 'store' ? 'storeConstraints' :
-                              category.id === 'history' ? 'historicalShifts' :
-                              category.id === 'sales' ? 'salesForecast' :
-                              category.id === 'staff' ? 'staffData' :
-                              category.id === 'calendar' ? 'japaneseEvents' :
-                              'weatherData'
-                            ]
+                            const isCollected =
+                              inputData?.inputs?.[
+                                category.id === 'legal'
+                                  ? 'legalRequirements'
+                                  : category.id === 'store'
+                                    ? 'storeConstraints'
+                                    : category.id === 'history'
+                                      ? 'historicalShifts'
+                                      : category.id === 'sales'
+                                        ? 'salesForecast'
+                                        : category.id === 'staff'
+                                          ? 'staffData'
+                                          : category.id === 'calendar'
+                                            ? 'japaneseEvents'
+                                            : 'weatherData'
+                              ]
 
                             return (
                               <div
@@ -1618,8 +1661,8 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                                   isCollected
                                     ? 'bg-green-100 border border-green-300'
                                     : isEnabled
-                                    ? 'bg-white border border-gray-200'
-                                    : 'bg-gray-50 border border-gray-200 opacity-60'
+                                      ? 'bg-white border border-gray-200'
+                                      : 'bg-gray-50 border border-gray-200 opacity-60'
                                 }`}
                               >
                                 <div className="flex items-center gap-2">
@@ -1665,36 +1708,50 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                               <div className="bg-white p-3 rounded text-xs max-h-96 overflow-y-auto border border-gray-300">
                                 {/* 参照ファイル一覧 */}
                                 <div className="mb-4">
-                                  <h5 className="font-semibold text-gray-800 mb-2">📂 参照したCSVファイル</h5>
-                                  {Object.entries(inputData.inputs).map(([key, value]) => (
-                                    value.files && value.files.length > 0 && (
-                                      <div key={key} className="mb-3 pl-2 border-l-2 border-blue-300">
-                                        <div className="font-semibold text-blue-700 mb-1">{value.source}</div>
-                                        <ul className="list-disc list-inside text-gray-600 space-y-1">
-                                          {value.files.map((file, idx) => (
-                                            <li key={idx} className="font-mono text-xs">{file}</li>
-                                          ))}
-                                        </ul>
-                                        {/* データ件数の詳細 */}
-                                        {value.summary && (
-                                          <div className="mt-1 text-gray-500 text-xs">
-                                            {Object.entries(value.summary).map(([sumKey, sumValue]) => (
-                                              sumKey.endsWith('Count') && (
-                                                <span key={sumKey} className="mr-3">
-                                                  {sumKey.replace('Count', '')}: {sumValue}件
-                                                </span>
-                                              )
-                                            ))}
+                                  <h5 className="font-semibold text-gray-800 mb-2">
+                                    📂 参照したCSVファイル
+                                  </h5>
+                                  {Object.entries(inputData.inputs).map(
+                                    ([key, value]) =>
+                                      value.files &&
+                                      value.files.length > 0 && (
+                                        <div
+                                          key={key}
+                                          className="mb-3 pl-2 border-l-2 border-blue-300"
+                                        >
+                                          <div className="font-semibold text-blue-700 mb-1">
+                                            {value.source}
                                           </div>
-                                        )}
-                                      </div>
-                                    )
-                                  ))}
+                                          <ul className="list-disc list-inside text-gray-600 space-y-1">
+                                            {value.files.map((file, idx) => (
+                                              <li key={idx} className="font-mono text-xs">
+                                                {file}
+                                              </li>
+                                            ))}
+                                          </ul>
+                                          {/* データ件数の詳細 */}
+                                          {value.summary && (
+                                            <div className="mt-1 text-gray-500 text-xs">
+                                              {Object.entries(value.summary).map(
+                                                ([sumKey, sumValue]) =>
+                                                  sumKey.endsWith('Count') && (
+                                                    <span key={sumKey} className="mr-3">
+                                                      {sumKey.replace('Count', '')}: {sumValue}件
+                                                    </span>
+                                                  )
+                                              )}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )
+                                  )}
                                 </div>
 
                                 {/* プロンプトプレビュー */}
                                 <div className="border-t border-gray-200 pt-3">
-                                  <h5 className="font-semibold text-gray-800 mb-2">📝 生成されるプロンプト（プレビュー）</h5>
+                                  <h5 className="font-semibold text-gray-800 mb-2">
+                                    📝 生成されるプロンプト（プレビュー）
+                                  </h5>
                                   <pre className="whitespace-pre-wrap text-gray-700 bg-gray-50 p-2 rounded">
                                     {formatInputsForPrompt(inputData).substring(0, 2000)}...
                                   </pre>
@@ -1721,11 +1778,13 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                   <textarea
                     className="w-full p-3 border border-gray-300 rounded-md resize-none"
                     rows="4"
-                    placeholder={aiMode === 'chat'
-                      ? "例: 2024年10月のシフトを分析してください。"
-                      : "例:\n週末は必ず2名以上配置\n田中さんは火曜日休み希望\n水曜日は営業時間を延長"}
+                    placeholder={
+                      aiMode === 'chat'
+                        ? '例: 2024年10月のシフトを分析してください。'
+                        : '例:\n週末は必ず2名以上配置\n田中さんは火曜日休み希望\n水曜日は営業時間を延長'
+                    }
                     value={aiPrompt}
-                    onChange={(e) => setAiPrompt(e.target.value)}
+                    onChange={e => setAiPrompt(e.target.value)}
                   />
                 </div>
 
@@ -1754,8 +1813,10 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                         onClick={buildAndShowPrompt}
                         disabled={inputLoading || (useAssistantsAPI && !vectorStoreId)}
                         size="sm"
-                        variant={showPromptEditor ? "outline" : "default"}
-                        className={showPromptEditor ? "flex-1" : "flex-1 bg-green-600 hover:bg-green-700"}
+                        variant={showPromptEditor ? 'outline' : 'default'}
+                        className={
+                          showPromptEditor ? 'flex-1' : 'flex-1 bg-green-600 hover:bg-green-700'
+                        }
                       >
                         {inputLoading ? (
                           <>
@@ -1805,14 +1866,15 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                   )}
                 </div>
 
-
                 {/* プロンプトエディター（シフト生成モードのみ） */}
                 {aiMode === 'generate' && showPromptEditor && (
                   <div className="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-300">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold text-gray-800 flex items-center gap-2">
                         <FileText className="h-4 w-4 text-yellow-600" />
-                        {useAssistantsAPI ? 'Assistants API用プロンプト（短縮版）' : '生成されたプロンプト（フル版）'}
+                        {useAssistantsAPI
+                          ? 'Assistants API用プロンプト（短縮版）'
+                          : '生成されたプロンプト（フル版）'}
                       </h4>
                       <Button
                         onClick={() => {
@@ -1834,16 +1896,15 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                       }`}
                       rows="12"
                       value={generatedPrompt}
-                      onChange={(e) => setGeneratedPrompt(e.target.value)}
+                      onChange={e => setGeneratedPrompt(e.target.value)}
                       readOnly={!isPromptEditable}
                     />
                     <p className="text-xs text-gray-600 mt-2">
                       {isPromptEditable
                         ? '⚠️ プロンプトを編集中です。「このプロンプトで生成」ボタンを押すとAIに送信されます。'
                         : useAssistantsAPI
-                        ? '💡 Assistants APIに送信される短いプロンプトです。固定データはVector Storeから参照されます。「編集」ボタンで変更も可能です。'
-                        : '💡 Chat Completions APIに送信される完全なプロンプトです。「編集」ボタンで変更も可能です。'
-                      }
+                          ? '💡 Assistants APIに送信される短いプロンプトです。固定データはVector Storeから参照されます。「編集」ボタンで変更も可能です。'
+                          : '💡 Chat Completions APIに送信される完全なプロンプトです。「編集」ボタンで変更も可能です。'}
                     </p>
                   </div>
                 )}
@@ -1882,7 +1943,9 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
 
                 {/* バリデーション結果（別セクション） */}
                 {generatedShiftValidation && (
-                  <div className={`mt-4 p-4 rounded-lg ${generatedShiftValidation.isValid ? 'bg-green-100' : 'bg-red-100'}`}>
+                  <div
+                    className={`mt-4 p-4 rounded-lg ${generatedShiftValidation.isValid ? 'bg-green-100' : 'bg-red-100'}`}
+                  >
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="font-semibold text-gray-800 flex items-center gap-2">
                         {generatedShiftValidation.isValid ? (
@@ -1893,7 +1956,8 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                         バリデーション結果
                       </h4>
                       <div className="flex gap-2">
-                        {(generatedShiftValidation.errorCount > 0 || generatedShiftValidation.warningCount > 0) && (
+                        {(generatedShiftValidation.errorCount > 0 ||
+                          generatedShiftValidation.warningCount > 0) && (
                           <Button
                             onClick={generateImprovementPrompt}
                             size="sm"
@@ -1934,10 +1998,16 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                         </Button>
                       </div>
                     </div>
-                    <div className={`p-3 rounded ${generatedShiftValidation.isValid ? 'bg-green-50' : 'bg-red-50'}`}>
+                    <div
+                      className={`p-3 rounded ${generatedShiftValidation.isValid ? 'bg-green-50' : 'bg-red-50'}`}
+                    >
                       <div className="flex items-center gap-2 mb-2">
-                        <span className={`font-bold ${generatedShiftValidation.isValid ? 'text-green-800' : 'text-red-800'}`}>
-                          {generatedShiftValidation.isValid ? '✓ 全ての制約をクリア' : '✗ 制約違反あり'}
+                        <span
+                          className={`font-bold ${generatedShiftValidation.isValid ? 'text-green-800' : 'text-red-800'}`}
+                        >
+                          {generatedShiftValidation.isValid
+                            ? '✓ 全ての制約をクリア'
+                            : '✗ 制約違反あり'}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-2 text-sm">
@@ -1957,8 +2027,13 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                         <h5 className="font-semibold text-red-700 mb-2">エラー詳細:</h5>
                         <ul className="space-y-2 max-h-60 overflow-y-auto">
                           {generatedShiftValidation.errors.map((error, idx) => (
-                            <li key={idx} className="text-sm bg-white p-2 rounded border-l-4 border-red-500">
-                              <span className="font-mono text-xs bg-red-200 px-2 py-1 rounded">{error.rule_id}</span>
+                            <li
+                              key={idx}
+                              className="text-sm bg-white p-2 rounded border-l-4 border-red-500"
+                            >
+                              <span className="font-mono text-xs bg-red-200 px-2 py-1 rounded">
+                                {error.rule_id}
+                              </span>
                               <p className="mt-1">{error.message}</p>
                             </li>
                           ))}
@@ -1971,8 +2046,13 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                         <h5 className="font-semibold text-orange-700 mb-2">警告一覧:</h5>
                         <ul className="space-y-2 max-h-40 overflow-y-auto">
                           {generatedShiftValidation.warnings.slice(0, 5).map((warning, idx) => (
-                            <li key={idx} className="text-sm bg-white p-2 rounded border-l-4 border-orange-500">
-                              <span className="font-mono text-xs bg-orange-200 px-2 py-1 rounded">{warning.rule_id}</span>
+                            <li
+                              key={idx}
+                              className="text-sm bg-white p-2 rounded border-l-4 border-orange-500"
+                            >
+                              <span className="font-mono text-xs bg-orange-200 px-2 py-1 rounded">
+                                {warning.rule_id}
+                              </span>
                               <p className="mt-1">{warning.message}</p>
                             </li>
                           ))}
@@ -2022,30 +2102,47 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                   {/* ログ一覧表示 */}
                   {showLogs && conversationLog.length > 0 && (
                     <div className="mt-3 space-y-2 max-h-96 overflow-y-auto">
-                      {conversationLog.slice().reverse().map((log, idx) => (
-                        <div key={idx} className="bg-white p-3 rounded border border-green-300 text-xs">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-semibold text-green-700">
-                              #{conversationLog.length - idx} - {log.mode === 'chat' ? 'AI対話' : 'シフト生成'}
-                            </span>
-                            <span className="text-gray-500">{new Date(log.timestamp).toLocaleString('ja-JP')}</span>
-                          </div>
-                          <div className="space-y-2">
-                            <div>
-                              <div className="font-semibold text-gray-700 mb-1">📤 ユーザー入力:</div>
-                              <pre className="whitespace-pre-wrap bg-gray-50 p-2 rounded text-xs max-h-32 overflow-y-auto">
-                                {log.userInput.length > 500 ? log.userInput.substring(0, 500) + '...' : log.userInput}
-                              </pre>
+                      {conversationLog
+                        .slice()
+                        .reverse()
+                        .map((log, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-white p-3 rounded border border-green-300 text-xs"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-semibold text-green-700">
+                                #{conversationLog.length - idx} -{' '}
+                                {log.mode === 'chat' ? 'AI対話' : 'シフト生成'}
+                              </span>
+                              <span className="text-gray-500">
+                                {new Date(log.timestamp).toLocaleString('ja-JP')}
+                              </span>
                             </div>
-                            <div>
-                              <div className="font-semibold text-gray-700 mb-1">📥 AI応答 ({log.responseLength}文字):</div>
-                              <pre className="whitespace-pre-wrap bg-gray-50 p-2 rounded text-xs max-h-32 overflow-y-auto">
-                                {log.aiResponse.length > 500 ? log.aiResponse.substring(0, 500) + '...' : log.aiResponse}
-                              </pre>
+                            <div className="space-y-2">
+                              <div>
+                                <div className="font-semibold text-gray-700 mb-1">
+                                  📤 ユーザー入力:
+                                </div>
+                                <pre className="whitespace-pre-wrap bg-gray-50 p-2 rounded text-xs max-h-32 overflow-y-auto">
+                                  {log.userInput.length > 500
+                                    ? log.userInput.substring(0, 500) + '...'
+                                    : log.userInput}
+                                </pre>
+                              </div>
+                              <div>
+                                <div className="font-semibold text-gray-700 mb-1">
+                                  📥 AI応答 ({log.responseLength}文字):
+                                </div>
+                                <pre className="whitespace-pre-wrap bg-gray-50 p-2 rounded text-xs max-h-32 overflow-y-auto">
+                                  {log.aiResponse.length > 500
+                                    ? log.aiResponse.substring(0, 500) + '...'
+                                    : log.aiResponse}
+                                </pre>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   )}
                 </div>
@@ -2054,7 +2151,8 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                 <div className="bg-purple-50 p-3 rounded border border-purple-200">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-xs text-purple-800">
-                      📋 <strong>バリデーションログ:</strong> {validationLog.length}件 / {LOG_THRESHOLD}件
+                      📋 <strong>バリデーションログ:</strong> {validationLog.length}件 /{' '}
+                      {LOG_THRESHOLD}件
                       {validationLog.length > 0 && ` (ファイル #${currentValidationLogFile})`}
                     </p>
                     <div className="flex gap-2">
@@ -2085,60 +2183,76 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                   {/* バリデーションログ一覧表示 */}
                   {showValidationLogs && validationLog.length > 0 && (
                     <div className="mt-3 space-y-2 max-h-96 overflow-y-auto">
-                      {validationLog.slice().reverse().map((log, idx) => (
-                        <div key={idx} className="bg-white p-3 rounded border border-purple-300 text-xs">
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="font-semibold text-purple-700">
-                              #{validationLog.length - idx} - バリデーション結果
-                            </span>
-                            <span className="text-gray-500">{new Date(log.timestamp).toLocaleString('ja-JP')}</span>
-                          </div>
-                          <div className="space-y-2">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xs text-gray-600">対話ログID:</span>
-                              <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">{log.conversationLogId}</span>
+                      {validationLog
+                        .slice()
+                        .reverse()
+                        .map((log, idx) => (
+                          <div
+                            key={idx}
+                            className="bg-white p-3 rounded border border-purple-300 text-xs"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="font-semibold text-purple-700">
+                                #{validationLog.length - idx} - バリデーション結果
+                              </span>
+                              <span className="text-gray-500">
+                                {new Date(log.timestamp).toLocaleString('ja-JP')}
+                              </span>
                             </div>
-                            <div className={`p-2 rounded ${log.isValid ? 'bg-green-100' : 'bg-red-100'}`}>
-                              <div className="font-semibold mb-1">
-                                {log.isValid ? '✓ 合格' : '✗ 不合格'}
+                            <div className="space-y-2">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs text-gray-600">対話ログID:</span>
+                                <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
+                                  {log.conversationLogId}
+                                </span>
                               </div>
-                              <div className="text-xs">
-                                エラー: {log.errorCount}件 | 警告: {log.warningCount}件
+                              <div
+                                className={`p-2 rounded ${log.isValid ? 'bg-green-100' : 'bg-red-100'}`}
+                              >
+                                <div className="font-semibold mb-1">
+                                  {log.isValid ? '✓ 合格' : '✗ 不合格'}
+                                </div>
+                                <div className="text-xs">
+                                  エラー: {log.errorCount}件 | 警告: {log.warningCount}件
+                                </div>
                               </div>
+                              {log.errors.length > 0 && (
+                                <div>
+                                  <div className="font-semibold text-red-700 mb-1">エラー:</div>
+                                  <ul className="space-y-1">
+                                    {log.errors.slice(0, 3).map((error, idx) => (
+                                      <li key={idx} className="text-xs bg-red-50 p-1 rounded">
+                                        [{error.rule_id}] {error.message}
+                                      </li>
+                                    ))}
+                                    {log.errors.length > 3 && (
+                                      <li className="text-xs text-gray-500">
+                                        ...他 {log.errors.length - 3} 件
+                                      </li>
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
+                              {log.warnings.length > 0 && (
+                                <div>
+                                  <div className="font-semibold text-orange-700 mb-1">警告:</div>
+                                  <ul className="space-y-1">
+                                    {log.warnings.slice(0, 2).map((warning, idx) => (
+                                      <li key={idx} className="text-xs bg-orange-50 p-1 rounded">
+                                        [{warning.rule_id}] {warning.message}
+                                      </li>
+                                    ))}
+                                    {log.warnings.length > 2 && (
+                                      <li className="text-xs text-gray-500">
+                                        ...他 {log.warnings.length - 2} 件
+                                      </li>
+                                    )}
+                                  </ul>
+                                </div>
+                              )}
                             </div>
-                            {log.errors.length > 0 && (
-                              <div>
-                                <div className="font-semibold text-red-700 mb-1">エラー:</div>
-                                <ul className="space-y-1">
-                                  {log.errors.slice(0, 3).map((error, idx) => (
-                                    <li key={idx} className="text-xs bg-red-50 p-1 rounded">
-                                      [{error.rule_id}] {error.message}
-                                    </li>
-                                  ))}
-                                  {log.errors.length > 3 && (
-                                    <li className="text-xs text-gray-500">...他 {log.errors.length - 3} 件</li>
-                                  )}
-                                </ul>
-                              </div>
-                            )}
-                            {log.warnings.length > 0 && (
-                              <div>
-                                <div className="font-semibold text-orange-700 mb-1">警告:</div>
-                                <ul className="space-y-1">
-                                  {log.warnings.slice(0, 2).map((warning, idx) => (
-                                    <li key={idx} className="text-xs bg-orange-50 p-1 rounded">
-                                      [{warning.rule_id}] {warning.message}
-                                    </li>
-                                  ))}
-                                  {log.warnings.length > 2 && (
-                                    <li className="text-xs text-gray-500">...他 {log.warnings.length - 2} 件</li>
-                                  )}
-                                </ul>
-                              </div>
-                            )}
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
                   )}
 
@@ -2149,13 +2263,18 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
 
                 <div className="bg-blue-50 p-3 rounded border border-blue-200">
                   <p className="text-xs text-blue-800">
-                    💡 <strong>設定方法:</strong> .envファイルにVITE_OPENAI_API_KEY=your_api_keyを設定してください。
+                    💡 <strong>設定方法:</strong>{' '}
+                    .envファイルにVITE_OPENAI_API_KEY=your_api_keyを設定してください。
                     <br />
                     <strong>AI対話モード:</strong> GPT-4で自由に質問や分析ができます。
                     <br />
-                    <strong>シフト生成モード:</strong> Assistants APIを使用してシフトを自動生成します。Vector Storeに固定データを保存し、短いプロンプトで高速生成します（初回セットアップ必要）。
+                    <strong>シフト生成モード:</strong> Assistants
+                    APIを使用してシフトを自動生成します。Vector
+                    Storeに固定データを保存し、短いプロンプトで高速生成します（初回セットアップ必要）。
                     <br />
-                    <strong>ログ機能:</strong> すべての対話履歴とバリデーション結果をIndexedDBに自動記録し、{LOG_THRESHOLD}件溜まると自動的に.logファイルに保存してローテーションされます。
+                    <strong>ログ機能:</strong>{' '}
+                    すべての対話履歴とバリデーション結果をIndexedDBに自動記録し、{LOG_THRESHOLD}
+                    件溜まると自動的に.logファイルに保存してローテーションされます。
                   </p>
                 </div>
               </div>

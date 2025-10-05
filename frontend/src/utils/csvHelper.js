@@ -42,14 +42,14 @@ export const importCSV = (file, onSuccess, onError, validator = null) => {
 
   const reader = new FileReader()
 
-  reader.onload = (e) => {
+  reader.onload = e => {
     try {
       const text = e.target.result
       Papa.parse(text, {
         header: true,
         skipEmptyLines: true,
         dynamicTyping: false,
-        complete: (result) => {
+        complete: result => {
           if (result.errors.length > 0) {
             const errorMsg = result.errors.map(err => err.message).join('\n')
             onError(`CSVパースエラー:\n${errorMsg}`)
@@ -67,9 +67,9 @@ export const importCSV = (file, onSuccess, onError, validator = null) => {
 
           onSuccess(result.data)
         },
-        error: (error) => {
+        error: error => {
           onError(`CSVファイル読み込みエラー: ${error.message}`)
-        }
+        },
       })
     } catch (error) {
       onError(`予期しないエラー: ${error.message}`)
@@ -86,7 +86,7 @@ export const importCSV = (file, onSuccess, onError, validator = null) => {
 /**
  * スタッフCSVバリデーション
  */
-export const validateStaffCSV = (data) => {
+export const validateStaffCSV = data => {
   const requiredFields = ['staff_id', 'name', 'role_id', 'employment_type']
 
   if (data.length === 0) {
@@ -99,7 +99,7 @@ export const validateStaffCSV = (data) => {
   if (missingFields.length > 0) {
     return {
       valid: false,
-      message: `必須フィールドが不足しています: ${missingFields.join(', ')}`
+      message: `必須フィールドが不足しています: ${missingFields.join(', ')}`,
     }
   }
 
@@ -109,7 +109,7 @@ export const validateStaffCSV = (data) => {
   if (duplicates.length > 0) {
     return {
       valid: false,
-      message: `重複したstaff_idが存在します: ${[...new Set(duplicates)].join(', ')}`
+      message: `重複したstaff_idが存在します: ${[...new Set(duplicates)].join(', ')}`,
     }
   }
 
@@ -119,7 +119,7 @@ export const validateStaffCSV = (data) => {
 /**
  * 店舗CSVバリデーション
  */
-export const validateStoreCSV = (data) => {
+export const validateStoreCSV = data => {
   const requiredFields = ['store_id', 'store_name', 'store_code']
 
   if (data.length === 0) {
@@ -132,7 +132,7 @@ export const validateStoreCSV = (data) => {
   if (missingFields.length > 0) {
     return {
       valid: false,
-      message: `必須フィールドが不足しています: ${missingFields.join(', ')}`
+      message: `必須フィールドが不足しています: ${missingFields.join(', ')}`,
     }
   }
 
@@ -142,7 +142,7 @@ export const validateStoreCSV = (data) => {
 /**
  * 制約CSVバリデーション
  */
-export const validateConstraintCSV = (data) => {
+export const validateConstraintCSV = data => {
   const requiredFields = ['constraint_id', 'constraint_name', 'constraint_type']
 
   if (data.length === 0) {
@@ -155,7 +155,7 @@ export const validateConstraintCSV = (data) => {
   if (missingFields.length > 0) {
     return {
       valid: false,
-      message: `必須フィールドが不足しています: ${missingFields.join(', ')}`
+      message: `必須フィールドが不足しています: ${missingFields.join(', ')}`,
     }
   }
 

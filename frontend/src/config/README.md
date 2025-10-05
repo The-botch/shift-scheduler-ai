@@ -107,7 +107,7 @@ import {
   SHIFT_PATTERNS,
   getPatternByCode,
   getPatternName,
-  calculatePatternHours
+  calculatePatternHours,
 } from '@/config/shiftPatterns'
 
 // パターン情報の取得
@@ -129,10 +129,10 @@ const hours = calculatePatternHours('EARLY') // 7.0
 // 悪い例 ❌
 const staffResponse = await fetch('/data/master/staff.csv')
 
-const getRoleColor = (role) => {
+const getRoleColor = role => {
   const colorMap = {
-    '店長': 'bg-red-500',
-    'リーダー': 'bg-purple-500',
+    店長: 'bg-red-500',
+    リーダー: 'bg-purple-500',
     // ...
   }
   return colorMap[role] || 'bg-gray-500'
@@ -163,7 +163,7 @@ const weekday = WEEKDAYS[0]
 ```javascript
 // constants.js に追加
 export const NEW_CONSTANT = {
-  KEY: 'value'
+  KEY: 'value',
 }
 
 // index.js で再エクスポート

@@ -7,7 +7,7 @@ export const SHIFT_PATTERNS = {
     startTime: '09:00',
     endTime: '17:00',
     breakMinutes: 60,
-    description: '朝から夕方までの勤務'
+    description: '朝から夕方までの勤務',
   },
   MID: {
     code: 'MID',
@@ -15,7 +15,7 @@ export const SHIFT_PATTERNS = {
     startTime: '13:00',
     endTime: '21:00',
     breakMinutes: 60,
-    description: '昼から夜までの勤務'
+    description: '昼から夜までの勤務',
   },
   LATE: {
     code: 'LATE',
@@ -23,7 +23,7 @@ export const SHIFT_PATTERNS = {
     startTime: '17:00',
     endTime: '22:00',
     breakMinutes: 0,
-    description: '夕方から閉店までの勤務'
+    description: '夕方から閉店までの勤務',
   },
   SHORT_AM: {
     code: 'SHORT_AM',
@@ -31,7 +31,7 @@ export const SHIFT_PATTERNS = {
     startTime: '09:00',
     endTime: '13:00',
     breakMinutes: 0,
-    description: '午前中のみの短時間勤務'
+    description: '午前中のみの短時間勤務',
   },
   SHORT_PM: {
     code: 'SHORT_PM',
@@ -39,7 +39,7 @@ export const SHIFT_PATTERNS = {
     startTime: '14:00',
     endTime: '18:00',
     breakMinutes: 0,
-    description: '午後のみの短時間勤務'
+    description: '午後のみの短時間勤務',
   },
   FULL: {
     code: 'FULL',
@@ -47,20 +47,20 @@ export const SHIFT_PATTERNS = {
     startTime: '09:00',
     endTime: '22:00',
     breakMinutes: 120,
-    description: '開店から閉店までの長時間勤務'
-  }
+    description: '開店から閉店までの長時間勤務',
+  },
 }
 
 // パターンコードの配列
 export const PATTERN_CODES = Object.keys(SHIFT_PATTERNS)
 
 // パターン名からパターンを取得
-export const getPatternByCode = (code) => {
+export const getPatternByCode = code => {
   return SHIFT_PATTERNS[code] || null
 }
 
 // パターンの労働時間を計算
-export const calculatePatternHours = (patternCode) => {
+export const calculatePatternHours = patternCode => {
   const pattern = SHIFT_PATTERNS[patternCode]
   if (!pattern) return 0
 
@@ -77,12 +77,12 @@ export const getAllPatterns = () => {
 }
 
 // パターンコードから名前を取得
-export const getPatternName = (code) => {
+export const getPatternName = code => {
   return SHIFT_PATTERNS[code]?.name || '不明'
 }
 
 // パターンコードから時間範囲を取得
-export const getPatternTimeRange = (code) => {
+export const getPatternTimeRange = code => {
   const pattern = SHIFT_PATTERNS[code]
   if (!pattern) return ''
   return `${pattern.startTime}-${pattern.endTime}`

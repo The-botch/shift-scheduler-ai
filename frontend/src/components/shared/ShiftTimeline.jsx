@@ -15,7 +15,7 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
   }
 
   // 時間表示用のラベル
-  const getHourLabel = (hour) => {
+  const getHourLabel = hour => {
     if (hour < 24) {
       return `${hour}:00`
     } else {
@@ -24,7 +24,7 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
   }
 
   // 時間を分に変換（深夜営業対応）
-  const timeToMinutes = (timeStr) => {
+  const timeToMinutes = timeStr => {
     const [hour, minute] = timeStr.split(':').map(Number)
     // 0-6時は翌日として扱う（24-30時として計算）
     let actualHour = hour
@@ -35,7 +35,7 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
   }
 
   // 分を時間位置（%）に変換
-  const minutesToPosition = (minutes) => {
+  const minutesToPosition = minutes => {
     const startMinutes = startHour * 60
     const endMinutes = endHour * 60
     const totalMinutes = endMinutes - startMinutes
@@ -43,21 +43,21 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
   }
 
   // シフトブロックのスタイル計算
-  const getShiftStyle = (shift) => {
+  const getShiftStyle = shift => {
     const startMinutes = timeToMinutes(shift.start_time)
     const endMinutes = timeToMinutes(shift.end_time)
     const duration = endMinutes - startMinutes
 
     return {
       top: `${minutesToPosition(startMinutes)}%`,
-      height: `${(duration / ((endHour - startHour) * 60)) * 100}%`
+      height: `${(duration / ((endHour - startHour) * 60)) * 100}%`,
     }
   }
 
   // 重なりを検出して列を計算
   const calculateOverlaps = () => {
-    const sorted = [...shifts].sort((a, b) =>
-      timeToMinutes(a.start_time) - timeToMinutes(b.start_time)
+    const sorted = [...shifts].sort(
+      (a, b) => timeToMinutes(a.start_time) - timeToMinutes(b.start_time)
     )
 
     const columns = []
@@ -99,20 +99,17 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
   // 凡例用の役職リスト（コンフィグから生成）
   const roleLegend = Object.keys(ROLE_COLORS).map(roleName => ({
     name: roleName,
-    color: ROLE_COLORS[roleName].bg
+    color: ROLE_COLORS[roleName].bg,
   }))
 
   return (
-    <div
-      className="fixed inset-0 flex items-center justify-center z-50 p-4"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
         className="bg-white rounded-lg shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col"
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         {/* ヘッダー */}
         <div className="border-b bg-gray-50 px-6 py-4 flex-shrink-0">
@@ -126,7 +123,8 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
           </div>
           <div className="flex items-center justify-between mt-2">
             <p className="text-sm text-gray-600">
-              {shifts.length}名のスタッフが勤務 · {columns > 1 ? `最大${columns}名の重なり` : '重なりなし'}
+              {shifts.length}名のスタッフが勤務 ·{' '}
+              {columns > 1 ? `最大${columns}名の重なり` : '重なりなし'}
             </p>
             {/* 凡例 */}
             <div className="flex items-center gap-3">
@@ -147,10 +145,7 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
             {/* 時間軸（左側） */}
             <div className="w-20 flex-shrink-0 border-r bg-gray-50">
               {hours.map((hour, index) => (
-                <div
-                  key={hour}
-                  className="relative h-[60px] border-b border-gray-200"
-                >
+                <div key={hour} className="relative h-[60px] border-b border-gray-200">
                   <div className="absolute -top-2 left-2 text-xs font-medium text-gray-600">
                     {getHourLabel(hour)}
                   </div>
@@ -163,11 +158,8 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
             {/* シフトブロック（右側） */}
             <div className="flex-1 relative">
               {/* 時間グリッド背景 */}
-              {hours.map((hour) => (
-                <div
-                  key={`grid-${hour}`}
-                  className="h-[60px] border-b border-gray-200"
-                />
+              {hours.map(hour => (
+                <div key={`grid-${hour}`} className="h-[60px] border-b border-gray-200" />
               ))}
 
               {/* シフトブロック */}
@@ -189,16 +181,12 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
                         height: style.height,
                         left: `${left}%`,
                         width: `${columnWidth - 1}%`,
-                        minHeight: '40px'
+                        minHeight: '40px',
                       }}
                     >
                       <div className="p-2 h-full text-white">
-                        <div className="font-bold text-sm mb-0.5 truncate">
-                          {shift.staff_name}
-                        </div>
-                        <div className="text-xs opacity-90">
-                          {shift.role}
-                        </div>
+                        <div className="font-bold text-sm mb-0.5 truncate">{shift.staff_name}</div>
+                        <div className="text-xs opacity-90">{shift.role}</div>
                         <div className="text-xs mt-1 font-medium">
                           {shift.start_time} - {shift.end_time}
                         </div>

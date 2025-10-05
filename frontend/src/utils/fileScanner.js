@@ -20,11 +20,7 @@ export const getShiftCsvFiles = async () => {
     const fileName = path.split('/').pop()
 
     // シフト関連のファイルのみフィルタ
-    if (
-      fileName.includes('shift') ||
-      path.includes('transactions') ||
-      path.includes('history')
-    ) {
+    if (fileName.includes('shift') || path.includes('transactions') || path.includes('history')) {
       // カテゴリを判定
       let category = 'その他'
 
@@ -40,7 +36,7 @@ export const getShiftCsvFiles = async () => {
         path: publicPath,
         fileName,
         category,
-        fullPath: path
+        fullPath: path,
       })
     }
   }
@@ -67,11 +63,11 @@ export const loadAndConvertShiftData = async (filePath, Papa) => {
   const response = await fetch(filePath)
   const csvText = await response.text()
 
-  const result = await new Promise((resolve) => {
+  const result = await new Promise(resolve => {
     Papa.parse(csvText, {
       header: true,
       skipEmptyLines: true,
-      complete: resolve
+      complete: resolve,
     })
   })
 
@@ -151,7 +147,7 @@ const autoConvertShiftData = (data, filePath) => {
         start_time: row.start_time,
         end_time: row.end_time,
         break_minutes: breakMinutes,
-        total_hours: totalHours
+        total_hours: totalHours,
       })
     } catch (error) {
       console.warn('行の変換に失敗:', row, error)

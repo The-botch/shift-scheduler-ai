@@ -18,7 +18,7 @@ import {
   DollarSign,
   Users as UsersIcon,
   Loader2,
-  AlertTriangle
+  AlertTriangle,
 } from 'lucide-react'
 import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'
@@ -28,13 +28,13 @@ import AppHeader from '../shared/AppHeader'
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
   in: { opacity: 1, y: 0 },
-  out: { opacity: 0, y: -20 }
+  out: { opacity: 0, y: -20 },
 }
 
 const pageTransition = {
   type: 'tween',
   ease: 'anticipate',
-  duration: 0.5
+  duration: 0.5,
 }
 
 // カレンダービューコンポーネント
@@ -81,17 +81,22 @@ const CalendarView = ({ selectedMonth, calendarData, onDayClick }) => {
             <motion.div
               key={day}
               className={`p-1 border rounded min-h-[60px] cursor-pointer hover:shadow-md transition-shadow ${
-                hasModified ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100' :
-                isWeekend ? 'bg-blue-50 border-blue-200 hover:bg-blue-100' : 'border-gray-200 hover:bg-gray-50'
+                hasModified
+                  ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
+                  : isWeekend
+                    ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                    : 'border-gray-200 hover:bg-gray-50'
               }`}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.01 }}
               onClick={() => dayShifts.length > 0 && onDayClick(day)}
             >
-              <div className={`text-xs font-bold mb-0.5 ${
-                hasModified ? 'text-yellow-700' : 'text-gray-700'
-              }`}>
+              <div
+                className={`text-xs font-bold mb-0.5 ${
+                  hasModified ? 'text-yellow-700' : 'text-gray-700'
+                }`}
+              >
                 {day}
               </div>
               {dayShifts.slice(0, 2).map((shift, idx) => (
@@ -106,14 +111,18 @@ const CalendarView = ({ selectedMonth, calendarData, onDayClick }) => {
                   animate={{ opacity: 1 }}
                   transition={{ delay: index * 0.01 + idx * 0.05 }}
                 >
-                  <div className={`font-medium text-xs leading-tight ${
-                    shift.modified_flag ? 'text-yellow-900' : 'text-green-800'
-                  }`}>
+                  <div
+                    className={`font-medium text-xs leading-tight ${
+                      shift.modified_flag ? 'text-yellow-900' : 'text-green-800'
+                    }`}
+                  >
                     {shift.staff_name}
                   </div>
-                  <div className={`text-xs ${
-                    shift.modified_flag ? 'text-yellow-700' : 'text-green-700'
-                  }`}>
+                  <div
+                    className={`text-xs ${
+                      shift.modified_flag ? 'text-yellow-700' : 'text-green-700'
+                    }`}
+                  >
                     {shift.start_time}-{shift.end_time}
                   </div>
                 </motion.div>
@@ -155,7 +164,7 @@ const History = ({
   onStaffManagement,
   onStoreManagement,
   onConstraintManagement,
-  onBudgetActualManagement
+  onBudgetActualManagement,
 }) => {
   const [loading, setLoading] = useState(true)
   const [monthlySummary, setMonthlySummary] = useState([])
@@ -201,8 +210,8 @@ const History = ({
       [key]: {
         ...monthStatus[key],
         ...status,
-        updated_at: new Date().toISOString()
-      }
+        updated_at: new Date().toISOString(),
+      },
     }
     setMonthStatus(newStatus)
     localStorage.setItem('month_status', JSON.stringify(newStatus))
@@ -211,11 +220,13 @@ const History = ({
   // 月のステータス取得
   const getMonthStatus = (year, month) => {
     const key = `${year}_${month}`
-    return monthStatus[key] || {
-      shift_status: 'draft', // 'draft' | 'approved' | 'completed'
-      actual_imported: false,
-      actual_import_date: null
-    }
+    return (
+      monthStatus[key] || {
+        shift_status: 'draft', // 'draft' | 'approved' | 'completed'
+        actual_imported: false,
+        actual_import_date: null,
+      }
+    )
   }
 
   const loadHistoryData = async () => {
@@ -225,24 +236,24 @@ const History = ({
       // スタッフマスターデータを読み込み
       const staffResponse = await fetch('/data/master/staff.csv')
       const staffText = await staffResponse.text()
-      const staffResult = await new Promise((resolve) => {
+      const staffResult = await new Promise(resolve => {
         Papa.parse(staffText, {
           header: true,
           dynamicTyping: false,
           skipEmptyLines: true,
-          complete: resolve
+          complete: resolve,
         })
       })
 
       // 役職マスターデータを読み込み
       const rolesResponse = await fetch('/data/master/roles.csv')
       const rolesText = await rolesResponse.text()
-      const rolesResult = await new Promise((resolve) => {
+      const rolesResult = await new Promise(resolve => {
         Papa.parse(rolesText, {
           header: true,
           dynamicTyping: false,
           skipEmptyLines: true,
-          complete: resolve
+          complete: resolve,
         })
       })
 
@@ -262,12 +273,12 @@ const History = ({
       // 月次サマリーを読み込み
       const summaryResponse = await fetch('/data/history/shift_monthly_summary.csv')
       const summaryText = await summaryResponse.text()
-      const summaryResult = await new Promise((resolve) => {
+      const summaryResult = await new Promise(resolve => {
         Papa.parse(summaryText, {
           header: true,
           dynamicTyping: true,
           skipEmptyLines: true,
-          complete: resolve
+          complete: resolve,
         })
       })
 
@@ -279,7 +290,7 @@ const History = ({
       // 全ての月に確定済みステータスを設定
       summaryData = summaryData.map(s => ({
         ...s,
-        status: 'completed'
+        status: 'completed',
       }))
 
       // 2024年10月を除外（承認がない限り表示しない）
@@ -296,7 +307,7 @@ const History = ({
           total_shifts: approvedData.stats.totalShifts || 0,
           fill_rate: 97,
           notes: `第2案確定済み (${new Date(approvedData.approvedAt).toLocaleDateString('ja-JP')}) - ${approvedData.stats.resolvedIssues}/${approvedData.stats.totalIssues}問題解決済み`,
-          status: 'second_plan_approved'
+          status: 'second_plan_approved',
         }
         summaryData.push(approvedSummary)
       } else if (approvedFirstPlan) {
@@ -310,7 +321,7 @@ const History = ({
           total_shifts: approvedData.stats.totalShifts || 0,
           fill_rate: 95, // 仮の充足率
           notes: `第1案仮承認 (${new Date(approvedData.approvedAt).toLocaleDateString('ja-JP')})`,
-          status: 'first_plan_approved'
+          status: 'first_plan_approved',
         }
 
         summaryData.push(approvedSummary)
@@ -321,12 +332,12 @@ const History = ({
       // 過去のシフト履歴を読み込み
       const historyResponse = await fetch('/data/history/shift_history_2023-2024.csv')
       const historyText = await historyResponse.text()
-      const historyResult = await new Promise((resolve) => {
+      const historyResult = await new Promise(resolve => {
         Papa.parse(historyText, {
           header: true,
           dynamicTyping: true,
           skipEmptyLines: true,
-          complete: resolve
+          complete: resolve,
         })
       })
       setShiftHistory(historyResult.data)
@@ -334,12 +345,12 @@ const History = ({
       // 10月のシフトデータを読み込み
       const octoberResponse = await fetch('/data/history/shift_october_2024.csv')
       const octoberText = await octoberResponse.text()
-      const octoberResult = await new Promise((resolve) => {
+      const octoberResult = await new Promise(resolve => {
         Papa.parse(octoberText, {
           header: true,
           dynamicTyping: true,
           skipEmptyLines: true,
-          complete: resolve
+          complete: resolve,
         })
       })
       setOctoberShifts(octoberResult.data)
@@ -374,7 +385,7 @@ const History = ({
           skill_level: shift.skill_level,
           planned_hours: shift.total_hours,
           actual_hours: shift.total_hours,
-          modified_flag: shift.is_modified || false
+          modified_flag: shift.is_modified || false,
         }
       })
 
@@ -404,7 +415,7 @@ const History = ({
             skill_level: shift.skill,
             planned_hours: shift.hours,
             actual_hours: shift.hours,
-            modified_flag: false
+            modified_flag: false,
           })
         })
       })
@@ -417,7 +428,7 @@ const History = ({
         const roleName = staff ? rolesMap[staff.role_id] : shift.role || '一般スタッフ'
         return {
           ...shift,
-          role: roleName
+          role: roleName,
         }
       })
       setDetailShifts(transformedOctober)
@@ -429,7 +440,7 @@ const History = ({
         const roleName = staff ? rolesMap[staff.role_id] : shift.role || '一般スタッフ'
         return {
           ...shift,
-          role: roleName
+          role: roleName,
         }
       })
       setDetailShifts(transformedHistory)
@@ -452,24 +463,26 @@ const History = ({
     const result = exportCSV(detailShifts, filename)
 
     if (result.success) {
-      alert(`✅ ${selectedMonth.year}年${selectedMonth.month}月のシフトデータをエクスポートしました`)
+      alert(
+        `✅ ${selectedMonth.year}年${selectedMonth.month}月のシフトデータをエクスポートしました`
+      )
     } else {
       alert(`❌ エクスポートに失敗しました: ${result.error}`)
     }
   }
 
   // 実績CSVインポート
-  const handleImportActual = (event) => {
+  const handleImportActual = event => {
     const file = event.target.files[0]
     if (!file) return
 
     const reader = new FileReader()
-    reader.onload = (e) => {
+    reader.onload = e => {
       Papa.parse(e.target.result, {
         header: true,
         dynamicTyping: true,
         skipEmptyLines: true,
-        complete: (results) => {
+        complete: results => {
           if (results.data && results.data.length > 0) {
             // 実績データを保存
             setActualData(results.data)
@@ -481,7 +494,7 @@ const History = ({
             if (selectedMonth) {
               saveMonthStatus(selectedMonth.year, selectedMonth.month, {
                 actual_imported: true,
-                actual_import_date: new Date().toISOString()
+                actual_import_date: new Date().toISOString(),
               })
             }
 
@@ -490,9 +503,9 @@ const History = ({
             alert('❌ 有効なデータが見つかりませんでした')
           }
         },
-        error: (error) => {
+        error: error => {
           alert(`❌ インポートエラー: ${error.message}`)
-        }
+        },
       })
     }
     reader.readAsText(file)
@@ -501,7 +514,7 @@ const History = ({
   }
 
   // 予定vs実績の差分分析
-  const analyzeDifference = (actualShifts) => {
+  const analyzeDifference = actualShifts => {
     if (!selectedMonth || !detailShifts || detailShifts.length === 0) {
       alert('予定データが見つかりません')
       return
@@ -517,10 +530,10 @@ const History = ({
         hoursDiff: 0,
         plannedCost: 0,
         actualCost: 0,
-        costDiff: 0
+        costDiff: 0,
       },
       staffDiff: {},
-      dateDiff: {}
+      dateDiff: {},
     }
 
     // 予定データを日付×スタッフでマッピング
@@ -552,7 +565,7 @@ const History = ({
           plannedHours: 0,
           actualHours: 0,
           hoursDiff: 0,
-          differences: []
+          differences: [],
         }
       }
       const staffData = analysis.staffDiff[shift.staff_id]
@@ -570,7 +583,7 @@ const History = ({
             date: shift.date,
             plannedHours,
             actualHours,
-            diff: hoursDiff
+            diff: hoursDiff,
           })
         }
         delete plannedMap[key] // 処理済みをマーク
@@ -581,7 +594,7 @@ const History = ({
           plannedHours: 0,
           actualHours,
           diff: actualHours,
-          type: 'added'
+          type: 'added',
         })
       }
     })
@@ -596,7 +609,7 @@ const History = ({
           plannedHours: 0,
           actualHours: 0,
           hoursDiff: 0,
-          differences: []
+          differences: [],
         }
       }
       const staffData = analysis.staffDiff[planned.staff_id]
@@ -608,7 +621,7 @@ const History = ({
         plannedHours,
         actualHours: 0,
         diff: -plannedHours,
-        type: 'removed'
+        type: 'removed',
       })
     })
 
@@ -624,7 +637,7 @@ const History = ({
     setShowDiff(true)
   }
 
-  const handleDayClick = (day) => {
+  const handleDayClick = day => {
     const shifts = detailShifts.filter(s => s.date === day)
     setDayShifts(shifts)
     setSelectedDay(day)
@@ -671,7 +684,7 @@ const History = ({
           totalHours: 0,
           weekdayDays: 0,
           weekendDays: 0,
-          modifiedCount: 0
+          modifiedCount: 0,
         }
       }
 
@@ -700,15 +713,15 @@ const History = ({
     return (
       <div className="min-h-screen bg-slate-50">
         <AppHeader
-        onHome={onHome}
-        onShiftManagement={onShiftManagement}
-        onLineMessages={onLineMessages}
-        onMonitoring={onMonitoring}
-        onStaffManagement={onStaffManagement}
-        onStoreManagement={onStoreManagement}
-        onConstraintManagement={onConstraintManagement}
-        onBudgetActualManagement={onBudgetActualManagement}
-      />
+          onHome={onHome}
+          onShiftManagement={onShiftManagement}
+          onLineMessages={onLineMessages}
+          onMonitoring={onMonitoring}
+          onStaffManagement={onStaffManagement}
+          onStoreManagement={onStoreManagement}
+          onConstraintManagement={onConstraintManagement}
+          onBudgetActualManagement={onBudgetActualManagement}
+        />
 
         <motion.div
           initial="initial"
@@ -719,8 +732,8 @@ const History = ({
           className="app-container"
         >
           <div className="flex flex-col items-center justify-center min-h-[400px]">
-          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-          <p className="text-lg text-gray-600">履歴データを読み込んでいます...</p>
+            <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+            <p className="text-lg text-gray-600">履歴データを読み込んでいます...</p>
           </div>
         </motion.div>
       </div>
@@ -736,7 +749,7 @@ const History = ({
       action: 'シフト変更',
       target: '10月3日 田中さん',
       detail: '9:00-13:00 → 13:00-17:00',
-      reason: 'スタッフ希望による変更'
+      reason: 'スタッフ希望による変更',
     },
     {
       id: 2,
@@ -745,7 +758,7 @@ const History = ({
       action: 'シフト生成',
       target: '10月全体',
       detail: '第2案生成完了（希望反映率92%）',
-      reason: 'スタッフ希望を反映'
+      reason: 'スタッフ希望を反映',
     },
     {
       id: 3,
@@ -754,7 +767,7 @@ const History = ({
       action: 'シフト変更',
       target: '10月15日 佐藤さん',
       detail: '休み → 9:00-17:00',
-      reason: '人員不足の補充'
+      reason: '人員不足の補充',
     },
     {
       id: 4,
@@ -763,7 +776,7 @@ const History = ({
       action: 'シフト生成',
       target: '10月全体',
       detail: '第1案生成完了',
-      reason: '初期案の自動生成'
+      reason: '初期案の自動生成',
     },
     {
       id: 5,
@@ -772,8 +785,8 @@ const History = ({
       action: 'マスターデータ更新',
       target: 'スタッフ情報',
       detail: '新規スタッフ「高橋」追加',
-      reason: '新規採用'
-    }
+      reason: '新規採用',
+    },
   ]
 
   const auditLog = [
@@ -784,7 +797,7 @@ const History = ({
       ip: '192.168.1.100',
       action: 'UPDATE_SHIFT',
       resource: 'shift_2024_10',
-      status: 'success'
+      status: 'success',
     },
     {
       id: 2,
@@ -793,7 +806,7 @@ const History = ({
       ip: 'localhost',
       action: 'GENERATE_SHIFT',
       resource: 'shift_2024_10',
-      status: 'success'
+      status: 'success',
     },
     {
       id: 3,
@@ -802,7 +815,7 @@ const History = ({
       ip: '192.168.1.100',
       action: 'LOGIN',
       resource: 'auth',
-      status: 'success'
+      status: 'success',
     },
     {
       id: 4,
@@ -811,7 +824,7 @@ const History = ({
       ip: '192.168.1.100',
       action: 'EXPORT_CSV',
       resource: 'shift_2024_10',
-      status: 'success'
+      status: 'success',
     },
     {
       id: 5,
@@ -820,8 +833,8 @@ const History = ({
       ip: '192.168.1.100',
       action: 'UPDATE_SHIFT',
       resource: 'shift_2024_10',
-      status: 'success'
-    }
+      status: 'success',
+    },
   ]
 
   // 詳細表示の場合
@@ -829,15 +842,15 @@ const History = ({
     return (
       <div className="min-h-screen bg-slate-50">
         <AppHeader
-        onHome={onHome}
-        onShiftManagement={onShiftManagement}
-        onLineMessages={onLineMessages}
-        onMonitoring={onMonitoring}
-        onStaffManagement={onStaffManagement}
-        onStoreManagement={onStoreManagement}
-        onConstraintManagement={onConstraintManagement}
-        onBudgetActualManagement={onBudgetActualManagement}
-      />
+          onHome={onHome}
+          onShiftManagement={onShiftManagement}
+          onLineMessages={onLineMessages}
+          onMonitoring={onMonitoring}
+          onStaffManagement={onStaffManagement}
+          onStoreManagement={onStoreManagement}
+          onConstraintManagement={onConstraintManagement}
+          onBudgetActualManagement={onBudgetActualManagement}
+        />
 
         <motion.div
           initial="initial"
@@ -848,190 +861,236 @@ const History = ({
           className="app-container"
         >
           <div className="mb-8">
-          <Button
-            variant="outline"
-            onClick={backToSummary}
-            className="mb-4"
-          >
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            サマリーに戻る
-          </Button>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-            {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
-          </h1>
-          <p className="text-lg text-gray-600">
-            {(() => {
-              const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
-              const approvedSecondPlan = localStorage.getItem('approved_second_plan_2024_10')
-              if (selectedMonth.year === 2024 && selectedMonth.month === 10 && approvedSecondPlan) {
-                return '確定済み (第2案)'
-              } else if (selectedMonth.year === 2024 && selectedMonth.month === 10 && approvedFirstPlan) {
-                return '仮承認 (第1案)'
-              } else if (selectedMonth.year === 2024 && selectedMonth.month === 10) {
-                return '承認済み'
-              } else {
-                return '実績'
-              }
-            })()} · 全{detailShifts.length}件
-          </p>
-        </div>
+            <Button variant="outline" onClick={backToSummary} className="mb-4">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              サマリーに戻る
+            </Button>
+            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
+              {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
+            </h1>
+            <p className="text-lg text-gray-600">
+              {(() => {
+                const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
+                const approvedSecondPlan = localStorage.getItem('approved_second_plan_2024_10')
+                if (
+                  selectedMonth.year === 2024 &&
+                  selectedMonth.month === 10 &&
+                  approvedSecondPlan
+                ) {
+                  return '確定済み (第2案)'
+                } else if (
+                  selectedMonth.year === 2024 &&
+                  selectedMonth.month === 10 &&
+                  approvedFirstPlan
+                ) {
+                  return '仮承認 (第1案)'
+                } else if (selectedMonth.year === 2024 && selectedMonth.month === 10) {
+                  return '承認済み'
+                } else {
+                  return '実績'
+                }
+              })()}{' '}
+              · 全{detailShifts.length}件
+            </p>
+          </div>
 
-        <Card className="shadow-lg border-0">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Calendar className="h-5 w-5 mr-2 text-purple-600" />
-                シフト詳細
-              </div>
-              <div className="flex gap-2">
-                {showDiff && diffAnalysis && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => setViewMode('diff')}
-                    className="text-sm bg-orange-600 hover:bg-orange-700"
-                  >
-                    <TrendingUp className="h-4 w-4 mr-1" />
-                    予実差分
+          <Card className="shadow-lg border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Calendar className="h-5 w-5 mr-2 text-purple-600" />
+                  シフト詳細
+                </div>
+                <div className="flex gap-2">
+                  {showDiff && diffAnalysis && (
+                    <Button
+                      size="sm"
+                      variant="default"
+                      onClick={() => setViewMode('diff')}
+                      className="text-sm bg-orange-600 hover:bg-orange-700"
+                    >
+                      <TrendingUp className="h-4 w-4 mr-1" />
+                      予実差分
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={handleExportCSV} className="text-sm">
+                    <Download className="h-4 w-4 mr-1" />
+                    CSVエクスポート
                   </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleExportCSV}
-                  className="text-sm"
-                >
-                  <Download className="h-4 w-4 mr-1" />
-                  CSVエクスポート
-                </Button>
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {viewMode === 'diff' && diffAnalysis ? (
-              <div className="space-y-6">
-                {/* サマリー */}
-                <Card className="border-2 border-orange-300 bg-orange-50">
-                  <CardContent className="p-4">
-                    <h3 className="font-bold text-lg mb-3 flex items-center">
-                      <TrendingUp className="h-5 w-5 mr-2 text-orange-600" />
-                      予実差分サマリー
-                    </h3>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div>
-                        <p className="text-xs text-gray-600">シフト数</p>
-                        <p className="text-sm">
-                          予定: <span className="font-bold">{diffAnalysis.totalDiff.plannedShifts}</span>
-                        </p>
-                        <p className="text-sm">
-                          実績: <span className="font-bold">{diffAnalysis.totalDiff.actualShifts}</span>
-                        </p>
-                        <p className={`text-sm font-bold ${diffAnalysis.totalDiff.shiftCountDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          差分: {diffAnalysis.totalDiff.shiftCountDiff > 0 ? '+' : ''}{diffAnalysis.totalDiff.shiftCountDiff}
-                        </p>
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {viewMode === 'diff' && diffAnalysis ? (
+                <div className="space-y-6">
+                  {/* サマリー */}
+                  <Card className="border-2 border-orange-300 bg-orange-50">
+                    <CardContent className="p-4">
+                      <h3 className="font-bold text-lg mb-3 flex items-center">
+                        <TrendingUp className="h-5 w-5 mr-2 text-orange-600" />
+                        予実差分サマリー
+                      </h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                          <p className="text-xs text-gray-600">シフト数</p>
+                          <p className="text-sm">
+                            予定:{' '}
+                            <span className="font-bold">
+                              {diffAnalysis.totalDiff.plannedShifts}
+                            </span>
+                          </p>
+                          <p className="text-sm">
+                            実績:{' '}
+                            <span className="font-bold">{diffAnalysis.totalDiff.actualShifts}</span>
+                          </p>
+                          <p
+                            className={`text-sm font-bold ${diffAnalysis.totalDiff.shiftCountDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                          >
+                            差分: {diffAnalysis.totalDiff.shiftCountDiff > 0 ? '+' : ''}
+                            {diffAnalysis.totalDiff.shiftCountDiff}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">総労働時間</p>
+                          <p className="text-sm">
+                            予定:{' '}
+                            <span className="font-bold">
+                              {diffAnalysis.totalDiff.plannedHours.toFixed(1)}h
+                            </span>
+                          </p>
+                          <p className="text-sm">
+                            実績:{' '}
+                            <span className="font-bold">
+                              {diffAnalysis.totalDiff.actualHours.toFixed(1)}h
+                            </span>
+                          </p>
+                          <p
+                            className={`text-sm font-bold ${diffAnalysis.totalDiff.hoursDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}
+                          >
+                            差分: {diffAnalysis.totalDiff.hoursDiff > 0 ? '+' : ''}
+                            {diffAnalysis.totalDiff.hoursDiff.toFixed(1)}h
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-gray-600">人件費</p>
+                          <p className="text-sm">
+                            予定:{' '}
+                            <span className="font-bold">
+                              ¥{diffAnalysis.totalDiff.plannedCost.toLocaleString()}
+                            </span>
+                          </p>
+                          <p className="text-sm">
+                            実績:{' '}
+                            <span className="font-bold">
+                              ¥{diffAnalysis.totalDiff.actualCost.toLocaleString()}
+                            </span>
+                          </p>
+                          <p
+                            className={`text-sm font-bold ${diffAnalysis.totalDiff.costDiff >= 0 ? 'text-red-600' : 'text-green-600'}`}
+                          >
+                            差分: {diffAnalysis.totalDiff.costDiff > 0 ? '+' : ''}¥
+                            {diffAnalysis.totalDiff.costDiff.toLocaleString()}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="text-xs text-gray-600">総労働時間</p>
-                        <p className="text-sm">
-                          予定: <span className="font-bold">{diffAnalysis.totalDiff.plannedHours.toFixed(1)}h</span>
-                        </p>
-                        <p className="text-sm">
-                          実績: <span className="font-bold">{diffAnalysis.totalDiff.actualHours.toFixed(1)}h</span>
-                        </p>
-                        <p className={`text-sm font-bold ${diffAnalysis.totalDiff.hoursDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                          差分: {diffAnalysis.totalDiff.hoursDiff > 0 ? '+' : ''}{diffAnalysis.totalDiff.hoursDiff.toFixed(1)}h
-                        </p>
-                      </div>
-                      <div>
-                        <p className="text-xs text-gray-600">人件費</p>
-                        <p className="text-sm">
-                          予定: <span className="font-bold">¥{diffAnalysis.totalDiff.plannedCost.toLocaleString()}</span>
-                        </p>
-                        <p className="text-sm">
-                          実績: <span className="font-bold">¥{diffAnalysis.totalDiff.actualCost.toLocaleString()}</span>
-                        </p>
-                        <p className={`text-sm font-bold ${diffAnalysis.totalDiff.costDiff >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                          差分: {diffAnalysis.totalDiff.costDiff > 0 ? '+' : ''}¥{diffAnalysis.totalDiff.costDiff.toLocaleString()}
-                        </p>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+                    </CardContent>
+                  </Card>
 
-                {/* スタッフ別差分 */}
-                <div>
-                  <h3 className="font-bold text-lg mb-3">スタッフ別差分</h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {Object.values(diffAnalysis.staffDiff).map((staff, index) => (
-                      <motion.div
-                        key={staff.staff_name}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                      >
-                        <Card className={`border-2 ${Math.abs(staff.hoursDiff) > 3 ? 'border-orange-400 bg-orange-50' : 'border-gray-200'}`}>
-                          <CardContent className="p-4">
-                            <h4 className="font-bold text-md mb-2">{staff.staff_name}</h4>
-                            <div className="space-y-1 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">予定勤務:</span>
-                                <span className="font-medium">{staff.plannedDays}日 / {staff.plannedHours.toFixed(1)}h</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">実績勤務:</span>
-                                <span className="font-medium">{staff.actualDays}日 / {staff.actualHours.toFixed(1)}h</span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">時間差分:</span>
-                                <span className={`font-bold ${staff.hoursDiff > 0 ? 'text-green-600' : staff.hoursDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}>
-                                  {staff.hoursDiff > 0 ? '+' : ''}{staff.hoursDiff.toFixed(1)}h
-                                </span>
-                              </div>
-                              {staff.differences.length > 0 && (
-                                <div className="mt-2 pt-2 border-t">
-                                  <p className="text-xs text-gray-500 mb-1">差分詳細:</p>
-                                  <div className="space-y-0.5 max-h-32 overflow-y-auto">
-                                    {staff.differences.map((diff, idx) => (
-                                      <div key={idx} className="text-xs flex justify-between">
-                                        <span>{diff.date}日:</span>
-                                        <span className={diff.type === 'added' ? 'text-green-600' : diff.type === 'removed' ? 'text-red-600' : 'text-orange-600'}>
-                                          {diff.type === 'added' ? '追加' : diff.type === 'removed' ? '削除' : `${diff.plannedHours}h → ${diff.actualHours}h`}
-                                        </span>
-                                      </div>
-                                    ))}
-                                  </div>
+                  {/* スタッフ別差分 */}
+                  <div>
+                    <h3 className="font-bold text-lg mb-3">スタッフ別差分</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {Object.values(diffAnalysis.staffDiff).map((staff, index) => (
+                        <motion.div
+                          key={staff.staff_name}
+                          initial={{ opacity: 0, y: 20 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.05 }}
+                        >
+                          <Card
+                            className={`border-2 ${Math.abs(staff.hoursDiff) > 3 ? 'border-orange-400 bg-orange-50' : 'border-gray-200'}`}
+                          >
+                            <CardContent className="p-4">
+                              <h4 className="font-bold text-md mb-2">{staff.staff_name}</h4>
+                              <div className="space-y-1 text-sm">
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">予定勤務:</span>
+                                  <span className="font-medium">
+                                    {staff.plannedDays}日 / {staff.plannedHours.toFixed(1)}h
+                                  </span>
                                 </div>
-                              )}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </motion.div>
-                    ))}
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">実績勤務:</span>
+                                  <span className="font-medium">
+                                    {staff.actualDays}日 / {staff.actualHours.toFixed(1)}h
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">時間差分:</span>
+                                  <span
+                                    className={`font-bold ${staff.hoursDiff > 0 ? 'text-green-600' : staff.hoursDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}
+                                  >
+                                    {staff.hoursDiff > 0 ? '+' : ''}
+                                    {staff.hoursDiff.toFixed(1)}h
+                                  </span>
+                                </div>
+                                {staff.differences.length > 0 && (
+                                  <div className="mt-2 pt-2 border-t">
+                                    <p className="text-xs text-gray-500 mb-1">差分詳細:</p>
+                                    <div className="space-y-0.5 max-h-32 overflow-y-auto">
+                                      {staff.differences.map((diff, idx) => (
+                                        <div key={idx} className="text-xs flex justify-between">
+                                          <span>{diff.date}日:</span>
+                                          <span
+                                            className={
+                                              diff.type === 'added'
+                                                ? 'text-green-600'
+                                                : diff.type === 'removed'
+                                                  ? 'text-red-600'
+                                                  : 'text-orange-600'
+                                            }
+                                          >
+                                            {diff.type === 'added'
+                                              ? '追加'
+                                              : diff.type === 'removed'
+                                                ? '削除'
+                                                : `${diff.plannedHours}h → ${diff.actualHours}h`}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </CardContent>
+                          </Card>
+                        </motion.div>
+                      ))}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <CalendarView
-                selectedMonth={selectedMonth}
-                calendarData={getCalendarData()}
-                onDayClick={handleDayClick}
+              ) : (
+                <CalendarView
+                  selectedMonth={selectedMonth}
+                  calendarData={getCalendarData()}
+                  onDayClick={handleDayClick}
+                />
+              )}
+            </CardContent>
+          </Card>
+
+          {/* タイムライン表示 */}
+          <AnimatePresence>
+            {selectedDay && (
+              <ShiftTimeline
+                date={selectedDay}
+                year={selectedMonth.year}
+                month={selectedMonth.month}
+                shifts={dayShifts}
+                onClose={closeDayView}
               />
             )}
-          </CardContent>
-        </Card>
-
-        {/* タイムライン表示 */}
-        <AnimatePresence>
-          {selectedDay && (
-            <ShiftTimeline
-              date={selectedDay}
-              year={selectedMonth.year}
-              month={selectedMonth.month}
-              shifts={dayShifts}
-              onClose={closeDayView}
-            />
-          )}
-        </AnimatePresence>
+          </AnimatePresence>
         </motion.div>
       </div>
     )
@@ -1060,124 +1119,118 @@ const History = ({
         className="app-container"
       >
         <div className="mb-8">
-        <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-          シフト履歴
-        </h1>
-        <p className="text-lg text-gray-600">月別のシフト実績</p>
-      </div>
-
-      {/* 年選択 */}
-      <div className="flex items-center justify-center gap-4 mb-8">
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setSelectedYear(selectedYear - 1)}
-        >
-          <ChevronLeft className="h-4 w-4" />
-        </Button>
-        <div className="text-2xl font-bold">{selectedYear}年</div>
-        <Button
-          variant="outline"
-          size="sm"
-          onClick={() => setSelectedYear(selectedYear + 1)}
-        >
-          <ChevronRight className="h-4 w-4" />
-        </Button>
-      </div>
-
-      {/* 月次サマリーカード */}
-      {monthlySummary.filter(summary => summary.year === selectedYear).length === 0 ? (
-        <div className="text-center py-12">
-          <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
-          <p className="text-lg text-gray-600">
-            {selectedYear}年のシフトデータはありません
-          </p>
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
+            シフト履歴
+          </h1>
+          <p className="text-lg text-gray-600">月別のシフト実績</p>
         </div>
-      ) : (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {monthlySummary
-          .filter(summary => summary.year === selectedYear)
-          .map((summary, index) => (
-          <motion.div
-            key={`${summary.year}-${summary.month}`}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-          >
-            <Card
-              className={`shadow-lg border-2 hover:shadow-xl transition-all cursor-pointer ${
-                summary.status === 'second_plan_approved'
-                  ? 'border-blue-500 bg-blue-50'
-                  : summary.status === 'first_plan_approved'
-                  ? 'border-yellow-500 bg-yellow-50'
-                  : summary.status === 'completed'
-                  ? 'border-green-500 bg-green-50'
-                  : 'border-gray-200 hover:border-blue-400'
-              }`}
-              onClick={() => handleMonthClick(summary.year, summary.month)}
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl">
-                    {summary.year}年{summary.month}月
-                  </CardTitle>
-                  {summary.status === 'second_plan_approved' ? (
-                    <span className="px-2 py-1 text-xs font-bold bg-blue-600 text-white rounded">
-                      確定済
-                    </span>
-                  ) : summary.status === 'first_plan_approved' ? (
-                    <span className="px-2 py-1 text-xs font-bold bg-yellow-600 text-white rounded">
-                      仮承認
-                    </span>
-                  ) : summary.status === 'completed' ? (
-                    <span className="px-2 py-1 text-xs font-bold bg-green-600 text-white rounded">
-                      確定済
-                    </span>
-                  ) : null}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="p-3 bg-blue-50 rounded-lg">
-                    <div className="flex items-center mb-1">
-                      <Clock className="h-4 w-4 text-blue-600 mr-1" />
-                      <span className="text-xs text-blue-600">総労働時間</span>
-                    </div>
-                    <p className="text-lg font-bold text-blue-900">{summary.total_hours}h</p>
-                  </div>
-                  <div className="p-3 bg-green-50 rounded-lg">
-                    <div className="flex items-center mb-1">
-                      <DollarSign className="h-4 w-4 text-green-600 mr-1" />
-                      <span className="text-xs text-green-600">総賃金</span>
-                    </div>
-                    <p className="text-lg font-bold text-green-900">¥{(summary.total_wage / 10000).toFixed(0)}万</p>
-                  </div>
-                  <div className="p-3 bg-purple-50 rounded-lg">
-                    <div className="flex items-center mb-1">
-                      <UsersIcon className="h-4 w-4 text-purple-600 mr-1" />
-                      <span className="text-xs text-purple-600">総シフト数</span>
-                    </div>
-                    <p className="text-lg font-bold text-purple-900">{summary.total_shifts}件</p>
-                  </div>
-                  <div className="p-3 bg-orange-50 rounded-lg">
-                    <div className="flex items-center mb-1">
-                      <TrendingUp className="h-4 w-4 text-orange-600 mr-1" />
-                      <span className="text-xs text-orange-600">充足率</span>
-                    </div>
-                    <p className="text-lg font-bold text-orange-900">{summary.fill_rate}%</p>
-                  </div>
-                </div>
-                {summary.notes && (
-                  <div className="pt-2 border-t border-gray-200">
-                    <p className="text-xs text-gray-600">{summary.notes}</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
-      )}
+
+        {/* 年選択 */}
+        <div className="flex items-center justify-center gap-4 mb-8">
+          <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear - 1)}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="text-2xl font-bold">{selectedYear}年</div>
+          <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear + 1)}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* 月次サマリーカード */}
+        {monthlySummary.filter(summary => summary.year === selectedYear).length === 0 ? (
+          <div className="text-center py-12">
+            <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-lg text-gray-600">{selectedYear}年のシフトデータはありません</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {monthlySummary
+              .filter(summary => summary.year === selectedYear)
+              .map((summary, index) => (
+                <motion.div
+                  key={`${summary.year}-${summary.month}`}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                >
+                  <Card
+                    className={`shadow-lg border-2 hover:shadow-xl transition-all cursor-pointer ${
+                      summary.status === 'second_plan_approved'
+                        ? 'border-blue-500 bg-blue-50'
+                        : summary.status === 'first_plan_approved'
+                          ? 'border-yellow-500 bg-yellow-50'
+                          : summary.status === 'completed'
+                            ? 'border-green-500 bg-green-50'
+                            : 'border-gray-200 hover:border-blue-400'
+                    }`}
+                    onClick={() => handleMonthClick(summary.year, summary.month)}
+                  >
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-xl">
+                          {summary.year}年{summary.month}月
+                        </CardTitle>
+                        {summary.status === 'second_plan_approved' ? (
+                          <span className="px-2 py-1 text-xs font-bold bg-blue-600 text-white rounded">
+                            確定済
+                          </span>
+                        ) : summary.status === 'first_plan_approved' ? (
+                          <span className="px-2 py-1 text-xs font-bold bg-yellow-600 text-white rounded">
+                            仮承認
+                          </span>
+                        ) : summary.status === 'completed' ? (
+                          <span className="px-2 py-1 text-xs font-bold bg-green-600 text-white rounded">
+                            確定済
+                          </span>
+                        ) : null}
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="p-3 bg-blue-50 rounded-lg">
+                          <div className="flex items-center mb-1">
+                            <Clock className="h-4 w-4 text-blue-600 mr-1" />
+                            <span className="text-xs text-blue-600">総労働時間</span>
+                          </div>
+                          <p className="text-lg font-bold text-blue-900">{summary.total_hours}h</p>
+                        </div>
+                        <div className="p-3 bg-green-50 rounded-lg">
+                          <div className="flex items-center mb-1">
+                            <DollarSign className="h-4 w-4 text-green-600 mr-1" />
+                            <span className="text-xs text-green-600">総賃金</span>
+                          </div>
+                          <p className="text-lg font-bold text-green-900">
+                            ¥{(summary.total_wage / 10000).toFixed(0)}万
+                          </p>
+                        </div>
+                        <div className="p-3 bg-purple-50 rounded-lg">
+                          <div className="flex items-center mb-1">
+                            <UsersIcon className="h-4 w-4 text-purple-600 mr-1" />
+                            <span className="text-xs text-purple-600">総シフト数</span>
+                          </div>
+                          <p className="text-lg font-bold text-purple-900">
+                            {summary.total_shifts}件
+                          </p>
+                        </div>
+                        <div className="p-3 bg-orange-50 rounded-lg">
+                          <div className="flex items-center mb-1">
+                            <TrendingUp className="h-4 w-4 text-orange-600 mr-1" />
+                            <span className="text-xs text-orange-600">充足率</span>
+                          </div>
+                          <p className="text-lg font-bold text-orange-900">{summary.fill_rate}%</p>
+                        </div>
+                      </div>
+                      {summary.notes && (
+                        <div className="pt-2 border-t border-gray-200">
+                          <p className="text-xs text-gray-600">{summary.notes}</p>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              ))}
+          </div>
+        )}
       </motion.div>
     </div>
   )

@@ -6,8 +6,8 @@ export const SYSTEM = {
   DEFAULT_MONTH: 10,
   BUSINESS_HOURS: {
     OPEN: '09:00',
-    CLOSE: '22:00'
-  }
+    CLOSE: '22:00',
+  },
 }
 
 // 曜日
@@ -20,7 +20,7 @@ export const SHIFT = {
   MAX_CONSECUTIVE_DAYS: 6,
   MIN_HOURS_PER_WEEK: 10,
   MAX_HOURS_PER_WEEK: 40,
-  OVERTIME_THRESHOLD_HOURS: 8
+  OVERTIME_THRESHOLD_HOURS: 8,
 }
 
 // スキルレベル
@@ -29,21 +29,21 @@ export const SKILL_LEVELS = {
   INTERMEDIATE: 2,
   COMPETENT: 3,
   ADVANCED: 4,
-  EXPERT: 5
+  EXPERT: 5,
 }
 
 // ステータス
 export const SHIFT_STATUS = {
   DRAFT: 'draft',
   FIRST_PLAN_APPROVED: 'first_plan_approved',
-  COMPLETED: 'completed'
+  COMPLETED: 'completed',
 }
 
 export const IMPORT_STATUS = {
   NOT_IMPORTED: 'not_imported',
   IMPORTING: 'importing',
   IMPORTED: 'imported',
-  ERROR: 'error'
+  ERROR: 'error',
 }
 
 // LocalStorage キー
@@ -52,7 +52,7 @@ export const STORAGE_KEYS = {
   ACTUAL_DATA_STATUS: 'actual_data_status',
   APPROVED_FIRST_PLAN: (year, month) => `approved_first_plan_${year}_${month}`,
   APPROVED_SECOND_PLAN: (year, month) => `approved_second_plan_${year}_${month}`,
-  USER_PREFERENCES: 'user_preferences'
+  USER_PREFERENCES: 'user_preferences',
 }
 
 // IndexedDB 設定
@@ -62,15 +62,15 @@ export const INDEXED_DB = {
   STORES: {
     ACTUAL_SHIFTS: 'actual_shifts',
     PAYROLL: 'payroll',
-    SALES_ACTUAL: 'sales_actual'
-  }
+    SALES_ACTUAL: 'sales_actual',
+  },
 }
 
 // 雇用形態
 export const EMPLOYMENT_TYPES = {
   MONTHLY: 'monthly',
   HOURLY: 'hourly',
-  CONTRACT: 'contract'
+  CONTRACT: 'contract',
 }
 
 // バリデーション
@@ -78,5 +78,5 @@ export const VALIDATION = {
   MAX_FILE_SIZE_MB: 10,
   ALLOWED_FILE_TYPES: ['.csv'],
   MIN_STAFF_COUNT: 1,
-  MAX_STAFF_COUNT: 100
+  MAX_STAFF_COUNT: 100,
 }

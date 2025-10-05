@@ -21,7 +21,7 @@ import {
   ArrowLeft,
   Minimize2,
   Maximize2,
-  GripVertical
+  GripVertical,
 } from 'lucide-react'
 import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'
@@ -29,13 +29,13 @@ import ShiftTimeline from '../shared/ShiftTimeline'
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
   in: { opacity: 1, y: 0 },
-  out: { opacity: 0, y: -20 }
+  out: { opacity: 0, y: -20 },
 }
 
 const pageTransition = {
   type: 'tween',
   ease: 'anticipate',
-  duration: 0.5
+  duration: 0.5,
 }
 
 const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
@@ -46,7 +46,12 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
   const [dayShifts, setDayShifts] = useState([])
   const [viewMode, setViewMode] = useState('second') // 'second', 'first', 'compare'
   const [messages, setMessages] = useState([
-    { id: 1, type: 'system', content: '第2案が生成されました。自然言語で修正指示をお聞かせください。', time: '14:30' }
+    {
+      id: 1,
+      type: 'system',
+      content: '第2案が生成されました。自然言語で修正指示をお聞かせください。',
+      time: '14:30',
+    },
   ])
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
@@ -74,15 +79,18 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
   const [isChatMinimized, setIsChatMinimized] = useState(false)
 
   // チャットボット位置とサイズ
-  const [chatPosition, setChatPosition] = useState({ x: window.innerWidth - 336, y: window.innerHeight - 520 })
+  const [chatPosition, setChatPosition] = useState({
+    x: window.innerWidth - 336,
+    y: window.innerHeight - 520,
+  })
   const [chatSize, setChatSize] = useState({ width: 320, height: 500 })
   const [isDragging, setIsDragging] = useState(false)
   const [isResizing, setIsResizing] = useState(false)
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const chatRef = useRef(null)
-  
+
   // 日付が問題があるかどうかを判定する関数（解決済みは除外）
-  const isProblematicDate = (date) => {
+  const isProblematicDate = date => {
     return problematicDates.has(date) && !resolvedProblems.has(date)
   }
 
@@ -96,19 +104,19 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
   }
 
   // ドラッグハンドラー
-  const handleDragStart = (e) => {
+  const handleDragStart = e => {
     setIsDragging(true)
     setDragStart({
       x: e.clientX - chatPosition.x,
-      y: e.clientY - chatPosition.y
+      y: e.clientY - chatPosition.y,
     })
   }
 
-  const handleDrag = (e) => {
+  const handleDrag = e => {
     if (isDragging) {
       setChatPosition({
         x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
+        y: e.clientY - dragStart.y,
       })
     }
   }
@@ -118,19 +126,19 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
   }
 
   // リサイズハンドラー
-  const handleResizeStart = (e) => {
+  const handleResizeStart = e => {
     e.stopPropagation()
     setIsResizing(true)
     setDragStart({ x: e.clientX, y: e.clientY })
   }
 
-  const handleResize = (e) => {
+  const handleResize = e => {
     if (isResizing) {
       const deltaX = e.clientX - dragStart.x
       const deltaY = e.clientY - dragStart.y
       setChatSize({
         width: Math.max(280, chatSize.width + deltaX),
-        height: Math.max(300, chatSize.height + deltaY)
+        height: Math.max(300, chatSize.height + deltaY),
       })
       setDragStart({ x: e.clientX, y: e.clientY })
     }
@@ -168,12 +176,12 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
       // シフト希望提出状況を確認
       const staffRes = await fetch('/data/master/staff.csv')
       const staffText = await staffRes.text()
-      const staffResult = await new Promise((resolve) => {
+      const staffResult = await new Promise(resolve => {
         Papa.parse(staffText, {
           header: true,
           dynamicTyping: true,
           skipEmptyLines: true,
-          complete: resolve
+          complete: resolve,
         })
       })
       const activeStaff = staffResult.data.filter(s => s.is_active)
@@ -181,20 +189,18 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
 
       const preferencesRes = await fetch('/data/transactions/availability_requests.csv')
       const preferencesText = await preferencesRes.text()
-      const preferencesResult = await new Promise((resolve) => {
+      const preferencesResult = await new Promise(resolve => {
         Papa.parse(preferencesText, {
           header: true,
           dynamicTyping: true,
           skipEmptyLines: true,
-          complete: resolve
+          complete: resolve,
         })
       })
 
       // 提出済みのスタッフIDを抽出（submitted_atがあるスタッフ）
       const submittedStaffIds = new Set(
-        preferencesResult.data
-          .filter(req => req.submitted_at)
-          .map(req => req.staff_id)
+        preferencesResult.data.filter(req => req.submitted_at).map(req => req.staff_id)
       )
       const submittedCount = submittedStaffIds.size
 
@@ -220,31 +226,32 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
         fetch('/data/master/roles.csv'),
         fetch('/data/transactions/shift_second_plan.csv'),
         fetch('/data/transactions/shift_second_plan_issues.csv'),
-        fetch('/data/transactions/shift_second_plan_solutions.csv')
+        fetch('/data/transactions/shift_second_plan_solutions.csv'),
       ])
 
       const [rolesText, shiftsText, issuesText, solutionsText] = await Promise.all([
         rolesRes.text(),
         shiftsRes.text(),
         issuesRes.text(),
-        solutionsRes.text()
+        solutionsRes.text(),
       ])
 
       // CSV解析
-      const parseCSV = (text) => new Promise((resolve) => {
-        Papa.parse(text, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: (result) => resolve(result.data)
+      const parseCSV = text =>
+        new Promise(resolve => {
+          Papa.parse(text, {
+            header: true,
+            dynamicTyping: true,
+            skipEmptyLines: true,
+            complete: result => resolve(result.data),
+          })
         })
-      })
 
       const [rolesData, shiftsData, issuesData, solutionsData] = await Promise.all([
         parseCSV(rolesText),
         parseCSV(shiftsText),
         parseCSV(issuesText),
-        parseCSV(solutionsText)
+        parseCSV(solutionsText),
       ])
 
       // staffDataは既に読み込み済み
@@ -262,7 +269,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
           name: staff.name,
           role_id: staff.role_id,
           role_name: newRolesMap[staff.role_id] || 'スタッフ',
-          skill_level: staff.skill_level
+          skill_level: staff.skill_level,
         }
       })
 
@@ -284,7 +291,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
           time: `${shift.start_time.replace(':00', '')}-${shift.end_time.replace(':00', '')}`,
           skill: shift.skill_level || staffInfo.skill_level,
           preferred: shift.is_preferred,
-          changed: false
+          changed: false,
         })
       })
 
@@ -294,7 +301,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
         .sort((a, b) => a - b)
         .map(date => ({
           date,
-          shifts: groupedByDate[date]
+          shifts: groupedByDate[date],
         }))
 
       // 問題のある日付を抽出
@@ -319,14 +326,18 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
             if (!firstPlanGrouped[shift.date]) {
               firstPlanGrouped[shift.date] = []
             }
-            const staffInfo = newStaffMap[shift.staff_id] || { name: '不明', skill_level: 1, role_name: 'スタッフ' }
+            const staffInfo = newStaffMap[shift.staff_id] || {
+              name: '不明',
+              skill_level: 1,
+              role_name: 'スタッフ',
+            }
             firstPlanGrouped[shift.date].push({
               name: staffInfo.name,
               time: `${shift.start_time.replace(':00', '')}-${shift.end_time.replace(':00', '')}`,
               skill: shift.skill_level || staffInfo.skill_level,
               role: staffInfo.role_name,
               preferred: shift.is_preferred,
-              changed: false
+              changed: false,
             })
           })
 
@@ -336,7 +347,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
             .map(date => ({
               date,
               day: ['日', '月', '火', '水', '木', '金', '土'][new Date(2024, 9, date).getDay()],
-              shifts: firstPlanGrouped[date]
+              shifts: firstPlanGrouped[date],
             }))
 
           setFirstPlanData(firstPlanFormatted)
@@ -350,7 +361,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
       setGenerated(true)
       setComparison({
         first: { satisfaction: 72, coverage: 85, cost: 52000 },
-        second: { satisfaction: 89, coverage: 92, cost: 48000 }
+        second: { satisfaction: 89, coverage: 92, cost: 48000 },
       })
     } catch (err) {
       console.error('第2案データ読み込みエラー:', err)
@@ -360,8 +371,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
     }
   }
 
-
-  const applyShiftChanges = (changes) => {
+  const applyShiftChanges = changes => {
     // 変更があったことをマーク
     if (onMarkUnsaved) {
       onMarkUnsaved()
@@ -395,7 +405,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
               time: change.time,
               skill: change.skill,
               preferred: true,
-              changed: true
+              changed: true,
             })
           } else if (change.action === 'modify') {
             const shiftIndex = newData[dayIndex].shifts.findIndex(s => s.name === change.staff)
@@ -407,7 +417,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                   time: change.time,
                   skill: change.skill,
                   preferred: true,
-                  changed: true
+                  changed: true,
                 }
               } else {
                 // 時間変更
@@ -415,7 +425,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                   ...newData[dayIndex].shifts[shiftIndex],
                   time: change.time,
                   preferred: true,
-                  changed: true
+                  changed: true,
                 }
               }
             }
@@ -443,8 +453,8 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
         if (change.action === 'remove') {
           // 削除
           const staffId = nameToIdMap[change.staff]
-          const removeIndex = newCsvShifts.findIndex(s =>
-            s.date === change.date && s.staff_id === staffId
+          const removeIndex = newCsvShifts.findIndex(
+            s => s.date === change.date && s.staff_id === staffId
           )
           if (removeIndex !== -1) {
             newCsvShifts.splice(removeIndex, 1)
@@ -465,14 +475,14 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
             is_preferred: 'TRUE',
             is_modified: 'TRUE',
             has_issue: 'FALSE',
-            issue_type: ''
+            issue_type: '',
           }
           newCsvShifts.push(newShift)
         } else if (change.action === 'modify') {
           // 変更
           const oldStaffId = nameToIdMap[change.staff]
-          const modifyIndex = newCsvShifts.findIndex(s =>
-            s.date === change.date && s.staff_id === oldStaffId
+          const modifyIndex = newCsvShifts.findIndex(
+            s => s.date === change.date && s.staff_id === oldStaffId
           )
           if (modifyIndex !== -1) {
             const [startHour, endHour] = change.time.split('-')
@@ -488,7 +498,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                 skill_level: change.skill,
                 is_modified: 'TRUE',
                 has_issue: 'FALSE',
-                issue_type: ''
+                issue_type: '',
               }
             } else {
               // 時間変更
@@ -498,7 +508,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                 end_time: `${endHour.padStart(2, '0')}:00`,
                 is_modified: 'TRUE',
                 has_issue: 'FALSE',
-                issue_type: ''
+                issue_type: '',
               }
             }
           }
@@ -517,7 +527,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
       id: messages.length + 1,
       type: 'user',
       content: textToSend,
-      time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+      time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
     }
 
     setMessages(prev => [...prev, newMessage])
@@ -527,14 +537,19 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
     scrollToBottom()
 
     // 承認待ち状態の処理
-    if (pendingChange && (currentInput.toLowerCase().includes('ok') || currentInput.includes('はい') || currentInput.includes('実行'))) {
+    if (
+      pendingChange &&
+      (currentInput.toLowerCase().includes('ok') ||
+        currentInput.includes('はい') ||
+        currentInput.includes('実行'))
+    ) {
       setTimeout(() => {
         applyShiftChanges(pendingChange.changes)
         const aiResponse = {
           id: messages.length + 2,
           type: 'assistant',
           content: pendingChange.response,
-          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
         }
         setMessages(prev => [...prev, aiResponse])
         setIsTyping(false)
@@ -556,27 +571,29 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
 
         if (issue && solutions.length > 0) {
           // 解決策を構築
-          const changes = solutions.map(sol => {
-            if (sol.action_type === 'add') {
-              return {
-                date: sol.date,
-                action: 'add',
-                staff: sol.staff_to,
-                time: sol.time_slot.replace(':00', ''),
-                skill: sol.skill_level_to
+          const changes = solutions
+            .map(sol => {
+              if (sol.action_type === 'add') {
+                return {
+                  date: sol.date,
+                  action: 'add',
+                  staff: sol.staff_to,
+                  time: sol.time_slot.replace(':00', ''),
+                  skill: sol.skill_level_to,
+                }
+              } else if (sol.action_type === 'modify') {
+                return {
+                  date: sol.date,
+                  action: 'modify',
+                  staff: sol.staff_from,
+                  newStaff: sol.staff_to,
+                  time: sol.time_slot.replace(':00', ''),
+                  skill: sol.skill_level_to,
+                }
               }
-            } else if (sol.action_type === 'modify') {
-              return {
-                date: sol.date,
-                action: 'modify',
-                staff: sol.staff_from,
-                newStaff: sol.staff_to,
-                time: sol.time_slot.replace(':00', ''),
-                skill: sol.skill_level_to
-              }
-            }
-            return null
-          }).filter(c => c !== null)
+              return null
+            })
+            .filter(c => c !== null)
 
           const analysisContent = `📋 変更予定:\n• ${issue.description}\n\n⚠️ 影響分析:\n${solutions.map(s => `• ${s.expected_improvement}`).join('\n')}\n${solutions.map(s => `• ${s.implementation_note}`).join('\n')}\n\nこの変更を実行しますか？「OK」と入力してください。`
 
@@ -586,13 +603,13 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
             id: messages.length + 2,
             type: 'assistant',
             content: analysisContent,
-            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
           }
 
           setMessages(prev => [...prev, aiResponse])
           setPendingChange({
             changes,
-            response: responseContent
+            response: responseContent,
           })
           scrollToBottom()
         } else {
@@ -600,7 +617,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
             id: messages.length + 2,
             type: 'assistant',
             content: `${targetDate}日の問題に対する解決策が見つかりませんでした。`,
-            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
           }
           setMessages(prev => [...prev, aiResponse])
           scrollToBottom()
@@ -609,8 +626,9 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
         const aiResponse = {
           id: messages.length + 2,
           type: 'assistant',
-          content: '申し訳ございませんが、その指示は認識できませんでした。\n\n問題を解決するには「X日の問題を解決してください」と入力してください。',
-          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+          content:
+            '申し訳ございませんが、その指示は認識できませんでした。\n\n問題を解決するには「X日の問題を解決してください」と入力してください。',
+          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
         }
         setMessages(prev => [...prev, aiResponse])
         scrollToBottom()
@@ -619,7 +637,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
     }, 2000)
   }
 
-  const handleDayClick = (date) => {
+  const handleDayClick = date => {
     // CSVデータから該当日のシフトを取得
     const dayShiftsData = csvShifts.filter(s => s.date === date)
 
@@ -633,7 +651,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
         start_time: shift.start_time,
         end_time: shift.end_time,
         skill_level: shift.skill_level,
-        modified_flag: shift.is_modified
+        modified_flag: shift.is_modified,
       }
     })
 
@@ -664,8 +682,8 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
         }, 0),
         staffCount: new Set(csvShifts.map(s => s.staff_id)).size,
         resolvedIssues: resolvedProblems.size,
-        totalIssues: csvIssues.length
-      }
+        totalIssues: csvIssues.length,
+      },
     }
 
     // LocalStorageに保存
@@ -693,15 +711,18 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
             <motion.div
               key={i}
               className={`p-1 border border-gray-100 rounded min-h-[80px] cursor-pointer transition-colors ${
-                isProblem ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100' :
-                'hover:border-green-300 hover:bg-green-50'
+                isProblem
+                  ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
+                  : 'hover:border-green-300 hover:bg-green-50'
               }`}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.02 }}
               onClick={() => !isFirstPlan && handleDayClick(date)}
             >
-              <div className={`text-xs font-bold mb-1 ${isProblem ? 'text-yellow-700' : 'text-gray-700'}`}>
+              <div
+                className={`text-xs font-bold mb-1 ${isProblem ? 'text-yellow-700' : 'text-gray-700'}`}
+              >
                 {date}
                 {isProblem && <AlertTriangle className="h-3 w-3 inline ml-1 text-yellow-600" />}
               </div>
@@ -719,7 +740,9 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                 >
                   <div className="font-medium flex items-center">
                     {shift.name}
-                    {(shift.preferred || shift.changed) && <CheckCircle className="h-2 w-2 ml-1 text-green-600" />}
+                    {(shift.preferred || shift.changed) && (
+                      <CheckCircle className="h-2 w-2 ml-1 text-green-600" />
+                    )}
                   </div>
                   <div className="text-xs opacity-80">{shift.time}</div>
                 </motion.div>
@@ -746,7 +769,11 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
           <ChevronLeft className="mr-2 h-4 w-4" />
           戻る
         </Button>
-        <Button onClick={handleApprove} size="sm" className="bg-gradient-to-r from-green-600 to-green-700">
+        <Button
+          onClick={handleApprove}
+          size="sm"
+          className="bg-gradient-to-r from-green-600 to-green-700"
+        >
           <CheckCircle className="mr-2 h-4 w-4" />
           第2案を承認
         </Button>
@@ -795,14 +822,11 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
         <Card className="shadow-lg border-0">
           <CardContent className="p-12 text-center">
             {generating ? (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-              >
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <motion.div
                     animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
                   >
                     <Zap className="h-12 w-12 text-blue-600" />
                   </motion.div>
@@ -813,7 +837,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                     <motion.div
                       className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full"
                       initial={{ width: 0 }}
-                      animate={{ width: "100%" }}
+                      animate={{ width: '100%' }}
                       transition={{ duration: 3 }}
                     />
                   </div>
@@ -829,7 +853,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                 <p className="text-gray-600 mb-8">
                   収集したスタッフ希望を基に、満足度を向上させた第2案を生成します
                 </p>
-                <Button 
+                <Button
                   onClick={generateSecondPlan}
                   size="lg"
                   className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
@@ -852,13 +876,18 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                   <CardTitle className="flex items-center">
                     <CalendarIcon className="h-5 w-5 mr-2 text-green-600" />
                     第2案（希望反映版）
-                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">改善版</span>
+                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                      改善版
+                    </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-7 gap-1 mb-4">
                     {['日', '月', '火', '水', '木', '金', '土'].map(day => (
-                      <div key={day} className="p-2 text-center text-xs font-bold bg-green-50 rounded">
+                      <div
+                        key={day}
+                        className="p-2 text-center text-xs font-bold bg-green-50 rounded"
+                      >
                         {day}
                       </div>
                     ))}
@@ -895,47 +924,52 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                   <CardContent>
                     <div className="space-y-4 max-h-[600px] overflow-y-auto">
                       {/* CSVから問題を動的に表示 */}
-                      {csvIssues.filter(issue => isProblematicDate(issue.date)).map((issue, index) => {
-                        const issueTypeLabels = {
-                          skill_shortage: 'スキル不足',
-                          understaffed: '人員不足',
-                          consecutive_days: '連続勤務問題',
-                          no_veteran: 'ベテラン不在',
-                          overwork: '過重労働'
-                        }
+                      {csvIssues
+                        .filter(issue => isProblematicDate(issue.date))
+                        .map((issue, index) => {
+                          const issueTypeLabels = {
+                            skill_shortage: 'スキル不足',
+                            understaffed: '人員不足',
+                            consecutive_days: '連続勤務問題',
+                            no_veteran: 'ベテラン不在',
+                            overwork: '過重労働',
+                          }
 
-                        return (
-                          <motion.div
-                            key={issue.issue_id}
-                            initial={{ opacity: 0, y: 10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ delay: index * 0.1 }}
-                            className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <h4 className="font-medium text-yellow-800 mb-2">
-                                  📅 {issue.date}日（{issue.day_of_week}）- {issueTypeLabels[issue.issue_type]}
-                                </h4>
-                                <p className="text-sm text-yellow-700 mb-3">
-                                  {issue.description}
-                                </p>
-                                <div className="text-xs text-yellow-600">
-                                  💡 改善案: {issue.recommendation}
+                          return (
+                            <motion.div
+                              key={issue.issue_id}
+                              initial={{ opacity: 0, y: 10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              transition={{ delay: index * 0.1 }}
+                              className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
+                            >
+                              <div className="flex items-start justify-between">
+                                <div className="flex-1">
+                                  <h4 className="font-medium text-yellow-800 mb-2">
+                                    📅 {issue.date}日（{issue.day_of_week}）-{' '}
+                                    {issueTypeLabels[issue.issue_type]}
+                                  </h4>
+                                  <p className="text-sm text-yellow-700 mb-3">
+                                    {issue.description}
+                                  </p>
+                                  <div className="text-xs text-yellow-600">
+                                    💡 改善案: {issue.recommendation}
+                                  </div>
                                 </div>
+                                <Button
+                                  size="sm"
+                                  onClick={() =>
+                                    sendMessage(`${issue.date}日の問題を解決してください`)
+                                  }
+                                  className="ml-4 bg-yellow-600 hover:bg-yellow-700 text-white"
+                                >
+                                  解決
+                                </Button>
                               </div>
-                              <Button
-                                size="sm"
-                                onClick={() => sendMessage(`${issue.date}日の問題を解決してください`)}
-                                className="ml-4 bg-yellow-600 hover:bg-yellow-700 text-white"
-                              >
-                                解決
-                              </Button>
-                            </div>
-                          </motion.div>
-                        )
-                      })}
+                            </motion.div>
+                          )
+                        })}
 
                       {/* 総合評価 */}
                       <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
@@ -943,20 +977,40 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                         <div className="text-sm text-blue-700">
                           {resolvedProblems.size === 0 && (
                             <>
-                              <p>🔍 <strong>{csvIssues.length}つの問題</strong>が検出されました</p>
-                              <p>💡 AI修正アシスタントで問題を解決すると、満足度が<strong>17%向上</strong>し、充足率が<strong>7%改善</strong>される見込みです</p>
+                              <p>
+                                🔍 <strong>{csvIssues.length}つの問題</strong>が検出されました
+                              </p>
+                              <p>
+                                💡 AI修正アシスタントで問題を解決すると、満足度が
+                                <strong>17%向上</strong>し、充足率が<strong>7%改善</strong>
+                                される見込みです
+                              </p>
                             </>
                           )}
-                          {resolvedProblems.size > 0 && resolvedProblems.size < csvIssues.length && (
-                            <>
-                              <p>✅ <strong>{resolvedProblems.size}つ解決済み</strong>、残り<strong>{csvIssues.length - resolvedProblems.size}つ</strong></p>
-                              <p>📈 現在の改善効果: 満足度<strong>+{Math.round(resolvedProblems.size * 3.4)}%</strong>、充足率<strong>+{Math.round(resolvedProblems.size * 1.4)}%</strong></p>
-                            </>
-                          )}
+                          {resolvedProblems.size > 0 &&
+                            resolvedProblems.size < csvIssues.length && (
+                              <>
+                                <p>
+                                  ✅ <strong>{resolvedProblems.size}つ解決済み</strong>、残り
+                                  <strong>{csvIssues.length - resolvedProblems.size}つ</strong>
+                                </p>
+                                <p>
+                                  📈 現在の改善効果: 満足度
+                                  <strong>+{Math.round(resolvedProblems.size * 3.4)}%</strong>
+                                  、充足率
+                                  <strong>+{Math.round(resolvedProblems.size * 1.4)}%</strong>
+                                </p>
+                              </>
+                            )}
                           {resolvedProblems.size === csvIssues.length && csvIssues.length > 0 && (
                             <>
-                              <p>🎉 <strong>すべての問題が解決されました！</strong></p>
-                              <p>📈 最終改善効果: 満足度<strong>+17%</strong>、充足率<strong>+7%</strong>達成</p>
+                              <p>
+                                🎉 <strong>すべての問題が解決されました！</strong>
+                              </p>
+                              <p>
+                                📈 最終改善効果: 満足度<strong>+17%</strong>、充足率
+                                <strong>+7%</strong>達成
+                              </p>
                             </>
                           )}
                         </div>
@@ -1011,7 +1065,10 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                 <CardContent>
                   <div className="grid grid-cols-7 gap-1 mb-4">
                     {['日', '月', '火', '水', '木', '金', '土'].map(day => (
-                      <div key={day} className="p-2 text-center text-xs font-bold bg-blue-50 rounded">
+                      <div
+                        key={day}
+                        className="p-2 text-center text-xs font-bold bg-blue-50 rounded"
+                      >
                         {day}
                       </div>
                     ))}
@@ -1026,13 +1083,18 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                   <CardTitle className="flex items-center">
                     <CalendarIcon className="h-5 w-5 mr-2 text-green-600" />
                     第2案（希望反映版）
-                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">改善版</span>
+                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                      改善版
+                    </span>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-7 gap-1 mb-4">
                     {['日', '月', '火', '水', '木', '金', '土'].map(day => (
-                      <div key={day} className="p-2 text-center text-xs font-bold bg-green-50 rounded">
+                      <div
+                        key={day}
+                        className="p-2 text-center text-xs font-bold bg-green-50 rounded"
+                      >
                         {day}
                       </div>
                     ))}
@@ -1044,8 +1106,8 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
           )}
 
           {/* 右下固定チャットボット */}
-          {generated && (
-            isChatMinimized ? (
+          {generated &&
+            (isChatMinimized ? (
               // 最小化状態
               <motion.div
                 initial={{ scale: 0.8, opacity: 0 }}
@@ -1072,7 +1134,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                   top: `${chatPosition.y}px`,
                   width: `${chatSize.width}px`,
                   height: `${chatSize.height}px`,
-                  cursor: isDragging ? 'move' : 'default'
+                  cursor: isDragging ? 'move' : 'default',
                 }}
               >
                 <div
@@ -1102,15 +1164,19 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                         animate={{ opacity: 1, y: 0 }}
                         className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                       >
-                        <div className={`max-w-xs px-3 py-2 rounded-lg text-sm whitespace-pre-line ${
-                          message.type === 'user'
-                            ? 'bg-blue-600 text-white'
-                            : 'bg-gray-100 text-gray-800'
-                        }`}>
+                        <div
+                          className={`max-w-xs px-3 py-2 rounded-lg text-sm whitespace-pre-line ${
+                            message.type === 'user'
+                              ? 'bg-blue-600 text-white'
+                              : 'bg-gray-100 text-gray-800'
+                          }`}
+                        >
                           <div>{message.content}</div>
-                          <div className={`text-xs mt-1 ${
-                            message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
-                          }`}>
+                          <div
+                            className={`text-xs mt-1 ${
+                              message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                            }`}
+                          >
                             {message.time}
                           </div>
                         </div>
@@ -1125,8 +1191,14 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                         <div className="bg-gray-100 px-3 py-2 rounded-lg">
                           <div className="flex space-x-1">
                             <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: '0.1s' }}
+                            ></div>
+                            <div
+                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                              style={{ animationDelay: '0.2s' }}
+                            ></div>
                           </div>
                         </div>
                       </motion.div>
@@ -1150,7 +1222,10 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                               id: messages.length + 1,
                               type: 'assistant',
                               content: '変更をキャンセルしました。',
-                              time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+                              time: new Date().toLocaleTimeString('ja-JP', {
+                                hour: '2-digit',
+                                minute: '2-digit',
+                              }),
                             }
                             setMessages(prev => [...prev, cancelMessage])
                           }}
@@ -1166,12 +1241,16 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                         <input
                           type="text"
                           value={inputValue}
-                          onChange={(e) => setInputValue(e.target.value)}
+                          onChange={e => setInputValue(e.target.value)}
                           placeholder="修正指示を入力..."
                           className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                          onKeyPress={e => e.key === 'Enter' && sendMessage()}
                         />
-                        <Button onClick={sendMessage} size="sm" className="bg-blue-600 hover:bg-blue-700">
+                        <Button
+                          onClick={sendMessage}
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
                           <Send className="h-4 w-4" />
                         </Button>
                       </div>
@@ -1184,23 +1263,22 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                   onMouseDown={handleResizeStart}
                   style={{
                     background: 'linear-gradient(135deg, transparent 50%, #cbd5e1 50%)',
-                    borderBottomRightRadius: '0.5rem'
+                    borderBottomRightRadius: '0.5rem',
                   }}
                 />
               </motion.div>
-            )
-          )}
+            ))}
 
-        {/* 旧チャット機能（削除予定） */}
-        {false && (
-          <Card className="shadow-lg border-0">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
-                AI修正アシスタント
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          {/* 旧チャット機能（削除予定） */}
+          {false && (
+            <Card className="shadow-lg border-0">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <MessageSquare className="h-5 w-5 mr-2 text-blue-600" />
+                  AI修正アシスタント
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="h-48 overflow-y-auto p-4 bg-gray-50 rounded-lg mb-4 space-y-3">
                   {messages.map(message => (
                     <motion.div
@@ -1209,15 +1287,19 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                       animate={{ opacity: 1, y: 0 }}
                       className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                     >
-                      <div className={`max-w-xs px-3 py-2 rounded-lg text-sm whitespace-pre-line ${
-                        message.type === 'user'
-                          ? 'bg-blue-600 text-white'
-                          : 'bg-white border border-gray-200 text-gray-800'
-                      }`}>
+                      <div
+                        className={`max-w-xs px-3 py-2 rounded-lg text-sm whitespace-pre-line ${
+                          message.type === 'user'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-white border border-gray-200 text-gray-800'
+                        }`}
+                      >
                         <div>{message.content}</div>
-                        <div className={`text-xs mt-1 ${
-                          message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
-                        }`}>
+                        <div
+                          className={`text-xs mt-1 ${
+                            message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                          }`}
+                        >
                           {message.time}
                         </div>
                       </div>
@@ -1232,20 +1314,26 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                       <div className="bg-white border border-gray-200 px-3 py-2 rounded-lg text-sm">
                         <div className="flex space-x-1">
                           <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          <div
+                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                            style={{ animationDelay: '0.1s' }}
+                          ></div>
+                          <div
+                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                            style={{ animationDelay: '0.2s' }}
+                          ></div>
                         </div>
                       </div>
                     </motion.div>
                   )}
                 </div>
-                
+
                 <div className="flex space-x-2">
                   <input
                     type="text"
                     value={inputValue}
-                    onChange={(e) => setInputValue(e.target.value)}
-                    onKeyPress={(e) => e.key === 'Enter' && sendMessage()}
+                    onChange={e => setInputValue(e.target.value)}
+                    onKeyPress={e => e.key === 'Enter' && sendMessage()}
                     placeholder="修正指示を入力してください..."
                     className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
@@ -1253,7 +1341,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                     <Send className="h-4 w-4" />
                   </Button>
                 </div>
-                
+
                 <div className="mt-4 p-3 bg-blue-50 rounded-lg">
                   <h4 className="font-medium text-blue-800 mb-2">💡 修正例</h4>
                   <div className="text-sm text-blue-700 space-y-1">
