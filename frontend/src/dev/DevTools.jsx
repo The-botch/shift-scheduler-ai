@@ -30,6 +30,8 @@ import {
 } from '../utils/shiftInputCollector'
 import { setupVectorStore, generateShiftWithAssistant } from '../utils/assistantClient'
 import { getApiUrl, API_ENDPOINTS } from '../config/api'
+import { generateTimestamp } from '../utils/dateUtils'
+import { postJSON } from '../utils/http'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -657,8 +659,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
               const actualShiftCount = parsedCsv.data.length
 
               // CSVファイルをサーバーに保存（タイムスタンプ付き）
-              const now = new Date()
-              const timestamp = `${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}_${String(now.getHours()).padStart(2, '0')}${String(now.getMinutes()).padStart(2, '0')}${String(now.getSeconds()).padStart(2, '0')}`
+              const timestamp = generateTimestamp()
               const filename = `shift_${targetYear}${String(targetMonth).padStart(2, '0')}_${timestamp}.csv`
               try {
                 const saveResponse = await fetch(getApiUrl(API_ENDPOINTS.SAVE_CSV), {
