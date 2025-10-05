@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -8,20 +8,17 @@ import {
   Calendar as CalendarIcon,
   CheckCircle,
   TrendingUp,
-  ChevronLeft,
-  ArrowRight,
   MessageSquare,
   Send,
-  X,
-  AlertTriangle,
   Users,
   Clock,
   Eye,
   GitCompare,
   ArrowLeft,
+  ChevronLeft,
   Minimize2,
-  Maximize2,
   GripVertical,
+  AlertTriangle,
 } from 'lucide-react'
 import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'

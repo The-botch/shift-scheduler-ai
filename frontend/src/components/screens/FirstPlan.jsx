@@ -1,21 +1,16 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import {
   Sparkles,
   CheckCircle,
-  ArrowRight,
-  ChevronLeft,
   Loader2,
   Calendar as CalendarIcon,
   MessageSquare,
   Send,
-  X,
   Minimize2,
-  Maximize2,
   GripVertical,
-  AlertTriangle,
   Upload,
 } from 'lucide-react'
 import Papa from 'papaparse'
@@ -33,7 +28,7 @@ const pageTransition = {
   duration: 0.5,
 }
 
-const FirstPlan = ({ onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) => {
+const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) => {
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
   const [shiftData, setShiftData] = useState([])

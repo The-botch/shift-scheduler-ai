@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
   Upload,
@@ -12,7 +12,6 @@ import {
   ArrowLeft,
   Users,
   Clock,
-  AlertTriangle,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
