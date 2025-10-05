@@ -5,6 +5,7 @@ export * from './colors'
 export * from './paths'
 export * from './display'
 export * from './shiftPatterns'
+export * from './api'
 
 // デフォルトエクスポート用のまとめオブジェクト
 import * as constants from './constants'

@@ -2,7 +2,7 @@
  * OpenAI ChatGPT-4 API クライアント（バックエンド経由）
  */
 
-const BACKEND_API_URL = 'http://localhost:3001'
+import { BACKEND_API_URL } from '../config/api'
 
 /**
  * ChatGPT-4にメッセージを送信（バックエンド経由）

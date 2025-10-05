@@ -3,7 +3,7 @@
  * File Search（Vector Store）を使って固定データを参照
  */
 
-const BACKEND_API_URL = 'http://localhost:3001'
+import { BACKEND_API_URL } from '../config/api'
 
 /**
  * Vector Storeを作成（初回のみ）
