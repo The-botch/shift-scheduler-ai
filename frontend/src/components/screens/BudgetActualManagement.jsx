@@ -1665,7 +1665,7 @@ const BudgetActualManagement = ({
                     {/* 人件費率 */}
                     <tr className="border-b-2 border-gray-300 hover:bg-gray-50">
                       <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs">
-                        　人件費率
+                        人件費率
                       </td>
                       {monthlyPL.map(pl => {
                         const hasActual = pl.laborRateActual !== 0 || pl.salesActual > 0
@@ -1784,7 +1784,7 @@ const BudgetActualManagement = ({
                     {/* 交通費率 */}
                     <tr className="border-b-2 border-gray-300 hover:bg-gray-50">
                       <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs">
-                        　交通費率
+                        交通費率
                       </td>
                       {monthlyPL.map(pl => {
                         const hasActual = pl.commuteRateActual !== 0 || pl.salesActual > 0
@@ -1905,7 +1905,7 @@ const BudgetActualManagement = ({
                     {/* 営業利益率 */}
                     <tr className="hover:bg-gray-50">
                       <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs whitespace-nowrap">
-                        　利益率
+                        利益率
                       </td>
                       {monthlyPL.map(pl => {
                         const hasActual = pl.profitRateActual !== 0 || pl.salesActual > 0
