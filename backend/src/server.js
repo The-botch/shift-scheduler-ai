@@ -49,7 +49,7 @@ app.post('/api/save-csv', (req, res) => {
       return res.status(400).json({ error: 'filename and content are required' })
     }
 
-    const generatedDir = path.join(__dirname, '../frontend/public', 'data', 'generated')
+    const generatedDir = path.join(__dirname, '../../frontend/public', 'data', 'generated')
 
     // ディレクトリが存在しない場合は作成
     if (!fs.existsSync(generatedDir)) {
@@ -126,7 +126,7 @@ app.post('/api/openai/files', async (req, res) => {
     const { filePath } = req.body
 
     // CSVファイルをローカルファイルシステムから読み込む
-    const fullPath = path.join(__dirname, '../frontend/public', filePath)
+    const fullPath = path.join(__dirname, '../../frontend/public', filePath)
 
     appendLog(`ファイルアップロード試行: ${fullPath}`)
 
