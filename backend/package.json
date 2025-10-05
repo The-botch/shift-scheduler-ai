@@ -1,0 +1,17 @@
+{
+  "name": "shift-scheduler-backend",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "AIシフト管理システム バックエンドAPI",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "node --watch src/server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "openai": "^6.1.0",
+    "papaparse": "^5.5.3"
+  }
+}

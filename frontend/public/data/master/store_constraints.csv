@@ -1,0 +1,7 @@
+constraint_id,store_id,constraint_type,constraint_value,priority,description,is_active
+1,1,min_staff_per_hour,"{""hour_start"": 11, ""hour_end"": 14, ""min_staff"": 3, ""required_skills"": [""CASHIER"", ""COOKING""]}",high,ランチタイムは最低3名必要,TRUE
+2,1,min_staff_per_hour,"{""hour_start"": 18, ""hour_end"": 21, ""min_staff"": 3, ""required_skills"": [""CASHIER"", ""COOKING""]}",high,ディナータイムは最低3名必要,TRUE
+3,1,min_staff_per_hour,"{""hour_start"": 9, ""hour_end"": 22, ""min_staff"": 2}",medium,営業時間中は常時2名以上,TRUE
+4,1,max_consecutive_days,"{""staff_ids"": [4, 5], ""max_days"": 5, ""reason"": ""学生のため""}",medium,学生アルバイトは連続5日まで,TRUE
+5,1,required_skill_mix,"{""peak_hours"": [12, 13, 18, 19], ""skills"": {""CASHIER"": 2, ""COOKING"": 1}}",high,繁忙時間帯のスキル構成要件,TRUE
+6,1,monthly_budget,"{""max_labor_cost"": 1200000, ""target_cost"": 1000000}",medium,月間人件費の目標と上限,TRUE

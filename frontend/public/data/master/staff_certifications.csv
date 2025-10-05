@@ -1,0 +1,11 @@
+staff_id,staff_name,food_hygiene_cert,cert_date_fh,fire_prevention_cert,cert_type_fp,cert_date_fp,alcohol_sales_cert,cert_date_as,next_training_as,cooking_license,cert_date_cl,driver_license,license_expire,health_manager_cert,other_certs,notes
+1,田中太郎,TRUE,2020-04-15,TRUE,甲種,2020-05-20,FALSE,,,TRUE,2015-03-10,TRUE,2026-05-15,FALSE,なし,店長・全資格対応可
+2,佐藤花子,TRUE,2018-07-01,FALSE,,,,,,FALSE,,TRUE,2025-08-20,FALSE,接客検定2級,食品衛生責任者
+3,鈴木次郎,FALSE,,FALSE,,,,,,FALSE,,TRUE,2024-12-01,FALSE,なし,運転免許更新必要
+4,山田美咲,FALSE,,FALSE,,,,,,FALSE,,FALSE,,FALSE,なし,学生・資格取得予定
+5,高橋健太,FALSE,,FALSE,,,,,,FALSE,,FALSE,,FALSE,なし,学生
+6,伊藤さくら,TRUE,2019-12-01,FALSE,,,TRUE,2020-03-15,2025-03-15,TRUE,2010-06-20,TRUE,2027-03-10,FALSE,栄養士,調理師・栄養士資格保有
+7,渡辺翔,FALSE,,FALSE,,,,,,FALSE,,FALSE,,FALSE,なし,高校生・18歳未満
+8,中村陽子,TRUE,2017-09-01,TRUE,乙種,2018-03-01,TRUE,2019-04-01,2025-04-01,FALSE,,TRUE,2025-11-30,FALSE,簿記3級,ベテラン・複数資格
+9,小林大輔,TRUE,2019-05-01,FALSE,,,FALSE,,,TRUE,2012-11-15,TRUE,2026-09-20,FALSE,ふぐ調理師,副料理長
+10,加藤真由美,FALSE,,FALSE,,,,,,FALSE,,TRUE,2028-02-15,FALSE,なし,パート

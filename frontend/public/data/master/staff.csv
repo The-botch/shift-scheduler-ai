@@ -1,0 +1,11 @@
+staff_id,store_id,staff_code,name,name_kana,role_id,email,phone_number,hire_date,birth_date,employment_type,hourly_rate,monthly_salary,contract_fee,daily_cost,max_hours_per_week,min_hours_per_week,max_consecutive_days,skill_level,commute_distance_km,has_social_insurance,is_active
+1,1,S001,田中太郎,タナカタロウ,2,tanaka@example.com,080-1111-1111,2020-04-01,1985-03-15,monthly,,350000,,15909,40,40,6,5,12,TRUE,TRUE
+2,1,S002,佐藤花子,サトウハナコ,2,sato@example.com,080-2222-2222,2021-06-01,1990-07-20,monthly,,280000,,12727,40,32,6,5,8,TRUE,TRUE
+3,1,S003,鈴木次郎,スズキジロウ,4,suzuki-j@example.com,080-3333-3333,2022-01-15,1988-11-10,hourly,1100,,,0,40,20,6,4,5,FALSE,TRUE
+4,1,S004,山田美咲,ヤマダミサキ,4,yamada@example.com,080-4444-4444,2023-04-01,2005-09-05,hourly,1000,,,0,28,12,5,3,3,FALSE,TRUE
+5,1,S005,高橋健太,タカハシケンタ,4,takahashi@example.com,080-5555-5555,2023-09-01,2004-02-14,hourly,1000,,,0,28,12,4,3,7,FALSE,TRUE
+6,1,S006,伊藤さくら,イトウサクラ,4,ito@example.com,080-6666-6666,2024-01-10,1999-12-01,hourly,1100,,,0,40,20,5,4,15,FALSE,TRUE
+7,1,S007,渡辺翔,ワタナベショウ,4,watanabe@example.com,080-7777-7777,2024-03-01,2006-05-20,hourly,950,,,0,20,10,4,2,20,FALSE,TRUE
+8,1,S008,中村陽子,ナカムラヨウコ,4,nakamura@example.com,080-8888-8888,2023-02-01,1992-08-15,hourly,1200,,,0,35,20,5,4,6,FALSE,TRUE
+9,1,S009,小林大輔,コバヤシダイスケ,3,kobayashi@example.com,080-9999-9999,2019-04-01,1987-06-10,monthly,,320000,,14545,40,40,6,5,18,TRUE,TRUE
+10,1,S010,加藤真由美,カトウマユミ,4,kato@example.com,080-0000-0000,2023-05-15,1995-03-25,hourly,1100,,,0,35,20,5,4,10,FALSE,TRUE

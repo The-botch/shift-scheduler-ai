@@ -1,0 +1,5 @@
+rate_id,rate_type,rate_name,rate_percentage,employer_percentage,employee_percentage,applicable_employment_types,notes
+1,health_insurance,健康保険,9.98,4.99,4.99,"monthly,contract",介護保険含む（40歳未満は8.3%）
+2,pension,厚生年金,18.3,9.15,9.15,"monthly,contract",標準報酬月額に基づく
+3,employment_insurance,雇用保険（一般）,1.55,0.95,0.60,"monthly,hourly,contract",全雇用形態
+4,workers_compensation,労災保険,0.3,0.3,0.0,"monthly,hourly,contract",全額事業主負担
