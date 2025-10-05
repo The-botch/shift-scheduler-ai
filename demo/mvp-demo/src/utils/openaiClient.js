@@ -1,25 +1,16 @@
 /**
- * OpenAI ChatGPT-4 API クライアント
+ * OpenAI ChatGPT-4 API クライアント（バックエンド経由）
  */
 
-const OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
+const BACKEND_API_URL = 'http://localhost:3001'
 
 /**
- * ChatGPT-4にメッセージを送信
+ * ChatGPT-4にメッセージを送信（バックエンド経由）
  * @param {string} prompt - ユーザーのプロンプト
  * @param {Object} options - オプション設定
  * @returns {Promise<Object>} API応答
  */
 export const sendToChatGPT = async (prompt, options = {}) => {
-  const apiKey = import.meta.env.VITE_OPENAI_API_KEY
-
-  if (!apiKey) {
-    throw new Error(
-      'OpenAI APIキーが設定されていません。\n' +
-      '.envファイルにVITE_OPENAI_API_KEY=your_api_keyを設定してください。'
-    )
-  }
-
   const {
     model = import.meta.env.VITE_OPENAI_MODEL || 'gpt-4',
     maxTokens = parseInt(import.meta.env.VITE_OPENAI_MAX_TOKENS) || 2000,
@@ -28,11 +19,10 @@ export const sendToChatGPT = async (prompt, options = {}) => {
   } = options
 
   try {
-    const response = await fetch(OPENAI_API_URL, {
+    const response = await fetch(`${BACKEND_API_URL}/api/openai/chat/completions`, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`
+        'Content-Type': 'application/json'
       },
       body: JSON.stringify({
         model,
@@ -78,7 +68,8 @@ export const sendToChatGPT = async (prompt, options = {}) => {
 }
 
 /**
- * シフト生成用のプロンプトを構築
+ * シフト生成用の追加プロンプトを構築
+ * （基本的なインプットデータはformatInputsForPromptから取得）
  * @param {Object} params - シフト生成パラメータ
  * @returns {string} 構築されたプロンプト
  */
@@ -92,46 +83,48 @@ export const buildShiftGenerationPrompt = (params) => {
     budgetLimit
   } = params
 
-  let prompt = `${year}年${month}月のシフトスケジュールを作成してください。\n\n`
-
-  prompt += `## 基本情報\n`
-  prompt += `- 対象期間: ${year}年${month}月\n`
-  prompt += `- スタッフ数: ${staffCount}名\n`
-
-  if (budgetLimit) {
-    prompt += `- 人件費予算: ${budgetLimit}円以内\n`
-  }
-
-  prompt += `\n## ハード制約（必ず守る）\n`
-  prompt += `1. 18歳未満のスタッフは深夜勤務（22:00-05:00）禁止\n`
-  prompt += `2. 1日の労働時間上限: 8時間\n`
-  prompt += `3. 週間労働時間上限: 40時間\n`
-  prompt += `4. 6時間超の勤務には45分以上の休憩、8時間超には60分以上の休憩\n`
-  prompt += `5. 勤務間インターバル: 11時間以上\n`
-  prompt += `6. 連続勤務日数: 最大6日まで\n`
+  let prompt = `\n---\n\n## 追加の制約・要望\n\n`
 
   if (constraints.length > 0) {
-    prompt += `7. 追加制約:\n`
+    prompt += `### 追加制約\n`
     constraints.forEach((c, i) => {
-      prompt += `   ${i + 1}. ${c}\n`
+      prompt += `${i + 1}. ${c}\n`
     })
+    prompt += `\n`
   }
 
-  prompt += `\n## ソフト制約（できるだけ満たす）\n`
-  prompt += `1. スタッフの希望シフトを70%以上反映\n`
-  prompt += `2. 土日勤務の偏りを最小化\n`
-  prompt += `3. 総労働時間の公平性を保つ\n`
-
   if (preferences.length > 0) {
-    prompt += `4. スタッフの希望:\n`
+    prompt += `### スタッフからの個別希望\n`
     preferences.forEach((p, i) => {
-      prompt += `   ${i + 1}. ${p}\n`
+      prompt += `${i + 1}. ${p}\n`
     })
+    prompt += `\n`
   }
 
   prompt += `\n## 出力形式\n`
-  prompt += `CSVフォーマットで以下の列を含めてください:\n`
-  prompt += `shift_id, staff_id, shift_date, start_time, end_time, break_minutes, total_hours\n`
+  prompt += `必ず以下のJSON形式で出力してください。他のテキストは一切含めないでください。\n\n`
+  prompt += `{\n`
+  prompt += `  "summary": {\n`
+  prompt += `    "year": ${year},\n`
+  prompt += `    "month": ${month},\n`
+  prompt += `    "totalShifts": "生成したシフトの総数",\n`
+  prompt += `    "totalStaff": "スタッフ数",\n`
+  prompt += `    "totalWorkHours": "総労働時間",\n`
+  prompt += `    "estimatedCost": "予想人件費",\n`
+  prompt += `    "constraintsViolations": "制約違反の数（0を目指す）"\n`
+  prompt += `  },\n`
+  prompt += `  "shifts_csv": "shift_id,staff_id,staff_name,shift_date,start_time,end_time,break_minutes,total_hours\\nSFT001,STF001,田中太郎,2024-11-01,09:00,18:00,60,8.0\\n...",\n`
+  prompt += `  "notes": "シフト作成時の注意点や考慮事項"\n`
+  prompt += `}\n\n`
+  prompt += `shifts_csvフィールドには以下の列を含むCSV形式の文字列を設定してください:\n`
+  prompt += `shift_id, staff_id, staff_name, shift_date, start_time, end_time, break_minutes, total_hours\n\n`
+  prompt += `重要: 応答は有効なJSONのみとし、説明文やマークダウンのコードブロック記号（\`\`\`）は含めないでください。\n\n`
+  prompt += `【シフトデータの完全性について】\n`
+  prompt += `- shifts_csvフィールドには${month}月の全営業日分の全シフトを含めてください（定休日は除く）\n`
+  prompt += `- "..."や省略記号は絶対に使用せず、1件1件のシフトを完全に出力してください\n`
+  prompt += `- 全スタッフの全シフトを省略なく出力してください（例：営業日25日×スタッフ5人なら最低125件程度）\n`
+  prompt += `- 文字数制限を気にせず、全データを出力してください\n`
+  prompt += `- 店舗の定休日情報を参照し、営業日のみシフトを生成してください\n`
 
   return prompt
 }
