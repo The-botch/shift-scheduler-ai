@@ -27,6 +27,9 @@
     "server": "node server.js",
     "build": "vite build",
     "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write \"src/**/*.{js,jsx,json,css,md}\"",
+    "format:check": "prettier --check \"src/**/*.{js,jsx,json,css,md}\"",
     "preview": "vite preview",
     "deploy": "npm run build && npx gh-pages -d dist"
   },
@@ -96,6 +99,7 @@
     "eslint-plugin-react-hooks": "^5.2.0",
     "eslint-plugin-react-refresh": "^0.4.19",
     "globals": "^16.0.0",
+    "prettier": "^3.6.2",
     "tw-animate-css": "^1.2.9",
     "vite": "^6.3.5"
   },
