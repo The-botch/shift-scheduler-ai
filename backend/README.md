@@ -1,0 +1,307 @@
+# AIシフト管理システム - バックエンドAPI
+
+OpenAI Assistants APIをプロキシし、シフト管理データのCSV処理を行うNode.js/Expressバックエンドサーバー。
+
+## 特徴
+
+- 🔐 **セキュアなAPIプロキシ**: OpenAI APIキーをバックエンドで管理
+- 📄 **CSV→JSON自動変換**: Papa Parseでシームレスな変換
+- 🤖 **Assistants API完全サポート**: Vector Stores、Threads、Runs等の全機能
+- ✅ **テスト完備**: 30テストケース (Vitest + supertest)
+- 📚 **APIドキュメント**: OpenAPI 3.0スペック + 詳細ドキュメント
+- 🏗️ **クリーンアーキテクチャ**: Routes → Services → Utils
+
+## クイックスタート
+
+### 1. インストール
+
+```bash
+cd backend
+npm install
+```
+
+### 2. 環境変数設定
+
+`.env`ファイルを作成:
+
+```env
+VITE_OPENAI_API_KEY=sk-proj-your-api-key-here
+```
+
+### 3. サーバー起動
+
+```bash
+# 開発モード (ホットリロード)
+npm run dev
+
+# 本番モード
+npm start
+```
+
+サーバーは `http://localhost:3001` で起動します。
+
+## API使用例
+
+### Chat Completions
+
+```bash
+curl -X POST http://localhost:3001/api/openai/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4",
+    "messages": [
+      {"role": "user", "content": "シフトを作成してください"}
+    ]
+  }'
+```
+
+### CSVファイル保存
+
+```bash
+curl -X POST http://localhost:3001/api/save-csv \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filename": "shift_2024_11.csv",
+    "content": "name,date,shift\nJohn,2024-11-01,Morning"
+  }'
+```
+
+### CSV→JSONアップロード
+
+```bash
+curl -X POST http://localhost:3001/api/openai/files \
+  -H "Content-Type: application/json" \
+  -d '{
+    "filePath": "data/master/staff.csv"
+  }'
+```
+
+## APIエンドポイント
+
+### OpenAI プロキシ
+
+| エンドポイント | メソッド | 説明 |
+|--------------|---------|------|
+| `/api/openai/chat/completions` | POST | Chat Completions |
+| `/api/openai/vector_stores` | POST | Vector Store作成 |
+| `/api/openai/vector_stores/:id/files` | POST | Vector StoreにFile追加 |
+| `/api/openai/files` | POST | ファイルアップロード (CSV→JSON) |
+| `/api/openai/files/:id/content` | GET | ファイルダウンロード |
+| `/api/openai/assistants` | POST | Assistant作成 |
+| `/api/openai/threads` | POST | Thread作成 |
+| `/api/openai/threads/:id/messages` | POST/GET | Message追加/取得 |
+| `/api/openai/threads/:id/runs` | POST | Run実行 |
+| `/api/openai/threads/:id/runs/:runId` | GET | Run状態取得 |
+
+### CSV処理
+
+| エンドポイント | メソッド | 説明 |
+|--------------|---------|------|
+| `/api/save-csv` | POST | CSVファイル保存 |
+
+詳細は [API.md](./API.md) を参照してください。
+
+## テスト
+
+```bash
+# テスト実行
+npm test
+
+# ウォッチモード
+npm run test:watch
+
+# カバレッジ計測
+npm run test:coverage
+```
+
+**テストカバレッジ:** 30テスト全通過
+
+- fileService: CSV保存、変換、削除 (9テスト)
+- openaiService: API設定、ヘッダー (7テスト)
+- OpenAI routes: 全11エンドポイント (10テスト)
+- CSV routes: ファイル保存 (4テスト)
+
+## プロジェクト構成
+
+```
+backend/
+├── src/
+│   ├── server.js              # Expressサーバー (29行)
+│   ├── routes/
+│   │   ├── openai.js          # OpenAI APIルート (11エンドポイント)
+│   │   ├── openai.test.js     # OpenAIルートテスト
+│   │   ├── csv.js             # CSVルート
+│   │   └── csv.test.js        # CSVルートテスト
+│   ├── services/
+│   │   ├── openaiService.js   # OpenAI SDK設定
+│   │   ├── openaiService.test.js
+│   │   ├── fileService.js     # ファイル処理
+│   │   └── fileService.test.js
+│   └── utils/
+│       └── logger.js          # ログ管理
+├── openapi.yaml               # OpenAPI 3.0スペック
+├── API.md                     # APIドキュメント
+├── vitest.config.js           # テスト設定
+├── package.json
+└── README.md                  # このファイル
+```
+
+### レイヤー構成
+
+- **Routes**: HTTPリクエスト処理、エンドポイント定義
+- **Services**: ビジネスロジック、OpenAI SDK、ファイル操作
+- **Utils**: ログ管理等のユーティリティ
+
+## 主要機能
+
+### 1. CSV→JSON自動変換
+
+```javascript
+// frontend/public/data/master/staff.csv を自動変換
+const file = await client.uploadFile('data/master/staff.csv')
+// → OpenAIにstaff.jsonとしてアップロード
+```
+
+**処理フロー:**
+1. CSVファイル読み込み (`frontend/public/`から)
+2. Papa Parseで解析してJSON化
+3. 一時JSONファイル作成 (`backend/src/temp/`)
+4. OpenAIにアップロード
+5. 一時ファイル削除
+
+### 2. セキュアなAPIキー管理
+
+- APIキーは`.env`でバックエンド管理
+- フロントエンドからは直接OpenAIにアクセスしない
+- CORSはデフォルトで全許可 (本番環境では制限推奨)
+
+### 3. ログ管理
+
+全てのAPI操作を `src/server.log` に記録:
+
+```
+[2024-11-05T10:30:00.000Z] 🚀 Backend server running on http://localhost:3001
+[2024-11-05T10:30:15.123Z] ✅ ファイルアップロード成功: staff.json → file-xyz789
+[2024-11-05T10:30:20.456Z] ✅ CSVファイルを保存しました: shift_2024_11.csv
+```
+
+## フロントエンドとの連携
+
+### OpenAIClientの使用
+
+```javascript
+import { OpenAIClient } from '@/infrastructure/api/OpenAIClient'
+
+const client = new OpenAIClient('http://localhost:3001')
+
+// Vector Store & Assistantセットアップ
+const vectorStore = await client.createVectorStore('Staff Data')
+const file = await client.uploadFile('data/master/staff.csv')
+await client.addFileToVectorStore(vectorStore.id, file.id)
+
+const assistant = await client.createAssistant({
+  name: 'Shift Assistant',
+  model: 'gpt-4-turbo-preview',
+  tools: [{ type: 'file_search' }],
+  tool_resources: {
+    file_search: { vector_store_ids: [vectorStore.id] }
+  }
+})
+
+// Thread & Run
+const thread = await client.createThread()
+await client.addMessage(thread.id, 'user', 'シフトを作成')
+const run = await client.createRun(thread.id, assistant.id)
+
+// 完了待機
+while (true) {
+  const status = await client.getRunStatus(thread.id, run.id)
+  if (status.status === 'completed') break
+  await new Promise(r => setTimeout(r, 1000))
+}
+
+const messages = await client.getMessages(thread.id)
+```
+
+## トラブルシューティング
+
+### ポート競合エラー
+
+```bash
+Error: Port 3001 is already in use
+```
+
+**解決:**
+```bash
+lsof -ti:3001 | xargs kill
+```
+
+### ファイルアップロードエラー
+
+```bash
+Error: ファイルが見つかりません: /path/to/file.csv
+```
+
+**確認事項:**
+- ファイルパスが`frontend/public/`からの相対パスか
+- ファイルが実際に存在するか
+
+### OpenAI APIエラー
+
+```bash
+Error: 401 Unauthorized
+```
+
+**確認事項:**
+- `.env`ファイルの`VITE_OPENAI_API_KEY`が正しいか
+- APIキーが有効か
+
+## 開発
+
+### 依存関係
+
+```json
+{
+  "dependencies": {
+    "express": "^5.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "openai": "^6.1.0",
+    "papaparse": "^5.5.3"
+  },
+  "devDependencies": {
+    "vitest": "^3.2.4",
+    "supertest": "^7.1.4",
+    "@vitest/coverage-v8": "^3.2.4"
+  }
+}
+```
+
+### スクリプト
+
+```bash
+npm start              # 本番サーバー起動
+npm run dev            # 開発サーバー起動 (ホットリロード)
+npm test               # テスト実行
+npm run test:watch     # テストウォッチモード
+npm run test:coverage  # カバレッジ計測
+```
+
+## ドキュメント
+
+- [API.md](./API.md) - 詳細なAPIドキュメント
+- [openapi.yaml](./openapi.yaml) - OpenAPI 3.0スペック
+- [フロントエンドREADME](../frontend/README.md)
+- [プロジェクトREADME](../README.md)
+
+## ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。
+
+## 貢献
+
+バグ報告や機能リクエストはIssueでお願いします。
+
+---
+
+**Built with ❤️ using Node.js, Express, OpenAI SDK, and Vitest**

@@ -1,0 +1,482 @@
+openapi: 3.0.0
+info:
+  title: AIシフト管理システム バックエンドAPI
+  description: |
+    OpenAI Assistants APIをプロキシし、シフト管理データのCSV処理を行うバックエンドAPI
+
+    ## 主な機能
+    - OpenAI APIへのプロキシ (Chat Completions, Assistants, Vector Stores等)
+    - CSVファイルの保存
+    - CSV→JSON変換とファイルアップロード
+  version: 1.0.0
+  contact:
+    name: Shift Scheduler AI Team
+servers:
+  - url: http://localhost:3001
+    description: ローカル開発環境
+
+tags:
+  - name: Chat
+    description: ChatGPT Chat Completions API
+  - name: Vector Stores
+    description: Vector Store管理
+  - name: Files
+    description: ファイル管理
+  - name: Assistants
+    description: Assistant管理
+  - name: Threads
+    description: Thread管理
+  - name: Messages
+    description: Message管理
+  - name: Runs
+    description: Run管理
+  - name: CSV
+    description: CSV処理
+
+paths:
+  /api/openai/chat/completions:
+    post:
+      tags: [Chat]
+      summary: ChatGPT Chat Completions
+      description: OpenAI Chat Completions APIへのプロキシ
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                model:
+                  type: string
+                  example: gpt-4
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                        enum: [system, user, assistant]
+                      content:
+                        type: string
+                temperature:
+                  type: number
+                  minimum: 0
+                  maximum: 2
+                max_tokens:
+                  type: integer
+      responses:
+        '200':
+          description: 成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  choices:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        message:
+                          type: object
+                          properties:
+                            role:
+                              type: string
+                            content:
+                              type: string
+        '500':
+          description: エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/openai/vector_stores:
+    post:
+      tags: [Vector Stores]
+      summary: Vector Store作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Staff Data Store"
+                file_ids:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Vector Store作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+
+  /api/openai/vector_stores/{vectorStoreId}/files:
+    post:
+      tags: [Vector Stores]
+      summary: Vector StoreにFile追加
+      parameters:
+        - name: vectorStoreId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                file_id:
+                  type: string
+      responses:
+        '200':
+          description: File追加成功
+
+  /api/openai/files:
+    post:
+      tags: [Files]
+      summary: ファイルアップロード (CSV→JSON変換付き)
+      description: |
+        CSVファイルをJSON形式に変換してOpenAIにアップロード
+        - フロントエンドのpublicディレクトリからCSVを読み込み
+        - Papa Parseで解析してJSON化
+        - 一時JSONファイルを作成してアップロード
+        - アップロード後に一時ファイルを削除
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                filePath:
+                  type: string
+                  example: "data/master/staff.csv"
+                  description: frontend/publicからの相対パス
+      responses:
+        '200':
+          description: アップロード成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  filename:
+                    type: string
+                  purpose:
+                    type: string
+        '500':
+          description: エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /api/openai/files/{fileId}/content:
+    get:
+      tags: [Files]
+      summary: ファイルダウンロード
+      parameters:
+        - name: fileId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: ファイルコンテンツ
+          content:
+            text/plain:
+              schema:
+                type: string
+
+  /api/openai/assistants:
+    post:
+      tags: [Assistants]
+      summary: Assistant作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name:
+                  type: string
+                  example: "Shift Scheduler Assistant"
+                instructions:
+                  type: string
+                model:
+                  type: string
+                  example: "gpt-4-turbo-preview"
+                tools:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        enum: [file_search, code_interpreter]
+                tool_resources:
+                  type: object
+                  properties:
+                    file_search:
+                      type: object
+                      properties:
+                        vector_store_ids:
+                          type: array
+                          items:
+                            type: string
+      responses:
+        '200':
+          description: Assistant作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  model:
+                    type: string
+
+  /api/openai/threads:
+    post:
+      tags: [Threads]
+      summary: Thread作成
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messages:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role:
+                        type: string
+                      content:
+                        type: string
+      responses:
+        '200':
+          description: Thread作成成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+
+  /api/openai/threads/{threadId}/messages:
+    post:
+      tags: [Messages]
+      summary: Message追加
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                role:
+                  type: string
+                  enum: [user, assistant]
+                content:
+                  type: string
+      responses:
+        '200':
+          description: Message追加成功
+    get:
+      tags: [Messages]
+      summary: Message一覧取得
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Message一覧
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        content:
+                          type: array
+
+  /api/openai/threads/{threadId}/runs:
+    post:
+      tags: [Runs]
+      summary: Run実行
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                assistant_id:
+                  type: string
+                instructions:
+                  type: string
+      responses:
+        '200':
+          description: Run実行開始
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum: [queued, in_progress, completed, failed]
+
+  /api/openai/threads/{threadId}/runs/{runId}:
+    get:
+      tags: [Runs]
+      summary: Run状態取得
+      parameters:
+        - name: threadId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: runId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Run状態
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                  completed_at:
+                    type: integer
+
+  /api/save-csv:
+    post:
+      tags: [CSV]
+      summary: CSVファイル保存
+      description: |
+        CSVコンテンツをfrontend/public/data/generatedディレクトリに保存
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - filename
+                - content
+              properties:
+                filename:
+                  type: string
+                  example: "shift_2024_11.csv"
+                content:
+                  type: string
+                  example: "name,date,shift\nJohn,2024-11-01,Morning"
+      responses:
+        '200':
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+                  filepath:
+                    type: string
+        '400':
+          description: バリデーションエラー
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+                    example: "filename and content are required"
+        '500':
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "エラーメッセージ"
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        バックエンドがOpenAI APIキーを管理
+        フロントエンドからの認証は不要
+
+security:
+  - BearerAuth: []
