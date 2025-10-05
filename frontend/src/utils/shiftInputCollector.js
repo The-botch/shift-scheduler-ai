@@ -703,7 +703,7 @@ export const collectAllInputs = async (year, month, enabledCategories = {}) => {
     summary: {
       totalDataSources: Object.keys(inputs).length,
       enabledCategories: Object.entries(enabled)
-        .filter(([k, v]) => v)
+        .filter(([_k, v]) => v)
         .map(([k]) => INPUT_CATEGORIES[k].name),
       readyForGeneration: true,
       warnings: [],

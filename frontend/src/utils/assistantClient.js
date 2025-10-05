@@ -434,11 +434,8 @@ export const downloadFile = async fileId => {
  */
 export const generateShiftWithAssistant = async params => {
   const {
-    year,
-    month,
     vectorStoreId,
     assistantId: existingAssistantId,
-    additionalConstraints = [],
     customPrompt,
     onProgress,
   } = params

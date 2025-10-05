@@ -257,7 +257,7 @@ export class ShiftValidator {
   /**
    * VAL003/LAW_003/LAW_004: 休憩時間確保チェック
    */
-  checkBreakTime(shift, staff) {
+  checkBreakTime(shift, _staff) {
     const workHours = parseFloat(shift.total_hours || 0)
     const breakMinutes = parseInt(shift.break_minutes || 0)
 
@@ -355,7 +355,7 @@ export class ShiftValidator {
 
     let consecutiveDays = 1
     let maxConsecutiveDays = 1
-    let consecutiveStartDate = sortedShifts[0]?.shift_date
+    // let consecutiveStartDate = sortedShifts[0]?.shift_date // 将来の実装用に保持
 
     for (let i = 1; i < sortedShifts.length; i++) {
       const prevDate = new Date(sortedShifts[i - 1].shift_date)
@@ -367,7 +367,7 @@ export class ShiftValidator {
         maxConsecutiveDays = Math.max(maxConsecutiveDays, consecutiveDays)
       } else {
         consecutiveDays = 1
-        consecutiveStartDate = sortedShifts[i].shift_date
+        // consecutiveStartDate = sortedShifts[i].shift_date // 将来の実装用に保持
       }
     }
 

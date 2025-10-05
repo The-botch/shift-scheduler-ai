@@ -1,8 +1,14 @@
 /**
  * OpenAI ChatGPT-4 API クライアント（バックエンド経由）
+ *
+ * このファイルは後方互換性のためのラッパーです。
+ * 新規コードでは infrastructure/api/OpenAIClient.js を使用してください。
  */
 
-import { BACKEND_API_URL } from '../config/api'
+import { OpenAIClient } from '../infrastructure/api/OpenAIClient'
+
+// デフォルトクライアントインスタンス
+const defaultClient = new OpenAIClient()
 
 /**
  * ChatGPT-4にメッセージを送信（バックエンド経由）
@@ -19,36 +25,19 @@ export const sendToChatGPT = async (prompt, options = {}) => {
   } = options
 
   try {
-    const response = await fetch(`${BACKEND_API_URL}/api/openai/chat/completions`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          {
-            role: 'system',
-            content: systemMessage,
-          },
-          {
-            role: 'user',
-            content: prompt,
-          },
-        ],
-        max_tokens: maxTokens,
-        temperature,
-      }),
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(
-        `OpenAI API Error: ${response.status} - ${errorData.error?.message || response.statusText}`
-      )
-    }
-
-    const data = await response.json()
+    const data = await defaultClient.sendChatCompletion(
+      [
+        {
+          role: 'system',
+          content: systemMessage,
+        },
+        {
+          role: 'user',
+          content: prompt,
+        },
+      ],
+      { model, maxTokens, temperature }
+    )
 
     return {
       success: true,
@@ -74,7 +63,7 @@ export const sendToChatGPT = async (prompt, options = {}) => {
  * @returns {string} 構築されたプロンプト
  */
 export const buildShiftGenerationPrompt = params => {
-  const { month, year, staffCount, constraints = [], preferences = [], budgetLimit } = params
+  const { month, year, constraints = [], preferences = [] } = params
 
   let prompt = `\n---\n\n## 追加の制約・要望\n\n`
 
@@ -156,3 +145,6 @@ ${validationResult.warnings.map((w, i) => `${i + 1}. [${w.rule_id}] ${w.message}
       'あなたはシフト管理の専門家です。バリデーション結果を分析し、実用的な改善提案を行ってください。',
   })
 }
+
+// 新規コード向けにクラスもエクスポート
+export { OpenAIClient }
