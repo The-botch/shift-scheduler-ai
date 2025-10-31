@@ -7,8 +7,6 @@ import {
   Plus,
   Edit3,
   Eye,
-  ChevronLeft,
-  ChevronRight,
   Check,
   Clock,
   History as HistoryIcon,
@@ -45,25 +43,32 @@ const ShiftManagement = ({
   onConstraintManagement,
   onBudgetActualManagement,
 }) => {
-  const [selectedYear, setSelectedYear] = useState(2025) // 実データは2025年
   const [activeTab, setActiveTab] = useState('management') // 'management' or 'history'
   const [initialHistoryMonth, setInitialHistoryMonth] = useState(null)
   const [shifts, setShifts] = useState([])
   const [loading, setLoading] = useState(true)
 
+  // 常に現在年を使用
+  const currentYear = new Date().getFullYear()
+
   // APIからシフトサマリーを取得
   useEffect(() => {
     loadShiftSummary()
-  }, [selectedYear])
+  }, [])
 
   const loadShiftSummary = async () => {
     try {
       setLoading(true)
-      const summary = await shiftRepository.getSummary({ year: selectedYear })
+      const summary = await shiftRepository.getSummary({ year: currentYear })
+
+      // 現在の月と次月のみ表示
+      const now = new Date()
+      const currentMonth = now.getMonth() + 1 // 1-12
+      const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
+      const monthsToShow = [currentMonth, nextMonth]
 
       // 月別にグループ化してUI用のデータに変換
-      const monthlyShifts = Array.from({ length: 12 }, (_, i) => {
-        const month = i + 1
+      const monthlyShifts = monthsToShow.map(month => {
         const monthData = summary.find(s => parseInt(s.month) === month)
 
         return {
@@ -97,7 +102,7 @@ const ShiftManagement = ({
 
   const handleViewShift = shift => {
     // 履歴タブに切り替えて、該当月の詳細を開く
-    setInitialHistoryMonth({ year: 2024, month: shift.month })
+    setInitialHistoryMonth({ year: currentYear, month: shift.month })
     setActiveTab('history')
   }
 
@@ -240,17 +245,6 @@ const ShiftManagement = ({
           <History initialMonth={initialHistoryMonth} />
         ) : (
           <div>
-            {/* 年選択 */}
-            <div className="flex items-center justify-center gap-4 mb-8">
-              <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear - 1)}>
-                <ChevronLeft className="h-4 w-4" />
-              </Button>
-              <div className="text-2xl font-bold">{selectedYear}年</div>
-              <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear + 1)}>
-                <ChevronRight className="h-4 w-4" />
-              </Button>
-            </div>
-
             {/* シフト一覧 */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {shifts.map(shift => {

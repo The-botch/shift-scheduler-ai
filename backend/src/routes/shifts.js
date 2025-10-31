@@ -123,10 +123,10 @@ router.get('/summary', async (req, res) => {
         EXTRACT(MONTH FROM sh.shift_date)::int as month,
         COUNT(*)::int as shift_count,
         COUNT(DISTINCT sh.staff_id)::int as staff_count,
-        SUM(sh.total_hours) as total_hours,
-        SUM(sh.labor_cost) as total_labor_cost,
-        AVG(sh.total_hours) as avg_hours_per_shift,
-        COUNT(CASE WHEN sh.is_modified = true THEN 1 END) as modified_count
+        ROUND(SUM(COALESCE(sh.total_hours, EXTRACT(EPOCH FROM (sh.end_time - sh.start_time)) / 3600 - COALESCE(sh.break_minutes, 0) / 60.0))::numeric, 2) as total_hours,
+        ROUND(SUM(COALESCE(sh.labor_cost, (EXTRACT(EPOCH FROM (sh.end_time - sh.start_time)) / 3600 - COALESCE(sh.break_minutes, 0) / 60.0) * 1200))::numeric, 2) as total_labor_cost,
+        ROUND(AVG(COALESCE(sh.total_hours, EXTRACT(EPOCH FROM (sh.end_time - sh.start_time)) / 3600 - COALESCE(sh.break_minutes, 0) / 60.0))::numeric, 2) as avg_hours_per_shift,
+        COUNT(CASE WHEN sh.is_modified = true THEN 1 END)::int as modified_count
 
 
 

@@ -1001,13 +1001,31 @@ const History = ({
             <ChevronLeft className="h-4 w-4" />
           </Button>
           <div className="text-2xl font-bold">{selectedYear}年</div>
-          <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear + 1)}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setSelectedYear(selectedYear + 1)}
+            disabled={selectedYear >= new Date().getFullYear()}
+          >
             <ChevronRight className="h-4 w-4" />
           </Button>
         </div>
 
         {/* 月次サマリーカード */}
-        {monthlySummary.filter(summary => summary.year === selectedYear).length === 0 ? (
+        {monthlySummary.filter(summary => {
+          const now = new Date()
+          const currentYear = now.getFullYear()
+          const currentMonth = now.getMonth() + 1
+
+          // 選択された年でフィルタ
+          if (summary.year !== selectedYear) return false
+
+          // 未来の月は除外
+          if (summary.year > currentYear) return false
+          if (summary.year === currentYear && summary.month > currentMonth) return false
+
+          return true
+        }).length === 0 ? (
           <div className="text-center py-12">
             <AlertTriangle className="h-12 w-12 text-gray-400 mx-auto mb-4" />
             <p className="text-lg text-gray-600">{selectedYear}年のシフトデータはありません</p>
@@ -1015,7 +1033,20 @@ const History = ({
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {monthlySummary
-              .filter(summary => summary.year === selectedYear)
+              .filter(summary => {
+                const now = new Date()
+                const currentYear = now.getFullYear()
+                const currentMonth = now.getMonth() + 1
+
+                // 選択された年でフィルタ
+                if (summary.year !== selectedYear) return false
+
+                // 未来の月は除外
+                if (summary.year > currentYear) return false
+                if (summary.year === currentYear && summary.month > currentMonth) return false
+
+                return true
+              })
               .map((summary, index) => (
                 <motion.div
                   key={`${summary.year}-${summary.month}`}
