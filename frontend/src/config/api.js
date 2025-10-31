@@ -21,6 +21,12 @@ export const API_ENDPOINTS = {
   // CSV操作
   SAVE_CSV: '/api/save-csv',
   LOAD_CSV: '/api/load-csv',
+
+  // Analytics API
+  ANALYTICS_PAYROLL: '/api/analytics/payroll',
+  ANALYTICS_SALES_ACTUAL: '/api/analytics/sales-actual',
+  ANALYTICS_SALES_FORECAST: '/api/analytics/sales-forecast',
+  ANALYTICS_DASHBOARD_METRICS: '/api/analytics/dashboard-metrics',
 }
 
 // 完全なAPIエンドポイントURLを取得

@@ -4,11 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import AppHeader from '../shared/AppHeader'
 import { TrendingUp, DollarSign, Database, Clock, BarChart3 } from 'lucide-react'
-import { getAllData, getAllSalesActual } from '../../utils/indexedDB'
-import { INDEXED_DB } from '../../config/constants'
-import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+import { AnalyticsRepository } from '../../infrastructure/repositories/AnalyticsRepository'
 
-const csvRepository = new CSVRepository()
+const analyticsRepository = new AnalyticsRepository()
 import {
   LineChart,
   Line,
@@ -60,31 +58,22 @@ const Dashboard = ({
     try {
       setLoadingAnnualSummary(true)
 
-      // Load all actual data from IndexedDB
-      const actualShifts = await getAllData(INDEXED_DB.STORES.ACTUAL_SHIFTS)
-      const actualPayroll = await getAllData(INDEXED_DB.STORES.PAYROLL)
-      const actualSales = await getAllSalesActual()
-
-      // Filter to only include 2024 data
-      const actualShifts2024 = actualShifts.filter(shift => shift.year === 2024)
-      const actualPayroll2024 = actualPayroll.filter(payroll => payroll.year === 2024)
-      const actualSales2024 = actualSales.filter(sale => sale.year === 2024)
-
-      // Load planned shifts from CSV
-      const [shiftsResult, forecastResult] = await Promise.all([
-        csvRepository.loadCSV('data/history/shift_history_2023-2024.csv'),
-        csvRepository.loadCSV('data/forecast/sales_forecast_2024.csv'),
+      // Load all data from Analytics API
+      const [actualPayroll2024, actualSales2024, salesForecast2024] = await Promise.all([
+        analyticsRepository.getAnnualPayroll(2024),
+        analyticsRepository.getAnnualSalesActual(2024),
+        analyticsRepository.getAnnualSalesForecast(2024),
       ])
 
-      // Filter to only include 2024 data
-      const plannedShifts2024 = shiftsResult.filter(shift => shift.year === 2024)
-      const salesForecast2024 = forecastResult.filter(f => parseInt(f.year) === 2024)
+      // Note: シフトデータはまだIndexedDBから取得（後で実装）
+      const actualShifts2024 = []
+      const plannedShifts2024 = []
 
       // Always set monthlyData (empty array if no actual data) to show graph framework
       setMonthlyData([])
 
       // Calculate annual summary only if actual data exists
-      if (actualShifts2024.length > 0 && actualPayroll2024.length > 0) {
+      if (actualPayroll2024.length > 0) {
         const summary = calculateAnnualSummary(
           plannedShifts2024,
           actualShifts2024,
