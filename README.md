@@ -112,8 +112,9 @@ shift-scheduler-ai/
 │
 ├── scripts/
 │   ├── setup/                 # データベースセットアップ
-│   │   ├── schema.sql         # スキーマ定義（795行）
-│   │   ├── seed_data.sql      # マスターデータ
+│   │   ├── schema.sql         # スキーマ定義（795行、30テーブル）
+│   │   ├── seed_data.sql      # マスターデータDML
+│   │   ├── seed_transaction_data.sql  # トランザクションデータDML（4,911件）
 │   │   ├── setup_fresh_db.mjs # DB初期化スクリプト
 │   │   └── verify_setup.mjs   # 検証スクリプト
 │   └── dev/                   # 開発用スクリプト

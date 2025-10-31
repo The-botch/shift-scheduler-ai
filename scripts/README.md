@@ -19,8 +19,9 @@ scripts/
 新規開発者がリポジトリをクローンして最初に実行するスクリプト群です。
 
 ### DDL/DML
-- **`schema.sql`** - 17マスターテーブルのDDL定義（SERIAL PRIMARY KEY対応）
-- **`seed_data.sql`** - 基本シードデータ（テナント、Division、店舗、役職、スキル、雇用形態、シフトパターン）
+- **`schema.sql`** - 全30テーブルのDDL定義（マスター17 + トランザクション13）
+- **`seed_data.sql`** - マスターデータシードデータ（テナント、Division、店舗、役職、スキル、雇用形態、シフトパターンなど）
+- **`seed_transaction_data.sql`** - トランザクションデータシードデータ（4,911件：シフト、需要予測、給与など）
 
 ### セットアップスクリプト
 - **`setup_fresh_db.mjs`** - データベース完全セットアップ（drop → schema.sql → seed_data.sql）
@@ -33,13 +34,16 @@ scripts/
 # 環境変数設定
 export DATABASE_URL="postgresql://user:password@host:port/database"
 
-# 1. データベース完全セットアップ（DDL + 基本シードデータ）
+# 1. データベース完全セットアップ（DDL + マスターデータ）
 node scripts/setup/setup_fresh_db.mjs
 
 # 2. 詳細マスターデータ投入（CSVファイル）
 node scripts/setup/import_all_17_masters.mjs
 
-# 3. セットアップ検証
+# 3. トランザクションデータ投入（オプション）
+psql $DATABASE_URL -f scripts/setup/seed_transaction_data.sql
+
+# 4. セットアップ検証
 node scripts/setup/verify_setup.mjs
 ```
 
@@ -56,10 +60,16 @@ node scripts/setup/verify_setup.mjs
 
 ### データ操作
 - **`drop_all.sql`** - データベース完全クリア用SQL
+- **`import_all_csv_to_db.mjs`** - 全CSVデータ（10テーブル）をDBに投入
+- **`cleanup_all_transaction_data.mjs`** - トランザクションデータ全削除
 - **`import_all_shifts.mjs`** - シフト.csvの全データをops.shiftsテーブルに投入
 - **`import_shift_sample.mjs`** - シフトサンプルデータ投入
 - **`import_shifts_100.mjs`** - シフト100件投入
 - **`test_transactions_setup.mjs`** - トランザクションテーブルセットアップテスト
+
+### DML生成
+- **`export_transaction_dml_from_db.mjs`** - データベースからトランザクションDML生成
+- **`generate_transaction_dml_file.mjs`** - CSVファイルからトランザクションDML生成（参考用）
 
 ### ユーティリティ
 - **`db_query.mjs`** - 汎用データベースクエリ実行ツール

@@ -129,7 +129,7 @@ node scripts/setup/setup_fresh_db.mjs
 
 このスクリプトは以下を自動実行します：
 - スキーマ作成（core, hr, ops, analytics）
-- 全テーブル作成（マルチテナント対応）
+- 全テーブル作成（マスターテーブル17 + トランザクションテーブル13）
 - マスターデータ投入
 
 ### 方法2: Railway CLI経由で実行
@@ -138,6 +138,9 @@ node scripts/setup/setup_fresh_db.mjs
 # Railwayに接続してSQLを実行
 railway run psql $DATABASE_URL -f scripts/setup/schema.sql
 railway run psql $DATABASE_URL -f scripts/setup/seed_data.sql
+
+# トランザクションデータも投入する場合（オプション）
+railway run psql $DATABASE_URL -f scripts/setup/seed_transaction_data.sql
 ```
 
 ### 方法3: psqlコマンドで直接実行
@@ -149,6 +152,9 @@ psql $DATABASE_URL
 # psql プロンプトで実行
 \i scripts/setup/schema.sql
 \i scripts/setup/seed_data.sql
+
+# トランザクションデータも投入する場合（オプション）
+\i scripts/setup/seed_transaction_data.sql
 
 # 終了
 \q
