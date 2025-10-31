@@ -4,9 +4,11 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import AppHeader from '../shared/AppHeader'
 import { TrendingUp, DollarSign, Database, Clock, BarChart3 } from 'lucide-react'
-import Papa from 'papaparse'
 import { getAllData, getAllSalesActual } from '../../utils/indexedDB'
 import { INDEXED_DB } from '../../config/constants'
+import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+
+const csvRepository = new CSVRepository()
 import {
   LineChart,
   Line,
@@ -69,35 +71,14 @@ const Dashboard = ({
       const actualSales2024 = actualSales.filter(sale => sale.year === 2024)
 
       // Load planned shifts from CSV
-      const shiftsResponse = await fetch('/data/history/shift_history_2023-2024.csv')
-      const shiftsText = await shiftsResponse.text()
-
-      const shiftsResult = await new Promise(resolve => {
-        Papa.parse(shiftsText, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
+      const [shiftsResult, forecastResult] = await Promise.all([
+        csvRepository.loadCSV('data/history/shift_history_2023-2024.csv'),
+        csvRepository.loadCSV('data/forecast/sales_forecast_2024.csv'),
+      ])
 
       // Filter to only include 2024 data
-      const plannedShifts2024 = shiftsResult.data.filter(shift => shift.year === 2024)
-
-      // Load sales forecast from CSV
-      const forecastResponse = await fetch('/data/forecast/sales_forecast_2024.csv')
-      const forecastText = await forecastResponse.text()
-
-      const forecastResult = await new Promise(resolve => {
-        Papa.parse(forecastText, {
-          header: true,
-          dynamicTyping: false,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
-
-      const salesForecast2024 = forecastResult.data.filter(f => parseInt(f.year) === 2024)
+      const plannedShifts2024 = shiftsResult.filter(shift => shift.year === 2024)
+      const salesForecast2024 = forecastResult.filter(f => parseInt(f.year) === 2024)
 
       // Always set monthlyData (empty array if no actual data) to show graph framework
       setMonthlyData([])

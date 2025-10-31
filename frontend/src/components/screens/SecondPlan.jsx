@@ -20,8 +20,10 @@ import {
   GripVertical,
   AlertTriangle,
 } from 'lucide-react'
-import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'
+import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+
+const csvRepository = new CSVRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -171,33 +173,17 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
   const generateSecondPlan = async () => {
     try {
       // シフト希望提出状況を確認
-      const staffRes = await fetch('/data/master/staff.csv')
-      const staffText = await staffRes.text()
-      const staffResult = await new Promise(resolve => {
-        Papa.parse(staffText, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
-      const activeStaff = staffResult.data.filter(s => s.is_active)
-      const totalStaffCount = activeStaff.length
+      const [staffResult, preferencesResult] = await Promise.all([
+        csvRepository.loadCSV('data/master/staff.csv'),
+        csvRepository.loadCSV('data/transactions/availability_requests.csv'),
+      ])
 
-      const preferencesRes = await fetch('/data/transactions/availability_requests.csv')
-      const preferencesText = await preferencesRes.text()
-      const preferencesResult = await new Promise(resolve => {
-        Papa.parse(preferencesText, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
+      const activeStaff = staffResult.filter(s => s.is_active)
+      const totalStaffCount = activeStaff.length
 
       // 提出済みのスタッフIDを抽出（submitted_atがあるスタッフ）
       const submittedStaffIds = new Set(
-        preferencesResult.data.filter(req => req.submitted_at).map(req => req.staff_id)
+        preferencesResult.filter(req => req.submitted_at).map(req => req.staff_id)
       )
       const submittedCount = submittedStaffIds.size
 
@@ -219,40 +205,15 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
       setGenerating(true)
 
       // マスターデータ読み込み
-      const [rolesRes, shiftsRes, issuesRes, solutionsRes] = await Promise.all([
-        fetch('/data/master/roles.csv'),
-        fetch('/data/transactions/shift_second_plan.csv'),
-        fetch('/data/transactions/shift_second_plan_issues.csv'),
-        fetch('/data/transactions/shift_second_plan_solutions.csv'),
-      ])
-
-      const [rolesText, shiftsText, issuesText, solutionsText] = await Promise.all([
-        rolesRes.text(),
-        shiftsRes.text(),
-        issuesRes.text(),
-        solutionsRes.text(),
-      ])
-
-      // CSV解析
-      const parseCSV = text =>
-        new Promise(resolve => {
-          Papa.parse(text, {
-            header: true,
-            dynamicTyping: true,
-            skipEmptyLines: true,
-            complete: result => resolve(result.data),
-          })
-        })
-
       const [rolesData, shiftsData, issuesData, solutionsData] = await Promise.all([
-        parseCSV(rolesText),
-        parseCSV(shiftsText),
-        parseCSV(issuesText),
-        parseCSV(solutionsText),
+        csvRepository.loadCSV('data/master/roles.csv'),
+        csvRepository.loadCSV('data/transactions/shift_second_plan.csv'),
+        csvRepository.loadCSV('data/transactions/shift_second_plan_issues.csv'),
+        csvRepository.loadCSV('data/transactions/shift_second_plan_solutions.csv'),
       ])
 
       // staffDataは既に読み込み済み
-      const staffData = staffResult.data
+      const staffData = staffResult
 
       // スタッフマップとロールマップを作成
       const newRolesMap = {}
@@ -313,9 +274,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
       } else {
         // 第1案がlocalStorageにない場合は、shift.csvから読み込む
         try {
-          const firstPlanRes = await fetch('/data/transactions/shift.csv')
-          const firstPlanText = await firstPlanRes.text()
-          const firstPlanResult = await parseCSV(firstPlanText)
+          const firstPlanResult = await csvRepository.loadCSV('data/transactions/shift.csv')
 
           // 第1案データを日付ごとにグループ化
           const firstPlanGrouped = {}

@@ -3,7 +3,6 @@ import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import { Shield, AlertTriangle, Download, Upload, BookOpen } from 'lucide-react'
-import Papa from 'papaparse'
 import {
   exportCSV as exportCSVHelper,
   importCSV,
@@ -11,6 +10,9 @@ import {
   generateFilename,
 } from '../../utils/csvHelper'
 import AppHeader from '../shared/AppHeader'
+import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+
+const csvRepository = new CSVRepository()
 
 const ConstraintManagement = ({
   onHome,
@@ -33,10 +35,8 @@ const ConstraintManagement = ({
     setLoading(true)
     try {
       // Load labor_law_constraints.csv
-      const response = await fetch('/data/master/labor_law_constraints.csv')
-      const text = await response.text()
-      const parsed = Papa.parse(text, { header: true, skipEmptyLines: true })
-      setLaborLaws(parsed.data)
+      const data = await csvRepository.loadCSV('data/master/labor_law_constraints.csv')
+      setLaborLaws(data)
     } catch (error) {
       console.error('データの読み込みエラー:', error)
     } finally {

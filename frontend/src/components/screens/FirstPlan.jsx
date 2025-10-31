@@ -13,8 +13,10 @@ import {
   GripVertical,
   Upload,
 } from 'lucide-react'
-import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'
+import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+
+const csvRepository = new CSVRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -77,62 +79,22 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
     try {
       setLoading(true)
 
-      // shift.csvを読み込み
-      const shiftsResponse = await fetch('/data/transactions/shift.csv')
-
-      if (!shiftsResponse.ok) {
-        throw new Error('CSVファイルが見つかりません')
-      }
-
-      const shiftsText = await shiftsResponse.text()
-
-      const shiftsResult = await new Promise((resolve, reject) => {
-        Papa.parse(shiftsText, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: resolve,
-          error: reject,
-        })
-      })
-
-      // staff.csvを読み込み
-      const staffResponse = await fetch('/data/master/staff.csv')
-      const staffText = await staffResponse.text()
-
-      const staffResult = await new Promise((resolve, reject) => {
-        Papa.parse(staffText, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: resolve,
-          error: reject,
-        })
-      })
-
-      // roles.csvを読み込み
-      const rolesResponse = await fetch('/data/master/roles.csv')
-      const rolesText = await rolesResponse.text()
-
-      const rolesResult = await new Promise((resolve, reject) => {
-        Papa.parse(rolesText, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: resolve,
-          error: reject,
-        })
-      })
+      // 並行読み込み
+      const [shiftsResult, staffResult, rolesResult] = await Promise.all([
+        csvRepository.loadCSV('data/transactions/shift.csv'),
+        csvRepository.loadCSV('data/master/staff.csv'),
+        csvRepository.loadCSV('data/master/roles.csv'),
+      ])
 
       // 役職IDから役職名へのマッピング
       const rolesMap = {}
-      rolesResult.data.forEach(role => {
+      rolesResult.forEach(role => {
         rolesMap[role.role_id] = role.role_name
       })
 
       // スタッフIDから名前・役職へのマッピング
       const staffMap = {}
-      staffResult.data.forEach(staff => {
+      staffResult.forEach(staff => {
         staffMap[staff.staff_id] = {
           name: staff.name,
           role_id: staff.role_id,
@@ -142,7 +104,7 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
 
       // 日付別にグループ化
       const groupedByDate = {}
-      shiftsResult.data.forEach(shift => {
+      shiftsResult.forEach(shift => {
         const date = shift.shift_date
         if (!groupedByDate[date]) {
           groupedByDate[date] = []
@@ -175,8 +137,8 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
       setShiftData(formattedData)
 
       // 統計情報を計算
-      const totalShifts = shiftsResult.data.length
-      const totalHours = shiftsResult.data.reduce((sum, s) => sum + (s.total_hours || 0), 0)
+      const totalShifts = shiftsResult.length
+      const totalHours = shiftsResult.reduce((sum, s) => sum + (s.total_hours || 0), 0)
       const staffCount = Object.keys(staffMap).length
 
       setStats({ totalShifts, totalHours, staffCount })

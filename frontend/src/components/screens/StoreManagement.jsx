@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Store, Clock, MapPin, Phone, Briefcase } from 'lucide-react'
-import Papa from 'papaparse'
 import { validateStoreCSV } from '../../utils/csvHelper'
 import CSVActions from '../shared/CSVActions'
 import AppHeader from '../shared/AppHeader'
+import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+
+const csvRepository = new CSVRepository()
 
 const StoreManagement = ({
   onHome,
@@ -30,27 +32,16 @@ const StoreManagement = ({
   const loadData = async () => {
     setLoading(true)
     try {
-      // Load stores.csv
-      const storesResponse = await fetch('/data/master/stores.csv')
-      const storesText = await storesResponse.text()
-      const storesParsed = Papa.parse(storesText, { header: true, skipEmptyLines: true })
+      // 並行読み込み
+      const [storesData, constraintsData, employmentTypesData] = await Promise.all([
+        csvRepository.loadCSV('data/master/stores.csv'),
+        csvRepository.loadCSV('data/master/store_constraints.csv'),
+        csvRepository.loadCSV('data/master/employment_types.csv'),
+      ])
 
-      // Load store_constraints.csv
-      const constraintsResponse = await fetch('/data/master/store_constraints.csv')
-      const constraintsText = await constraintsResponse.text()
-      const constraintsParsed = Papa.parse(constraintsText, { header: true, skipEmptyLines: true })
-
-      // Load employment_types.csv
-      const employmentTypesResponse = await fetch('/data/master/employment_types.csv')
-      const employmentTypesText = await employmentTypesResponse.text()
-      const employmentTypesParsed = Papa.parse(employmentTypesText, {
-        header: true,
-        skipEmptyLines: true,
-      })
-
-      setStores(storesParsed.data)
-      setConstraints(constraintsParsed.data)
-      setEmploymentTypes(employmentTypesParsed.data)
+      setStores(storesData)
+      setConstraints(constraintsData)
+      setEmploymentTypes(employmentTypesData)
 
       // デモ用の雇用形態別勤務条件を設定
       setEmploymentRequirements({

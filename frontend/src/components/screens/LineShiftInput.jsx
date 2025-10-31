@@ -12,8 +12,10 @@ import {
   Copy,
   Edit3,
 } from 'lucide-react'
-import Papa from 'papaparse'
 import AppHeader from '../shared/AppHeader'
+import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+
+const csvRepository = new CSVRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -186,16 +188,8 @@ const LineShiftInput = ({
 
   const loadShiftPatterns = async () => {
     try {
-      const response = await fetch('/data/master/shift_patterns.csv')
-      const text = await response.text()
-      const result = await new Promise(resolve => {
-        Papa.parse(text, {
-          header: true,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
-      setShiftPatterns(result.data.filter(p => p.is_active === 'TRUE'))
+      const data = await csvRepository.loadCSV('data/master/shift_patterns.csv')
+      setShiftPatterns(data.filter(p => p.is_active === 'TRUE'))
     } catch (error) {
       console.error('シフトパターン読み込みエラー:', error)
     }

@@ -15,7 +15,6 @@ import {
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react'
-import Papa from 'papaparse'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import {
@@ -28,9 +27,12 @@ import {
   getCount,
   clearStore,
 } from '../../utils/indexedDB'
+import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
 import { INDEXED_DB, STORAGE_KEYS } from '../../config'
 import { PAGE_VARIANTS, PAGE_TRANSITION } from '../../config/display'
 import AppHeader from '../shared/AppHeader'
+
+const csvRepository = new CSVRepository()
 
 const BudgetActualManagement = ({
   onHome,
@@ -252,79 +254,48 @@ const BudgetActualManagement = ({
       const currentYear = 2024
       const currentMonth = 10
 
-      // 労働時間実績CSVをロード
-      const workHoursResponse = await fetch('/data/actual/work_hours_2024.csv')
-      const workHoursText = await workHoursResponse.text()
+      // CSVRepositoryを使用してAPI経由で読み込み
+      const [workHoursResult, payrollResult, salesActualResult, forecastResult] = await Promise.all([
+        csvRepository.loadCSV('data/actual/work_hours_2024.csv'),
+        csvRepository.loadCSV('data/actual/payroll_2024.csv'),
+        csvRepository.loadCSV('data/actual/sales_actual_2024.csv'),
+        csvRepository.loadCSV('data/forecast/sales_forecast_2024.csv')
+      ])
 
-      Papa.parse(workHoursText, {
-        header: true,
-        skipEmptyLines: true,
-        complete: result => {
-          // 現在月以前のデータのみをフィルタ
-          const filteredData = result.data.filter(row => {
-            const year = parseInt(row.year)
-            const month = parseInt(row.month)
-            return year < currentYear || (year === currentYear && month <= currentMonth)
-          })
-          setWorkHoursData(filteredData)
-          setWorkHoursPreview(filteredData.slice(0, 5))
-          setWorkHoursFile({ name: 'work_hours_2024.csv (サンプル)' })
-        },
+      // 労働時間実績データ処理
+      const workHoursFiltered = workHoursResult.filter(row => {
+        const year = parseInt(row.year)
+        const month = parseInt(row.month)
+        return year < currentYear || (year === currentYear && month <= currentMonth)
       })
+      setWorkHoursData(workHoursFiltered)
+      setWorkHoursPreview(workHoursFiltered.slice(0, 5))
+      setWorkHoursFile({ name: 'work_hours_2024.csv (サンプル)' })
 
-      // 給与明細CSVをロード
-      const payrollResponse = await fetch('/data/actual/payroll_2024.csv')
-      const payrollText = await payrollResponse.text()
-
-      Papa.parse(payrollText, {
-        header: true,
-        skipEmptyLines: true,
-        complete: result => {
-          // 現在月以前のデータのみをフィルタ
-          const filteredData = result.data.filter(row => {
-            const year = parseInt(row.year)
-            const month = parseInt(row.month)
-            return year < currentYear || (year === currentYear && month <= currentMonth)
-          })
-          setPayrollData(filteredData)
-          setPayrollPreview(filteredData.slice(0, 5))
-          setPayrollFile({ name: 'payroll_2024.csv (サンプル)' })
-        },
+      // 給与明細データ処理
+      const payrollFiltered = payrollResult.filter(row => {
+        const year = parseInt(row.year)
+        const month = parseInt(row.month)
+        return year < currentYear || (year === currentYear && month <= currentMonth)
       })
+      setPayrollData(payrollFiltered)
+      setPayrollPreview(payrollFiltered.slice(0, 5))
+      setPayrollFile({ name: 'payroll_2024.csv (サンプル)' })
 
-      // 売上実績CSVをロード
-      const salesActualResponse = await fetch('/data/actual/sales_actual_2024.csv')
-      const salesActualText = await salesActualResponse.text()
-
-      Papa.parse(salesActualText, {
-        header: true,
-        skipEmptyLines: true,
-        complete: result => {
-          // 現在月以前のデータのみをフィルタ
-          const filteredData = result.data.filter(row => {
-            const year = parseInt(row.year)
-            const month = parseInt(row.month)
-            return year < currentYear || (year === currentYear && month <= currentMonth)
-          })
-          setSalesActualData(filteredData)
-          setSalesActualPreview(filteredData.slice(0, 5))
-          setSalesActualFile({ name: 'sales_actual_2024.csv (サンプル)' })
-        },
+      // 売上実績データ処理
+      const salesActualFiltered = salesActualResult.filter(row => {
+        const year = parseInt(row.year)
+        const month = parseInt(row.month)
+        return year < currentYear || (year === currentYear && month <= currentMonth)
       })
+      setSalesActualData(salesActualFiltered)
+      setSalesActualPreview(salesActualFiltered.slice(0, 5))
+      setSalesActualFile({ name: 'sales_actual_2024.csv (サンプル)' })
 
-      // 売上予測CSVをロード
-      const forecastResponse = await fetch('/data/forecast/sales_forecast_2024.csv')
-      const forecastText = await forecastResponse.text()
-
-      Papa.parse(forecastText, {
-        header: true,
-        skipEmptyLines: true,
-        complete: result => {
-          setForecastData(result.data)
-          setForecastPreview(result.data.slice(0, 5))
-          setForecastFile({ name: 'sales_forecast_2024.csv (サンプル)' })
-        },
-      })
+      // 売上予測データ処理
+      setForecastData(forecastResult)
+      setForecastPreview(forecastResult.slice(0, 5))
+      setForecastFile({ name: 'sales_forecast_2024.csv (サンプル)' })
 
       setImportStatus({
         workHours: { status: 'idle', message: '' },
@@ -749,21 +720,11 @@ const BudgetActualManagement = ({
   // 予定シフトデータを読み込み
   const loadPlannedShifts = async (year, month) => {
     try {
-      // shift_history_2023-2024.csvから読み込み
-      const response = await fetch('/data/history/shift_history_2023-2024.csv')
-      const text = await response.text()
-
-      const result = await new Promise(resolve => {
-        Papa.parse(text, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
+      // CSVRepositoryを使用してAPI経由で読み込み
+      const data = await csvRepository.loadCSV('data/history/shift_history_2023-2024.csv')
 
       // 該当月のデータをフィルタ
-      return result.data.filter(shift => shift.year === year && shift.month === month)
+      return data.filter(shift => shift.year === year && shift.month === month)
     } catch (error) {
       console.error('予定シフト読み込みエラー:', error)
       return []
@@ -773,20 +734,11 @@ const BudgetActualManagement = ({
   // 売上予測データを読み込み
   const loadSalesForecast = async (year, month) => {
     try {
-      const response = await fetch('/data/forecast/sales_forecast_2024.csv')
-      const text = await response.text()
-
-      const result = await new Promise(resolve => {
-        Papa.parse(text, {
-          header: true,
-          dynamicTyping: false,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
+      // CSVRepositoryを使用してAPI経由で読み込み
+      const data = await csvRepository.loadCSV('data/forecast/sales_forecast_2024.csv')
 
       // 該当月のデータをフィルタ
-      return result.data.filter(f => parseInt(f.year) === year && parseInt(f.month) === month)
+      return data.filter(f => parseInt(f.year) === year && parseInt(f.month) === month)
     } catch (error) {
       console.error('売上予測読み込みエラー:', error)
       return []

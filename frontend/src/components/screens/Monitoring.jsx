@@ -14,10 +14,12 @@ import {
   X,
   Calendar,
 } from 'lucide-react'
-import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'
 import { AnimatePresence } from 'framer-motion'
 import AppHeader from '../shared/AppHeader'
+import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+
+const csvRepository = new CSVRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -59,50 +61,29 @@ const Monitoring = ({
   const loadAvailabilityData = async () => {
     setLoading(true)
     try {
-      // staff.csvを読み込み
-      const staffResponse = await fetch('/data/master/staff.csv')
-      const staffText = await staffResponse.text()
-      const staffParsed = Papa.parse(staffText, { header: true, skipEmptyLines: true })
-
-      // 役職マスターデータを読み込み
-      const rolesResponse = await fetch('/data/master/roles.csv')
-      const rolesText = await rolesResponse.text()
-      const rolesResult = await new Promise(resolve => {
-        Papa.parse(rolesText, {
-          header: true,
-          dynamicTyping: false,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
+      // 並行読み込み
+      const [staffData, rolesData, patternsData, availData] = await Promise.all([
+        csvRepository.loadCSV('data/master/staff.csv'),
+        csvRepository.loadCSV('data/master/roles.csv'),
+        csvRepository.loadCSV('data/master/shift_patterns.csv'),
+        csvRepository.loadCSV('data/transactions/availability_requests.csv'),
+      ])
 
       // スタッフマップと役職マップを作成
       const staffMapping = {}
-      staffParsed.data.forEach(staff => {
+      staffData.forEach(staff => {
         staffMapping[staff.staff_id] = staff
       })
       setStaffMap(staffMapping)
 
       const rolesMapping = {}
-      rolesResult.data.forEach(role => {
+      rolesData.forEach(role => {
         rolesMapping[role.role_id] = role.role_name
       })
       setRolesMap(rolesMapping)
 
-      // シフトパターンマスターデータを読み込み
-      const patternsResponse = await fetch('/data/master/shift_patterns.csv')
-      const patternsText = await patternsResponse.text()
-      const patternsResult = await new Promise(resolve => {
-        Papa.parse(patternsText, {
-          header: true,
-          dynamicTyping: false,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
-
       const patternsMapping = {}
-      patternsResult.data.forEach(pattern => {
+      patternsData.forEach(pattern => {
         patternsMapping[pattern.pattern_code] = {
           name: pattern.pattern_name,
           start_time: pattern.start_time,
@@ -112,14 +93,9 @@ const Monitoring = ({
       })
       setShiftPatternsMap(patternsMapping)
 
-      // availability_requests.csvを読み込み
-      const availResponse = await fetch('/data/transactions/availability_requests.csv')
-      const availText = await availResponse.text()
-      const availParsed = Papa.parse(availText, { header: true, skipEmptyLines: true })
-
       // スタッフごとに集計
       const staffMap = {}
-      staffParsed.data.forEach(staff => {
+      staffData.forEach(staff => {
         staffMap[staff.staff_id] = {
           id: parseInt(staff.staff_id),
           name: staff.name,
@@ -131,7 +107,7 @@ const Monitoring = ({
 
       // 提出状況を集計（submitted_atがあるstaff_idのみを提出済みとする）
       const submittedStaffIds = new Set()
-      availParsed.data.forEach(req => {
+      availData.forEach(req => {
         if (req.submitted_at && req.submitted_at.trim()) {
           submittedStaffIds.add(req.staff_id)
 
@@ -156,7 +132,7 @@ const Monitoring = ({
       })
 
       setStaffStatus(Object.values(staffMap))
-      setAvailabilityRequests(availParsed.data)
+      setAvailabilityRequests(availData)
     } catch (error) {
       console.error('データ読み込みエラー:', error)
     } finally {

@@ -81,3 +81,29 @@ export function deleteTempFile(filePath) {
     fs.unlinkSync(filePath)
   }
 }
+
+/**
+ * CSVファイルを読み込んでJSONとして返す
+ * @param {string} relativePath - frontend/publicからの相対パス (例: 'data/master/staff.csv')
+ * @returns {Array} パースされたCSVデータ
+ */
+export function loadCSV(relativePath) {
+  const fullPath = path.join(__dirname, '../../../frontend/public', relativePath)
+
+  if (!fs.existsSync(fullPath)) {
+    throw new Error(`CSVファイルが見つかりません: ${relativePath}`)
+  }
+
+  const csvContent = fs.readFileSync(fullPath, 'utf-8')
+  const parseResult = Papa.parse(csvContent, {
+    header: true,
+    skipEmptyLines: true,
+    dynamicTyping: true
+  })
+
+  if (parseResult.errors.length > 0) {
+    appendLog(`⚠️ CSV解析警告 (${relativePath}): ${JSON.stringify(parseResult.errors)}`)
+  }
+
+  return parseResult.data
+}

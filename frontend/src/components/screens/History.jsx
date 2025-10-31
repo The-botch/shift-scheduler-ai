@@ -16,10 +16,12 @@ import {
   Loader2,
   AlertTriangle,
 } from 'lucide-react'
-import Papa from 'papaparse'
 import ShiftTimeline from '../shared/ShiftTimeline'
 import { exportCSV, generateFilename } from '../../utils/csvHelper'
 import AppHeader from '../shared/AppHeader'
+import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+
+const csvRepository = new CSVRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -229,68 +231,39 @@ const History = ({
     try {
       setLoading(true)
 
-      // スタッフマスターデータを読み込み
-      const staffResponse = await fetch('/data/master/staff.csv')
-      const staffText = await staffResponse.text()
-      const staffResult = await new Promise(resolve => {
-        Papa.parse(staffText, {
-          header: true,
-          dynamicTyping: false,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
-
-      // 役職マスターデータを読み込み
-      const rolesResponse = await fetch('/data/master/roles.csv')
-      const rolesText = await rolesResponse.text()
-      const rolesResult = await new Promise(resolve => {
-        Papa.parse(rolesText, {
-          header: true,
-          dynamicTyping: false,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
+      // CSVRepositoryを使用してAPI経由で読み込み
+      const [staffData, rolesData, summaryData] = await Promise.all([
+        csvRepository.loadCSV('data/master/staff.csv'),
+        csvRepository.loadCSV('data/master/roles.csv'),
+        csvRepository.loadCSV('data/history/shift_monthly_summary.csv')
+      ])
 
       // スタッフマップと役職マップを作成
       const staffMapping = {}
-      staffResult.data.forEach(staff => {
+      staffData.forEach(staff => {
         staffMapping[staff.staff_id] = staff
       })
       setStaffMap(staffMapping)
 
       const rolesMapping = {}
-      rolesResult.data.forEach(role => {
+      rolesData.forEach(role => {
         rolesMapping[role.role_id] = role.role_name
       })
       setRolesMap(rolesMapping)
 
-      // 月次サマリーを読み込み
-      const summaryResponse = await fetch('/data/history/shift_monthly_summary.csv')
-      const summaryText = await summaryResponse.text()
-      const summaryResult = await new Promise(resolve => {
-        Papa.parse(summaryText, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
-
       // LocalStorageから承認されたシフトを読み込み
       const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
       const approvedSecondPlan = localStorage.getItem('approved_second_plan_2024_10')
-      let summaryData = summaryResult.data
+      let summaryDataProcessed = summaryData
 
       // 全ての月に確定済みステータスを設定
-      summaryData = summaryData.map(s => ({
+      summaryDataProcessed = summaryDataProcessed.map(s => ({
         ...s,
         status: 'completed',
       }))
 
       // 2024年10月を除外（承認がない限り表示しない）
-      summaryData = summaryData.filter(s => !(s.year === 2024 && s.month === 10))
+      summaryDataProcessed = summaryDataProcessed.filter(s => !(s.year === 2024 && s.month === 10))
 
       // 第2案承認が優先（第1案より後に承認されるため）
       if (approvedSecondPlan) {
@@ -305,7 +278,7 @@ const History = ({
           notes: `第2案確定済み (${new Date(approvedData.approvedAt).toLocaleDateString('ja-JP')}) - ${approvedData.stats.resolvedIssues}/${approvedData.stats.totalIssues}問題解決済み`,
           status: 'second_plan_approved',
         }
-        summaryData.push(approvedSummary)
+        summaryDataProcessed.push(approvedSummary)
       } else if (approvedFirstPlan) {
         const approvedData = JSON.parse(approvedFirstPlan)
         // 仮承認データを追加
@@ -320,36 +293,19 @@ const History = ({
           status: 'first_plan_approved',
         }
 
-        summaryData.push(approvedSummary)
+        summaryDataProcessed.push(approvedSummary)
       }
 
-      setMonthlySummary(summaryData)
+      setMonthlySummary(summaryDataProcessed)
 
       // 過去のシフト履歴を読み込み
-      const historyResponse = await fetch('/data/history/shift_history_2023-2024.csv')
-      const historyText = await historyResponse.text()
-      const historyResult = await new Promise(resolve => {
-        Papa.parse(historyText, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
-      setShiftHistory(historyResult.data)
+      const [historyData, octoberData] = await Promise.all([
+        csvRepository.loadCSV('data/history/shift_history_2023-2024.csv'),
+        csvRepository.loadCSV('data/history/shift_october_2024.csv')
+      ])
 
-      // 10月のシフトデータを読み込み
-      const octoberResponse = await fetch('/data/history/shift_october_2024.csv')
-      const octoberText = await octoberResponse.text()
-      const octoberResult = await new Promise(resolve => {
-        Papa.parse(octoberText, {
-          header: true,
-          dynamicTyping: true,
-          skipEmptyLines: true,
-          complete: resolve,
-        })
-      })
-      setOctoberShifts(octoberResult.data)
+      setShiftHistory(historyData)
+      setOctoberShifts(octoberData)
     } catch (err) {
       console.error('履歴データ読み込みエラー:', err)
     } finally {

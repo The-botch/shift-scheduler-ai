@@ -14,12 +14,14 @@ import {
   Edit3,
   Database,
 } from 'lucide-react'
-import Papa from 'papaparse'
 import { validateStaffCSV } from '../../utils/csvHelper'
 import { calculatePayslip } from '../../utils/salaryCalculator'
 import { getStaffWorkHistory, getStaffPayrollHistory } from '../../utils/indexedDB'
 import CSVActions from '../shared/CSVActions'
 import AppHeader from '../shared/AppHeader'
+import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+
+const csvRepository = new CSVRepository()
 
 const StaffManagement = ({
   onHome,
@@ -52,57 +54,36 @@ const StaffManagement = ({
   const loadData = async () => {
     setLoading(true)
     try {
-      // Load staff.csv
-      const staffResponse = await fetch('/data/master/staff.csv')
-      const staffText = await staffResponse.text()
-      const staffParsed = Papa.parse(staffText, { header: true, skipEmptyLines: true })
+      // CSVRepositoryを使用してバックエンドAPI経由で読み込み
+      const [
+        staffData,
+        rolesData,
+        employmentTypesData,
+        skillsData,
+        insuranceRatesData,
+        taxBracketsData,
+        commuteAllowancesData,
+        shiftPatternsData
+      ] = await Promise.all([
+        csvRepository.loadCSV('data/master/staff.csv'),
+        csvRepository.loadCSV('data/master/roles.csv'),
+        csvRepository.loadCSV('data/master/employment_types.csv'),
+        csvRepository.loadCSV('data/master/skills.csv'),
+        csvRepository.loadCSV('data/master/insurance_rates.csv'),
+        csvRepository.loadCSV('data/master/tax_brackets.csv'),
+        csvRepository.loadCSV('data/master/commute_allowance.csv'),
+        csvRepository.loadCSV('data/master/shift_patterns.csv')
+      ])
 
-      // Load roles.csv
-      const rolesResponse = await fetch('/data/master/roles.csv')
-      const rolesText = await rolesResponse.text()
-      const rolesParsed = Papa.parse(rolesText, { header: true, skipEmptyLines: true })
-
-      // Load employment_types.csv
-      const employmentTypesResponse = await fetch('/data/master/employment_types.csv')
-      const employmentTypesText = await employmentTypesResponse.text()
-      const employmentTypesParsed = Papa.parse(employmentTypesText, {
-        header: true,
-        skipEmptyLines: true,
-      })
-
-      // Load skills.csv
-      const skillsResponse = await fetch('/data/master/skills.csv')
-      const skillsText = await skillsResponse.text()
-      const skillsParsed = Papa.parse(skillsText, { header: true, skipEmptyLines: true })
-
-      // Load insurance_rates.csv
-      const insuranceRatesResponse = await fetch('/data/master/insurance_rates.csv')
-      const insuranceRatesText = await insuranceRatesResponse.text()
-      const insuranceRatesParsed = Papa.parse(insuranceRatesText, {
-        header: true,
-        skipEmptyLines: true,
-      })
-
-      // Load tax_brackets.csv
-      const taxBracketsResponse = await fetch('/data/master/tax_brackets.csv')
-      const taxBracketsText = await taxBracketsResponse.text()
-      const taxBracketsParsed = Papa.parse(taxBracketsText, { header: true, skipEmptyLines: true })
-
-      // Load commute_allowance.csv
-      const commuteAllowancesResponse = await fetch('/data/master/commute_allowance.csv')
-      const commuteAllowancesText = await commuteAllowancesResponse.text()
-      const commuteAllowancesParsed = Papa.parse(commuteAllowancesText, {
-        header: true,
-        skipEmptyLines: true,
-      })
-
-      // Load shift_patterns.csv
-      const shiftPatternsResponse = await fetch('/data/master/shift_patterns.csv')
-      const shiftPatternsText = await shiftPatternsResponse.text()
-      const shiftPatternsParsed = Papa.parse(shiftPatternsText, {
-        header: true,
-        skipEmptyLines: true,
-      })
+      // データを旧形式に合わせる（Papa.parseの戻り値形式）
+      const staffParsed = { data: staffData }
+      const rolesParsed = { data: rolesData }
+      const employmentTypesParsed = { data: employmentTypesData }
+      const skillsParsed = { data: skillsData }
+      const insuranceRatesParsed = { data: insuranceRatesData }
+      const taxBracketsParsed = { data: taxBracketsData }
+      const commuteAllowancesParsed = { data: commuteAllowancesData }
+      const shiftPatternsParsed = { data: shiftPatternsData }
 
       // 時刻からシフトパターンを推測する関数
       const inferPatternCode = (startTime, endTime, patterns) => {

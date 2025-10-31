@@ -17,9 +17,10 @@ export const API_ENDPOINTS = {
   FILES: '/api/openai/files',
   ASSISTANTS: '/api/openai/assistants',
   THREADS: '/api/openai/threads',
-  
-  // CSV保存
+
+  // CSV操作
   SAVE_CSV: '/api/save-csv',
+  LOAD_CSV: '/api/load-csv',
 }
 
 // 完全なAPIエンドポイントURLを取得

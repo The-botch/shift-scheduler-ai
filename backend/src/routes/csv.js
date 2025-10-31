@@ -1,5 +1,5 @@
 import express from 'express'
-import { saveCSV } from '../services/fileService.js'
+import { saveCSV, loadCSV } from '../services/fileService.js'
 
 const router = express.Router()
 
@@ -16,6 +16,29 @@ router.post('/save-csv', async (req, res) => {
     res.json(result)
   } catch (error) {
     res.status(500).json({ error: error.message })
+  }
+})
+
+// CSVファイル読み込みエンドポイント
+router.get('/load-csv', async (req, res) => {
+  try {
+    const { path } = req.query
+
+    if (!path) {
+      return res.status(400).json({ error: 'path parameter is required' })
+    }
+
+    const data = loadCSV(path)
+    res.json({
+      success: true,
+      data: data
+    })
+  } catch (error) {
+    console.error('CSV読み込みエラー:', error)
+    res.status(500).json({
+      success: false,
+      error: error.message
+    })
   }
 })
 
