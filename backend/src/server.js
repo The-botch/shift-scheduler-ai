@@ -2,6 +2,7 @@ import express from 'express'
 import cors from 'cors'
 import openaiRoutes from './routes/openai.js'
 import csvRoutes from './routes/csv.js'
+import masterRoutes from './routes/master.js'
 import { appendLog } from './utils/logger.js'
 
 const app = express()
@@ -14,6 +15,7 @@ app.use(express.json({ limit: '50mb' }))
 // Routes
 app.use('/api/openai', openaiRoutes)
 app.use('/api', csvRoutes)
+app.use('/api/master', masterRoutes)
 
 // Server startup
 app.listen(PORT, () => {
