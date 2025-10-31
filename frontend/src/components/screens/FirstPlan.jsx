@@ -32,7 +32,7 @@ const pageTransition = {
   duration: 0.5,
 }
 
-const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved }) => {
+const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved, selectedShift }) => {
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
   const [shiftData, setShiftData] = useState([])
@@ -42,6 +42,11 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
     totalHours: 0,
     staffCount: 0,
   })
+
+  // selectedShiftから情報を取得
+  const planId = selectedShift?.planId || null
+  const currentYear = selectedShift?.year || new Date().getFullYear()
+  const currentMonth = selectedShift?.month || new Date().getMonth() + 1
 
   // チャット機能関連の状態変数
   const [messages, setMessages] = useState([
@@ -72,18 +77,29 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
   const [selectedDay, setSelectedDay] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
 
-  // CSVからデータを読み込む
+  // シフトデータを読み込む
   useEffect(() => {
-    loadShiftData()
-  }, [])
+    if (planId) {
+      loadShiftData()
+    }
+  }, [planId])
 
   const loadShiftData = async () => {
     try {
       setLoading(true)
 
-      // APIから並行読み込み - plan_id=4は2025年7月のシフト計画
+      // planIdが指定されていない場合はエラー
+      if (!planId) {
+        console.error('planIdが指定されていません')
+        setLoading(false)
+        return
+      }
+
+      console.log('FirstPlan: Loading shift data for planId:', planId)
+
+      // APIから並行読み込み
       const [shiftsResult, staffResult, rolesResult] = await Promise.all([
-        shiftRepository.getShifts({ planId: 4 }),
+        shiftRepository.getShifts({ planId: planId }),
         masterRepository.getStaff(),
         masterRepository.getRoles(),
       ])

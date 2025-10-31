@@ -215,4 +215,47 @@ export class ShiftRepository {
       throw new Error(`シフトサマリー取得エラー: ${error.message}`)
     }
   }
+
+  /**
+   * 希望シフト一覧を取得
+   * @param {Object} filters - フィルタリング条件
+   * @param {number} filters.tenantId - テナントID
+   * @param {number} filters.staffId - スタッフID
+   * @param {number} filters.year - 年
+   * @param {number} filters.month - 月
+   * @returns {Promise<Array>} 希望シフトデータ配列
+   */
+  async getPreferences(filters = {}) {
+    try {
+      const {
+        tenantId = ShiftRepository.DEFAULT_TENANT_ID,
+        staffId,
+        year,
+        month,
+      } = filters
+
+      const params = new URLSearchParams({ tenant_id: tenantId })
+      if (staffId) params.append('staff_id', staffId)
+      if (year) params.append('year', year)
+      if (month) params.append('month', month)
+
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS_PREFERENCES}?${params}`
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '希望シフト取得に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      console.error('希望シフト取得エラー:', error)
+      throw new Error(`希望シフト取得エラー: ${error.message}`)
+    }
+  }
 }

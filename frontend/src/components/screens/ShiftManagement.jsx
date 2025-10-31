@@ -33,6 +33,7 @@ const ShiftManagement = ({
   onNext,
   onPrev,
   onCreateShift,
+  onCreateSecondPlan,
   shiftStatus,
   onHome,
   onShiftManagement,
@@ -47,11 +48,20 @@ const ShiftManagement = ({
   const [initialHistoryMonth, setInitialHistoryMonth] = useState(null)
   const [shifts, setShifts] = useState([])
   const [loading, setLoading] = useState(true)
+  const [creatingShift, setCreatingShift] = useState(null) // 作成中の月を追跡
 
   // 常に現在年を使用
   const currentYear = new Date().getFullYear()
 
   // APIからシフトサマリーを取得
+  // activeTabが'management'に変わった時も再読み込み
+  useEffect(() => {
+    if (activeTab === 'management') {
+      loadShiftSummary()
+    }
+  }, [activeTab])
+
+  // 初回マウント時にも読み込み
   useEffect(() => {
     loadShiftSummary()
   }, [])
@@ -71,9 +81,29 @@ const ShiftManagement = ({
       const monthlyShifts = monthsToShow.map(month => {
         const monthData = summary.find(s => parseInt(s.month) === month)
 
+        // データベースのステータス（大文字）を小文字に変換
+        let status = 'not_started'
+        if (monthData && monthData.status) {
+          status = monthData.status.toLowerCase()
+        } else if (monthData) {
+          status = 'completed'
+        }
+
+        // 対象月が過去の場合（現在月より前）はCOMPLETEDに変更
+        const targetDate = new Date(currentYear, month - 1, 1)
+        const todayDate = new Date()
+        const currentMonthDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1)
+
+        // 現在月は含めず、過去月のみcompletedにする
+        if (targetDate < currentMonthDate && monthData) {
+          status = 'completed'
+        }
+
         return {
           month,
-          status: monthData ? 'completed' : 'not_started',
+          year: currentYear,
+          planId: monthData ? monthData.plan_id : null,
+          status,
           createdAt: monthData ? new Date().toISOString().split('T')[0] : null,
           staff: monthData ? parseInt(monthData.staff_count) : 0,
           totalHours: monthData ? parseFloat(monthData.total_hours) || 0 : 0,
@@ -92,8 +122,8 @@ const ShiftManagement = ({
   const getStatusInfo = status => {
     const statusMap = {
       completed: { label: '承認済み・確定', color: 'green', icon: Check },
-      first_plan_approved: { label: '第1案仮承認済み', color: 'blue', icon: Check },
-      in_progress: { label: '作成中', color: 'blue', icon: Clock },
+      second_plan_approved: { label: '第2案承認済み', color: 'blue', icon: Check },
+      first_plan_approved: { label: '第1案承認済み', color: 'blue', icon: Check },
       draft: { label: '下書き', color: 'yellow', icon: Edit3 },
       not_started: { label: '未作成', color: 'gray', icon: Plus },
     }
@@ -106,14 +136,44 @@ const ShiftManagement = ({
     setActiveTab('history')
   }
 
-  const handleEditShift = shift => {
-    // 第2案作成画面に遷移
-    onCreateShift()
+  const handleEditShift = async shift => {
+    // 作成中の場合は何もしない
+    if (creatingShift === shift.month) {
+      return
+    }
+
+    // 未作成の場合は作成中状態にする
+    if (shift.status === 'not_started') {
+      setCreatingShift(shift.month)
+    }
+
+    try {
+      // 第2案作成画面に遷移（シフト情報を渡す）
+      if (onCreateShift) {
+        await onCreateShift(shift)
+      }
+    } finally {
+      // 作成完了後、状態をリセット
+      setCreatingShift(null)
+      // データを再読み込み
+      await loadShiftSummary()
+    }
   }
 
   const getActionButton = shift => {
     switch (shift.status) {
       case 'completed':
+        return (
+          <Button
+            size="sm"
+            className="w-full bg-green-600 hover:bg-green-700"
+            onClick={() => handleViewShift(shift)}
+          >
+            <Eye className="h-4 w-4 mr-2" />
+            閲覧
+          </Button>
+        )
+      case 'second_plan_approved':
         return (
           <div className="space-y-2">
             <Button
@@ -137,21 +197,40 @@ const ShiftManagement = ({
         )
       case 'first_plan_approved':
         return (
-          <Button
-            size="sm"
-            className="w-full bg-blue-600 hover:bg-blue-700"
-            onClick={onCreateShift}
-          >
-            <Edit3 className="h-4 w-4 mr-2" />
-            第2案作成へ
-          </Button>
+          <div className="space-y-2">
+            <Button
+              size="sm"
+              className="w-full bg-blue-600 hover:bg-blue-700"
+              onClick={() => handleViewShift(shift)}
+            >
+              <Eye className="h-4 w-4 mr-2" />
+              閲覧
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full"
+              onClick={() => handleEditShift(shift)}
+            >
+              <Edit3 className="h-4 w-4 mr-2" />
+              修正
+            </Button>
+            <Button
+              size="sm"
+              className="w-full bg-purple-600 hover:bg-purple-700 mt-2"
+              onClick={() => onCreateSecondPlan && onCreateSecondPlan(shift)}
+            >
+              <Plus className="h-4 w-4 mr-2" />
+              第2案作成へ
+            </Button>
+          </div>
         )
       case 'in_progress':
         return (
           <Button
             size="sm"
             className="w-full bg-blue-600 hover:bg-blue-700"
-            onClick={onCreateShift}
+            onClick={() => handleEditShift(shift)}
           >
             <Edit3 className="h-4 w-4 mr-2" />
             編集を続ける
@@ -162,21 +241,32 @@ const ShiftManagement = ({
           <Button
             size="sm"
             className="w-full bg-yellow-600 hover:bg-yellow-700"
-            onClick={onCreateShift}
+            onClick={() => handleEditShift(shift)}
           >
             <Edit3 className="h-4 w-4 mr-2" />
             下書きを開く
           </Button>
         )
       default:
+        const isCreating = creatingShift === shift.month
         return (
           <Button
             size="sm"
             className="w-full bg-green-600 hover:bg-green-700"
-            onClick={onCreateShift}
+            onClick={() => handleEditShift(shift)}
+            disabled={isCreating}
           >
-            <Plus className="h-4 w-4 mr-2" />
-            新規作成
+            {isCreating ? (
+              <>
+                <Clock className="h-4 w-4 mr-2 animate-spin" />
+                作成中...
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4 mr-2" />
+                新規作成
+              </>
+            )}
           </Button>
         )
     }

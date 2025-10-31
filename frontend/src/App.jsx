@@ -50,6 +50,8 @@ function App() {
   const [showMonitoring, setShowMonitoring] = useState(false)
   const [showBudgetActualManagement, setShowBudgetActualManagement] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
+  const [selectedShiftForSecondPlan, setSelectedShiftForSecondPlan] = useState(null)
+  const [shiftManagementKey, setShiftManagementKey] = useState(0) // 再マウント用
 
   const nextStep = () => {
     if (currentStep < 3) {
@@ -295,20 +297,68 @@ function App() {
     setShowShiftManagement(false)
   }
 
-  const goToFirstPlanFromShiftMgmt = () => {
-    // ステータスに応じて遷移先を変更
-    if (shiftStatus[10] === 'completed') {
-      // 承認済みの場合は第2案（編集・修正）画面へ
+  const goToFirstPlanFromShiftMgmt = async (shift) => {
+    console.log('goToFirstPlanFromShiftMgmt called with:', shift)
+
+    // shiftオブジェクトから情報を取得
+    const status = shift?.status || 'not_started'
+    const year = shift?.year || new Date().getFullYear()
+    const month = shift?.month || new Date().getMonth() + 1
+
+    if (status === 'completed') {
+      // 承認済みの場合は閲覧のみ（履歴画面へ）
+      alert('このシフトは確定済みのため、閲覧のみ可能です')
+      return
+    } else if (status === 'second_plan_approved') {
+      // 第2案承認済みの場合は第2案編集画面へ
+      setSelectedShiftForSecondPlan(shift)
       setShowShiftManagement(false)
       setCurrentStep(2)
-    } else if (shiftStatus[10] === 'first_plan_approved') {
-      // 第1案仮承認済みの場合は第2案作成（ステップ2）へ
-      setShowShiftManagement(false)
-      setCurrentStep(2)
-    } else {
-      // 未作成の場合は第1案作成へ
+    } else if (status === 'first_plan_approved') {
+      // 第1案承認済みの場合は第1案表示または第2案作成へ
+      setSelectedShiftForSecondPlan(shift)
       setShowFirstPlanFromShiftMgmt(true)
       setShowShiftManagement(false)
+    } else {
+      // 未作成の場合は第1案を生成してから画面遷移
+      try {
+        // APIを呼んで前月コピー
+        const response = await fetch('http://localhost:3001/api/shifts/plans/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: 1,
+            store_id: 1,
+            year: year,
+            month: month,
+            created_by: 1
+          })
+        })
+
+        const result = await response.json()
+
+        if (!result.success) {
+          alert(result.message || '第1案の生成に失敗しました')
+          return
+        }
+
+        console.log(result.is_update ? '第1案更新成功:' : '第1案生成成功:', result)
+
+        // 生成されたplan_idを設定
+        const generatedShift = {
+          ...shift,
+          planId: result.data.plan_id,
+          status: 'first_plan_approved'
+        }
+
+        setSelectedShiftForSecondPlan(generatedShift)
+        setShowFirstPlanFromShiftMgmt(true)
+        setShowShiftManagement(false)
+
+      } catch (error) {
+        console.error('第1案生成エラー:', error)
+        alert('第1案の生成中にエラーが発生しました')
+      }
     }
   }
 
@@ -321,6 +371,8 @@ function App() {
     }
     setShowFirstPlanFromShiftMgmt(false)
     setShowShiftManagement(true)
+    // データを再読み込みするために再マウント
+    setShiftManagementKey(prev => prev + 1)
   }
 
   const approveFirstPlan = () => {
@@ -336,6 +388,19 @@ function App() {
     // 第1案から修正ボタンで第2案へ
     setShowFirstPlanFromShiftMgmt(false)
     setCurrentStep(2) // 第2案画面へ
+  }
+
+  const goToCreateSecondPlan = (shift) => {
+    // 第2案作成画面へ
+    setSelectedShiftForSecondPlan(shift)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowMonitoring(false)
+    setShowHistory(false)
+    setShowBudgetActualManagement(false)
+    setCurrentStep(2)
   }
 
   const approveSecondPlan = () => {
@@ -478,8 +543,10 @@ function App() {
     if (showShiftManagement) {
       return (
         <ShiftManagement
+          key={shiftManagementKey}
           onPrev={backFromShiftManagement}
           onCreateShift={goToFirstPlanFromShiftMgmt}
+          onCreateSecondPlan={goToCreateSecondPlan}
           shiftStatus={shiftStatus}
           onHome={goToDashboard}
           onShiftManagement={goToShiftManagement}
@@ -501,6 +568,7 @@ function App() {
           onApprove={approveFirstPlan}
           onMarkUnsaved={() => setHasUnsavedChanges(true)}
           onMarkSaved={() => setHasUnsavedChanges(false)}
+          selectedShift={selectedShiftForSecondPlan}
         />
       )
     }
@@ -528,6 +596,7 @@ function App() {
             onPrev={prevStep}
             onMarkUnsaved={() => setHasUnsavedChanges(true)}
             onMarkSaved={() => setHasUnsavedChanges(false)}
+            selectedShift={selectedShiftForSecondPlan}
           />
         )
       default:

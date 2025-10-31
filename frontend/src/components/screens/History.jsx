@@ -254,16 +254,27 @@ const History = ({
       setRolesMap(rolesMapping)
 
       // APIから取得したサマリーデータを数値に変換
-      const summaryDataProcessed = summaryData.map(s => ({
-        ...s,
-        year: parseInt(s.year),
-        month: parseInt(s.month),
-        shift_count: parseInt(s.shift_count || 0),
-        staff_count: parseInt(s.staff_count || 0),
-        total_hours: parseFloat(s.total_hours || 0),
-        total_labor_cost: parseFloat(s.total_labor_cost || 0),
-        status: 'completed', // 全て確定済みとして表示
-      }))
+      const now = new Date()
+      const currentYear = now.getFullYear()
+      const currentMonth = now.getMonth() + 1 // 1-12
+
+      const summaryDataProcessed = summaryData
+        .map(s => ({
+          ...s,
+          year: parseInt(s.year),
+          month: parseInt(s.month),
+          shift_count: parseInt(s.shift_count || 0),
+          staff_count: parseInt(s.staff_count || 0),
+          total_hours: parseFloat(s.total_hours || 0),
+          total_labor_cost: parseFloat(s.total_labor_cost || 0),
+          status: 'completed', // 全て確定済みとして表示
+        }))
+        .filter(s => {
+          // 過去の月のみ表示（現在月と未来月は除外）
+          const targetDate = new Date(s.year, s.month - 1, 1)
+          const currentDate = new Date(currentYear, currentMonth - 1, 1)
+          return targetDate < currentDate
+        })
 
       setMonthlySummary(summaryDataProcessed)
 

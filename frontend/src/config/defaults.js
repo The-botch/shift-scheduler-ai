@@ -30,6 +30,18 @@ export const getCurrentYearMonth = () => {
 };
 
 /**
+ * 次月の年月を取得
+ */
+export const getNextMonthYearMonth = () => {
+  const now = new Date();
+  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
+  return {
+    year: nextMonth.getFullYear(),
+    month: nextMonth.getMonth() + 1,
+  };
+};
+
+/**
  * デモパラメータ（LINE希望入力など）
  */
 export const DEMO_PARAMS = {

@@ -39,7 +39,7 @@ const pageTransition = {
   duration: 0.5,
 }
 
-const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
+const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift }) => {
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
   const [comparison, setComparison] = useState(null)
@@ -60,6 +60,8 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
   const [shiftData, setShiftData] = useState([])
   const [changedDates, setChangedDates] = useState(new Set())
   const [pendingChange, setPendingChange] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [preferences, setPreferences] = useState([]) // 希望シフト
 
   // CSVデータ格納用state
   const [csvShifts, setCsvShifts] = useState([])
@@ -70,8 +72,8 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
   const [firstPlanData, setFirstPlanData] = useState([])
 
   // 問題のある日付を定義
-  const problematicDates = new Set([3, 8, 15, 22, 28]) // 問題のある日付
-  const [problemDates, setProblemDates] = useState(new Set([3, 8, 15, 22, 28]))
+  const problematicDates = new Set([]) // 問題のある日付
+  const [problemDates, setProblemDates] = useState(new Set([]))
 
   // 解決済み問題を管理
   const [resolvedProblems, setResolvedProblems] = useState(new Set())
@@ -93,6 +95,235 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
   // 日付が問題があるかどうかを判定する関数（解決済みは除外）
   const isProblematicDate = date => {
     return problematicDates.has(date) && !resolvedProblems.has(date)
+  }
+
+  // バックエンドAPIから取得したシフトデータをカレンダー表示用にフォーマット
+  const formatShiftsForCalendar = (shifts, staffMapping, year, month) => {
+    // 日付ごとにグループ化
+    const shiftsByDate = {}
+
+    shifts.forEach(shift => {
+      // shift_dateから日付を抽出（例: "2025-11-15" → 15）
+      const shiftDate = shift.shift_date || shift.date
+      if (!shiftDate) return
+
+      const dateObj = new Date(shiftDate)
+      const day = dateObj.getDate()
+
+      if (!shiftsByDate[day]) {
+        shiftsByDate[day] = []
+      }
+
+      // スタッフ情報を取得
+      const staffInfo = staffMapping[shift.staff_id] || {
+        name: `スタッフ${shift.staff_id}`,
+        role_name: 'スタッフ'
+      }
+
+      // 時刻をフォーマット（"09:00:00" → "9-18"）
+      const startTime = shift.start_time ? shift.start_time.substring(0, 5).replace(':00', '') : ''
+      const endTime = shift.end_time ? shift.end_time.substring(0, 5).replace(':00', '') : ''
+      const timeStr = `${startTime}-${endTime}`
+
+      shiftsByDate[day].push({
+        name: staffInfo.name,
+        time: timeStr,
+        skill: shift.skill_level || staffInfo.skill_level || 1,
+        role: staffInfo.role_name,
+        preferred: shift.is_preferred || false,
+        changed: shift.is_modified || false
+      })
+    })
+
+    // カレンダー表示用の配列に変換
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const formattedData = []
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayOfWeek = new Date(year, month - 1, day).getDay()
+      formattedData.push({
+        date: day,
+        day: ['日', '月', '火', '水', '木', '金', '土'][dayOfWeek],
+        shifts: shiftsByDate[day] || []
+      })
+    }
+
+    return formattedData
+  }
+
+  // マウント時に第1案と希望シフトを読み込み
+  useEffect(() => {
+    loadInitialData()
+  }, [])
+
+  const loadInitialData = async () => {
+    try {
+      setLoading(true)
+
+      // selectedShiftから年月とplan_idを取得
+      const year = selectedShift?.year || new Date().getFullYear()
+      const month = selectedShift?.month || new Date().getMonth() + 1
+      const planId = selectedShift?.planId
+
+      if (!planId) {
+        console.error('plan_idが指定されていません')
+        setLoading(false)
+        return
+      }
+
+      console.log(`第1案と希望シフトを読み込み中: ${year}年${month}月, plan_id=${planId}`)
+
+      // スタッフマスタを取得（先に取得してマッピング用に使用）
+      const staffData = await masterRepository.getStaff()
+      const staffMapping = {}
+      staffData.forEach(s => {
+        staffMapping[s.staff_id] = s
+      })
+      setStaffMap(staffMapping)
+
+      // 第1案のシフトデータを取得
+      const firstPlanShifts = await shiftRepository.getShifts({ planId })
+      console.log(`第1案シフト取得: ${firstPlanShifts.length}件`, firstPlanShifts.slice(0, 3))
+
+      // バックエンドのデータをカレンダー表示用にフォーマット
+      const formattedData = formatShiftsForCalendar(firstPlanShifts, staffMapping, year, month)
+      console.log(`フォーマット後のデータ: ${formattedData.length}日分`, formattedData.slice(0, 3))
+
+      setFirstPlanData(formattedData)
+      setShiftData(formattedData) // 初期表示は第1案（希望反映版として表示）
+      setCsvShifts(firstPlanShifts) // 元データも保存（詳細表示用）
+
+      // 希望シフトを取得
+      const preferencesData = await shiftRepository.getPreferences({
+        year,
+        month
+      })
+      console.log(`希望シフト取得: ${preferencesData.length}件`)
+
+      setPreferences(preferencesData)
+
+      // 第1案と希望シフトを突合してアラートを判定
+      checkPreferenceConflicts(firstPlanShifts, preferencesData, staffMapping, year, month)
+
+      setLoading(false)
+      setGenerated(true)
+    } catch (error) {
+      console.error('初期データ読み込みエラー:', error)
+      setLoading(false)
+      alert('データの読み込みに失敗しました')
+    }
+  }
+
+  // 希望シフトとの突合チェック
+  const checkPreferenceConflicts = (shifts, prefs, staffMapping, year, month) => {
+    console.log('=== 希望シフト突合開始 ===')
+    console.log('第1案シフト数:', shifts.length)
+    console.log('希望シフト数:', prefs.length)
+
+    const conflicts = []
+    const daysInMonth = new Date(year, month, 0).getDate()
+
+    // スタッフごとの希望日をマップに変換
+    const staffPreferencesMap = {}
+    prefs.forEach(pref => {
+      if (!staffPreferencesMap[pref.staff_id]) {
+        staffPreferencesMap[pref.staff_id] = {
+          preferredDays: new Set(),
+          ngDays: new Set()
+        }
+      }
+
+      // preferred_daysをパース（カンマ区切り）
+      if (pref.preferred_days) {
+        const days = pref.preferred_days.split(',').map(d => d.trim())
+        days.forEach(day => {
+          staffPreferencesMap[pref.staff_id].preferredDays.add(day)
+        })
+      }
+
+      // ng_daysをパース
+      if (pref.ng_days) {
+        const days = pref.ng_days.split(',').map(d => d.trim())
+        days.forEach(day => {
+          staffPreferencesMap[pref.staff_id].ngDays.add(day)
+        })
+      }
+    })
+
+    console.log('スタッフごとの希望日マップ:', staffPreferencesMap)
+
+    // 日付ごとにチェック
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+
+      // その日のシフト
+      const dayShifts = shifts.filter(s => s.shift_date && s.shift_date.startsWith(dateStr))
+
+      // スタッフごとにチェック
+      dayShifts.forEach(shift => {
+        const staffPref = staffPreferencesMap[shift.staff_id]
+        const staffName = staffMapping[shift.staff_id]?.name || `スタッフID: ${shift.staff_id}`
+
+        if (staffPref) {
+          // NGの日に配置されている場合
+          if (staffPref.ngDays.has(dateStr)) {
+            conflicts.push({
+              date: day,
+              staffId: shift.staff_id,
+              staffName: staffName,
+              type: 'NG_DAY',
+              message: 'NG希望の日に配置'
+            })
+          }
+          // 希望日が設定されているのに、希望日以外に配置されている場合
+          else if (staffPref.preferredDays.size > 0 && !staffPref.preferredDays.has(dateStr)) {
+            conflicts.push({
+              date: day,
+              staffId: shift.staff_id,
+              staffName: staffName,
+              type: 'NOT_PREFERRED',
+              message: '希望日以外に配置'
+            })
+          }
+        }
+      })
+    }
+
+    console.log('不一致件数:', conflicts.length)
+    if (conflicts.length > 0) {
+      console.log('不一致詳細:', conflicts.slice(0, 10)) // 最初の10件のみ表示
+    }
+
+    // アラートがある場合は問題のある日付として記録
+    if (conflicts.length > 0) {
+      const problemDatesSet = new Set(conflicts.map(c => c.date))
+      setProblemDates(problemDatesSet)
+
+      const ngCount = conflicts.filter(c => c.type === 'NG_DAY').length
+      const notPreferredCount = conflicts.filter(c => c.type === 'NOT_PREFERRED').length
+
+      // メッセージに追加
+      setMessages(prev => [
+        ...prev,
+        {
+          id: prev.length + 1,
+          type: 'system',
+          content: `⚠️ 希望との不一致が${conflicts.length}件あります\n・NG日に配置: ${ngCount}件\n・希望日以外に配置: ${notPreferredCount}件\n問題のある日付: ${Array.from(problemDatesSet).sort((a,b) => a-b).join('日, ')}日`,
+          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+        }
+      ])
+    } else {
+      console.log('全てのシフトが希望通りに配置されています')
+      setMessages(prev => [
+        ...prev,
+        {
+          id: prev.length + 1,
+          type: 'system',
+          content: '✅ 全てのシフトが希望通りに配置されています。',
+          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+        }
+      ])
+    }
   }
 
   // チャット自動スクロール関数
@@ -624,35 +855,52 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
     setDayShifts([])
   }
 
-  const handleApprove = () => {
-    // 承認時に履歴データとして保存
-    const approvedData = {
-      month: 10,
-      year: 2024,
-      status: 'second_plan_approved',
-      approvedAt: new Date().toISOString(),
-      shifts: shiftData,
-      csvShifts: csvShifts,
-      stats: {
-        totalShifts: csvShifts.length,
-        totalHours: csvShifts.reduce((sum, s) => {
-          const start = parseInt(s.start_time.split(':')[0])
-          const end = parseInt(s.end_time.split(':')[0])
-          return sum + (end - start)
-        }, 0),
-        staffCount: new Set(csvShifts.map(s => s.staff_id)).size,
-        resolvedIssues: resolvedProblems.size,
-        totalIssues: csvIssues.length,
-      },
-    }
+  const handleApprove = async () => {
+    try {
+      // 第2案のplan_idを取得（propsから受け取るか、stateから取得）
+      // ここでは現在の年月から取得
+      const now = new Date()
+      const currentYear = now.getFullYear()
+      const currentMonth = now.getMonth() + 1
 
-    // LocalStorageに保存
-    localStorage.setItem('approved_second_plan_2024_10', JSON.stringify(approvedData))
-    console.log('第2案を承認しました。履歴に保存されました。')
+      // サマリーAPIから該当月のplan_idを取得
+      const summary = await shiftRepository.getSummary({
+        year: currentYear,
+        month: currentMonth
+      })
 
-    // 親コンポーネントの承認処理を呼び出し
-    if (onNext) {
-      onNext()
+      if (!summary || summary.length === 0) {
+        alert('シフト計画が見つかりません')
+        return
+      }
+
+      const planId = summary[0].plan_id
+
+      // ステータスをSECOND_PLAN_APPROVEDに更新
+      const response = await fetch(`http://localhost:3001/api/shifts/plans/${planId}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'SECOND_PLAN_APPROVED'
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        alert(result.message || '第2案の承認に失敗しました')
+        return
+      }
+
+      console.log('第2案を承認しました:', result)
+
+      // 親コンポーネントの承認処理を呼び出し
+      if (onNext) {
+        onNext()
+      }
+    } catch (error) {
+      console.error('第2案承認エラー:', error)
+      alert('第2案の承認中にエラーが発生しました')
     }
   }
 
@@ -692,11 +940,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: idx * 0.1 }}
-                  className={`text-xs p-1 rounded mb-1 ${
-                    shift.preferred || shift.changed
-                      ? 'bg-green-100 text-green-800'
-                      : 'bg-red-100 text-red-800'
-                  }`}
+                  className="text-xs p-1 rounded mb-1 bg-green-100 text-green-800"
                 >
                   <div className="font-medium flex items-center">
                     {shift.name}
@@ -742,9 +986,9 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-            第2案（希望反映）
+            第2案希望反映版
           </h1>
-          <p className="text-lg text-gray-600">スタッフ希望を反映した最適化シフト</p>
+          <p className="text-lg text-gray-600">第1案をベースにスタッフ希望を反映したシフト</p>
         </div>
 
         {/* 表示切り替えボタン */}
@@ -756,7 +1000,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
               className="flex items-center"
             >
               <CalendarIcon className="h-4 w-4 mr-2" />
-              第2案のみ表示
+              第2案希望反映版
             </Button>
             <Button
               variant={viewMode === 'first' ? 'default' : 'outline'}
@@ -781,7 +1025,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
       {!generated ? (
         <Card className="shadow-lg border-0">
           <CardContent className="p-12 text-center">
-            {generating ? (
+            {(generating || loading) ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
                   <motion.div
@@ -791,7 +1035,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                     <Zap className="h-12 w-12 text-blue-600" />
                   </motion.div>
                 </div>
-                <h3 className="text-2xl font-bold mb-4">希望を反映した第2案を生成中...</h3>
+                <h3 className="text-2xl font-bold mb-4">第1案と希望シフトを読み込み中...</h3>
                 <div className="max-w-md mx-auto">
                   <div className="bg-gray-200 rounded-full h-2 mb-4">
                     <motion.div
@@ -801,7 +1045,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
                       transition={{ duration: 3 }}
                     />
                   </div>
-                  <p className="text-gray-600">スタッフ希望を分析し、最適化を実行中...</p>
+                  <p className="text-gray-600">第1案データと希望シフトを読み込んでいます...</p>
                 </div>
               </motion.div>
             ) : (
