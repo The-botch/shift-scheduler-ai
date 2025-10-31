@@ -7,9 +7,11 @@ dist-ssr
 *.local
 
 # Environment variables
-.env
+# 注意: 開発環境では.envをコミットしています（全員が同じRailway接続情報を使用するため）
+# .env は開発環境用の接続情報を含んでいます
 .env.local
 .env.*.local
+.env.production
 
 # OS
 .DS_Store

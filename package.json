@@ -1,0 +1,20 @@
+{
+  "name": "shift-scheduler-ai",
+  "version": "1.0.0",
+  "description": "AI-powered shift scheduler with multi-tenant support",
+  "type": "module",
+  "scripts": {
+    "test:db": "node scripts/test_db_connection.mjs",
+    "test:schema": "node scripts/test_schema_crud.mjs",
+    "test:schema:keep": "node scripts/test_schema_crud_no_cleanup.mjs",
+    "db:cleanup": "node scripts/cleanup_test_data.mjs",
+    "db:setup": "node scripts/run_db_setup.mjs"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
+  },
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
