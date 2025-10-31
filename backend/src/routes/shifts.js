@@ -546,6 +546,332 @@ router.get('/preferences/:id', async (req, res) => {
 });
 
 /**
+ * シフト希望登録
+ * POST /api/shifts/preferences
+ *
+ * Request Body:
+ * {
+ *   tenant_id: number,
+ *   store_id: number,
+ *   staff_id: number,
+ *   year: number,
+ *   month: number,
+ *   preferred_days?: string (comma-separated dates: "2024-11-01,2024-11-03"),
+ *   ng_days?: string (comma-separated dates: "2024-11-10,2024-11-20"),
+ *   preferred_time_slots?: string (comma-separated: "morning,evening"),
+ *   max_hours_per_week?: number,
+ *   notes?: string,
+ *   status?: string (default: 'PENDING')
+ * }
+ */
+router.post('/preferences', async (req, res) => {
+  try {
+    const {
+      tenant_id,
+      store_id,
+      staff_id,
+      year,
+      month,
+      preferred_days,
+      ng_days,
+      preferred_time_slots,
+      max_hours_per_week,
+      notes,
+      status = 'PENDING'
+    } = req.body;
+
+    // 必須項目のバリデーション
+    if (!tenant_id || !store_id || !staff_id || !year || !month) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        required: ['tenant_id', 'store_id', 'staff_id', 'year', 'month']
+      });
+    }
+
+    // year と month のバリデーション
+    if (year < 2000 || year > 2100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid year: must be between 2000 and 2100'
+      });
+    }
+
+    if (month < 1 || month > 12) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid month: must be between 1 and 12'
+      });
+    }
+
+    // max_hours_per_week のバリデーション
+    if (max_hours_per_week !== undefined && max_hours_per_week < 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'max_hours_per_week must be >= 0'
+      });
+    }
+
+    // submitted_at を現在時刻に設定
+    const submitted_at = new Date().toISOString();
+
+    // シフト希望を挿入
+    const result = await query(`
+      INSERT INTO ops.shift_preferences (
+        tenant_id, store_id, staff_id, year, month,
+        preferred_days, ng_days, preferred_time_slots,
+        max_hours_per_week, notes, submitted_at, status
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      RETURNING preference_id
+    `, [
+      tenant_id, store_id, staff_id, year, month,
+      preferred_days || null, ng_days || null, preferred_time_slots || null,
+      max_hours_per_week || null, notes || null, submitted_at, status
+    ]);
+
+    // 作成されたシフト希望の詳細情報を取得
+    const detailResult = await query(`
+      SELECT
+        pref.*,
+        s.store_name,
+        s.store_code,
+        staff.name as staff_name,
+        staff.staff_code,
+        staff.email as staff_email,
+        r.role_name,
+        et.type_name as employment_type_name
+      FROM ops.shift_preferences pref
+      LEFT JOIN core.stores s ON pref.store_id = s.store_id
+      LEFT JOIN hr.staff staff ON pref.staff_id = staff.staff_id
+      LEFT JOIN core.roles r ON staff.role_id = r.role_id
+      LEFT JOIN core.employment_types et ON staff.employment_type_id = et.employment_type_id
+      WHERE pref.preference_id = $1
+    `, [result.rows[0].preference_id]);
+
+    res.status(201).json({
+      success: true,
+      message: 'Shift preference created successfully',
+      data: detailResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating shift preference:', error);
+
+    // 外部キー制約エラーの場合
+    if (error.code === '23503') {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid reference: one or more foreign keys do not exist',
+        detail: error.detail
+      });
+    }
+
+    // ユニーク制約エラーの場合（同じスタッフの同じ年月の希望が既に存在）
+    if (error.code === '23505') {
+      return res.status(409).json({
+        success: false,
+        error: 'Shift preference already exists for this staff, year, and month',
+        detail: error.detail
+      });
+    }
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * シフト希望更新
+ * PUT /api/shifts/preferences/:id
+ *
+ * Request Body (部分更新 - 変更したい項目のみ送信):
+ * {
+ *   preferred_days?: string,
+ *   ng_days?: string,
+ *   preferred_time_slots?: string,
+ *   max_hours_per_week?: number,
+ *   notes?: string,
+ *   status?: string (PENDING/APPROVED/REJECTED)
+ * }
+ *
+ * Query Parameters:
+ * - tenant_id: number (required for security)
+ */
+router.put('/preferences/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tenant_id } = req.query;
+
+    if (!tenant_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id is required in query parameters'
+      });
+    }
+
+    // 既存のシフト希望を取得
+    const existingResult = await query(
+      'SELECT * FROM ops.shift_preferences WHERE preference_id = $1 AND tenant_id = $2',
+      [id, tenant_id]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Shift preference not found'
+      });
+    }
+
+    const existingPref = existingResult.rows[0];
+
+    // リクエストボディから更新項目を取得
+    const {
+      preferred_days,
+      ng_days,
+      preferred_time_slots,
+      max_hours_per_week,
+      notes,
+      status
+    } = req.body;
+
+    // 更新する値を決定（指定されていれば新しい値、なければ既存の値）
+    const newPreferredDays = preferred_days !== undefined ? preferred_days : existingPref.preferred_days;
+    const newNgDays = ng_days !== undefined ? ng_days : existingPref.ng_days;
+    const newPreferredTimeSlots = preferred_time_slots !== undefined ? preferred_time_slots : existingPref.preferred_time_slots;
+    const newMaxHoursPerWeek = max_hours_per_week !== undefined ? max_hours_per_week : existingPref.max_hours_per_week;
+    const newNotes = notes !== undefined ? notes : existingPref.notes;
+    const newStatus = status !== undefined ? status : existingPref.status;
+
+    // max_hours_per_week のバリデーション
+    if (newMaxHoursPerWeek !== null && newMaxHoursPerWeek < 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'max_hours_per_week must be >= 0'
+      });
+    }
+
+    // status のバリデーション
+    const validStatuses = ['PENDING', 'APPROVED', 'REJECTED'];
+    if (newStatus && !validStatuses.includes(newStatus)) {
+      return res.status(400).json({
+        success: false,
+        error: `Invalid status: must be one of ${validStatuses.join(', ')}`
+      });
+    }
+
+    // シフト希望を更新
+    await query(`
+      UPDATE ops.shift_preferences
+      SET
+        preferred_days = $1,
+        ng_days = $2,
+        preferred_time_slots = $3,
+        max_hours_per_week = $4,
+        notes = $5,
+        status = $6,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE preference_id = $7 AND tenant_id = $8
+    `, [
+      newPreferredDays, newNgDays, newPreferredTimeSlots,
+      newMaxHoursPerWeek, newNotes, newStatus, id, tenant_id
+    ]);
+
+    // 更新後のシフト希望詳細情報を取得
+    const detailResult = await query(`
+      SELECT
+        pref.*,
+        s.store_name,
+        s.store_code,
+        staff.name as staff_name,
+        staff.staff_code,
+        staff.email as staff_email,
+        r.role_name,
+        et.type_name as employment_type_name
+      FROM ops.shift_preferences pref
+      LEFT JOIN core.stores s ON pref.store_id = s.store_id
+      LEFT JOIN hr.staff staff ON pref.staff_id = staff.staff_id
+      LEFT JOIN core.roles r ON staff.role_id = r.role_id
+      LEFT JOIN core.employment_types et ON staff.employment_type_id = et.employment_type_id
+      WHERE pref.preference_id = $1
+    `, [id]);
+
+    res.json({
+      success: true,
+      message: 'Shift preference updated successfully',
+      data: detailResult.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating shift preference:', error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * シフト希望削除
+ * DELETE /api/shifts/preferences/:id
+ *
+ * Query Parameters:
+ * - tenant_id: number (required for security)
+ */
+router.delete('/preferences/:id', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { tenant_id } = req.query;
+
+    if (!tenant_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id is required in query parameters'
+      });
+    }
+
+    // 削除前に存在確認とtenant_idチェック
+    const existingResult = await query(
+      'SELECT preference_id, staff_id, year, month FROM ops.shift_preferences WHERE preference_id = $1 AND tenant_id = $2',
+      [id, tenant_id]
+    );
+
+    if (existingResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Shift preference not found'
+      });
+    }
+
+    const deletedPref = existingResult.rows[0];
+
+    // シフト希望を削除（物理削除）
+    await query(
+      'DELETE FROM ops.shift_preferences WHERE preference_id = $1 AND tenant_id = $2',
+      [id, tenant_id]
+    );
+
+    res.json({
+      success: true,
+      message: 'Shift preference deleted successfully',
+      deleted_preference_id: parseInt(id),
+      deleted_preference_info: {
+        staff_id: deletedPref.staff_id,
+        year: deletedPref.year,
+        month: deletedPref.month
+      }
+    });
+  } catch (error) {
+    console.error('Error deleting shift preference:', error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * シフト登録
  * POST /api/shifts
  *
