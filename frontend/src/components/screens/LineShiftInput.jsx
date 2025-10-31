@@ -178,12 +178,24 @@ const LineShiftInput = ({
   const [shiftPatterns, setShiftPatterns] = useState([])
   const [showWeeklyPattern, setShowWeeklyPattern] = useState(false)
   const [weeklyPattern, setWeeklyPattern] = useState({}) // { 0: ['EARLY'], 1: ['MID'], ... }
+  const [isLoadingPreferences, setIsLoadingPreferences] = useState(false)
+  const [preferencesError, setPreferencesError] = useState(null)
 
   // デモ用の日付データ
   const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1)
 
+  // デモ用のパラメータ（本番では認証情報から取得）
+  const DEMO_PARAMS = {
+    tenant_id: 1,
+    store_id: 1,
+    staff_id: 5, // デモ用のスタッフID
+    year: 2024,
+    month: 11,
+  }
+
   useEffect(() => {
     loadShiftPatterns()
+    loadShiftPreferences()
   }, [])
 
   const loadShiftPatterns = async () => {
@@ -192,6 +204,72 @@ const LineShiftInput = ({
       setShiftPatterns(data.filter(p => p.is_active === 'TRUE'))
     } catch (error) {
       console.error('シフトパターン読み込みエラー:', error)
+    }
+  }
+
+  /**
+   * APIからシフト希望を読み込む
+   */
+  const loadShiftPreferences = async () => {
+    setIsLoadingPreferences(true)
+    setPreferencesError(null)
+
+    try {
+      const { tenant_id, store_id, staff_id, year, month } = DEMO_PARAMS
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+      const url = `${apiUrl}/api/shifts/preferences?tenant_id=${tenant_id}&store_id=${store_id}&staff_id=${staff_id}&year=${year}&month=${month}`
+
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const result = await response.json()
+
+      if (result.success && result.data && result.data.length > 0) {
+        // APIレスポンスをローカルステート形式に変換
+        const prefs = {}
+
+        result.data.forEach(preference => {
+          // preferred_days: "2024-11-01,2024-11-03,2024-11-05"
+          if (preference.preferred_days) {
+            const dates = preference.preferred_days.split(',').map(d => d.trim())
+            dates.forEach(dateStr => {
+              const day = parseInt(dateStr.split('-')[2]) // "2024-11-05" → 5
+              if (!isNaN(day) && day >= 1 && day <= 31) {
+                prefs[day] = {
+                  patterns: [], // パターン情報はAPIに保存していないためデフォルト
+                  comment: preference.notes || '',
+                }
+              }
+            })
+          }
+
+          // ng_days も同様に処理（表示のみ）
+          if (preference.ng_days) {
+            const ngDates = preference.ng_days.split(',').map(d => d.trim())
+            // NG日は別途処理する場合はここで対応
+          }
+        })
+
+        setDatePreferences(prefs)
+
+        // 既に希望が提出されている場合
+        if (result.data.some(p => p.status === 'PENDING' || p.status === 'APPROVED')) {
+          setIsSubmitted(true)
+        }
+      } else {
+        // データが存在しない場合は空のまま
+        console.log('シフト希望データがまだ登録されていません')
+      }
+    } catch (error) {
+      console.error('シフト希望読み込みエラー:', error)
+      setPreferencesError(error.message)
+      // エラーでも画面は表示する（新規入力として扱う）
+    } finally {
+      setIsLoadingPreferences(false)
     }
   }
 
@@ -466,8 +544,29 @@ const LineShiftInput = ({
                   </div>
 
                   <div className="p-3 bg-gray-50 h-[calc(100%-48px)] overflow-y-auto">
+                    {/* ローディング表示 */}
+                    {isLoadingPreferences && (
+                      <div className="text-center py-4">
+                        <div className="inline-block animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                        <p className="text-xs text-gray-600 mt-2">シフト希望を読み込み中...</p>
+                      </div>
+                    )}
+
+                    {/* エラー表示 */}
+                    {preferencesError && !isLoadingPreferences && (
+                      <div className="mb-2 p-2 bg-yellow-50 border border-yellow-300 rounded-lg">
+                        <p className="text-xs text-yellow-800">
+                          ⚠️ シフト希望の読み込みに失敗しました
+                        </p>
+                        <p className="text-xs text-yellow-600 mt-1">{preferencesError}</p>
+                        <p className="text-xs text-gray-600 mt-1">
+                          新規入力として続行できます
+                        </p>
+                      </div>
+                    )}
+
                     {/* 繰り返しパターン設定ボタン */}
-                    {!selectedDate && !showWeeklyPattern && (
+                    {!selectedDate && !showWeeklyPattern && !isLoadingPreferences && (
                       <Button
                         onClick={() => setShowWeeklyPattern(true)}
                         variant="outline"
@@ -529,11 +628,11 @@ const LineShiftInput = ({
                     )}
 
                     {/* カレンダー選択UI */}
-                    {!selectedDate && (
+                    {!selectedDate && !isLoadingPreferences && (
                       <>
                         <div className="mb-2">
                           <h3 className="text-sm font-bold text-gray-800 mb-0.5">
-                            10月のシフト希望
+                            11月のシフト希望
                           </h3>
                           <p className="text-xs text-gray-600">日付をタップして希望を入力</p>
                         </div>

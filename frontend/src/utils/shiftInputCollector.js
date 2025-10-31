@@ -373,22 +373,102 @@ export const collectStaffData = async (year, month) => {
     '/data/master/staff.csv',
     '/data/master/staff_skills.csv',
     '/data/master/staff_certifications.csv',
-    `/data/transactions/shift_preferences_${year}_${String(month).padStart(2, '0')}.csv`,
     '/data/transactions/availability_requests.csv',
   ]
 
-  const [staff, skills, certifications, preferences, availability] = await Promise.all([
+  // CSVファイルは staff, skills, certifications のみ読み込み
+  const [staff, skills, certifications, availability] = await Promise.all([
     loadCSV(files[0]),
     loadCSV(files[1]),
     loadCSV(files[2]),
     loadCSV(files[3]),
-    loadCSV(files[4]),
   ])
+
+  // シフト希望はAPIから取得
+  let preferences = []
+  let preferencesSource = 'API (shift_preferences)'
+
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const url = `${apiUrl}/api/shifts/preferences?tenant_id=1&year=${year}&month=${month}`
+
+    const response = await fetch(url)
+    if (response.ok) {
+      const result = await response.json()
+      if (result.success && result.data) {
+        // APIレスポンスをCSV互換形式に変換
+        preferences = result.data.flatMap(pref => {
+          const prefs = []
+
+          // preferred_days を展開
+          if (pref.preferred_days) {
+            const dates = pref.preferred_days.split(',').map(d => d.trim())
+            dates.forEach(date => {
+              prefs.push({
+                staffId: pref.staff_id,
+                date: date,
+                shift: 'preferred', // APIにはシフトパターン情報がないため固定値
+                priority: pref.status === 'APPROVED' ? 'high' : 'medium',
+              })
+            })
+          }
+
+          // ng_days を展開
+          if (pref.ng_days) {
+            const dates = pref.ng_days.split(',').map(d => d.trim())
+            dates.forEach(date => {
+              prefs.push({
+                staffId: pref.staff_id,
+                date: date,
+                shift: 'off',
+                priority: 'high',
+              })
+            })
+          }
+
+          return prefs
+        })
+      }
+    } else {
+      console.warn('シフト希望API呼び出し失敗、CSVフォールバックを試行')
+      // フォールバック: CSVから読み込み
+      const csvPrefs = await loadCSV(
+        `/data/transactions/shift_preferences_${year}_${String(month).padStart(2, '0')}.csv`
+      )
+      preferences = csvPrefs.map(p => ({
+        staffId: p.staff_id,
+        date: p.preferred_date,
+        shift: p.preferred_shift,
+        priority: p.priority,
+      }))
+      preferencesSource = 'CSV (fallback)'
+    }
+  } catch (error) {
+    console.error('シフト希望取得エラー:', error)
+    // エラー時はCSVフォールバック
+    try {
+      const csvPrefs = await loadCSV(
+        `/data/transactions/shift_preferences_${year}_${String(month).padStart(2, '0')}.csv`
+      )
+      preferences = csvPrefs.map(p => ({
+        staffId: p.staff_id,
+        date: p.preferred_date,
+        shift: p.preferred_shift,
+        priority: p.priority,
+      }))
+      preferencesSource = 'CSV (fallback)'
+    } catch (csvError) {
+      console.error('CSVフォールバックも失敗:', csvError)
+      preferences = []
+      preferencesSource = 'None (error)'
+    }
+  }
 
   return {
     source: 'スタッフ情報・シフト希望',
     usage: 'シフト配置の最適化、希望反映率の向上',
     files: files,
+    preferencesSource: preferencesSource,
     data: {
       staff: staff.map(s => ({
         id: s.staff_id,
@@ -400,12 +480,7 @@ export const collectStaffData = async (year, month) => {
       })),
       skills: skills,
       certifications: certifications,
-      preferences: preferences.map(p => ({
-        staffId: p.staff_id,
-        date: p.preferred_date,
-        shift: p.preferred_shift,
-        priority: p.priority,
-      })),
+      preferences: preferences,
       availability: availability,
     },
     summary: {
