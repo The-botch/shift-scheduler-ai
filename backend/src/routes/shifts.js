@@ -1,5 +1,8 @@
 import express from 'express';
 import { query } from '../config/database.js';
+import DEFAULT_CONFIG from '../config/defaults.js';
+import { SHIFT_PREFERENCE_STATUS, VALID_PREFERENCE_STATUSES } from '../config/constants.js';
+import { VALIDATION_MESSAGES } from '../config/validation.js';
 
 const router = express.Router();
 
@@ -577,7 +580,7 @@ router.post('/preferences', async (req, res) => {
       preferred_time_slots,
       max_hours_per_week,
       notes,
-      status = 'PENDING'
+      status = SHIFT_PREFERENCE_STATUS.PENDING
     } = req.body;
 
     // 必須項目のバリデーション
@@ -608,7 +611,7 @@ router.post('/preferences', async (req, res) => {
     if (max_hours_per_week !== undefined && max_hours_per_week < 0) {
       return res.status(400).json({
         success: false,
-        error: 'max_hours_per_week must be >= 0'
+        error: VALIDATION_MESSAGES.INVALID_MAX_HOURS
       });
     }
 
@@ -747,12 +750,12 @@ router.put('/preferences/:id', async (req, res) => {
     if (newMaxHoursPerWeek !== null && newMaxHoursPerWeek < 0) {
       return res.status(400).json({
         success: false,
-        error: 'max_hours_per_week must be >= 0'
+        error: VALIDATION_MESSAGES.INVALID_MAX_HOURS
       });
     }
 
     // status のバリデーション
-    const validStatuses = ['PENDING', 'APPROVED', 'REJECTED'];
+    const validStatuses = VALID_PREFERENCE_STATUSES;
     if (newStatus && !validStatuses.includes(newStatus)) {
       return res.status(400).json({
         success: false,
@@ -929,7 +932,7 @@ router.post('/', async (req, res) => {
     if (break_minutes < 0) {
       return res.status(400).json({
         success: false,
-        error: 'break_minutes must be >= 0'
+        error: VALIDATION_MESSAGES.INVALID_BREAK_MINUTES
       });
     }
 
@@ -1119,7 +1122,7 @@ router.put('/:id', async (req, res) => {
     if (newBreakMinutes < 0) {
       return res.status(400).json({
         success: false,
-        error: 'break_minutes must be >= 0'
+        error: VALIDATION_MESSAGES.INVALID_BREAK_MINUTES
       });
     }
 

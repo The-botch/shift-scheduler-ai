@@ -6,6 +6,7 @@ import AppHeader from '../shared/AppHeader'
 import { TrendingUp, DollarSign, Database, Clock, BarChart3 } from 'lucide-react'
 import { AnalyticsRepository } from '../../infrastructure/repositories/AnalyticsRepository'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
+import { getCurrentYear } from '../../config/constants'
 
 const analyticsRepository = new AnalyticsRepository()
 const shiftRepository = new ShiftRepository()
@@ -61,38 +62,39 @@ const Dashboard = ({
       setLoadingAnnualSummary(true)
 
       // Load all data from Analytics API and Shift API
-      const [actualPayroll2024, actualSales2024, salesForecast2024, shiftSummary2024] =
+      const currentYear = getCurrentYear()
+      const [actualPayrollData, actualSalesData, salesForecastData, shiftSummaryData] =
         await Promise.all([
-          analyticsRepository.getAnnualPayroll(2024),
-          analyticsRepository.getAnnualSalesActual(2024),
-          analyticsRepository.getAnnualSalesForecast(2024),
-          shiftRepository.getSummary({ year: 2025 }), // 実データは2025年にある
+          analyticsRepository.getAnnualPayroll(currentYear),
+          analyticsRepository.getAnnualSalesActual(currentYear),
+          analyticsRepository.getAnnualSalesForecast(currentYear),
+          shiftRepository.getSummary({ year: currentYear }),
         ])
 
       // シフトデータをAPIから取得
-      const actualShifts2024 = shiftSummary2024 || []
-      const plannedShifts2024 = shiftSummary2024 || []
+      const actualShiftsData = shiftSummaryData || []
+      const plannedShiftsData = shiftSummaryData || []
 
       // Always set monthlyData (empty array if no actual data) to show graph framework
       setMonthlyData([])
 
       // Calculate annual summary only if actual data exists
-      if (actualPayroll2024.length > 0) {
+      if (actualPayrollData.length > 0) {
         const summary = calculateAnnualSummary(
-          plannedShifts2024,
-          actualShifts2024,
-          actualPayroll2024,
-          salesForecast2024,
-          actualSales2024
+          plannedShiftsData,
+          actualShiftsData,
+          actualPayrollData,
+          salesForecastData,
+          actualSalesData
         )
         setAnnualSummary(summary)
 
         const monthly = calculateMonthlyData(
-          plannedShifts2024,
-          actualShifts2024,
-          actualPayroll2024,
-          salesForecast2024,
-          actualSales2024
+          plannedShifts2025,
+          actualShifts2025,
+          actualPayroll2025,
+          salesForecastData,
+          actualSalesData
         )
         setMonthlyData(monthly)
       } else {
@@ -114,7 +116,7 @@ const Dashboard = ({
     actualSales
   ) => {
     const summary = {
-      year: 2024,
+      year: 2025,
       plannedShifts: plannedShifts.length,
       actualShifts: actualShifts.length,
       shiftCountDiff: 0,
@@ -315,7 +317,7 @@ const Dashboard = ({
                     <div className="flex items-center gap-2">
                       <BarChart3 className="h-4 w-4 text-slate-700" />
                       <h3 className="text-sm font-semibold text-slate-900">
-                        2024年 予実差分サマリー
+                        2025年 予実差分サマリー
                       </h3>
                     </div>
                     <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">
@@ -434,7 +436,7 @@ const Dashboard = ({
                         <div className="flex items-center gap-2">
                           <TrendingUp className="h-4 w-4 text-slate-700" />
                           <h3 className="text-sm font-semibold text-slate-900">
-                            2024年 着地見込み
+                            2025年 着地見込み
                           </h3>
                         </div>
                         <span className="text-xs text-slate-600 bg-slate-100 px-2 py-1 rounded">

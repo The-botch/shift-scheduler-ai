@@ -14,6 +14,8 @@ import {
 } from 'lucide-react'
 import AppHeader from '../shared/AppHeader'
 import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+import { DEMO_PARAMS } from '../../config/defaults'
+import { SHIFT_PREFERENCE_STATUS } from '../../config/constants'
 
 const csvRepository = new CSVRepository()
 
@@ -53,7 +55,7 @@ const DetailInputModal = ({ date, shiftPatterns, onSave, onCancel, existing }) =
   }
 
   const getDayOfWeek = date => {
-    const day = new Date(2024, 9, date).getDay()
+    const day = new Date(DEMO_PARAMS.year, DEMO_PARAMS.month - 1, date).getDay()
     const weekdays = ['日', '月', '火', '水', '木', '金', '土']
     return weekdays[day]
   }
@@ -184,15 +186,6 @@ const LineShiftInput = ({
   // デモ用の日付データ
   const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1)
 
-  // デモ用のパラメータ（本番では認証情報から取得）
-  const DEMO_PARAMS = {
-    tenant_id: 1,
-    store_id: 1,
-    staff_id: 5, // デモ用のスタッフID
-    year: 2024,
-    month: 11,
-  }
-
   useEffect(() => {
     loadShiftPatterns()
     loadShiftPreferences()
@@ -257,7 +250,7 @@ const LineShiftInput = ({
         setDatePreferences(prefs)
 
         // 既に希望が提出されている場合
-        if (result.data.some(p => p.status === 'PENDING' || p.status === 'APPROVED')) {
+        if (result.data.some(p => p.status === SHIFT_PREFERENCE_STATUS.PENDING || p.status === SHIFT_PREFERENCE_STATUS.APPROVED)) {
           setIsSubmitted(true)
         }
       } else {
@@ -318,13 +311,13 @@ const LineShiftInput = ({
   const selectedDatesCount = Object.keys(datePreferences).length
 
   const getDayOfWeek = date => {
-    const day = new Date(2024, 9, date).getDay()
+    const day = new Date(DEMO_PARAMS.year, DEMO_PARAMS.month - 1, date).getDay()
     const weekdays = ['日', '月', '火', '水', '木', '金', '土']
     return weekdays[day]
   }
 
   const isWeekend = date => {
-    const day = new Date(2024, 9, date).getDay()
+    const day = new Date(DEMO_PARAMS.year, DEMO_PARAMS.month - 1, date).getDay()
     return day === 0 || day === 6
   }
 

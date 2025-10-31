@@ -10,6 +10,24 @@ export const SYSTEM = {
   },
 }
 
+/**
+ * 現在の年を取得
+ */
+export const getCurrentYear = () => new Date().getFullYear()
+
+/**
+ * 現在の月を取得 (1-12)
+ */
+export const getCurrentMonth = () => new Date().getMonth() + 1
+
+/**
+ * 現在の年月を取得
+ */
+export const getCurrentYearMonth = () => ({
+  year: getCurrentYear(),
+  month: getCurrentMonth(),
+})
+
 // 曜日
 export const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']
 export const WEEKDAYS_EN = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
@@ -37,6 +55,29 @@ export const SHIFT_STATUS = {
   DRAFT: 'draft',
   FIRST_PLAN_APPROVED: 'first_plan_approved',
   COMPLETED: 'completed',
+}
+
+// シフト希望のステータス
+export const SHIFT_PREFERENCE_STATUS = {
+  PENDING: 'PENDING',
+  APPROVED: 'APPROVED',
+  REJECTED: 'REJECTED',
+}
+
+// シフト計画のステータス
+export const PLAN_STATUS = {
+  DRAFT: 'DRAFT',
+  SUBMITTED: 'SUBMITTED',
+  APPROVED: 'APPROVED',
+  PUBLISHED: 'PUBLISHED',
+  ARCHIVED: 'ARCHIVED',
+}
+
+// 優先度マッピング
+export const PRIORITY = {
+  HIGH: 'high',
+  MEDIUM: 'medium',
+  LOW: 'low',
 }
 
 export const IMPORT_STATUS = {

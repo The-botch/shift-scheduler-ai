@@ -3,12 +3,13 @@
  * 給与・売上・ダッシュボード指標データをバックエンドAPIから取得
  */
 import { BACKEND_API_URL } from '../../config/api'
+import DEFAULT_CONFIG from '../../config/defaults.js'
 
 export class AnalyticsRepository {
   /**
    * テナントID（デフォルト値）
    */
-  static DEFAULT_TENANT_ID = 1
+  static DEFAULT_TENANT_ID = DEFAULT_CONFIG.TENANT_ID
 
   /**
    * 給与計算データを取得

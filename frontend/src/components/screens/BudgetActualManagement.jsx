@@ -30,6 +30,7 @@ import {
 import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
 import { INDEXED_DB, STORAGE_KEYS } from '../../config'
 import { PAGE_VARIANTS, PAGE_TRANSITION } from '../../config/display'
+import { getCurrentYear } from '../../config/constants'
 import AppHeader from '../shared/AppHeader'
 
 const csvRepository = new CSVRepository()
@@ -67,7 +68,7 @@ const BudgetActualManagement = ({
   const [selectedMonth, setSelectedMonth] = useState(null)
   const [diffAnalysis, setDiffAnalysis] = useState(null)
   const [loading, setLoading] = useState(false)
-  const [selectedYear, setSelectedYear] = useState(2024)
+  const [selectedYear, setSelectedYear] = useState(getCurrentYear())
   const [monthlyPL, setMonthlyPL] = useState([])
 
   // IndexedDB内のデータ件数を取得
@@ -251,15 +252,15 @@ const BudgetActualManagement = ({
       setImporting(true)
 
       // 現在の月（デモでは2024年10月として固定）
-      const currentYear = 2024
+      const currentYear = getCurrentYear()
       const currentMonth = 10
 
       // CSVRepositoryを使用してAPI経由で読み込み
       const [workHoursResult, payrollResult, salesActualResult, forecastResult] = await Promise.all([
-        csvRepository.loadCSV('data/actual/work_hours_2024.csv'),
-        csvRepository.loadCSV('data/actual/payroll_2024.csv'),
-        csvRepository.loadCSV('data/actual/sales_actual_2024.csv'),
-        csvRepository.loadCSV('data/forecast/sales_forecast_2024.csv')
+        csvRepository.loadCSV(`data/actual/work_hours_${currentYear}.csv`),
+        csvRepository.loadCSV(`data/actual/payroll_${currentYear}.csv`),
+        csvRepository.loadCSV(`data/actual/sales_actual_${currentYear}.csv`),
+        csvRepository.loadCSV(`data/forecast/sales_forecast_${currentYear}.csv`)
       ])
 
       // 労働時間実績データ処理
@@ -735,7 +736,7 @@ const BudgetActualManagement = ({
   const loadSalesForecast = async (year, month) => {
     try {
       // CSVRepositoryを使用してAPI経由で読み込み
-      const data = await csvRepository.loadCSV('data/forecast/sales_forecast_2024.csv')
+      const data = await csvRepository.loadCSV(`data/forecast/sales_forecast_${currentYear}.csv`)
 
       // 該当月のデータをフィルタ
       return data.filter(f => parseInt(f.year) === year && parseInt(f.month) === month)

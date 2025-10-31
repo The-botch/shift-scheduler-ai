@@ -306,7 +306,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
             .sort((a, b) => a - b)
             .map(date => ({
               date,
-              day: ['日', '月', '火', '水', '木', '金', '土'][new Date(2024, 9, date).getDay()],
+              day: ['日', '月', '火', '水', '木', '金', '土'][new Date(2024, 10 - 1, date).getDay()],
               shifts: firstPlanGrouped[date],
             }))
 
@@ -407,7 +407,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
       const dayOfWeekMap = ['日', '月', '火', '水', '木', '金', '土']
 
       changes.forEach(change => {
-        const date = new Date(2024, 9, change.date)
+        const date = new Date(2024, 10 - 1, change.date)
         const dayOfWeek = dayOfWeekMap[date.getDay()]
 
         if (change.action === 'remove') {

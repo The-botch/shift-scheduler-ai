@@ -3,6 +3,8 @@
  */
 
 import Papa from 'papaparse'
+import DEFAULT_CONFIG from '../config/defaults.js'
+import { SHIFT_PREFERENCE_STATUS, PRIORITY } from '../config/constants'
 
 /**
  * CSVファイルを読み込む共通関数
@@ -390,7 +392,7 @@ export const collectStaffData = async (year, month) => {
 
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-    const url = `${apiUrl}/api/shifts/preferences?tenant_id=1&year=${year}&month=${month}`
+    const url = `${apiUrl}/api/shifts/preferences?tenant_id=${DEFAULT_CONFIG.TENANT_ID}&year=${year}&month=${month}`
 
     const response = await fetch(url)
     if (response.ok) {
@@ -408,7 +410,7 @@ export const collectStaffData = async (year, month) => {
                 staffId: pref.staff_id,
                 date: date,
                 shift: 'preferred', // APIにはシフトパターン情報がないため固定値
-                priority: pref.status === 'APPROVED' ? 'high' : 'medium',
+                priority: pref.status === SHIFT_PREFERENCE_STATUS.APPROVED ? PRIORITY.HIGH : PRIORITY.MEDIUM,
               })
             })
           }
