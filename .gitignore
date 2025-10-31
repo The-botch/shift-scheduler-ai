@@ -32,6 +32,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+logs.*.json
+fixtures/**/logs.*.json
 
 # Temporary files
 *.tmp
@@ -45,3 +47,8 @@ frontend/public/data/generated/*
 # Test coverage
 coverage
 .nyc_output
+
+# 個人のシークレットを含むため除外
+.env
+frontend/.env
+backend/.env
