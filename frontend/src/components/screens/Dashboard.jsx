@@ -5,8 +5,10 @@ import { Button } from '../ui/button'
 import AppHeader from '../shared/AppHeader'
 import { TrendingUp, DollarSign, Database, Clock, BarChart3 } from 'lucide-react'
 import { AnalyticsRepository } from '../../infrastructure/repositories/AnalyticsRepository'
+import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 
 const analyticsRepository = new AnalyticsRepository()
+const shiftRepository = new ShiftRepository()
 import {
   LineChart,
   Line,
@@ -58,16 +60,18 @@ const Dashboard = ({
     try {
       setLoadingAnnualSummary(true)
 
-      // Load all data from Analytics API
-      const [actualPayroll2024, actualSales2024, salesForecast2024] = await Promise.all([
-        analyticsRepository.getAnnualPayroll(2024),
-        analyticsRepository.getAnnualSalesActual(2024),
-        analyticsRepository.getAnnualSalesForecast(2024),
-      ])
+      // Load all data from Analytics API and Shift API
+      const [actualPayroll2024, actualSales2024, salesForecast2024, shiftSummary2024] =
+        await Promise.all([
+          analyticsRepository.getAnnualPayroll(2024),
+          analyticsRepository.getAnnualSalesActual(2024),
+          analyticsRepository.getAnnualSalesForecast(2024),
+          shiftRepository.getSummary({ year: 2025 }), // 実データは2025年にある
+        ])
 
-      // Note: シフトデータはまだIndexedDBから取得（後で実装）
-      const actualShifts2024 = []
-      const plannedShifts2024 = []
+      // シフトデータをAPIから取得
+      const actualShifts2024 = shiftSummary2024 || []
+      const plannedShifts2024 = shiftSummary2024 || []
 
       // Always set monthlyData (empty array if no actual data) to show graph framework
       setMonthlyData([])

@@ -21,9 +21,11 @@ import {
   AlertTriangle,
 } from 'lucide-react'
 import ShiftTimeline from '../shared/ShiftTimeline'
-import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
+import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 
-const csvRepository = new CSVRepository()
+const shiftRepository = new ShiftRepository()
+const masterRepository = new MasterRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -172,10 +174,10 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
 
   const generateSecondPlan = async () => {
     try {
-      // シフト希望提出状況を確認
+      // シフト希望提出状況を確認（APIから取得）
       const [staffResult, preferencesResult] = await Promise.all([
-        csvRepository.loadCSV('data/master/staff.csv'),
-        csvRepository.loadCSV('data/transactions/availability_requests.csv'),
+        masterRepository.getStaff(),
+        shiftRepository.getShifts({ planId: 4 }), // 仮のplan_id、実際には出勤可否APIが必要
       ])
 
       const activeStaff = staffResult.filter(s => s.is_active)
@@ -204,13 +206,15 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved }) => {
 
       setGenerating(true)
 
-      // マスターデータ読み込み
-      const [rolesData, shiftsData, issuesData, solutionsData] = await Promise.all([
-        csvRepository.loadCSV('data/master/roles.csv'),
-        csvRepository.loadCSV('data/transactions/shift_second_plan.csv'),
-        csvRepository.loadCSV('data/transactions/shift_second_plan_issues.csv'),
-        csvRepository.loadCSV('data/transactions/shift_second_plan_solutions.csv'),
+      // マスターデータとシフトデータをAPIから読み込み
+      const [rolesData, shiftsData] = await Promise.all([
+        masterRepository.getRoles(),
+        shiftRepository.getShifts({ planId: 4 }), // plan_id=4のシフトデータ
       ])
+
+      // issues と solutions は将来実装予定のAPIから取得
+      const issuesData = []
+      const solutionsData = []
 
       // staffDataは既に読み込み済み
       const staffData = staffResult

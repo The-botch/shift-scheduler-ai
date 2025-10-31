@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -15,6 +15,9 @@ import {
 } from 'lucide-react'
 import History from './History'
 import AppHeader from '../shared/AppHeader'
+import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
+
+const shiftRepository = new ShiftRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -42,27 +45,44 @@ const ShiftManagement = ({
   onConstraintManagement,
   onBudgetActualManagement,
 }) => {
-  const [selectedYear, setSelectedYear] = useState(2024)
+  const [selectedYear, setSelectedYear] = useState(2025) // 実データは2025年
   const [activeTab, setActiveTab] = useState('management') // 'management' or 'history'
   const [initialHistoryMonth, setInitialHistoryMonth] = useState(null)
+  const [shifts, setShifts] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  // デモ用のシフトデータ（propsからのステータスを反映）
-  const shifts = [
-    {
-      month: 10,
-      status: shiftStatus?.[10] || 'not_started',
-      createdAt:
-        shiftStatus?.[10] === 'first_plan_approved' || shiftStatus?.[10] === 'completed'
-          ? '2024-09-15'
-          : null,
-      staff:
-        shiftStatus?.[10] === 'first_plan_approved' || shiftStatus?.[10] === 'completed' ? 12 : 0,
-      totalHours:
-        shiftStatus?.[10] === 'first_plan_approved' || shiftStatus?.[10] === 'completed' ? 460 : 0,
-    },
-    { month: 11, status: 'draft', createdAt: null, staff: 0, totalHours: 0 },
-    { month: 12, status: 'not_started', createdAt: null, staff: 0, totalHours: 0 },
-  ]
+  // APIからシフトサマリーを取得
+  useEffect(() => {
+    loadShiftSummary()
+  }, [selectedYear])
+
+  const loadShiftSummary = async () => {
+    try {
+      setLoading(true)
+      const summary = await shiftRepository.getSummary({ year: selectedYear })
+
+      // 月別にグループ化してUI用のデータに変換
+      const monthlyShifts = Array.from({ length: 12 }, (_, i) => {
+        const month = i + 1
+        const monthData = summary.find(s => parseInt(s.month) === month)
+
+        return {
+          month,
+          status: monthData ? 'completed' : 'not_started',
+          createdAt: monthData ? new Date().toISOString().split('T')[0] : null,
+          staff: monthData ? parseInt(monthData.staff_count) : 0,
+          totalHours: monthData ? parseFloat(monthData.total_hours) || 0 : 0,
+        }
+      })
+
+      setShifts(monthlyShifts)
+    } catch (error) {
+      console.error('シフトサマリー取得エラー:', error)
+      setShifts([])
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const getStatusInfo = status => {
     const statusMap = {

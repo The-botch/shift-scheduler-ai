@@ -14,9 +14,11 @@ import {
   Upload,
 } from 'lucide-react'
 import ShiftTimeline from '../shared/ShiftTimeline'
-import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
+import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 
-const csvRepository = new CSVRepository()
+const shiftRepository = new ShiftRepository()
+const masterRepository = new MasterRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -79,11 +81,11 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
     try {
       setLoading(true)
 
-      // 並行読み込み
+      // APIから並行読み込み - plan_id=4は2024年10月のシフト計画
       const [shiftsResult, staffResult, rolesResult] = await Promise.all([
-        csvRepository.loadCSV('data/transactions/shift.csv'),
-        csvRepository.loadCSV('data/master/staff.csv'),
-        csvRepository.loadCSV('data/master/roles.csv'),
+        shiftRepository.getShifts({ planId: 4 }),
+        masterRepository.getStaff(),
+        masterRepository.getRoles(),
       ])
 
       // 役職IDから役職名へのマッピング
@@ -105,7 +107,7 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
       // 日付別にグループ化
       const groupedByDate = {}
       shiftsResult.forEach(shift => {
-        const date = shift.shift_date
+        const date = shift.shift_date.split('T')[0] // ISO形式から日付部分を取得
         if (!groupedByDate[date]) {
           groupedByDate[date] = []
         }
@@ -114,8 +116,8 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
           name: staffInfo.name,
           role: staffInfo.role_name,
           time: `${shift.start_time?.substring(0, 5)}-${shift.end_time?.substring(0, 5)}`,
-          skill: shift.skill_level || 3,
-          hours: shift.total_hours || 0,
+          skill: shift.assigned_skills?.length || 3,
+          hours: parseFloat(shift.total_hours) || 0,
         })
       })
 

@@ -19,9 +19,11 @@ import {
 import ShiftTimeline from '../shared/ShiftTimeline'
 import { exportCSV, generateFilename } from '../../utils/csvHelper'
 import AppHeader from '../shared/AppHeader'
-import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
+import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 
-const csvRepository = new CSVRepository()
+const shiftRepository = new ShiftRepository()
+const masterRepository = new MasterRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -231,11 +233,11 @@ const History = ({
     try {
       setLoading(true)
 
-      // CSVRepositoryを使用してAPI経由で読み込み
+      // APIを使用してマスターデータとシフトサマリーを読み込み
       const [staffData, rolesData, summaryData] = await Promise.all([
-        csvRepository.loadCSV('data/master/staff.csv'),
-        csvRepository.loadCSV('data/master/roles.csv'),
-        csvRepository.loadCSV('data/history/shift_monthly_summary.csv')
+        masterRepository.getStaff(),
+        masterRepository.getRoles(),
+        shiftRepository.getSummary({ year: 2025 }) // 実データは2025年
       ])
 
       // スタッフマップと役職マップを作成
