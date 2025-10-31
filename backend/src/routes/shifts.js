@@ -119,10 +119,10 @@ router.get('/summary', async (req, res) => {
 
     let sql = `
       SELECT
-        EXTRACT(YEAR FROM sh.shift_date) as year,
-        EXTRACT(MONTH FROM sh.shift_date) as month,
-        COUNT(*) as shift_count,
-        COUNT(DISTINCT sh.staff_id) as staff_count,
+        EXTRACT(YEAR FROM sh.shift_date)::int as year,
+        EXTRACT(MONTH FROM sh.shift_date)::int as month,
+        COUNT(*)::int as shift_count,
+        COUNT(DISTINCT sh.staff_id)::int as staff_count,
         SUM(sh.total_hours) as total_hours,
         SUM(sh.labor_cost) as total_labor_cost,
         AVG(sh.total_hours) as avg_hours_per_shift,
