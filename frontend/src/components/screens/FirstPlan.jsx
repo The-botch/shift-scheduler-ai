@@ -81,7 +81,7 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
     try {
       setLoading(true)
 
-      // APIから並行読み込み - plan_id=4は2024年10月のシフト計画
+      // APIから並行読み込み - plan_id=4は2025年7月のシフト計画
       const [shiftsResult, staffResult, rolesResult] = await Promise.all([
         shiftRepository.getShifts({ planId: 4 }),
         masterRepository.getStaff(),
@@ -261,8 +261,8 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
   const handleApprove = () => {
     // 承認時に履歴データとして保存
     const approvedData = {
-      month: 10,
-      year: 2024,
+      month: 7,
+      year: 2025,
       status: 'first_plan_approved',
       approvedAt: new Date().toISOString(),
       shifts: shiftData,
@@ -270,7 +270,7 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
     }
 
     // LocalStorageに保存
-    localStorage.setItem('approved_first_plan_2024_10', JSON.stringify(approvedData))
+    localStorage.setItem('approved_first_plan_2025_07', JSON.stringify(approvedData))
     console.log('第1案を仮承認しました。履歴に保存されました。')
 
     // 親コンポーネントの承認処理を呼び出し
@@ -633,7 +633,7 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
           第1案生成（AI自動）
         </h1>
         <p className="text-lg text-gray-600">
-          2024年10月シフト - {shiftData.length}日分のシフトを自動生成
+          2025年7月シフト - {shiftData.length}日分のシフトを自動生成
         </p>
       </div>
 
@@ -733,12 +733,12 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
                 </div>
 
                 <div className="grid grid-cols-7 gap-1">
-                  {/* 2024年10月1日は火曜日なので、空白セルを2つ追加（日曜・月曜） */}
+                  {/* 2025年7月1日は火曜日なので、空白セルを2つ追加（日曜・月曜） */}
                   {[0, 1].map(i => (
                     <div key={`empty-${i}`} className="p-1"></div>
                   ))}
                   {shiftData.map((dayData, index) => {
-                    // 2024年10月1日は火曜日、日曜始まりのカレンダーなので+2
+                    // 2025年7月1日は火曜日、日曜始まりのカレンダーなので+2
                     const dayOfWeekIndex = (dayData.date - 1 + 2) % 7
                     const isWeekend = dayOfWeekIndex === 0 || dayOfWeekIndex === 6 // 日曜(0)と土曜(6)
                     const isChanged = changedDates.has(dayData.date)
@@ -1058,8 +1058,8 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
         {selectedDay && (
           <ShiftTimeline
             date={selectedDay}
-            year={2024}
-            month={10}
+            year={2025}
+            month={7}
             shifts={dayShifts}
             onClose={closeDayView}
           />

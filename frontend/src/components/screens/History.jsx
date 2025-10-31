@@ -181,7 +181,7 @@ const History = ({
   const [showDiff, setShowDiff] = useState(false) // 差分表示モード
   const [diffAnalysis, setDiffAnalysis] = useState(null) // 差分分析結果
   const [monthStatus, setMonthStatus] = useState({}) // 月別ステータス管理
-  const [selectedYear, setSelectedYear] = useState(2024) // 選択中の年
+  const [selectedYear, setSelectedYear] = useState(2025) // 選択中の年（実データは2025年）
 
   useEffect(() => {
     loadHistoryData()
@@ -253,61 +253,45 @@ const History = ({
       })
       setRolesMap(rolesMapping)
 
-      // LocalStorageから承認されたシフトを読み込み
-      const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
-      const approvedSecondPlan = localStorage.getItem('approved_second_plan_2024_10')
-      let summaryDataProcessed = summaryData
-
-      // 全ての月に確定済みステータスを設定
-      summaryDataProcessed = summaryDataProcessed.map(s => ({
+      // APIから取得したサマリーデータを数値に変換
+      const summaryDataProcessed = summaryData.map(s => ({
         ...s,
-        status: 'completed',
+        year: parseInt(s.year),
+        month: parseInt(s.month),
+        shift_count: parseInt(s.shift_count || 0),
+        staff_count: parseInt(s.staff_count || 0),
+        total_hours: parseFloat(s.total_hours || 0),
+        total_labor_cost: parseFloat(s.total_labor_cost || 0),
+        status: 'completed', // 全て確定済みとして表示
       }))
-
-      // 2024年10月を除外（承認がない限り表示しない）
-      summaryDataProcessed = summaryDataProcessed.filter(s => !(s.year === 2024 && s.month === 10))
-
-      // 第2案承認が優先（第1案より後に承認されるため）
-      if (approvedSecondPlan) {
-        const approvedData = JSON.parse(approvedSecondPlan)
-        const approvedSummary = {
-          year: approvedData.year,
-          month: approvedData.month,
-          total_hours: approvedData.stats.totalHours || 0,
-          total_wage: 0,
-          total_shifts: approvedData.stats.totalShifts || 0,
-          fill_rate: 97,
-          notes: `第2案確定済み (${new Date(approvedData.approvedAt).toLocaleDateString('ja-JP')}) - ${approvedData.stats.resolvedIssues}/${approvedData.stats.totalIssues}問題解決済み`,
-          status: 'second_plan_approved',
-        }
-        summaryDataProcessed.push(approvedSummary)
-      } else if (approvedFirstPlan) {
-        const approvedData = JSON.parse(approvedFirstPlan)
-        // 仮承認データを追加
-        const approvedSummary = {
-          year: approvedData.year,
-          month: approvedData.month,
-          total_hours: approvedData.stats.totalHours || 0,
-          total_wage: 0, // 仮承認時は未計算
-          total_shifts: approvedData.stats.totalShifts || 0,
-          fill_rate: 95, // 仮の充足率
-          notes: `第1案仮承認 (${new Date(approvedData.approvedAt).toLocaleDateString('ja-JP')})`,
-          status: 'first_plan_approved',
-        }
-
-        summaryDataProcessed.push(approvedSummary)
-      }
 
       setMonthlySummary(summaryDataProcessed)
 
-      // 過去のシフト履歴を読み込み
-      const [historyData, octoberData] = await Promise.all([
-        csvRepository.loadCSV('data/history/shift_history_2023-2024.csv'),
-        csvRepository.loadCSV('data/history/shift_october_2024.csv')
-      ])
+      // 過去のシフト履歴をAPIから読み込み
+      const allShifts = await shiftRepository.getShifts({ year: 2025 })
 
-      setShiftHistory(historyData)
-      setOctoberShifts(octoberData)
+      // APIデータをCSV互換フォーマットに変換（年月を数値に変換）
+      const formattedShifts = allShifts.map(shift => {
+        const shiftDate = new Date(shift.shift_date)
+        return {
+          shift_id: shift.shift_id,
+          year: parseInt(shiftDate.getFullYear()),
+          month: parseInt(shiftDate.getMonth() + 1),
+          date: parseInt(shiftDate.getDate()),
+          day_of_week: ['日', '月', '火', '水', '木', '金', '土'][shiftDate.getDay()],
+          staff_id: parseInt(shift.staff_id),
+          staff_name: shift.staff_name,
+          start_time: shift.start_time,
+          end_time: shift.end_time,
+          break_minutes: parseInt(shift.break_minutes || 60),
+          planned_hours: parseFloat(shift.total_hours || shift.planned_hours || 0),
+          role: shift.role_name,
+          modified_flag: shift.is_modified || false,
+        }
+      })
+
+      setShiftHistory(formattedShifts)
+      setOctoberShifts(formattedShifts) // 同じデータを使用
     } catch (err) {
       console.error('履歴データ読み込みエラー:', err)
     } finally {
@@ -316,91 +300,23 @@ const History = ({
   }
 
   const handleMonthClick = (year, month) => {
-    // LocalStorageから承認データを確認
-    const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
-    const approvedSecondPlan = localStorage.getItem('approved_second_plan_2024_10')
+    // 履歴データから該当月を抽出
+    const filtered = shiftHistory.filter(s => s.year === year && s.month === month)
 
-    if (year === 2024 && month === 10 && approvedSecondPlan) {
-      // 第2案確定データをHistory画面用フォーマットに変換
-      const approvedData = JSON.parse(approvedSecondPlan)
-      const transformedShifts = approvedData.csvShifts.map(shift => {
-        // スタッフIDから役職を取得
-        const staff = staffMap[shift.staff_id]
-        const roleName = staff ? rolesMap[staff.role_id] : '一般スタッフ'
+    // 履歴データを表示用にフォーマット
+    const transformedHistory = filtered.map(shift => {
+      const staff = staffMap[shift.staff_id]
+      const roleName = staff ? rolesMap[staff.role_id] : shift.role || '一般スタッフ'
+      return {
+        ...shift,
+        role: roleName,
+      }
+    })
 
-        return {
-          shift_id: shift.shift_id,
-          date: shift.date,
-          day_of_week: shift.day_of_week,
-          staff_name: shift.staff_name,
-          role: roleName,
-          start_time: shift.start_time,
-          end_time: shift.end_time,
-          skill_level: shift.skill_level,
-          planned_hours: shift.total_hours,
-          actual_hours: shift.total_hours,
-          modified_flag: shift.is_modified || false,
-        }
-      })
-
-      setDetailShifts(transformedShifts)
-    } else if (year === 2024 && month === 10 && approvedFirstPlan) {
-      // 第1案仮承認データをHistory画面用フォーマットに変換
-      const approvedData = JSON.parse(approvedFirstPlan)
-      const transformedShifts = []
-
-      approvedData.shifts.forEach(dayData => {
-        dayData.shifts.forEach((shift, index) => {
-          // 時間を分割
-          const [startTime, endTime] = shift.time.split('-')
-
-          // スタッフ名から役職を取得
-          const staff = Object.values(staffMap).find(s => s.name === shift.name)
-          const roleName = staff ? rolesMap[staff.role_id] : shift.role || '一般スタッフ'
-
-          transformedShifts.push({
-            shift_id: `FP_${dayData.date}_${index}`,
-            date: dayData.date,
-            day_of_week: dayData.day,
-            staff_name: shift.name,
-            role: roleName,
-            start_time: startTime,
-            end_time: endTime,
-            skill_level: shift.skill,
-            planned_hours: shift.hours,
-            actual_hours: shift.hours,
-            modified_flag: false,
-          })
-        })
-      })
-
-      setDetailShifts(transformedShifts)
-    } else if (year === 2024 && month === 10) {
-      // 承認がない場合は承認済みCSVデータを表示（役職をマスターから取得）
-      const transformedOctober = octoberShifts.map(shift => {
-        const staff = staffMap[shift.staff_id]
-        const roleName = staff ? rolesMap[staff.role_id] : shift.role || '一般スタッフ'
-        return {
-          ...shift,
-          role: roleName,
-        }
-      })
-      setDetailShifts(transformedOctober)
-    } else {
-      // それ以外は履歴データから該当月を抽出（役職をマスターから取得）
-      const filtered = shiftHistory.filter(s => s.year === year && s.month === month)
-      const transformedHistory = filtered.map(shift => {
-        const staff = staffMap[shift.staff_id]
-        const roleName = staff ? rolesMap[staff.role_id] : shift.role || '一般スタッフ'
-        return {
-          ...shift,
-          role: roleName,
-        }
-      })
-      setDetailShifts(transformedHistory)
-    }
+    setDetailShifts(transformedHistory)
     setSelectedMonth({ year, month })
   }
+
 
   const backToSummary = () => {
     setSelectedMonth(null)
@@ -1154,7 +1070,7 @@ const History = ({
                             <span className="text-xs text-green-600">総賃金</span>
                           </div>
                           <p className="text-lg font-bold text-green-900">
-                            ¥{(summary.total_wage / 10000).toFixed(0)}万
+                            ¥{((summary.total_labor_cost || summary.total_wage || 0) / 10000).toFixed(0)}万
                           </p>
                         </div>
                         <div className="p-3 bg-purple-50 rounded-lg">
@@ -1163,7 +1079,7 @@ const History = ({
                             <span className="text-xs text-purple-600">総シフト数</span>
                           </div>
                           <p className="text-lg font-bold text-purple-900">
-                            {summary.total_shifts}件
+                            {summary.shift_count || summary.total_shifts || 0}件
                           </p>
                         </div>
                         <div className="p-3 bg-orange-50 rounded-lg">
@@ -1171,7 +1087,7 @@ const History = ({
                             <TrendingUp className="h-4 w-4 text-orange-600 mr-1" />
                             <span className="text-xs text-orange-600">充足率</span>
                           </div>
-                          <p className="text-lg font-bold text-orange-900">{summary.fill_rate}%</p>
+                          <p className="text-lg font-bold text-orange-900">{summary.fill_rate || 100}%</p>
                         </div>
                       </div>
                       {summary.notes && (

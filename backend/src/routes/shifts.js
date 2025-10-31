@@ -127,6 +127,14 @@ router.get('/summary', async (req, res) => {
         SUM(sh.labor_cost) as total_labor_cost,
         AVG(sh.total_hours) as avg_hours_per_shift,
         COUNT(CASE WHEN sh.is_modified = true THEN 1 END) as modified_count
+
+
+
+
+
+
+
+
       FROM ops.shifts sh
       WHERE sh.tenant_id = $1
         AND EXTRACT(YEAR FROM sh.shift_date) = $2
