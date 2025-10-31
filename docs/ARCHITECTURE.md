@@ -3,7 +3,7 @@
 ## 概要
 
 このプロジェクトは、OpenAI GPT-4を活用したAIシフト自動生成システムです。
-フロントエンド（React）とバックエンド（Express）で構成され、OpenAI Assistants API v2を使用してシフトを生成します。
+フロントエンド（React）とバックエンド（Express）で構成され、PostgreSQLデータベースとOpenAI Assistants API v2を使用してシフトを生成します。
 
 ## システム構成図
 
@@ -11,6 +11,7 @@
 graph TB
     User[👤 ユーザー] --> Frontend[🖥️ Frontend<br/>React + Vite]
     Frontend --> Backend[⚙️ Backend<br/>Express API]
+    Backend --> Database[(🗄️ PostgreSQL<br/>Railway)]
     Backend --> OpenAI[🤖 OpenAI API<br/>GPT-4 + Assistants v2]
     Backend --> FileSystem[(📁 File System<br/>CSV Data)]
     OpenAI --> VectorStore[(🗄️ Vector Store<br/>参照データ)]
@@ -46,9 +47,17 @@ shift-scheduler-ai/
 │   ├── eslint.config.js         # ESLint設定
 │   └── vite.config.js           # Vite設定
 │
-├── backend/                     # バックエンド (新規分離)
+├── backend/                     # バックエンド
 │   ├── src/
-│   │   └── server.js            # Express APIサーバー
+│   │   ├── server.js            # Express APIサーバー
+│   │   ├── config/
+│   │   │   └── database.js      # PostgreSQL接続設定
+│   │   ├── routes/
+│   │   │   ├── openai.js        # OpenAI API ルート
+│   │   │   ├── csv.js           # CSV操作 ルート
+│   │   │   └── master.js        # マスターデータAPI ルート
+│   │   └── utils/
+│   │       └── logger.js        # ロギング
 │   ├── .env                     # 環境変数
 │   └── package.json
 │
@@ -57,10 +66,25 @@ shift-scheduler-ai/
 │
 ├── docs/                        # ドキュメント
 │   ├── ARCHITECTURE.md          # このファイル
-│   └── CONFIGURATION.md         # 設定ガイド
+│   ├── CONFIGURATION.md         # 設定ガイド
+│   ├── DATABASE_GUIDE.md        # DB接続・セットアップ
+│   ├── DATABASE_SCHEMA.md       # DBスキーマ設計
+│   ├── DATABASE_CLI_COMMANDS.md # CLIコマンド集
+│   ├── SAMPLE_QUERIES.md        # サンプルクエリ
+│   ├── CSV_TO_DB_MAPPING.md     # CSV・DB対応表
+│   ├── MULTITENANT_REDESIGN.md  # マルチテナント設計
+│   └── LINE_INTEGRATION.md      # LINE連携ガイド
 │
 ├── scripts/                     # ユーティリティスクリプト
-│   └── refactor.sh              # リファクタリング自動化
+│   ├── setup/                   # データベースセットアップ
+│   │   ├── schema.sql           # スキーマ定義 (795行)
+│   │   ├── seed_data.sql        # マスターデータ
+│   │   ├── setup_fresh_db.mjs   # DB初期化スクリプト
+│   │   ├── verify_setup.mjs     # 検証スクリプト
+│   │   └── import_all_17_masters.mjs  # マスターデータインポート
+│   ├── dev/                     # 開発用スクリプト
+│   ├── test_db_connection.mjs   # DB接続テスト
+│   └── test_schema_crud.mjs     # CRUD総合テスト
 │
 ├── .gitignore
 ├── SECURITY.md                  # セキュリティポリシー
@@ -153,29 +177,73 @@ sequenceDiagram
 ### Backend
 
 #### `server.js`
-- **役割**: OpenAI API プロキシサーバー
-- **主要エンドポイント**:
+- **役割**: API サーバー（OpenAI プロキシ + データベース連携）
+- **主要ルート**:
+  - `/api/openai/*` - OpenAI API プロキシ
+  - `/api/master/*` - マスターデータAPI
+  - `/api/*` - CSV操作API
+
+#### `config/database.js`
+- **役割**: PostgreSQL 接続管理
+- **主要機能**:
+  - Connection Pool管理
+  - `query(text, params)` - クエリ実行
+  - `transaction(callback)` - トランザクション実行
+  - `getPool()` - プール取得
+- **接続先**: Railway PostgreSQL (マルチテナント対応)
+
+#### `routes/openai.js`
+- **エンドポイント**:
   - `POST /api/openai/assistants` - Assistant作成
   - `POST /api/openai/vector_stores` - Vector Store作成
   - `POST /api/openai/files` - ファイルアップロード（CSV→JSON変換）
   - `POST /api/openai/threads` - Thread作成
   - `POST /api/openai/threads/:threadId/runs` - Run作成・実行
   - `GET /api/openai/threads/:threadId/runs/:runId` - Run状態取得
-  - `POST /api/save-csv` - 生成CSVの保存
+- **特徴**: OpenAI APIキーの隠蔽、CSV→JSON自動変換
 
-**特徴**:
-- すべてのリクエストでOpenAI APIキーを隠蔽
-- CSV→JSON変換を自動実行（Vector Storeはjsonのみサポート）
-- CORS設定でフロントエンドからのアクセスを許可
+#### `routes/master.js`
+- **エンドポイント**:
+  - `GET /api/master/tenants` - テナント一覧
+  - `GET /api/master/divisions` - 部門一覧
+  - `GET /api/master/stores` - 店舗一覧
+  - `GET /api/master/roles` - 役職一覧
+  - `GET /api/master/skills` - スキル一覧
+  - `GET /api/master/employment-types` - 雇用形態一覧
+  - `GET /api/master/shift-patterns` - シフトパターン一覧
+  - `GET /api/master/staff` - スタッフ一覧
+  - `GET /api/master/commute-allowance` - 通勤手当一覧
+  - `GET /api/master/insurance-rates` - 保険料率一覧
+  - `GET /api/master/tax-brackets` - 税率区分一覧
+  - など全17マスターテーブルに対応
+- **特徴**: マルチテナント対応（tenant_idフィルタリング）
+
+#### `routes/csv.js`
+- **エンドポイント**:
+  - `POST /api/save-csv` - 生成CSVの保存
+- **特徴**: ファイルシステムへのCSV保存
 
 ## 設定管理
 
 ### 環境変数（`.env`）
 
+#### バックエンド（`backend/.env`）
 ```bash
+# OpenAI API
 VITE_OPENAI_API_KEY=sk-proj-...
 VITE_OPENAI_MODEL=gpt-4
 VITE_OPENAI_MAX_TOKENS=2000
+
+# Database
+DATABASE_URL=postgresql://postgres:xxx@mainline.proxy.rlwy.net:50142/railway
+
+# Node Environment
+NODE_ENV=production
+```
+
+#### フロントエンド（`frontend/.env`）
+```bash
+VITE_OPENAI_API_KEY=sk-proj-...  # 開発用（本番ではバックエンド経由）
 GH_TOKEN=ghp_...  # GitHub Pages デプロイ用
 ```
 
@@ -186,23 +254,42 @@ GH_TOKEN=ghp_...  # GitHub Pages デプロイ用
 - ファイルパス
 - デフォルト値
 
-## データ形式
+## データ管理
 
-### 入力データ（CSV）
+### データベース（PostgreSQL on Railway）
 
-#### マスタデータ
-- `labor_law_constraints.csv` - 労働基準法制約
-- `labor_management_rules.csv` - 労務管理ルール
-- `shift_validation_rules.csv` - シフト検証ルール
-- `stores.csv` - 店舗マスタ
-- `store_constraints.csv` - 店舗別制約
-- `staff.csv` - スタッフマスタ
-- `staff_skills.csv` - スタッフスキル
-- `staff_certifications.csv` - スタッフ資格
+#### スキーマ構成
+- **core**: 基幹マスタ（tenants, divisions, stores, roles, skills, employment_types, shift_patterns）
+- **hr**: 人事マスタ（staff, staff_skills, staff_certifications, commute_allowance, insurance_rates, tax_brackets）
+- **ops**: 運用マスタ・トランザクション（labor_law_constraints, shift_plans, shifts, shift_preferences, availability_requests, work_hours_actual など）
+- **analytics**: 分析系（sales_actual, sales_forecast, dashboard_metrics）
 
-#### 履歴データ
-- `shift_history_2023-2024.csv` - 過去のシフト実績
-- `shift_monthly_summary.csv` - 月次サマリー
+#### マスターテーブル一覧（17テーブル）
+1. tenants（テナント）
+2. divisions（部門）
+3. stores（店舗）
+4. roles（役職）
+5. skills（スキル）
+6. employment_types（雇用形態）
+7. shift_patterns（シフトパターン）
+8. staff（スタッフ）
+9. staff_skills（スタッフスキル）
+10. staff_certifications（スタッフ資格）
+11. commute_allowance（通勤手当）
+12. insurance_rates（保険料率）
+13. tax_brackets（税率区分）
+14. labor_law_constraints（労働法制約）
+15. labor_management_rules（労務管理ルール）
+16. shift_validation_rules（シフト検証ルール）
+17. store_constraints（店舗制約）
+
+詳細は [DATABASE_SCHEMA.md](DATABASE_SCHEMA.md) を参照。
+
+### 入力データ（CSV - レガシー）
+
+CSVファイルはデータベース移行前の互換性のために保持。
+- `frontend/public/data/master/` - マスタデータCSV
+- `frontend/public/data/history/` - 履歴データCSV
 
 ### 出力データ（CSV）
 

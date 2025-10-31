@@ -1,88 +1,133 @@
 # AIシフトスケジューラー
 
-AIによる自動シフト生成システムのMVPデモアプリケーションです。
+AIによる自動シフト生成システムです。PostgreSQLデータベースとOpenAI GPT-4を活用した、マルチテナント対応のシフト管理アプリケーションです。
 
 ## 📚 ドキュメント
 
+### プロダクト概要
 - [プロダクト概要のLP](https://claude.ai/public/artifacts/0f62011c-69c4-4e2f-abfc-01e52b5323a9)
 - [アーキテクチャー設計書並びにシステム構成](https://sysdiag-datorr.manus.space)
 
+### 技術ドキュメント
+- [ARCHITECTURE.md](docs/ARCHITECTURE.md) - システムアーキテクチャ
+- [DATABASE_GUIDE.md](docs/DATABASE_GUIDE.md) - データベース接続・セットアップ
+- [DATABASE_SCHEMA.md](docs/DATABASE_SCHEMA.md) - データベーススキーマ設計
+- [CONFIGURATION.md](docs/CONFIGURATION.md) - 設定ガイド
+- [QUICK_START.md](QUICK_START.md) - クイックスタートガイド
+
 ## クイックスタート
 
-```bash
-# リポジトリをクローン
-git clone https://github.com/info-mnml/shift-scheduler-ai.git
-cd shift-scheduler-ai/demo/mvp-demo
+### 1. リポジトリのクローン
 
+```bash
+git clone https://github.com/info-mnml/shift-scheduler-ai.git
+cd shift-scheduler-ai
+```
+
+### 2. データベースのセットアップ
+
+```bash
 # 依存関係をインストール
 npm install
 
-# 環境変数の設定（OpenAI API使用時）
+# 環境変数の設定
 cp .env.example .env
-# .envファイルを編集してAPIキーを設定
+# .envファイルを編集してDATABASE_URLを設定
 
-# 開発サーバーを起動
-npm run dev
+# データベース初期化
+node scripts/setup/setup_fresh_db.mjs
 ```
 
-ブラウザで http://localhost:5174 にアクセスしてデモを開始してください。
+詳細は [DATABASE_GUIDE.md](docs/DATABASE_GUIDE.md) を参照。
 
-**📖 詳細なセットアップ・使い方については [demo/mvp-demo/README.md](./demo/mvp-demo/README.md) を参照してください。**
+### 3. バックエンドの起動
+
+```bash
+cd backend
+npm install
+npm run dev  # http://localhost:3001 で起動
+```
+
+### 4. フロントエンドの起動
+
+```bash
+cd frontend
+pnpm install
+pnpm run dev  # http://localhost:5173 で起動
+```
 
 ## システム機能
 
 ### 主な機能
 
+- **マルチテナント対応**: 複数法人・事業・店舗の階層管理
+- **マスターデータ管理**: 17種類のマスターデータAPI（店舗、スタッフ、役職、スキルなど）
 - **ダッシュボード**: 売上・人件費・利益の予実分析とグラフ表示
 - **シフト管理**: 月別シフトの作成・編集・閲覧
 - **スタッフ管理**: スタッフ情報と給与計算
 - **店舗管理**: 店舗情報と制約条件の管理
 - **制約管理**: 労働基準法などの制約設定
 - **予実管理**: 実績データのインポートと分析
-- **LINEメッセージ管理**: シフト希望の収集
 - **開発者ツール**: バリデーションチェック、AI対話（GPT-4）、シフト自動生成
-
-詳細な機能説明は以下を参照：
-- [Issue #22](https://github.com/info-mnml/shift-scheduler-ai/issues/22)
-- [demo/mvp-demo/README.md](./demo/mvp-demo/README.md)
+- **LINE連携**: シフト希望の収集（実装予定）
 
 ## 🛠️ 技術スタック
 
-- **Frontend**: React 18, Vite
-- **UI Framework**: Tailwind CSS v4, Radix UI
+### Frontend
+- **Framework**: React 18, Vite
+- **UI**: Tailwind CSS v4, Radix UI
 - **Charts**: Recharts
 - **Animation**: Framer Motion
-- **Data Storage**: IndexedDB
-- **CSV Processing**: PapaParse
-- **AI**: OpenAI GPT-4 API
-- **Backend**: Django REST Framework（LINE連携用）
+- **CSV**: PapaParse
+
+### Backend
+- **Runtime**: Node.js, Express
+- **Database**: PostgreSQL 15+ (Railway)
+- **AI**: OpenAI GPT-4 API, Assistants API v2
+- **ORM**: node-postgres (pg)
 
 ## 📁 プロジェクト構成
 
 ```
 shift-scheduler-ai/
-├── demo/mvp-demo/            # フロントエンドMVPデモ
+├── frontend/                  # フロントエンド（React + Vite）
 │   ├── src/
-│   │   ├── components/
-│   │   │   ├── screens/      # 各画面コンポーネント
-│   │   │   ├── shared/       # 共通コンポーネント
-│   │   │   └── ui/           # UIコンポーネント
-│   │   ├── utils/            # ユーティリティ
-│   │   │   ├── shiftValidator.js    # バリデーションエンジン
-│   │   │   ├── fileScanner.js       # CSV動的スキャン
-│   │   │   └── openaiClient.js      # OpenAI API連携
-│   │   └── config/           # 設定ファイル
-│   ├── public/
-│   │   ├── data/             # CSVデータファイル
-│   │   └── logs/             # AI対話ログ保存先
-│   ├── tests/                # テストファイル
-│   ├── README.md             # 詳細ドキュメント
-│   └── OPENAI_SETUP.md       # OpenAI APIセットアップガイド
-├── backend/                  # Djangoバックエンド（LINE連携）
-└── README.md                 # このファイル
+│   │   ├── components/        # Reactコンポーネント
+│   │   ├── utils/             # ユーティリティ
+│   │   ├── infrastructure/    # リポジトリ層
+│   │   └── dev/               # 開発ツール
+│   └── public/data/           # CSVデータ（レガシー）
+│
+├── backend/                   # バックエンド（Express + PostgreSQL）
+│   ├── src/
+│   │   ├── server.js          # APIサーバー
+│   │   ├── config/
+│   │   │   └── database.js    # DB接続設定
+│   │   ├── routes/
+│   │   │   ├── openai.js      # OpenAI APIルート
+│   │   │   ├── csv.js         # CSV操作ルート
+│   │   │   └── master.js      # マスターデータAPIルート
+│   │   └── utils/
+│   └── .env                   # 環境変数
+│
+├── scripts/
+│   ├── setup/                 # データベースセットアップ
+│   │   ├── schema.sql         # スキーマ定義（795行）
+│   │   ├── seed_data.sql      # マスターデータ
+│   │   ├── setup_fresh_db.mjs # DB初期化スクリプト
+│   │   └── verify_setup.mjs   # 検証スクリプト
+│   └── dev/                   # 開発用スクリプト
+│
+├── docs/                      # ドキュメント
+│   ├── ARCHITECTURE.md        # アーキテクチャ設計
+│   ├── DATABASE_GUIDE.md      # DB接続・セットアップ
+│   ├── DATABASE_SCHEMA.md     # スキーマ設計書
+│   └── ...                    # その他ドキュメント
+│
+└── README.md                  # このファイル
 ```
 
-詳細な構成は [demo/mvp-demo/README.md](./demo/mvp-demo/README.md) を参照してください。
+詳細な構成は [ARCHITECTURE.md](docs/ARCHITECTURE.md) を参照してください。
 
 ## Git コマンド
 
