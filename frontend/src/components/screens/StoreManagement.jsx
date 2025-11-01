@@ -4,7 +4,6 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Store, Clock, MapPin, Phone, Briefcase, ChevronRight } from 'lucide-react'
 import { validateStoreCSV } from '../../utils/csvHelper'
 import CSVActions from '../shared/CSVActions'
-import AppHeader from '../shared/AppHeader'
 import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { useTenant } from '../../contexts/TenantContext'
@@ -109,18 +108,7 @@ const StoreManagement = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <AppHeader
-        onHome={onHome}
-        onShiftManagement={onShiftManagement}
-        onLineMessages={onLineMessages}
-        onMonitoring={onMonitoring}
-        onStaffManagement={onStaffManagement}
-        onStoreManagement={onStoreManagement}
-        onConstraintManagement={onConstraintManagement}
-        onBudgetActualManagement={onBudgetActualManagement}
-      />
-
+    <div className="min-h-screen bg-slate-50 pt-8">
       <div className="app-container">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

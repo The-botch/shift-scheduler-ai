@@ -12,6 +12,7 @@ import {
   Minimize2,
   GripVertical,
   Upload,
+  Settings,
 } from 'lucide-react'
 import ShiftTimeline from '../shared/ShiftTimeline'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
@@ -32,7 +33,7 @@ const pageTransition = {
   duration: 0.5,
 }
 
-const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved, selectedShift }) => {
+const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved, selectedShift, onGoToGenerationSettings }) => {
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
   const [shiftData, setShiftData] = useState([])
@@ -81,6 +82,11 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
   useEffect(() => {
     if (planId) {
       loadShiftData()
+    } else {
+      // 新規作成の場合はローディングを終了
+      console.log('FirstPlan: 新規作成モード（planIdなし）')
+      setLoading(false)
+      setGenerated(false)
     }
   }, [planId])
 
@@ -709,19 +715,14 @@ const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSa
                     </div>
                   </div>
 
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={handleCSVImport}
-                    className="hidden"
-                    id="csv-upload-first-plan"
-                  />
-                  <label htmlFor="csv-upload-first-plan" className="inline-block w-full">
-                    <div className="w-full cursor-pointer inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border-2 border-dashed border-gray-300 hover:border-blue-500 hover:bg-blue-50 bg-background h-11 px-8">
-                      <Upload className="mr-2 h-5 w-5" />
-                      CSVファイルをインポート
-                    </div>
-                  </label>
+                  <Button
+                    onClick={onGoToGenerationSettings}
+                    className="w-full bg-blue-600 hover:bg-blue-700 h-11"
+                    size="lg"
+                  >
+                    <Settings className="mr-2 h-5 w-5" />
+                    生成設定
+                  </Button>
                 </div>
               </>
             )}

@@ -16,7 +16,6 @@ import {
   Calendar,
   History as HistoryIcon,
 } from 'lucide-react'
-import AppHeader from '../shared/AppHeader'
 import ShiftTimeline from '../shared/ShiftTimeline'
 import { AnimatePresence } from 'framer-motion'
 import { useTenant } from '../../contexts/TenantContext'
@@ -402,18 +401,7 @@ const Monitoring = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <AppHeader
-        onHome={onHome}
-        onShiftManagement={onShiftManagement}
-        onLineMessages={onLineMessages}
-        onMonitoring={onMonitoring}
-        onStaffManagement={onStaffManagement}
-        onStoreManagement={onStoreManagement}
-        onConstraintManagement={onConstraintManagement}
-        onBudgetActualManagement={onBudgetActualManagement}
-      />
-
+    <div className="min-h-screen bg-slate-50 pt-8">
       <motion.div
         initial="initial"
         animate="in"

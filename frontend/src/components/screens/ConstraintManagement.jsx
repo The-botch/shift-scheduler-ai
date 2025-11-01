@@ -9,7 +9,6 @@ import {
   validateConstraintCSV,
   generateFilename,
 } from '../../utils/csvHelper'
-import AppHeader from '../shared/AppHeader'
 import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
 
 const csvRepository = new CSVRepository()
@@ -145,18 +144,7 @@ const ConstraintManagement = ({
   const groupedLaws = groupByCategory()
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <AppHeader
-        onHome={onHome}
-        onShiftManagement={onShiftManagement}
-        onLineMessages={onLineMessages}
-        onMonitoring={onMonitoring}
-        onStaffManagement={onStaffManagement}
-        onStoreManagement={onStoreManagement}
-        onConstraintManagement={onConstraintManagement}
-        onBudgetActualManagement={onBudgetActualManagement}
-      />
-
+    <div className="min-h-screen bg-slate-50 pt-8">
       <div className="app-container">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

@@ -30,7 +30,6 @@ import { INDEXED_DB, STORAGE_KEYS } from '../../config'
 import { PAGE_VARIANTS, PAGE_TRANSITION } from '../../config/display'
 import { getCurrentYear } from '../../config/constants'
 import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
-import AppHeader from '../shared/AppHeader'
 import { useTenant } from '../../contexts/TenantContext'
 
 const csvRepository = new CSVRepository()
@@ -921,18 +920,7 @@ const BudgetActualManagement = ({
   // 差分分析画面
   if (selectedMonth && diffAnalysis) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <AppHeader
-          onHome={onHome}
-          onShiftManagement={onShiftManagement}
-          onLineMessages={onLineMessages}
-          onMonitoring={onMonitoring}
-          onStaffManagement={onStaffManagement}
-          onStoreManagement={onStoreManagement}
-          onConstraintManagement={onConstraintManagement}
-          onBudgetActualManagement={onBudgetActualManagement}
-        />
-
+      <div className="min-h-screen bg-slate-50 pt-8">
         <motion.div
           variants={PAGE_VARIANTS}
           initial="initial"
@@ -1136,18 +1124,7 @@ const BudgetActualManagement = ({
 
   // 通常のインポート画面
   return (
-    <div className="min-h-screen bg-slate-50">
-      <AppHeader
-        onHome={onHome}
-        onShiftManagement={onShiftManagement}
-        onLineMessages={onLineMessages}
-        onMonitoring={onMonitoring}
-        onStaffManagement={onStaffManagement}
-        onStoreManagement={onStoreManagement}
-        onConstraintManagement={onConstraintManagement}
-        onBudgetActualManagement={onBudgetActualManagement}
-      />
-
+    <div className="min-h-screen bg-slate-50 pt-8">
       <motion.div
         variants={PAGE_VARIANTS}
         initial="initial"

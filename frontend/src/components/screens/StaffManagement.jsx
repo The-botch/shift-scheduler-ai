@@ -18,7 +18,6 @@ import { validateStaffCSV } from '../../utils/csvHelper'
 import { calculatePayslip } from '../../utils/salaryCalculator'
 import { getStaffWorkHistory, getStaffPayrollHistory } from '../../utils/indexedDB'
 import CSVActions from '../shared/CSVActions'
-import AppHeader from '../shared/AppHeader'
 import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
@@ -1092,18 +1091,7 @@ const StaffManagement = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <AppHeader
-        onHome={onHome}
-        onShiftManagement={onShiftManagement}
-        onLineMessages={onLineMessages}
-        onMonitoring={onMonitoring}
-        onStaffManagement={onStaffManagement}
-        onStoreManagement={onStoreManagement}
-        onConstraintManagement={onConstraintManagement}
-        onBudgetActualManagement={onBudgetActualManagement}
-      />
-
+    <div className="min-h-screen bg-slate-50 pt-8">
       <div className="app-container">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

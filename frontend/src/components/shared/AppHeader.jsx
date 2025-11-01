@@ -24,7 +24,7 @@ const AppHeader = ({
   onStoreManagement,
   onConstraintManagement,
   onBudgetActualManagement,
-  onDevTools,
+  onTenantSettings,
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
   const { tenantId, tenantName, changeTenant, availableTenants, loading } = useTenant()
@@ -70,8 +70,8 @@ const AppHeader = ({
               <CalendarIcon className="h-3 w-3" />
               {formatDate(currentTime)}
             </div>
-            {/* テナント切り替え - 複数テナントがある場合のみ表示 */}
-            {!loading && availableTenants.length > 1 && (
+            {/* テナント切り替え */}
+            {!loading && availableTenants.length > 0 && (
               <div className="flex items-center gap-2 ml-4 px-3 py-1.5 bg-slate-50 rounded-md border border-slate-200">
                 <Building2 className="h-4 w-4 text-slate-600" />
                 <select
@@ -156,17 +156,6 @@ const AppHeader = ({
               >
                 <TrendingUp className="h-4 w-4 mr-1.5" />
                 予実管理
-              </Button>
-            )}
-            {onDevTools && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onDevTools}
-                className="text-slate-700 border border-dashed border-slate-300"
-              >
-                <Code2 className="h-4 w-4 mr-1.5" />
-                開発ツール
               </Button>
             )}
           </nav>

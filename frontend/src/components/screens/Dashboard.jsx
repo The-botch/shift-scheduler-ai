@@ -2,7 +2,6 @@ import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import AppHeader from '../shared/AppHeader'
 import { TrendingUp, DollarSign, Database, Clock, BarChart3 } from 'lucide-react'
 import { AnalyticsRepository } from '../../infrastructure/repositories/AnalyticsRepository'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
@@ -269,22 +268,10 @@ const Dashboard = ({
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="min-h-screen bg-slate-50"
+      className="min-h-screen bg-slate-50 pt-8"
     >
-      <AppHeader
-        onHome={() => window.location.reload()}
-        onShiftManagement={onShiftManagement}
-        onLineMessages={onLineMessages}
-        onMonitoring={onMonitoring}
-        onStaffManagement={onStaffManagement}
-        onStoreManagement={onStoreManagement}
-        onConstraintManagement={onConstraintManagement}
-        onBudgetActualManagement={onBudgetActualManagement}
-        onDevTools={onDevTools}
-      />
-
       {/* メインコンテンツ */}
-      <div className="app-container">
+      <div className="app-container py-8">
         {/* 年次予実差分サマリー - コンパクト版 */}
         {!loadingAnnualSummary && (
           <motion.div

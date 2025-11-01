@@ -15,10 +15,10 @@ import {
   Users as UsersIcon,
   Loader2,
   AlertTriangle,
+  Store,
 } from 'lucide-react'
 import ShiftTimeline from '../shared/ShiftTimeline'
 import { exportCSV, generateFilename } from '../../utils/csvHelper'
-import AppHeader from '../shared/AppHeader'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 
@@ -182,6 +182,8 @@ const History = ({
   const [diffAnalysis, setDiffAnalysis] = useState(null) // 差分分析結果
   const [monthStatus, setMonthStatus] = useState({}) // 月別ステータス管理
   const [selectedYear, setSelectedYear] = useState(2025) // 選択中の年（実データは2025年）
+  const [selectedStore, setSelectedStore] = useState('all') // 選択中の店舗（'all'は全店舗）
+  const [availableStores, setAvailableStores] = useState([]) // 利用可能な店舗リスト
 
   useEffect(() => {
     loadHistoryData()
@@ -278,6 +280,16 @@ const History = ({
 
       setMonthlySummary(summaryDataProcessed)
 
+      // 利用可能な店舗リストを抽出（重複除外）
+      const stores = Array.from(
+        new Map(
+          summaryDataProcessed
+            .filter(s => s.store_id && s.store_name)
+            .map(s => [s.store_id, { store_id: s.store_id, store_name: s.store_name }])
+        ).values()
+      ).sort((a, b) => a.store_name.localeCompare(b.store_name))
+      setAvailableStores(stores)
+
       // 過去のシフト履歴をAPIから読み込み
       const allShifts = await shiftRepository.getShifts({ year: 2025 })
 
@@ -286,6 +298,7 @@ const History = ({
         const shiftDate = new Date(shift.shift_date)
         return {
           shift_id: shift.shift_id,
+          store_id: shift.store_id,
           year: parseInt(shiftDate.getFullYear()),
           month: parseInt(shiftDate.getMonth() + 1),
           date: parseInt(shiftDate.getDate()),
@@ -310,9 +323,13 @@ const History = ({
     }
   }
 
-  const handleMonthClick = (year, month) => {
-    // 履歴データから該当月を抽出
-    const filtered = shiftHistory.filter(s => s.year === year && s.month === month)
+  const handleMonthClick = (year, month, storeId) => {
+    // 履歴データから該当月と店舗を抽出
+    const filtered = shiftHistory.filter(s =>
+      s.year === year &&
+      s.month === month &&
+      s.store_id === storeId
+    )
 
     // 履歴データを表示用にフォーマット
     const transformedHistory = filtered.map(shift => {
@@ -325,7 +342,7 @@ const History = ({
     })
 
     setDetailShifts(transformedHistory)
-    setSelectedMonth({ year, month })
+    setSelectedMonth({ year, month, storeId })
   }
 
 
@@ -592,18 +609,7 @@ const History = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <AppHeader
-          onHome={onHome}
-          onShiftManagement={onShiftManagement}
-          onLineMessages={onLineMessages}
-          onMonitoring={onMonitoring}
-          onStaffManagement={onStaffManagement}
-          onStoreManagement={onStoreManagement}
-          onConstraintManagement={onConstraintManagement}
-          onBudgetActualManagement={onBudgetActualManagement}
-        />
-
+      <div className="min-h-screen bg-slate-50 pt-8">
         <motion.div
           initial="initial"
           animate="in"
@@ -721,18 +727,7 @@ const History = ({
   // 詳細表示の場合
   if (selectedMonth) {
     return (
-      <div className="min-h-screen bg-slate-50">
-        <AppHeader
-          onHome={onHome}
-          onShiftManagement={onShiftManagement}
-          onLineMessages={onLineMessages}
-          onMonitoring={onMonitoring}
-          onStaffManagement={onStaffManagement}
-          onStoreManagement={onStoreManagement}
-          onConstraintManagement={onConstraintManagement}
-          onBudgetActualManagement={onBudgetActualManagement}
-        />
-
+      <div className="min-h-screen bg-slate-50 pt-8">
         <motion.div
           initial="initial"
           animate="in"
@@ -979,18 +974,7 @@ const History = ({
 
   // 月次サマリー表示
   return (
-    <div className="min-h-screen bg-slate-50">
-      <AppHeader
-        onHome={onHome}
-        onShiftManagement={onShiftManagement}
-        onLineMessages={onLineMessages}
-        onMonitoring={onMonitoring}
-        onStaffManagement={onStaffManagement}
-        onStoreManagement={onStoreManagement}
-        onConstraintManagement={onConstraintManagement}
-        onBudgetActualManagement={onBudgetActualManagement}
-      />
-
+    <div className="min-h-screen bg-slate-50 pt-8">
       <motion.div
         initial="initial"
         animate="in"
@@ -999,27 +983,42 @@ const History = ({
         transition={pageTransition}
         className="app-container"
       >
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-            シフト履歴
-          </h1>
-          <p className="text-lg text-gray-600">月別のシフト実績</p>
-        </div>
+        {/* 年・店舗選択 */}
+        <div className="flex items-center justify-center gap-6 mb-8">
+          {/* 年選択 */}
+          <div className="flex items-center gap-4">
+            <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear - 1)}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <div className="text-2xl font-bold">{selectedYear}年</div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedYear(selectedYear + 1)}
+              disabled={selectedYear >= new Date().getFullYear()}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+          </div>
 
-        {/* 年選択 */}
-        <div className="flex items-center justify-center gap-4 mb-8">
-          <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear - 1)}>
-            <ChevronLeft className="h-4 w-4" />
-          </Button>
-          <div className="text-2xl font-bold">{selectedYear}年</div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setSelectedYear(selectedYear + 1)}
-            disabled={selectedYear >= new Date().getFullYear()}
-          >
-            <ChevronRight className="h-4 w-4" />
-          </Button>
+          {/* 店舗選択 */}
+          {availableStores.length > 1 && (
+            <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-slate-200 shadow-sm">
+              <Store className="h-4 w-4 text-slate-600" />
+              <select
+                value={selectedStore}
+                onChange={(e) => setSelectedStore(e.target.value)}
+                className="text-sm font-medium text-slate-700 bg-transparent border-none outline-none cursor-pointer"
+              >
+                <option value="all">全店舗</option>
+                {availableStores.map(store => (
+                  <option key={store.store_id} value={store.store_id}>
+                    {store.store_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
         </div>
 
         {/* 月次サマリーカード */}
@@ -1034,6 +1033,9 @@ const History = ({
           // 未来の月は除外
           if (summary.year > currentYear) return false
           if (summary.year === currentYear && summary.month > currentMonth) return false
+
+          // 店舗フィルタ
+          if (selectedStore !== 'all' && summary.store_id !== parseInt(selectedStore)) return false
 
           return true
         }).length === 0 ? (
@@ -1056,11 +1058,14 @@ const History = ({
                 if (summary.year > currentYear) return false
                 if (summary.year === currentYear && summary.month > currentMonth) return false
 
+                // 店舗フィルタ
+                if (selectedStore !== 'all' && summary.store_id !== parseInt(selectedStore)) return false
+
                 return true
               })
               .map((summary, index) => (
                 <motion.div
-                  key={`${summary.year}-${summary.month}`}
+                  key={`${summary.year}-${summary.month}-${summary.plan_id}`}
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.05 }}
@@ -1075,13 +1080,23 @@ const History = ({
                             ? 'border-green-500 bg-green-50'
                             : 'border-gray-200 hover:border-blue-400'
                     }`}
-                    onClick={() => handleMonthClick(summary.year, summary.month)}
+                    onClick={() => handleMonthClick(summary.year, summary.month, summary.store_id)}
                   >
                     <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-xl">
-                          {summary.year}年{summary.month}月
-                        </CardTitle>
+                      <div className="flex flex-col gap-1 mb-2">
+                        <div className="flex items-center justify-between">
+                          <CardTitle className="text-xl">
+                            {summary.year}年{summary.month}月
+                          </CardTitle>
+                        </div>
+                        {summary.store_name && (
+                          <div className="flex items-center gap-1 text-sm text-slate-600">
+                            <Store className="h-3 w-3" />
+                            {summary.store_name}
+                          </div>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-end">
                         {summary.status === 'second_plan_approved' ? (
                           <span className="px-2 py-1 text-xs font-bold bg-blue-600 text-white rounded">
                             確定済

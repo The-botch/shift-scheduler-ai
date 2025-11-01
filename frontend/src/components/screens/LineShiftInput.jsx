@@ -12,7 +12,6 @@ import {
   Copy,
   Edit3,
 } from 'lucide-react'
-import AppHeader from '../shared/AppHeader'
 import { DEMO_PARAMS, getCurrentYearMonth, getNextMonthYearMonth, DEFAULT_CONFIG } from '../../config/defaults'
 import { SHIFT_PREFERENCE_STATUS } from '../../config/constants'
 import { useTenant } from '../../contexts/TenantContext'
@@ -529,18 +528,7 @@ const LineShiftInput = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <AppHeader
-        onHome={onHome}
-        onShiftManagement={onShiftManagement}
-        onLineMessages={onLineMessages}
-        onMonitoring={onMonitoring}
-        onStaffManagement={onStaffManagement}
-        onStoreManagement={onStoreManagement}
-        onConstraintManagement={onConstraintManagement}
-        onBudgetActualManagement={onBudgetActualManagement}
-      />
-
+    <div className="min-h-screen bg-slate-50 pt-8">
       <motion.div
         initial="initial"
         animate="in"

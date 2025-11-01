@@ -12,7 +12,6 @@ import {
   History as HistoryIcon,
 } from 'lucide-react'
 import History from './History'
-import AppHeader from '../shared/AppHeader'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 
 const shiftRepository = new ShiftRepository()
@@ -34,6 +33,7 @@ const ShiftManagement = ({
   onPrev,
   onCreateShift,
   onCreateSecondPlan,
+  onFirstPlan,
   shiftStatus,
   onHome,
   onShiftManagement,
@@ -142,19 +142,20 @@ const ShiftManagement = ({
       return
     }
 
-    // 未作成の場合は作成中状態にする
+    // 未作成の場合はファーストプラン画面に遷移
     if (shift.status === 'not_started') {
-      setCreatingShift(shift.month)
+      if (onFirstPlan) {
+        onFirstPlan(shift)
+      }
+      return
     }
 
+    // それ以外の場合は第2案作成画面に遷移
     try {
-      // 第2案作成画面に遷移（シフト情報を渡す）
       if (onCreateShift) {
         await onCreateShift(shift)
       }
     } finally {
-      // 作成完了後、状態をリセット
-      setCreatingShift(null)
       // データを再読み込み
       await loadShiftSummary()
     }
@@ -273,18 +274,7 @@ const ShiftManagement = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <AppHeader
-        onHome={onHome}
-        onShiftManagement={onShiftManagement}
-        onLineMessages={onLineMessages}
-        onMonitoring={onMonitoring}
-        onStaffManagement={onStaffManagement}
-        onStoreManagement={onStoreManagement}
-        onConstraintManagement={onConstraintManagement}
-        onBudgetActualManagement={onBudgetActualManagement}
-      />
-
+    <div className="min-h-screen bg-slate-50 pt-8">
       <motion.div
         initial="initial"
         animate="in"

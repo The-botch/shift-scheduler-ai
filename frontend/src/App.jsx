@@ -21,22 +21,9 @@ import DevTools from './dev/DevTools'
 
 // UI Components
 import { Button } from './components/ui/button'
-import {
-  Menu,
-  X,
-  Home,
-  FolderOpen,
-  Users,
-  History as HistoryIcon,
-  MessageSquare,
-  ClipboardList,
-  Store,
-  Shield,
-  Database,
-  TrendingUp,
-} from 'lucide-react'
+import AppHeader from './components/shared/AppHeader'
 
-function App() {
+function AppContent() {
   const [currentStep, setCurrentStep] = useState(1)
   const [showStaffManagement, setShowStaffManagement] = useState(false)
   const [showStoreManagement, setShowStoreManagement] = useState(false)
@@ -48,13 +35,14 @@ function App() {
   const [shiftStatus, setShiftStatus] = useState({
     10: 'not_started', // 10月のステータス
   })
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [showLineMessages, setShowLineMessages] = useState(false)
   const [showMonitoring, setShowMonitoring] = useState(false)
   const [showBudgetActualManagement, setShowBudgetActualManagement] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
+  const [showTenantSettings, setShowTenantSettings] = useState(false)
   const [selectedShiftForSecondPlan, setSelectedShiftForSecondPlan] = useState(null)
   const [shiftManagementKey, setShiftManagementKey] = useState(0) // 再マウント用
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
 
   const nextStep = () => {
     if (currentStep < 3) {
@@ -109,6 +97,7 @@ function App() {
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowBudgetActualManagement(false)
+    setShowTenantSettings(false)
     setIsMenuOpen(false)
   }
 
@@ -128,6 +117,7 @@ function App() {
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowBudgetActualManagement(false)
+    setShowTenantSettings(false)
     setIsMenuOpen(false)
   }
 
@@ -147,6 +137,7 @@ function App() {
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowBudgetActualManagement(false)
+    setShowTenantSettings(false)
     setIsMenuOpen(false)
   }
 
@@ -167,6 +158,7 @@ function App() {
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowBudgetActualManagement(false)
+    setShowTenantSettings(false)
     setIsMenuOpen(false)
   }
 
@@ -244,6 +236,28 @@ function App() {
     setShowHistory(false)
     setShowLineMessages(false)
     setShowDevTools(false)
+    setShowTenantSettings(false)
+    setIsMenuOpen(false)
+  }
+
+  const goToTenantSettings = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。テナント設定に移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+    setShowTenantSettings(true)
+    setShowBudgetActualManagement(false)
+    setShowMonitoring(false)
+    setShowShiftManagement(false)
+    setShowFirstPlanFromShiftMgmt(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowConstraintManagement(false)
+    setShowHistory(false)
+    setShowLineMessages(false)
+    setShowDevTools(false)
     setIsMenuOpen(false)
   }
 
@@ -287,6 +301,7 @@ function App() {
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowBudgetActualManagement(false)
+    setShowDevTools(false)
     setIsMenuOpen(false)
   }
 
@@ -323,45 +338,11 @@ function App() {
       setShowFirstPlanFromShiftMgmt(true)
       setShowShiftManagement(false)
     } else {
-      // 未作成の場合は第1案を生成してから画面遷移
-      try {
-        // APIを呼んで前月コピー
-        const response = await fetch('http://localhost:3001/api/shifts/plans/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            tenant_id: 1,
-            store_id: 1,
-            year: year,
-            month: month,
-            created_by: 1
-          })
-        })
-
-        const result = await response.json()
-
-        if (!result.success) {
-          alert(result.message || '第1案の生成に失敗しました')
-          return
-        }
-
-        console.log(result.is_update ? '第1案更新成功:' : '第1案生成成功:', result)
-
-        // 生成されたplan_idを設定
-        const generatedShift = {
-          ...shift,
-          planId: result.data.plan_id,
-          status: 'first_plan_approved'
-        }
-
-        setSelectedShiftForSecondPlan(generatedShift)
-        setShowFirstPlanFromShiftMgmt(true)
-        setShowShiftManagement(false)
-
-      } catch (error) {
-        console.error('第1案生成エラー:', error)
-        alert('第1案の生成中にエラーが発生しました')
-      }
+      // 未作成の場合は開発者ツール画面に遷移（データ確認・設定のため）
+      console.log('未作成シフト - 開発者ツール画面に遷移:', shift)
+      setSelectedShiftForSecondPlan(shift)
+      setShowDevTools(true)
+      setShowShiftManagement(false)
     }
   }
 
@@ -533,6 +514,8 @@ function App() {
     if (showDevTools) {
       return (
         <DevTools
+          targetYear={selectedShiftForSecondPlan?.year || new Date().getFullYear()}
+          targetMonth={selectedShiftForSecondPlan?.month || new Date().getMonth() + 1}
           onHome={goToDashboard}
           onShiftManagement={goToShiftManagement}
           onLineMessages={goToLineMessages}
@@ -550,6 +533,7 @@ function App() {
         <ShiftManagement
           key={shiftManagementKey}
           onPrev={backFromShiftManagement}
+          onFirstPlan={goToFirstPlanFromShiftMgmt}
           onCreateShift={goToFirstPlanFromShiftMgmt}
           onCreateSecondPlan={goToCreateSecondPlan}
           shiftStatus={shiftStatus}
@@ -623,82 +607,17 @@ function App() {
   }
 
   return (
-    <TenantProvider>
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
-      {/* ハンバーガーメニュー */}
-      <div className="fixed top-4 right-4 z-50">
-        <Button
-          onClick={() => setIsMenuOpen(!isMenuOpen)}
-          size="sm"
-          className="bg-white hover:bg-gray-100 text-gray-800 shadow-lg"
-          variant="outline"
-        >
-          {isMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-        </Button>
-      </div>
-
-      {/* メニュードロップダウン */}
-      {isMenuOpen && (
-        <div className="fixed top-16 right-4 z-50 bg-white rounded-lg shadow-xl border border-gray-200 py-2 w-56">
-          <button
-            onClick={goToDashboard}
-            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
-          >
-            <Home className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">ダッシュボード</span>
-          </button>
-          <button
-            onClick={goToShiftManagement}
-            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
-          >
-            <FolderOpen className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">シフト管理</span>
-          </button>
-          <button
-            onClick={goToLineMessages}
-            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
-          >
-            <MessageSquare className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">メッセージ管理</span>
-          </button>
-          <button
-            onClick={goToMonitoring}
-            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
-          >
-            <ClipboardList className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">シフト希望管理</span>
-          </button>
-          <button
-            onClick={goToStaffManagement}
-            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
-          >
-            <Users className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">スタッフ管理</span>
-          </button>
-          <button
-            onClick={goToStoreManagement}
-            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
-          >
-            <Store className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">店舗管理</span>
-          </button>
-          <button
-            onClick={goToConstraintManagement}
-            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
-          >
-            <Shield className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">制約管理</span>
-          </button>
-          <button
-            onClick={goToBudgetActualManagement}
-            className="w-full px-4 py-3 text-left hover:bg-gray-100 flex items-center gap-3 transition-colors"
-          >
-            <TrendingUp className="h-5 w-5 text-gray-600" />
-            <span className="font-medium text-gray-800">予実管理</span>
-          </button>
-        </div>
-      )}
-
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col">
+        <AppHeader
+          onHome={goToDashboard}
+          onShiftManagement={goToShiftManagement}
+          onLineMessages={goToLineMessages}
+          onMonitoring={goToMonitoring}
+          onStaffManagement={goToStaffManagement}
+          onStoreManagement={goToStoreManagement}
+          onConstraintManagement={goToConstraintManagement}
+          onBudgetActualManagement={goToBudgetActualManagement}
+        />
       <div className="flex-1">
         <AnimatePresence mode="wait">
           <div
@@ -725,6 +644,13 @@ function App() {
         </AnimatePresence>
       </div>
       </div>
+  )
+}
+
+function App() {
+  return (
+    <TenantProvider>
+      <AppContent />
     </TenantProvider>
   )
 }
