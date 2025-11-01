@@ -3,10 +3,12 @@
  * データベースからシフトデータを取得
  */
 import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
+import { getCurrentTenantId } from '../../config/tenant'
 
 export class ShiftRepository {
   /**
    * テナントID（デフォルト値）
+   * @deprecated 代わりに getCurrentTenantId() を使用してください
    */
   static DEFAULT_TENANT_ID = 1
 
@@ -27,7 +29,7 @@ export class ShiftRepository {
   async getShifts(filters = {}) {
     try {
       const {
-        tenantId = ShiftRepository.DEFAULT_TENANT_ID,
+        tenantId = null,
         planId,
         storeId,
         staffId,
@@ -38,7 +40,9 @@ export class ShiftRepository {
         isModified,
       } = filters
 
-      const params = new URLSearchParams({ tenant_id: tenantId })
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const params = new URLSearchParams({ tenant_id: actualTenantId })
       if (planId) params.append('plan_id', planId)
       if (storeId) params.append('store_id', storeId)
       if (staffId) params.append('staff_id', staffId)
@@ -74,9 +78,11 @@ export class ShiftRepository {
    * @param {number} tenantId - テナントID
    * @returns {Promise<Object>} シフト詳細データ
    */
-  async getShift(shiftId, tenantId = ShiftRepository.DEFAULT_TENANT_ID) {
+  async getShift(shiftId, tenantId = null) {
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS}/${shiftId}?tenant_id=${tenantId}`
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS}/${shiftId}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -109,14 +115,16 @@ export class ShiftRepository {
   async getPlans(filters = {}) {
     try {
       const {
-        tenantId = ShiftRepository.DEFAULT_TENANT_ID,
+        tenantId = null,
         storeId,
         year,
         month,
         status,
       } = filters
 
-      const params = new URLSearchParams({ tenant_id: tenantId })
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const params = new URLSearchParams({ tenant_id: actualTenantId })
       if (storeId) params.append('store_id', storeId)
       if (year) params.append('year', year)
       if (month) params.append('month', month)
@@ -148,9 +156,11 @@ export class ShiftRepository {
    * @param {number} tenantId - テナントID
    * @returns {Promise<Object>} シフト計画詳細データ
    */
-  async getPlan(planId, tenantId = ShiftRepository.DEFAULT_TENANT_ID) {
+  async getPlan(planId, tenantId = null) {
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS_PLANS}/${planId}?tenant_id=${tenantId}`
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS_PLANS}/${planId}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -182,17 +192,19 @@ export class ShiftRepository {
   async getSummary(filters = {}) {
     try {
       const {
-        tenantId = ShiftRepository.DEFAULT_TENANT_ID,
+        tenantId = null,
         storeId,
         year,
         month,
       } = filters
 
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
       if (!year) {
         throw new Error('Year parameter is required')
       }
 
-      const params = new URLSearchParams({ tenant_id: tenantId, year })
+      const params = new URLSearchParams({ tenant_id: actualTenantId, year })
       if (storeId) params.append('store_id', storeId)
       if (month) params.append('month', month)
 
@@ -228,13 +240,15 @@ export class ShiftRepository {
   async getPreferences(filters = {}) {
     try {
       const {
-        tenantId = ShiftRepository.DEFAULT_TENANT_ID,
+        tenantId = null,
         staffId,
         year,
         month,
       } = filters
 
-      const params = new URLSearchParams({ tenant_id: tenantId })
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const params = new URLSearchParams({ tenant_id: actualTenantId })
       if (staffId) params.append('staff_id', staffId)
       if (year) params.append('year', year)
       if (month) params.append('month', month)

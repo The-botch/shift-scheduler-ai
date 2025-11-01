@@ -3,19 +3,23 @@
  * データベースから各種マスターデータを取得
  */
 import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
+import { getCurrentTenantId } from '../../config/tenant'
 
 export class MasterRepository {
   /**
    * テナントID（デフォルト値）
+   * @deprecated 代わりに getCurrentTenantId() を使用してください
    */
   static DEFAULT_TENANT_ID = 1
 
   /**
    * スタッフマスタを取得
    */
-  async getStaff(tenantId = MasterRepository.DEFAULT_TENANT_ID, storeId = null) {
+  async getStaff(tenantId = null, storeId = null) {
+    // tenantIdが指定されていない場合は、現在のテナントIDを使用
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const params = new URLSearchParams({ tenant_id: tenantId })
+      const params = new URLSearchParams({ tenant_id: actualTenantId })
       if (storeId) params.append('store_id', storeId)
 
       const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STAFF}?${params}`
@@ -40,9 +44,10 @@ export class MasterRepository {
   /**
    * 役職マスタを取得
    */
-  async getRoles(tenantId = MasterRepository.DEFAULT_TENANT_ID) {
+  async getRoles(tenantId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_ROLES}?tenant_id=${tenantId}`
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_ROLES}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -64,9 +69,10 @@ export class MasterRepository {
   /**
    * スキルマスタを取得
    */
-  async getSkills(tenantId = MasterRepository.DEFAULT_TENANT_ID) {
+  async getSkills(tenantId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SKILLS}?tenant_id=${tenantId}`
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SKILLS}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -88,9 +94,10 @@ export class MasterRepository {
   /**
    * 店舗マスタを取得
    */
-  async getStores(tenantId = MasterRepository.DEFAULT_TENANT_ID) {
+  async getStores(tenantId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORES}?tenant_id=${tenantId}`
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORES}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -112,9 +119,10 @@ export class MasterRepository {
   /**
    * シフトパターンマスタを取得
    */
-  async getShiftPatterns(tenantId = MasterRepository.DEFAULT_TENANT_ID, storeId = null) {
+  async getShiftPatterns(tenantId = null, storeId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const params = new URLSearchParams({ tenant_id: tenantId })
+      const params = new URLSearchParams({ tenant_id: actualTenantId })
       if (storeId) params.append('store_id', storeId)
 
       const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SHIFT_PATTERNS}?${params}`
@@ -139,9 +147,10 @@ export class MasterRepository {
   /**
    * 通勤手当マスタを取得
    */
-  async getCommuteAllowance(tenantId = MasterRepository.DEFAULT_TENANT_ID) {
+  async getCommuteAllowance(tenantId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_COMMUTE_ALLOWANCE}?tenant_id=${tenantId}`
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_COMMUTE_ALLOWANCE}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -163,9 +172,10 @@ export class MasterRepository {
   /**
    * 保険料率マスタを取得
    */
-  async getInsuranceRates(tenantId = MasterRepository.DEFAULT_TENANT_ID) {
+  async getInsuranceRates(tenantId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_INSURANCE_RATES}?tenant_id=${tenantId}`
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_INSURANCE_RATES}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -187,9 +197,10 @@ export class MasterRepository {
   /**
    * 税額区分マスタを取得
    */
-  async getTaxBrackets(tenantId = MasterRepository.DEFAULT_TENANT_ID) {
+  async getTaxBrackets(tenantId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_TAX_BRACKETS}?tenant_id=${tenantId}`
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_TAX_BRACKETS}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -211,9 +222,10 @@ export class MasterRepository {
   /**
    * スタッフスキルマスタを取得
    */
-  async getStaffSkills(tenantId = MasterRepository.DEFAULT_TENANT_ID, staffId = null) {
+  async getStaffSkills(tenantId = null, staffId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const params = new URLSearchParams({ tenant_id: tenantId })
+      const params = new URLSearchParams({ tenant_id: actualTenantId })
       if (staffId) params.append('staff_id', staffId)
 
       const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STAFF_SKILLS}?${params}`
@@ -238,9 +250,10 @@ export class MasterRepository {
   /**
    * スタッフ資格マスタを取得
    */
-  async getStaffCertifications(tenantId = MasterRepository.DEFAULT_TENANT_ID, staffId = null) {
+  async getStaffCertifications(tenantId = null, staffId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const params = new URLSearchParams({ tenant_id: tenantId })
+      const params = new URLSearchParams({ tenant_id: actualTenantId })
       if (staffId) params.append('staff_id', staffId)
 
       const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STAFF_CERTIFICATIONS}?${params}`
@@ -265,9 +278,10 @@ export class MasterRepository {
   /**
    * 労働法制約マスタを取得
    */
-  async getLaborLawConstraints(tenantId = MasterRepository.DEFAULT_TENANT_ID) {
+  async getLaborLawConstraints(tenantId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_LAW_CONSTRAINTS}?tenant_id=${tenantId}`
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_LAW_CONSTRAINTS}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -289,9 +303,10 @@ export class MasterRepository {
   /**
    * 店舗制約マスタを取得
    */
-  async getStoreConstraints(tenantId = MasterRepository.DEFAULT_TENANT_ID, storeId = null) {
+  async getStoreConstraints(tenantId = null, storeId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const params = new URLSearchParams({ tenant_id: tenantId })
+      const params = new URLSearchParams({ tenant_id: actualTenantId })
       if (storeId) params.append('store_id', storeId)
 
       const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORE_CONSTRAINTS}?${params}`
@@ -316,9 +331,10 @@ export class MasterRepository {
   /**
    * 雇用形態マスタを取得
    */
-  async getEmploymentTypes(tenantId = MasterRepository.DEFAULT_TENANT_ID) {
+  async getEmploymentTypes(tenantId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_EMPLOYMENT_TYPES}?tenant_id=${tenantId}`
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_EMPLOYMENT_TYPES}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -340,9 +356,10 @@ export class MasterRepository {
   /**
    * 労務管理ルールマスタを取得
    */
-  async getLaborManagementRules(tenantId = MasterRepository.DEFAULT_TENANT_ID) {
+  async getLaborManagementRules(tenantId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_MANAGEMENT_RULES}?tenant_id=${tenantId}`
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_MANAGEMENT_RULES}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
@@ -364,9 +381,10 @@ export class MasterRepository {
   /**
    * シフト検証ルールマスタを取得
    */
-  async getShiftValidationRules(tenantId = MasterRepository.DEFAULT_TENANT_ID) {
+  async getShiftValidationRules(tenantId = null) {
+    const actualTenantId = tenantId ?? getCurrentTenantId()
     try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SHIFT_VALIDATION_RULES}?tenant_id=${tenantId}`
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SHIFT_VALIDATION_RULES}?tenant_id=${actualTenantId}`
       const response = await fetch(url)
 
       if (!response.ok) {
