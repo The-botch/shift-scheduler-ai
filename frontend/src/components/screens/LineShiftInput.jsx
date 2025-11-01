@@ -13,8 +13,9 @@ import {
   Edit3,
 } from 'lucide-react'
 import AppHeader from '../shared/AppHeader'
-import { DEMO_PARAMS, getCurrentYearMonth, getNextMonthYearMonth } from '../../config/defaults'
+import { DEMO_PARAMS, getCurrentYearMonth, getNextMonthYearMonth, DEFAULT_CONFIG } from '../../config/defaults'
 import { SHIFT_PREFERENCE_STATUS } from '../../config/constants'
+import { useTenant } from '../../contexts/TenantContext'
 
 /**
  * 提出期限を計算する
@@ -196,6 +197,7 @@ const LineShiftInput = ({
   onConstraintManagement,
   onBudgetActualManagement,
 }) => {
+  const { tenantId } = useTenant()
   const [datePreferences, setDatePreferences] = useState({}) // { date: { patterns: ['EARLY', 'MID'], comment: '' } }
   const [showLineMessage, setShowLineMessage] = useState(true)
   const [showLiffApp, setShowLiffApp] = useState(false)
@@ -214,6 +216,7 @@ const LineShiftInput = ({
   const [selectedYear, setSelectedYear] = useState(nextMonthYearMonth.year)
   const [selectedMonth, setSelectedMonth] = useState(nextMonthYearMonth.month)
   const [existingPreferenceId, setExistingPreferenceId] = useState(null)
+  const [tenantInfo, setTenantInfo] = useState(null)
 
   // デモ用の日付データ
   const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1)
@@ -221,7 +224,8 @@ const LineShiftInput = ({
   useEffect(() => {
     loadShiftPatterns()
     loadStaffList()
-  }, [])
+    loadTenantInfo()
+  }, [tenantId])
 
   useEffect(() => {
     if (selectedStaffId) {
@@ -231,23 +235,41 @@ const LineShiftInput = ({
 
   const loadStaffList = async () => {
     try {
-      const { tenant_id } = DEMO_PARAMS
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${apiUrl}/api/master/staff?tenant_id=${tenant_id}`)
+      const response = await fetch(`${apiUrl}/api/master/staff?tenant_id=${tenantId}`)
       const result = await response.json()
       if (result.success) {
-        setStaffList(result.data.filter(s => s.is_active))
+        const activeStaff = result.data.filter(s => s.is_active)
+        setStaffList(activeStaff)
+        // 最初のアクティブなスタッフを自動選択
+        if (activeStaff.length > 0 && !activeStaff.find(s => s.staff_id === selectedStaffId)) {
+          setSelectedStaffId(activeStaff[0].staff_id)
+        }
       }
     } catch (error) {
       console.error('スタッフリスト読み込みエラー:', error)
     }
   }
 
+  const loadTenantInfo = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${apiUrl}/api/tenants`)
+      const result = await response.json()
+      if (result.success) {
+        const tenant = result.data.find(t => t.tenant_id === tenantId)
+        setTenantInfo(tenant)
+      }
+    } catch (error) {
+      console.error('テナント情報読み込みエラー:', error)
+    }
+  }
+
   const loadShiftPatterns = async () => {
     try {
-      const { tenant_id, store_id } = DEMO_PARAMS
+      const { store_id } = DEMO_PARAMS
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenant_id}&store_id=${store_id}`)
+      const response = await fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}&store_id=${store_id}`)
       const result = await response.json()
       if (result.success) {
         setShiftPatterns(result.data)
@@ -266,10 +288,10 @@ const LineShiftInput = ({
     setExistingPreferenceId(null) // リセット
 
     try {
-      const { tenant_id, store_id } = DEMO_PARAMS
+      const { store_id } = DEMO_PARAMS
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-      const url = `${apiUrl}/api/shifts/preferences?tenant_id=${tenant_id}&store_id=${store_id}&staff_id=${selectedStaffId}&year=${selectedYear}&month=${selectedMonth}`
+      const url = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&store_id=${store_id}&staff_id=${selectedStaffId}&year=${selectedYear}&month=${selectedMonth}`
 
       const response = await fetch(url)
 
@@ -336,7 +358,7 @@ const LineShiftInput = ({
 
   const handleSubmit = async () => {
     try {
-      const { tenant_id, store_id } = DEMO_PARAMS
+      const { store_id } = DEMO_PARAMS
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
       // 選択された日付を配列化
@@ -348,7 +370,7 @@ const LineShiftInput = ({
         .join(',')
 
       const requestBody = {
-        tenant_id,
+        tenant_id: tenantId,
         store_id,
         staff_id: selectedStaffId,
         year: selectedYear,
@@ -361,7 +383,7 @@ const LineShiftInput = ({
 
       const isUpdate = !!existingPreferenceId
       const url = isUpdate
-        ? `${apiUrl}/api/shifts/preferences/${existingPreferenceId}?tenant_id=${tenant_id}`
+        ? `${apiUrl}/api/shifts/preferences/${existingPreferenceId}?tenant_id=${tenantId}`
         : `${apiUrl}/api/shifts/preferences`
 
       const response = await fetch(url, {
@@ -481,7 +503,9 @@ const LineShiftInput = ({
                       <MessageSquare className="h-5 w-5 text-white" />
                     </div>
                     <div>
-                      <p className="font-bold text-sm text-gray-800">カフェ○○ 店舗公式</p>
+                      <p className="font-bold text-sm text-gray-800">
+                        {tenantInfo ? `${tenantInfo.tenant_name} 店舗公式` : 'カフェ○○ 店舗公式'}
+                      </p>
                       <p className="text-xs text-gray-500">営業時間 9:00-22:00</p>
                     </div>
                   </div>

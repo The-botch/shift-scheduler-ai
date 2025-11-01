@@ -20,8 +20,12 @@ import { getStaffWorkHistory, getStaffPayrollHistory } from '../../utils/indexed
 import CSVActions from '../shared/CSVActions'
 import AppHeader from '../shared/AppHeader'
 import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
+import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
+import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
+import { useTenant } from '../../contexts/TenantContext'
 
 const csvRepository = new CSVRepository()
+const masterRepository = new MasterRepository()
 
 const StaffManagement = ({
   onHome,
@@ -33,6 +37,7 @@ const StaffManagement = ({
   onConstraintManagement,
   onBudgetActualManagement,
 }) => {
+  const { tenantId } = useTenant()
   const [staffList, setStaffList] = useState([])
   const [roles, setRoles] = useState([])
   const [employmentTypes, setEmploymentTypes] = useState([])
@@ -49,12 +54,12 @@ const StaffManagement = ({
 
   useEffect(() => {
     loadData()
-  }, [])
+  }, [tenantId])
 
   const loadData = async () => {
     setLoading(true)
     try {
-      // CSVRepositoryを使用してバックエンドAPI経由で読み込み
+      // MasterRepositoryを使用してテナント別データを取得
       const [
         staffData,
         rolesData,
@@ -65,14 +70,14 @@ const StaffManagement = ({
         commuteAllowancesData,
         shiftPatternsData
       ] = await Promise.all([
-        csvRepository.loadCSV('data/master/staff.csv'),
-        csvRepository.loadCSV('data/master/roles.csv'),
-        csvRepository.loadCSV('data/master/employment_types.csv'),
-        csvRepository.loadCSV('data/master/skills.csv'),
-        csvRepository.loadCSV('data/master/insurance_rates.csv'),
-        csvRepository.loadCSV('data/master/tax_brackets.csv'),
-        csvRepository.loadCSV('data/master/commute_allowance.csv'),
-        csvRepository.loadCSV('data/master/shift_patterns.csv')
+        masterRepository.getStaff(tenantId),
+        masterRepository.getRoles(tenantId),
+        masterRepository.getEmploymentTypes(tenantId),
+        masterRepository.getSkills(tenantId),
+        masterRepository.getInsuranceRates(tenantId),
+        masterRepository.getTaxBrackets(tenantId),
+        masterRepository.getCommuteAllowance(tenantId),
+        masterRepository.getShiftPatterns(tenantId)
       ])
 
       // データを旧形式に合わせる（Papa.parseの戻り値形式）
@@ -134,19 +139,31 @@ const StaffManagement = ({
         return 'その他'
       }
 
-      // IndexedDBから実績データのみを取得して集計
+      // バックエンドAPIから実績データを取得して集計
       const performanceMap = {}
-      const { openDB } = await import('../../utils/indexedDB')
-      await openDB()
 
-      // 各スタッフの実績データをIndexedDBから取得して集計
+      // 全スタッフの給与データを一括取得
+      const payrollResponse = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_PAYROLL}?tenant_id=${tenantId}`);
+      const payrollData = await payrollResponse.json();
+      const allPayroll = payrollData.success ? payrollData.data : [];
+
+      // スタッフIDごとにグループ化
+      const payrollByStaff = {};
+      allPayroll.forEach(p => {
+        if (!payrollByStaff[p.staff_id]) {
+          payrollByStaff[p.staff_id] = [];
+        }
+        payrollByStaff[p.staff_id].push(p);
+      });
+
+      // 各スタッフの実績データをバックエンドAPIから取得して集計
       for (const staff of staffParsed.data) {
         try {
-          const workHistory = await getStaffWorkHistory(staff.staff_id)
-          const payrollHistory = await getStaffPayrollHistory(staff.staff_id)
+          const payrollHistory = payrollByStaff[staff.staff_id] || [];
+          const workHistory = []; // 労働時間実績は現在未使用
 
-          // 実績データがある場合のみperformanceMapに登録
-          if (workHistory.length > 0 && payrollHistory.length > 0) {
+          // 実績データがある場合のみperformanceMapに登録（給与データのみでもOK）
+          if (payrollHistory.length > 0) {
             performanceMap[staff.name] = {
               totalDays: 0,
               totalHours: 0,
@@ -161,14 +178,18 @@ const StaffManagement = ({
 
             const perf = performanceMap[staff.name]
 
-            // 労働時間実績から集計
-            workHistory.forEach(shift => {
-              perf.totalDays += 1
-              const hours = parseFloat(shift.actual_hours || 0)
+            // 給与データから実績を集計
+            payrollHistory.forEach(payroll => {
+              const days = parseInt(payroll.work_days || 0)
+              const hours = parseFloat(payroll.work_hours || 0)
+              const wage = parseFloat(payroll.gross_salary || 0)
+
+              perf.totalDays += days
               perf.totalHours += hours
+              perf.totalWage += wage
 
               // 月別統計
-              const monthKey = `${shift.year}-${String(shift.month).padStart(2, '0')}`
+              const monthKey = `${payroll.year}-${String(payroll.month).padStart(2, '0')}`
               if (!perf.monthlyStats[monthKey]) {
                 perf.monthlyStats[monthKey] = {
                   days: 0,
@@ -176,55 +197,9 @@ const StaffManagement = ({
                   wage: 0,
                 }
               }
-              perf.monthlyStats[monthKey].days += 1
+              perf.monthlyStats[monthKey].days += days
               perf.monthlyStats[monthKey].hours += hours
-
-              // 曜日判定（日付から計算）
-              const date = new Date(shift.year, shift.month - 1, shift.date)
-              const dayOfWeek = date.getDay()
-              if (dayOfWeek === 0 || dayOfWeek === 6) {
-                perf.weekendDays += 1
-              } else {
-                perf.weekdayDays += 1
-              }
-
-              // シフトパターン別カウント
-              const patternCode = inferPatternCode(
-                shift.scheduled_start,
-                shift.scheduled_end,
-                shiftPatternsParsed.data
-              )
-              if (!perf.shiftPatterns[patternCode]) {
-                perf.shiftPatterns[patternCode] = 0
-              }
-              perf.shiftPatterns[patternCode] += 1
-
-              // シフト詳細を保存（最新100件まで）
-              if (perf.shifts.length < 100) {
-                const weekdays = ['日', '月', '火', '水', '木', '金', '土']
-                perf.shifts.push({
-                  year: shift.year,
-                  month: shift.month,
-                  date: shift.date,
-                  dayOfWeek: weekdays[dayOfWeek],
-                  startTime: shift.actual_start,
-                  endTime: shift.actual_end,
-                  hours: shift.actual_hours,
-                  wage: 0, // 後で給与明細から設定
-                })
-              }
-            })
-
-            // 給与明細から総給与を集計
-            payrollHistory.forEach(payroll => {
-              const wage = parseInt(payroll.gross_salary || 0)
-              perf.totalWage += wage
-
-              // 月別統計に給与を追加
-              const monthKey = `${payroll.year}-${String(payroll.month).padStart(2, '0')}`
-              if (perf.monthlyStats[monthKey]) {
-                perf.monthlyStats[monthKey].wage += wage
-              }
+              perf.monthlyStats[monthKey].wage += wage
             })
           }
         } catch (err) {

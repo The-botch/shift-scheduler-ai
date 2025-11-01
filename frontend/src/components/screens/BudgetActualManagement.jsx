@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import Papa from 'papaparse'
 import {
   Upload,
   CheckCircle,
@@ -18,9 +19,6 @@ import {
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import {
-  saveActualShifts,
-  savePayroll,
-  saveSalesActual,
   getActualShifts,
   getPayroll,
   getSalesActual,
@@ -31,7 +29,9 @@ import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
 import { INDEXED_DB, STORAGE_KEYS } from '../../config'
 import { PAGE_VARIANTS, PAGE_TRANSITION } from '../../config/display'
 import { getCurrentYear } from '../../config/constants'
+import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
 import AppHeader from '../shared/AppHeader'
+import { useTenant } from '../../contexts/TenantContext'
 
 const csvRepository = new CSVRepository()
 
@@ -45,6 +45,7 @@ const BudgetActualManagement = ({
   onConstraintManagement,
   onBudgetActualManagement,
 }) => {
+  const { tenantId } = useTenant()
   const [workHoursFile, setWorkHoursFile] = useState(null)
   const [payrollFile, setPayrollFile] = useState(null)
   const [salesActualFile, setSalesActualFile] = useState(null)
@@ -78,32 +79,36 @@ const BudgetActualManagement = ({
 
   const loadImportStatus = async () => {
     try {
-      const workHoursCount = await getCount(INDEXED_DB.STORES.ACTUAL_SHIFTS)
-      const payrollCount = await getCount(INDEXED_DB.STORES.PAYROLL)
-      const salesActualCount = await getCount(INDEXED_DB.STORES.SALES_ACTUAL)
+      // バックエンドAPIからデータを取得
+      const [payrollResponse, salesActualResponse, salesForecastResponse] = await Promise.all([
+        fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_PAYROLL}?tenant_id=${tenantId}&year=${selectedYear}`),
+        fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_SALES_ACTUAL}?tenant_id=${tenantId}&year=${selectedYear}`),
+        fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_SALES_FORECAST}?tenant_id=${tenantId}&year=${selectedYear}`)
+      ]);
 
-      // LocalStorageから売上予測データを取得
-      const forecastDataStr = localStorage.getItem('sales_forecast_data')
-      const forecastData = forecastDataStr ? JSON.parse(forecastDataStr) : []
+      const payrollData = await payrollResponse.json();
+      const salesActualData = await salesActualResponse.json();
+      const salesForecastData = await salesForecastResponse.json();
+
+      const allPayroll = payrollData.success ? payrollData.data : [];
+      const allSalesActual = salesActualData.success ? salesActualData.data : [];
+      const forecastData = salesForecastData.success ? salesForecastData.data : [];
 
       // 月ごとのステータスとPLデータを生成
       const months = []
       const plData = []
 
       for (let month = 1; month <= 12; month++) {
-        const monthWorkHours = await getActualShifts(selectedYear, month)
-        const monthPayroll = await getPayroll(selectedYear, month)
-        const monthSalesActual = await getSalesActual(selectedYear, month)
+        const monthPayroll = allPayroll.filter(p => p.year === selectedYear && p.month === month);
+        const monthSalesActual = allSalesActual.filter(s => s.year === selectedYear && s.month === month);
         const monthForecast = forecastData.filter(f => f.year === selectedYear && f.month === month)
 
         months.push({
           month,
           year: selectedYear,
-          workHoursCount: monthWorkHours.length,
           payrollCount: monthPayroll.length,
           salesActualCount: monthSalesActual.length,
           forecastCount: monthForecast.length,
-          hasWorkHours: monthWorkHours.length > 0,
           hasPayroll: monthPayroll.length > 0,
           hasSalesActual: monthSalesActual.length > 0,
           hasForecast: monthForecast.length > 0,
@@ -353,32 +358,42 @@ const BudgetActualManagement = ({
     try {
       // データの変換と検証
       const formattedData = workHoursData.map(row => ({
-        shift_id: row.shift_id,
-        year: parseInt(row.year),
-        month: parseInt(row.month),
-        date: parseInt(row.date),
+        store_id: 1,
         staff_id: row.staff_id,
-        staff_name: row.staff_name,
+        shift_date: `${row.year}-${String(row.month).padStart(2, '0')}-${String(row.date).padStart(2, '0')}`,
         scheduled_start: row.scheduled_start,
         scheduled_end: row.scheduled_end,
         actual_start: row.actual_start,
         actual_end: row.actual_end,
-        scheduled_hours: parseFloat(row.scheduled_hours),
         actual_hours: parseFloat(row.actual_hours),
         break_minutes: parseInt(row.break_minutes),
-        overtime_minutes: parseInt(row.overtime_minutes),
+        is_overtime: parseInt(row.overtime_minutes || 0) > 0,
         is_late: row.is_late === 'TRUE',
         is_early_leave: row.is_early_leave === 'TRUE',
         notes: row.notes || '',
       }))
 
-      const result = await saveActualShifts(formattedData)
+      // バックエンドAPIに送信
+      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_WORK_HOURS}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant_id: 1,
+          data: formattedData
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '労働時間実績のインポートに失敗しました')
+      }
 
       setImportStatus(prev => ({
         ...prev,
         workHours: {
           status: 'success',
-          message: `${formattedData.length}件のデータをインポートしました`,
+          message: result.message || `${formattedData.length}件のデータをインポートしました`,
         },
       }))
 
@@ -435,37 +450,60 @@ const BudgetActualManagement = ({
 
     try {
       // データの変換と検証
-      const formattedData = payrollData.map(row => ({
-        payroll_id: row.payroll_id,
-        year: parseInt(row.year),
-        month: parseInt(row.month),
-        staff_id: row.staff_id,
-        staff_name: row.staff_name,
-        work_days: parseInt(row.work_days),
-        work_hours: parseFloat(row.work_hours),
-        base_salary: parseInt(row.base_salary),
-        overtime_pay: parseInt(row.overtime_pay),
-        commute_allowance: parseInt(row.commute_allowance),
-        other_allowances: parseInt(row.other_allowances || 0),
-        gross_salary: parseInt(row.gross_salary),
-        health_insurance: parseInt(row.health_insurance),
-        pension_insurance: parseInt(row.pension_insurance),
-        employment_insurance: parseInt(row.employment_insurance),
-        income_tax: parseInt(row.income_tax),
-        resident_tax: parseInt(row.resident_tax),
-        total_deduction: parseInt(row.total_deduction),
-        net_salary: parseInt(row.net_salary),
-        payment_date: row.payment_date,
-        payment_status: row.payment_status,
-      }))
+      const formattedData = payrollData.map(row => {
+        // payment_statusを大文字に変換（データベースのCHECK制約に適合）
+        let paymentStatus = (row.payment_status || 'PENDING').toUpperCase();
+        // 有効な値でない場合はPENDINGにフォールバック
+        if (!['PENDING', 'PROCESSING', 'PAID', 'FAILED'].includes(paymentStatus)) {
+          paymentStatus = 'PENDING';
+        }
 
-      const result = await savePayroll(formattedData)
+        return {
+          store_id: 1,
+          year: parseInt(row.year),
+          month: parseInt(row.month),
+          staff_id: row.staff_id,
+          staff_name: row.staff_name,
+          work_days: parseInt(row.work_days),
+          work_hours: parseFloat(row.work_hours),
+          base_salary: parseInt(row.base_salary),
+          overtime_pay: parseInt(row.overtime_pay),
+          commute_allowance: parseInt(row.commute_allowance),
+          other_allowances: parseInt(row.other_allowances || 0),
+          gross_salary: parseInt(row.gross_salary),
+          health_insurance: parseInt(row.health_insurance),
+          pension_insurance: parseInt(row.pension_insurance),
+          employment_insurance: parseInt(row.employment_insurance),
+          income_tax: parseInt(row.income_tax),
+          resident_tax: parseInt(row.resident_tax),
+          total_deduction: parseInt(row.total_deduction),
+          net_salary: parseInt(row.net_salary),
+          payment_date: row.payment_date,
+          payment_status: paymentStatus,
+        };
+      })
+
+      // バックエンドAPIに送信
+      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_PAYROLL}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant_id: 1,
+          data: formattedData
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '給与データのインポートに失敗しました')
+      }
 
       setImportStatus(prev => ({
         ...prev,
         payroll: {
           status: 'success',
-          message: `${formattedData.length}件のデータをインポートしました`,
+          message: result.message || `${formattedData.length}件のデータをインポートしました`,
         },
       }))
 
@@ -523,22 +561,35 @@ const BudgetActualManagement = ({
     try {
       // データの変換と検証
       const formattedData = salesActualData.map(row => ({
-        actual_id: row.actual_id,
         year: parseInt(row.year),
         month: parseInt(row.month),
-        store_id: parseInt(row.store_id),
+        store_id: parseInt(row.store_id) || 1,
         actual_sales: parseInt(row.actual_sales),
         daily_average: parseInt(row.daily_average),
         notes: row.notes || '',
       }))
 
-      const result = await saveSalesActual(formattedData)
+      // バックエンドAPIに送信
+      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_SALES_ACTUAL}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant_id: 1,
+          data: formattedData
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '売上実績データのインポートに失敗しました')
+      }
 
       setImportStatus(prev => ({
         ...prev,
         salesActual: {
           status: 'success',
-          message: `${formattedData.length}件のデータをインポートしました`,
+          message: result.message || `${formattedData.length}件のデータをインポートしました`,
         },
       }))
 
@@ -574,24 +625,36 @@ const BudgetActualManagement = ({
     try {
       // データの変換と検証
       const formattedData = forecastData.map(row => ({
-        forecast_id: row.forecast_id,
         year: parseInt(row.year),
         month: parseInt(row.month),
-        store_id: parseInt(row.store_id),
+        store_id: parseInt(row.store_id) || 1,
         forecasted_sales: parseInt(row.forecasted_sales),
         required_labor_cost: parseInt(row.required_labor_cost),
         required_hours: parseInt(row.required_hours),
         notes: row.notes || '',
       }))
 
-      // LocalStorageに保存
-      localStorage.setItem('sales_forecast_data', JSON.stringify(formattedData))
+      // バックエンドAPIに送信
+      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_SALES_FORECAST}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tenant_id: 1,
+          data: formattedData
+        })
+      })
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '売上予測データのインポートに失敗しました')
+      }
 
       setImportStatus(prev => ({
         ...prev,
         forecast: {
           status: 'success',
-          message: `${formattedData.length}件のデータをインポートしました`,
+          message: result.message || `${formattedData.length}件のデータをインポートしました`,
         },
       }))
 

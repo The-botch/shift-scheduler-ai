@@ -19,6 +19,7 @@ import {
 import AppHeader from '../shared/AppHeader'
 import ShiftTimeline from '../shared/ShiftTimeline'
 import { AnimatePresence } from 'framer-motion'
+import { useTenant } from '../../contexts/TenantContext'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -44,6 +45,7 @@ const Monitoring = ({
   onConstraintManagement,
   onBudgetActualManagement,
 }) => {
+  const { tenantId } = useTenant()
   const [staffStatus, setStaffStatus] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedStaff, setSelectedStaff] = useState(null)
@@ -79,13 +81,12 @@ const Monitoring = ({
 
   useEffect(() => {
     loadAvailabilityData()
-  }, [activeTab, historyYear, historyMonth])
+  }, [activeTab, historyYear, historyMonth, tenantId])
 
   const loadAvailabilityData = async () => {
     setLoading(true)
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const tenant_id = 1
       const store_id = 1
 
       // タブに応じてAPIパラメータを決定
@@ -93,18 +94,18 @@ const Monitoring = ({
       if (activeTab === 'management') {
         // 管理タブ：当月と次月のみ
         // 2つの月のデータを取得するため、年月フィルタなしで取得して後でフィルタ
-        preferencesUrl = `${apiUrl}/api/shifts/preferences?tenant_id=${tenant_id}&store_id=${store_id}`
+        preferencesUrl = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&store_id=${store_id}`
       } else {
         // 履歴タブ：選択した年月
         preferencesUrl = historyMonth
-          ? `${apiUrl}/api/shifts/preferences?tenant_id=${tenant_id}&store_id=${store_id}&year=${historyYear}&month=${historyMonth}`
-          : `${apiUrl}/api/shifts/preferences?tenant_id=${tenant_id}&store_id=${store_id}&year=${historyYear}`
+          ? `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&store_id=${store_id}&year=${historyYear}&month=${historyMonth}`
+          : `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&store_id=${store_id}&year=${historyYear}`
       }
 
       const [staffResponse, rolesResponse, patternsResponse, preferencesResponse] = await Promise.all([
-        fetch(`${apiUrl}/api/master/staff?tenant_id=${tenant_id}`),
-        fetch(`${apiUrl}/api/master/roles?tenant_id=${tenant_id}`),
-        fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenant_id}&store_id=${store_id}`),
+        fetch(`${apiUrl}/api/master/staff?tenant_id=${tenantId}`),
+        fetch(`${apiUrl}/api/master/roles?tenant_id=${tenantId}`),
+        fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}&store_id=${store_id}`),
         fetch(preferencesUrl),
       ])
 
@@ -553,51 +554,6 @@ const Monitoring = ({
           </div>
         )}
 
-        {/* 統計カード（全体） */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="shadow-lg border-0">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">提出率</p>
-                  <p className="text-3xl font-bold text-blue-600">{submissionRate}%</p>
-                </div>
-                <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Users className="h-6 w-6 text-blue-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-lg border-0">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">提出済み</p>
-                  <p className="text-3xl font-bold text-green-600">{submittedCount}名</p>
-                </div>
-                <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                  <CheckCircle className="h-6 w-6 text-green-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="shadow-lg border-0">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-gray-600">未提出</p>
-                  <p className="text-3xl font-bold text-red-600">{totalCount - submittedCount}名</p>
-                </div>
-                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
-                  <Clock className="h-6 w-6 text-red-600" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {/* スタッフ一覧 */}
         <Card className="shadow-lg border-0">
           <CardHeader>
@@ -666,25 +622,6 @@ const Monitoring = ({
                   </div>
                 </motion.div>
               ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* 一括操作 */}
-        <Card className="shadow-lg border-0 mt-8">
-          <CardHeader>
-            <CardTitle>一括操作</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex space-x-4">
-              <Button variant="outline" className="flex-1">
-                <Send className="h-4 w-4 mr-2" />
-                未提出者に一括催促
-              </Button>
-              <Button variant="outline" className="flex-1">
-                <Clock className="h-4 w-4 mr-2" />
-                締切延長通知
-              </Button>
             </div>
           </CardContent>
         </Card>
