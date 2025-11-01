@@ -745,27 +745,7 @@ const History = ({
               {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
             </h1>
             <p className="text-lg text-gray-600">
-              {(() => {
-                const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
-                const approvedSecondPlan = localStorage.getItem('approved_second_plan_2024_10')
-                if (
-                  selectedMonth.year === 2024 &&
-                  selectedMonth.month === 10 &&
-                  approvedSecondPlan
-                ) {
-                  return '確定済み (第2案)'
-                } else if (
-                  selectedMonth.year === 2024 &&
-                  selectedMonth.month === 10 &&
-                  approvedFirstPlan
-                ) {
-                  return '仮承認 (第1案)'
-                } else if (selectedMonth.year === 2024 && selectedMonth.month === 10) {
-                  return '承認済み'
-                } else {
-                  return '実績'
-                }
-              })()}{' '}
+              実績{' '}
               · 全{detailShifts.length}件
             </p>
           </div>

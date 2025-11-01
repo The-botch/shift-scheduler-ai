@@ -100,47 +100,38 @@ export const addFileToVectorStore = async (vectorStoreId, fileId) => {
 }
 
 /**
- * Vector Storeに固定マスターデータをセットアップ
- * @param {string} storeId - 店舗ID
+ * Vector StoreにDBから取得した最新データをセットアップ
+ * @param {number} tenantId - テナントID
+ * @param {number} storeId - 店舗ID (オプション)
  * @param {Function} onProgress - 進捗コールバック(message, current, total)
  * @returns {Promise<string>} Vector Store ID
  */
-export const setupVectorStore = async (storeId, onProgress) => {
+export const setupVectorStore = async (tenantId, storeId, onProgress) => {
   try {
-    // 固定CSVファイル一覧
-    const files = [
-      '/data/master/labor_law_constraints.csv',
-      '/data/master/labor_management_rules.csv',
-      '/data/master/shift_validation_rules.csv',
-      '/data/master/stores.csv',
-      '/data/master/store_constraints.csv',
-      '/data/master/staff.csv',
-      '/data/master/staff_skills.csv',
-      '/data/master/staff_certifications.csv',
-      '/data/history/shift_history_2023-2024.csv',
-      '/data/history/shift_monthly_summary.csv',
-    ]
+    onProgress?.('DBから最新データを取得してVector Storeを作成中...', 1, 2)
 
-    const total = files.length + 1 // +1 for Vector Store creation
+    // バックエンドの新しいエンドポイントを呼び出し
+    const response = await fetch(`${BACKEND_API_URL}/api/vector-store/setup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        tenantId,
+        storeId,
+      }),
+    })
 
-    // 1. Vector Store作成
-    onProgress?.('Vector Storeを作成中...', 1, total)
-    const vectorStore = await createVectorStore(storeId)
-
-    // 2. ファイルを順次アップロード＆追加
-    for (let i = 0; i < files.length; i++) {
-      const filePath = files[i]
-      const fileName = filePath.split('/').pop()
-
-      onProgress?.(`${fileName}をアップロード中...`, i + 2, total)
-
-      const uploadedFile = await uploadFile(filePath)
-      await addFileToVectorStore(vectorStore.id, uploadedFile.id)
+    if (!response.ok) {
+      const error = await response.json()
+      throw new Error(error.error || 'Vector Storeのセットアップに失敗しました')
     }
 
-    onProgress?.('セットアップ完了！', total, total)
+    const result = await response.json()
 
-    return vectorStore.id
+    onProgress?.(`セットアップ完了！${result.filesUploaded}件のファイルをアップロードしました`, 2, 2)
+
+    return result.vectorStoreId
   } catch (error) {
     console.error('Vector Storeセットアップエラー:', error)
     throw error

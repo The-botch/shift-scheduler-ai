@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import AppHeader from '../components/shared/AppHeader'
+import ChatBot from '../components/shared/ChatBot'
 import {
   CheckCircle2,
   AlertCircle,
@@ -18,6 +19,10 @@ import {
   Check,
   FileEdit,
   Loader2,
+  Settings,
+  ChevronDown,
+  ChevronUp,
+  Calendar as CalendarIcon,
 } from 'lucide-react'
 import Papa from 'papaparse'
 import { validateShifts } from '../utils/shiftValidator'
@@ -32,6 +37,7 @@ import { setupVectorStore, generateShiftWithAssistant } from '../utils/assistant
 import { getApiUrl, API_ENDPOINTS } from '../config/api'
 import { generateTimestamp } from '../utils/dateUtils'
 import { postJSON } from '../utils/http'
+import { useTenant } from '../contexts/TenantContext'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -46,6 +52,8 @@ const pageTransition = {
 }
 
 const DevTools = ({
+  targetYear: propTargetYear,
+  targetMonth: propTargetMonth,
   onHome,
   onShiftManagement,
   onLineMessages,
@@ -55,6 +63,7 @@ const DevTools = ({
   onConstraintManagement,
   onBudgetActualManagement,
 }) => {
+  const { tenantId } = useTenant()
   const [validationResult, setValidationResult] = useState(null)
   const [validationLoading, setValidationLoading] = useState(false)
   const [selectedFile, setSelectedFile] = useState('')
@@ -65,7 +74,6 @@ const DevTools = ({
   const [aiLoading, setAiLoading] = useState(false)
   const [copied, setCopied] = useState(false)
   const [copiedValidation, setCopiedValidation] = useState(false)
-  const [aiMode, setAiMode] = useState('chat') // 'chat' or 'generate'
   const [conversationLog, setConversationLog] = useState([])
   const LOG_THRESHOLD = 100 // ログが100件溜まったら.log出力してローテーション
   const [currentLogFile, setCurrentLogFile] = useState(1) // 現在のログファイル番号
@@ -84,18 +92,20 @@ const DevTools = ({
   const [generatedPrompt, setGeneratedPrompt] = useState('')
   const [showPromptEditor, setShowPromptEditor] = useState(false)
   const [isPromptEditable, setIsPromptEditable] = useState(false)
-  const [targetYear, setTargetYear] = useState(2024)
-  const [targetMonth, setTargetMonth] = useState(11)
+  const [targetYear, setTargetYear] = useState(propTargetYear || new Date().getFullYear())
+  const [targetMonth, setTargetMonth] = useState(propTargetMonth || new Date().getMonth() + 1)
   const [vectorStoreId, setVectorStoreId] = useState(localStorage.getItem('vectorStoreId'))
   const [assistantId, setAssistantId] = useState(localStorage.getItem('assistantId'))
   const [setupProgress, setSetupProgress] = useState({ message: '', current: 0, total: 0 })
   const [isSettingUp, setIsSettingUp] = useState(false)
   const useAssistantsAPI = true // 常にAssistants APIを使用
-  const [showLogs, setShowLogs] = useState(false)
-  const [showValidationLogs, setShowValidationLogs] = useState(false)
+  const [showLogs, setShowLogs] = useState(false) // 初期状態：折りたたみ
+  const [showValidationLogs, setShowValidationLogs] = useState(false) // 初期状態：折りたたみ
   const [generatedShiftValidation, setGeneratedShiftValidation] = useState(null)
   const [importedShiftData, setImportedShiftData] = useState(null)
   const [importedFileName, setImportedFileName] = useState('')
+  const [showDevSettings, setShowDevSettings] = useState(false)
+  const [showDataCollectionStatus, setShowDataCollectionStatus] = useState(false)
 
   // CSVファイル一覧を読み込み + localStorageから設定を復元
   useEffect(() => {
@@ -492,7 +502,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
       setIsSettingUp(true)
       setSetupProgress({ message: 'セットアップ開始...', current: 0, total: 11 })
 
-      const vsId = await setupVectorStore('store-001', (message, current, total) => {
+      const vsId = await setupVectorStore(tenantId, null, (message, current, total) => {
         setSetupProgress({ message, current, total })
       })
 
@@ -1394,7 +1404,7 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
       className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50"
     >
       <AppHeader
-        title="開発者ツール"
+        title="シフト作成"
         onHome={onHome}
         onShiftManagement={onShiftManagement}
         onLineMessages={onLineMessages}
@@ -1403,51 +1413,40 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
         onStoreManagement={onStoreManagement}
         onConstraintManagement={onConstraintManagement}
         onBudgetActualManagement={onBudgetActualManagement}
-        onDevTools={() => {}}
       />
 
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-800 mb-2">🛠️ 開発者ツール</h1>
-          <p className="text-gray-600">バリデーションチェック・AI対話・API動作確認</p>
+      <div className="container mx-auto px-4 py-6">
+        <div className="mb-6 bg-white p-4 rounded-lg shadow-sm border-l-4 border-purple-500">
+          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <FileText className="h-6 w-6 text-purple-600" />
+            AIシフト生成
+          </h1>
+          <p className="text-sm text-gray-600 mt-1">制約を入力してシフト表を自動生成</p>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* AI対話ツール */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* 左側：シフト生成操作エリア */}
+          <div className="lg:col-span-2">
           <Card className="shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                AI対話・シフト生成（GPT-4連携）
-              </CardTitle>
-            </CardHeader>
             <CardContent className="p-6">
               <div className="space-y-4">
-                {/* モード切り替え */}
-                <div className="flex gap-2 mb-2">
+                {/* 設定トグルボタン */}
+                <div className="flex justify-end">
                   <Button
-                    onClick={() => setAiMode('chat')}
-                    variant={aiMode === 'chat' ? 'default' : 'outline'}
+                    onClick={() => setShowDevSettings(!showDevSettings)}
                     size="sm"
-                    className={aiMode === 'chat' ? 'bg-purple-600' : ''}
+                    variant="outline"
+                    className="flex items-center gap-2"
                   >
-                    <MessageSquare className="h-3 w-3 mr-1" />
-                    AI対話
-                  </Button>
-                  <Button
-                    onClick={() => setAiMode('generate')}
-                    variant={aiMode === 'generate' ? 'default' : 'outline'}
-                    size="sm"
-                    className={aiMode === 'generate' ? 'bg-purple-600' : ''}
-                  >
-                    <FileText className="h-3 w-3 mr-1" />
-                    シフト生成
+                    <Settings className="h-4 w-4" />
+                    設定
+                    {showDevSettings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                   </Button>
                 </div>
 
-                {/* シフト生成モードのみ: Vector Store管理 */}
-                {aiMode === 'generate' && (
-                  <>
+                {/* 開発者設定エリア（折りたたみ可能） */}
+                {showDevSettings && (
+                  <div className="space-y-4 border-t pt-4">
                     {/* Vector Store管理 */}
                     <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
                       <h4 className="font-semibold text-gray-800 mb-3">Vector Store管理</h4>
@@ -1608,32 +1607,49 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                         ))}
                       </div>
                     </div>
+                  </div>
+                )}
 
-                    {/* インプットデータ収集状況 */}
-                    <div className="bg-gradient-to-r from-green-50 to-blue-50 p-4 rounded-lg border border-green-200">
-                      <div className="flex items-center justify-between mb-3">
-                        <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                          <Database className="h-4 w-4 text-green-600" />
-                          データ収集状況 ({targetYear}年{targetMonth}月)
-                        </h4>
-                        <Button
-                          onClick={loadInputData}
-                          disabled={inputLoading}
-                          size="sm"
-                          variant="outline"
-                          className="h-7"
-                        >
-                          {inputLoading ? (
-                            <RefreshCw className="h-3 w-3 animate-spin" />
-                          ) : (
-                            <>
-                              <RefreshCw className="h-3 w-3 mr-1" />
-                              収集実行
-                            </>
-                          )}
-                        </Button>
-                      </div>
+                {/* インプットデータ収集状況 - メインエリア */}
+                <div>
+                  <div
+                    className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setShowDataCollectionStatus(!showDataCollectionStatus)}
+                  >
+                    <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                      <Database className="h-4 w-4 text-green-600" />
+                      データ収集状況 ({targetYear}年{targetMonth}月)
+                    </h4>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          loadInputData()
+                        }}
+                        disabled={inputLoading}
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 hover:bg-green-100"
+                      >
+                        {inputLoading ? (
+                          <RefreshCw className="h-3 w-3 animate-spin" />
+                        ) : (
+                          <>
+                            <RefreshCw className="h-3 w-3 mr-1" />
+                            収集実行
+                          </>
+                        )}
+                      </Button>
+                      {showDataCollectionStatus ? (
+                        <ChevronUp className="h-4 w-4 text-gray-600" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-600" />
+                      )}
+                    </div>
+                  </div>
 
+                  {showDataCollectionStatus && (
+                    <div className="mt-3 bg-white p-4 rounded-lg border border-gray-200">
                       <div className="space-y-2">
                         {/* カテゴリー別の収集状況 */}
                         <div className="grid grid-cols-1 gap-2">
@@ -1764,119 +1780,104 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                         )}
 
                         {!inputData && (
-                          <div className="text-xs text-gray-600 text-center py-2">
-                            「収集実行」ボタンをクリックして、チェックを入れたカテゴリーのデータを読み込んでください。
+                          <div className="text-xs text-gray-600 text-center py-3 bg-gray-50 rounded">
+                            💡 「収集実行」ボタンでデータを読み込みます
                           </div>
                         )}
                       </div>
                     </div>
-                  </>
-                )}
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    {aiMode === 'chat' ? 'プロンプト入力' : '追加制約・希望（1行1項目）'}
-                  </label>
-                  <textarea
-                    className="w-full p-3 border border-gray-300 rounded-md resize-none"
-                    rows="4"
-                    placeholder={
-                      aiMode === 'chat'
-                        ? '例: 2024年10月のシフトを分析してください。'
-                        : '例:\n週末は必ず2名以上配置\n田中さんは火曜日休み希望\n水曜日は営業時間を延長'
-                    }
-                    value={aiPrompt}
-                    onChange={e => setAiPrompt(e.target.value)}
-                  />
-                </div>
-
-                <div className="flex gap-2">
-                  {aiMode === 'chat' ? (
-                    <Button
-                      onClick={sendToAI}
-                      disabled={aiLoading || !aiPrompt.trim()}
-                      className="flex-1 bg-purple-600 hover:bg-purple-700"
-                    >
-                      {aiLoading ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          送信中...
-                        </>
-                      ) : (
-                        <>
-                          <MessageSquare className="h-4 w-4 mr-2" />
-                          AIに送信
-                        </>
-                      )}
-                    </Button>
-                  ) : (
-                    <>
-                      <Button
-                        onClick={buildAndShowPrompt}
-                        disabled={inputLoading || (useAssistantsAPI && !vectorStoreId)}
-                        size="sm"
-                        variant={showPromptEditor ? 'outline' : 'default'}
-                        className={
-                          showPromptEditor ? 'flex-1' : 'flex-1 bg-green-600 hover:bg-green-700'
-                        }
-                      >
-                        {inputLoading ? (
-                          <>
-                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                            生成中...
-                          </>
-                        ) : (
-                          <>
-                            <FileText className="h-4 w-4 mr-2" />
-                            プロンプトを生成
-                          </>
-                        )}
-                      </Button>
-
-                      {showPromptEditor && (
-                        <>
-                          <Button
-                            onClick={() => setIsPromptEditable(!isPromptEditable)}
-                            size="sm"
-                            variant="outline"
-                            className="flex-1"
-                          >
-                            <Code2 className="h-4 w-4 mr-1" />
-                            {isPromptEditable ? '編集中' : '編集'}
-                          </Button>
-                          <Button
-                            onClick={executeShiftGeneration}
-                            disabled={aiLoading}
-                            size="sm"
-                            className="flex-1 bg-green-600 hover:bg-green-700"
-                          >
-                            {aiLoading ? (
-                              <>
-                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                                生成中...
-                              </>
-                            ) : (
-                              <>
-                                <Play className="h-4 w-4 mr-2" />
-                                送信
-                              </>
-                            )}
-                          </Button>
-                        </>
-                      )}
-                    </>
                   )}
                 </div>
 
-                {/* プロンプトエディター（シフト生成モードのみ） */}
-                {aiMode === 'generate' && showPromptEditor && (
-                  <div className="bg-yellow-50 p-4 rounded-lg border-2 border-yellow-300">
-                    <div className="flex items-center justify-between mb-2">
+                {/* 追加制約・希望入力エリア */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-2 border-blue-300">
+                  <label className="block text-base font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                    <FileEdit className="h-5 w-5 text-blue-600" />
+                    追加の制約・希望を入力
+                  </label>
+                  <textarea
+                    className="w-full p-3 border-2 border-blue-200 rounded-md resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+                    rows="5"
+                    placeholder="例:\n• 週末は必ず2名以上配置してください\n• 田中さんは火曜日休み希望です\n• 水曜日は営業時間を延長します"
+                    value={aiPrompt}
+                    onChange={e => setAiPrompt(e.target.value)}
+                  />
+                  <p className="text-xs text-gray-600 mt-2">
+                    💡 特別な制約やスタッフの希望を自由に記入してください（1行1項目推奨）
+                  </p>
+                </div>
+
+                {/* アクションボタンエリア */}
+                <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={buildAndShowPrompt}
+                      disabled={inputLoading || (useAssistantsAPI && !vectorStoreId)}
+                      size="default"
+                      variant={showPromptEditor ? 'outline' : 'default'}
+                      className={
+                        showPromptEditor ? 'flex-1' : 'flex-1 bg-green-600 hover:bg-green-700 h-11'
+                      }
+                    >
+                      {inputLoading ? (
+                        <>
+                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                          生成中...
+                        </>
+                      ) : (
+                        <>
+                          <FileText className="h-5 w-5 mr-2" />
+                          {showPromptEditor ? 'プロンプトを再生成' : 'プロンプトを生成'}
+                        </>
+                      )}
+                    </Button>
+
+                    {showPromptEditor && (
+                      <>
+                        <Button
+                          onClick={() => setIsPromptEditable(!isPromptEditable)}
+                          size="default"
+                          variant="outline"
+                          className="flex-1 h-11"
+                        >
+                          <Code2 className="h-5 w-5 mr-1" />
+                          {isPromptEditable ? '編集中' : '編集'}
+                        </Button>
+                        <Button
+                          onClick={executeShiftGeneration}
+                          disabled={aiLoading}
+                          size="default"
+                          className="flex-1 bg-purple-600 hover:bg-purple-700 h-11"
+                        >
+                          {aiLoading ? (
+                            <>
+                              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                              生成中...
+                            </>
+                          ) : (
+                            <>
+                              <Play className="h-5 w-5 mr-2" />
+                              シフトを生成
+                            </>
+                          )}
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                  {!showPromptEditor && (
+                    <p className="text-xs text-gray-600 mt-2 text-center">
+                      ① まずプロンプトを生成 → ② 内容を確認・編集 → ③ AIにシフト生成を依頼
+                    </p>
+                  )}
+                </div>
+
+                {/* プロンプトエディター */}
+                {showPromptEditor && (
+                  <div className="bg-gradient-to-r from-yellow-50 to-amber-50 p-4 rounded-lg border-2 border-yellow-400 shadow-md">
+                    <div className="flex items-center justify-between mb-3">
                       <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                        <FileText className="h-4 w-4 text-yellow-600" />
-                        {useAssistantsAPI
-                          ? 'Assistants API用プロンプト（短縮版）'
-                          : '生成されたプロンプト（フル版）'}
+                        <FileText className="h-5 w-5 text-yellow-600" />
+                        生成されたプロンプト
                       </h4>
                       <Button
                         onClick={() => {
@@ -1885,77 +1886,83 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                         }}
                         size="sm"
                         variant="ghost"
-                        className="h-6 text-xs"
+                        className="h-7 text-xs hover:bg-yellow-100"
                       >
-                        閉じる
+                        ✕ 閉じる
                       </Button>
                     </div>
                     <textarea
-                      className={`w-full p-3 border rounded-md text-xs font-mono resize-none ${
+                      className={`w-full p-3 border-2 rounded-md text-sm font-mono resize-none transition-all ${
                         isPromptEditable
-                          ? 'border-yellow-400 bg-white'
+                          ? 'border-yellow-500 bg-white shadow-inner'
                           : 'border-gray-300 bg-gray-50'
                       }`}
-                      rows="12"
+                      rows="10"
                       value={generatedPrompt}
                       onChange={e => setGeneratedPrompt(e.target.value)}
                       readOnly={!isPromptEditable}
                     />
-                    <p className="text-xs text-gray-600 mt-2">
-                      {isPromptEditable
-                        ? '⚠️ プロンプトを編集中です。「このプロンプトで生成」ボタンを押すとAIに送信されます。'
-                        : useAssistantsAPI
-                          ? '💡 Assistants APIに送信される短いプロンプトです。固定データはVector Storeから参照されます。「編集」ボタンで変更も可能です。'
-                          : '💡 Chat Completions APIに送信される完全なプロンプトです。「編集」ボタンで変更も可能です。'}
-                    </p>
+                    <div className="mt-2 p-2 bg-white rounded border border-yellow-300">
+                      <p className="text-xs text-gray-700">
+                        {isPromptEditable
+                          ? '✏️ 編集モード：内容を自由に変更できます。完了したら「シフトを生成」ボタンを押してください。'
+                          : '👁️ 閲覧モード：「編集」ボタンを押すと内容を変更できます。'}
+                      </p>
+                    </div>
                   </div>
                 )}
 
                 {aiResponse && (
-                  <div className="mt-4 bg-gray-100 p-4 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                        <Code2 className="h-4 w-4" />
-                        AI応答
+                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border-2 border-purple-300 shadow-md">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-gray-800 flex items-center gap-2 text-base">
+                        <MessageSquare className="h-5 w-5 text-purple-600" />
+                        AI生成結果
                       </h4>
                       <Button
                         onClick={copyAiResponse}
                         size="sm"
                         variant="outline"
-                        className="h-7 text-xs"
+                        className="h-8 text-xs hover:bg-purple-100"
                       >
                         {copied ? (
                           <>
-                            <Check className="h-3 w-3 mr-1 text-green-600" />
+                            <Check className="h-4 w-4 mr-1 text-green-600" />
                             コピー済み
                           </>
                         ) : (
                           <>
-                            <Copy className="h-3 w-3 mr-1" />
+                            <Copy className="h-4 w-4 mr-1" />
                             コピー
                           </>
                         )}
                       </Button>
                     </div>
-                    <pre className="text-sm text-gray-700 whitespace-pre-wrap font-sans">
-                      {aiResponse}
-                    </pre>
+                    <div className="bg-white p-4 rounded border border-purple-200 max-h-96 overflow-y-auto">
+                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
+                        {aiResponse}
+                      </pre>
+                    </div>
                   </div>
                 )}
 
-                {/* バリデーション結果（別セクション） */}
+                {/* バリデーション結果 */}
                 {generatedShiftValidation && (
                   <div
-                    className={`mt-4 p-4 rounded-lg ${generatedShiftValidation.isValid ? 'bg-green-100' : 'bg-red-100'}`}
+                    className={`p-4 rounded-lg border-2 shadow-md ${
+                      generatedShiftValidation.isValid
+                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-400'
+                        : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-400'
+                    }`}
                   >
-                    <div className="flex items-center justify-between mb-2">
-                      <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="font-semibold text-gray-800 flex items-center gap-2 text-base">
                         {generatedShiftValidation.isValid ? (
-                          <CheckCircle2 className="h-5 w-5 text-green-600" />
+                          <CheckCircle2 className="h-6 w-6 text-green-600" />
                         ) : (
-                          <AlertCircle className="h-5 w-5 text-red-600" />
+                          <AlertCircle className="h-6 w-6 text-red-600" />
                         )}
-                        バリデーション結果
+                        検証結果
                       </h4>
                       <div className="flex gap-2">
                         {(generatedShiftValidation.errorCount > 0 ||
@@ -2068,79 +2075,162 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                     )}
                   </div>
                 )}
+              </div>
+            </CardContent>
+          </Card>
+          </div>
 
-                {/* ログ管理セクション */}
-                <div className="bg-green-50 p-3 rounded border border-green-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-green-800">
-                      📝 <strong>対話ログ:</strong> {conversationLog.length}件 / {LOG_THRESHOLD}件
-                      {conversationLog.length > 0 && ` (ファイル #${currentLogFile})`}
-                    </p>
-                    <div className="flex gap-2">
+          {/* 右側：プレビュー＆ログエリア */}
+          <div className="lg:col-span-1 space-y-6">
+            {/* シフトプレビュー */}
+            {aiResponse && (
+              <Card className="shadow-lg">
+                <CardContent className="p-6">
+                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <CalendarIcon className="h-5 w-5 text-purple-600" />
+                    シフトプレビュー
+                  </h3>
+                  <div className="bg-gradient-to-br from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+                    <div className="text-center mb-3">
+                      <div className="text-lg font-bold text-gray-800">
+                        {targetYear}年{targetMonth}月
+                      </div>
+                    </div>
+                    {/* カレンダー表示 */}
+                    <div className="bg-white rounded-lg p-3 shadow-sm">
+                      <div className="grid grid-cols-7 gap-1 mb-2">
+                        {['日', '月', '火', '水', '木', '金', '土'].map((day, idx) => (
+                          <div
+                            key={day}
+                            className={`text-center text-xs font-semibold py-1 ${
+                              idx === 0 ? 'text-red-600' : idx === 6 ? 'text-blue-600' : 'text-gray-600'
+                            }`}
+                          >
+                            {day}
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-7 gap-1">
+                        {Array.from({ length: new Date(targetYear, targetMonth, 0).getDate() }, (_, i) => {
+                          const date = i + 1
+                          const dayOfWeek = new Date(targetYear, targetMonth - 1, date).getDay()
+                          return (
+                            <div
+                              key={date}
+                              className={`text-center text-xs p-1 rounded ${
+                                dayOfWeek === 0
+                                  ? 'bg-red-50 text-red-700'
+                                  : dayOfWeek === 6
+                                    ? 'bg-blue-50 text-blue-700'
+                                    : 'bg-gray-50 text-gray-700'
+                              }`}
+                              style={{ gridColumnStart: i === 0 ? new Date(targetYear, targetMonth - 1, 1).getDay() + 1 : 'auto' }}
+                            >
+                              {date}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div className="mt-3 text-xs text-gray-600 text-center">
+                      💡 生成されたシフトを確認できます
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* ログエリア */}
+            <Card className="shadow-lg">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                  <Database className="h-5 w-5 text-gray-600" />
+                  ログ
+                </h3>
+                <div className="space-y-4">
+
+                {/* 対話ログ管理 */}
+                <div>
+                  <div
+                    className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setShowLogs(!showLogs)}
+                  >
+                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <MessageSquare className="h-4 w-4 text-blue-600" />
+                      対話ログ ({conversationLog.length})
+                    </h4>
+                    <div className="flex items-center gap-2">
                       {conversationLog.length > 0 && (
-                        <>
-                          <Button
-                            onClick={() => setShowLogs(!showLogs)}
-                            size="sm"
-                            variant="outline"
-                            className="h-6 text-xs"
-                          >
-                            {showLogs ? 'ログを隠す' : 'ログを表示'}
-                          </Button>
-                          <Button
-                            onClick={downloadLogsManually}
-                            size="sm"
-                            variant="outline"
-                            className="h-6 text-xs"
-                          >
-                            <Download className="h-3 w-3 mr-1" />
-                            手動保存
-                          </Button>
-                        </>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            downloadLogsManually()
+                          }}
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs hover:bg-blue-100"
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          保存
+                        </Button>
+                      )}
+                      {showLogs ? (
+                        <ChevronUp className="h-4 w-4 text-gray-600" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-600" />
                       )}
                     </div>
                   </div>
 
-                  {/* ログ一覧表示 */}
+                  {/* ログ一覧表示（折りたたみ） */}
                   {showLogs && conversationLog.length > 0 && (
-                    <div className="mt-3 space-y-2 max-h-96 overflow-y-auto">
+                    <div className="mt-3 space-y-2 max-h-[400px] overflow-y-auto pr-2">
                       {conversationLog
                         .slice()
                         .reverse()
                         .map((log, idx) => (
                           <div
                             key={idx}
-                            className="bg-white p-3 rounded border border-green-300 text-xs"
+                            className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow text-xs"
                           >
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-semibold text-green-700">
-                                #{conversationLog.length - idx} -{' '}
-                                {log.mode === 'chat' ? 'AI対話' : 'シフト生成'}
+                            <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-100">
+                              <span className="font-semibold text-blue-700 text-xs">
+                                #{conversationLog.length - idx}
                               </span>
-                              <span className="text-gray-500">
-                                {new Date(log.timestamp).toLocaleString('ja-JP')}
-                              </span>
+                              <div className="text-right">
+                                <div className="text-gray-700 text-[10px] font-medium">
+                                  {new Date(log.timestamp).toLocaleDateString('ja-JP', {
+                                    month: '2-digit',
+                                    day: '2-digit'
+                                  })}
+                                </div>
+                                <div className="text-gray-500 text-[10px]">
+                                  {new Date(log.timestamp).toLocaleTimeString('ja-JP', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    second: '2-digit'
+                                  })}
+                                </div>
+                              </div>
                             </div>
                             <div className="space-y-2">
                               <div>
-                                <div className="font-semibold text-gray-700 mb-1">
-                                  📤 ユーザー入力:
-                                </div>
-                                <pre className="whitespace-pre-wrap bg-gray-50 p-2 rounded text-xs max-h-32 overflow-y-auto">
-                                  {log.userInput.length > 500
-                                    ? log.userInput.substring(0, 500) + '...'
+                                <div className="text-[10px] text-gray-500 mb-1">入力</div>
+                                <div className="bg-blue-50 p-2 rounded text-[11px] text-gray-700 max-h-20 overflow-y-auto">
+                                  {log.userInput.length > 200
+                                    ? log.userInput.substring(0, 200) + '...'
                                     : log.userInput}
-                                </pre>
+                                </div>
                               </div>
                               <div>
-                                <div className="font-semibold text-gray-700 mb-1">
-                                  📥 AI応答 ({log.responseLength}文字):
+                                <div className="text-[10px] text-gray-500 mb-1">
+                                  応答 ({log.responseLength}文字)
                                 </div>
-                                <pre className="whitespace-pre-wrap bg-gray-50 p-2 rounded text-xs max-h-32 overflow-y-auto">
-                                  {log.aiResponse.length > 500
-                                    ? log.aiResponse.substring(0, 500) + '...'
+                                <div className="bg-green-50 p-2 rounded text-[11px] text-gray-700 max-h-20 overflow-y-auto">
+                                  {log.aiResponse.length > 200
+                                    ? log.aiResponse.substring(0, 200) + '...'
                                     : log.aiResponse}
-                                </pre>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -2150,106 +2240,114 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                 </div>
 
                 {/* バリデーションログ管理セクション */}
-                <div className="bg-purple-50 p-3 rounded border border-purple-200">
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs text-purple-800">
-                      📋 <strong>バリデーションログ:</strong> {validationLog.length}件 /{' '}
-                      {LOG_THRESHOLD}件
-                      {validationLog.length > 0 && ` (ファイル #${currentValidationLogFile})`}
-                    </p>
-                    <div className="flex gap-2">
+                <div>
+                  <div
+                    className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200 cursor-pointer hover:shadow-md transition-shadow"
+                    onClick={() => setShowValidationLogs(!showValidationLogs)}
+                  >
+                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-purple-600" />
+                      検証ログ ({validationLog.length})
+                    </h4>
+                    <div className="flex items-center gap-2">
                       {validationLog.length > 0 && (
-                        <>
-                          <Button
-                            onClick={() => setShowValidationLogs(!showValidationLogs)}
-                            size="sm"
-                            variant="outline"
-                            className="h-6 text-xs"
-                          >
-                            {showValidationLogs ? 'ログを隠す' : 'ログを表示'}
-                          </Button>
-                          <Button
-                            onClick={downloadValidationLogsManually}
-                            size="sm"
-                            variant="outline"
-                            className="h-6 text-xs"
-                          >
-                            <Download className="h-3 w-3 mr-1" />
-                            手動保存
-                          </Button>
-                        </>
+                        <Button
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            downloadValidationLogsManually()
+                          }}
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs hover:bg-purple-100"
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          保存
+                        </Button>
+                      )}
+                      {showValidationLogs ? (
+                        <ChevronUp className="h-4 w-4 text-gray-600" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-gray-600" />
                       )}
                     </div>
                   </div>
 
-                  {/* バリデーションログ一覧表示 */}
+                  {/* バリデーションログ一覧表示（折りたたみ） */}
                   {showValidationLogs && validationLog.length > 0 && (
-                    <div className="mt-3 space-y-2 max-h-96 overflow-y-auto">
+                    <div className="mt-3 space-y-2 max-h-[400px] overflow-y-auto pr-2">
                       {validationLog
                         .slice()
                         .reverse()
                         .map((log, idx) => (
                           <div
                             key={idx}
-                            className="bg-white p-3 rounded border border-purple-300 text-xs"
+                            className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow text-xs"
                           >
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="font-semibold text-purple-700">
-                                #{validationLog.length - idx} - バリデーション結果
+                            <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-100">
+                              <span className="font-semibold text-purple-700 text-xs">
+                                #{validationLog.length - idx}
                               </span>
-                              <span className="text-gray-500">
-                                {new Date(log.timestamp).toLocaleString('ja-JP')}
-                              </span>
+                              <div className="text-right">
+                                <div className="text-gray-700 text-[10px] font-medium">
+                                  {new Date(log.timestamp).toLocaleDateString('ja-JP', {
+                                    month: '2-digit',
+                                    day: '2-digit'
+                                  })}
+                                </div>
+                                <div className="text-gray-500 text-[10px]">
+                                  {new Date(log.timestamp).toLocaleTimeString('ja-JP', {
+                                    hour: '2-digit',
+                                    minute: '2-digit',
+                                    second: '2-digit'
+                                  })}
+                                </div>
+                              </div>
                             </div>
                             <div className="space-y-2">
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-xs text-gray-600">対話ログID:</span>
-                                <span className="text-xs font-mono bg-gray-100 px-2 py-1 rounded">
-                                  {log.conversationLogId}
-                                </span>
-                              </div>
                               <div
-                                className={`p-2 rounded ${log.isValid ? 'bg-green-100' : 'bg-red-100'}`}
+                                className={`p-2 rounded-lg ${log.isValid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}
                               >
-                                <div className="font-semibold mb-1">
-                                  {log.isValid ? '✓ 合格' : '✗ 不合格'}
-                                </div>
-                                <div className="text-xs">
-                                  エラー: {log.errorCount}件 | 警告: {log.warningCount}件
+                                <div className="flex items-center justify-between mb-1">
+                                  <span className={`font-semibold text-xs ${log.isValid ? 'text-green-700' : 'text-red-700'}`}>
+                                    {log.isValid ? '✓ 合格' : '✗ 不合格'}
+                                  </span>
+                                  <div className="text-[10px] text-gray-600">
+                                    エラー: {log.errorCount} / 警告: {log.warningCount}
+                                  </div>
                                 </div>
                               </div>
                               {log.errors.length > 0 && (
                                 <div>
-                                  <div className="font-semibold text-red-700 mb-1">エラー:</div>
-                                  <ul className="space-y-1">
-                                    {log.errors.slice(0, 3).map((error, idx) => (
-                                      <li key={idx} className="text-xs bg-red-50 p-1 rounded">
-                                        [{error.rule_id}] {error.message}
-                                      </li>
+                                  <div className="text-[10px] text-red-700 font-semibold mb-1">エラー詳細:</div>
+                                  <div className="space-y-1 max-h-24 overflow-y-auto">
+                                    {log.errors.slice(0, 2).map((error, idx) => (
+                                      <div key={idx} className="text-[10px] bg-red-50 p-1.5 rounded text-red-800">
+                                        {error.message}
+                                      </div>
                                     ))}
-                                    {log.errors.length > 3 && (
-                                      <li className="text-xs text-gray-500">
-                                        ...他 {log.errors.length - 3} 件
-                                      </li>
+                                    {log.errors.length > 2 && (
+                                      <div className="text-[10px] text-gray-500 text-center">
+                                        +{log.errors.length - 2}件
+                                      </div>
                                     )}
-                                  </ul>
+                                  </div>
                                 </div>
                               )}
                               {log.warnings.length > 0 && (
                                 <div>
-                                  <div className="font-semibold text-orange-700 mb-1">警告:</div>
-                                  <ul className="space-y-1">
-                                    {log.warnings.slice(0, 2).map((warning, idx) => (
-                                      <li key={idx} className="text-xs bg-orange-50 p-1 rounded">
-                                        [{warning.rule_id}] {warning.message}
-                                      </li>
+                                  <div className="text-[10px] text-orange-700 font-semibold mb-1">警告:</div>
+                                  <div className="space-y-1 max-h-16 overflow-y-auto">
+                                    {log.warnings.slice(0, 1).map((warning, idx) => (
+                                      <div key={idx} className="text-[10px] bg-orange-50 p-1.5 rounded text-orange-800">
+                                        {warning.message}
+                                      </div>
                                     ))}
-                                    {log.warnings.length > 2 && (
-                                      <li className="text-xs text-gray-500">
-                                        ...他 {log.warnings.length - 2} 件
-                                      </li>
+                                    {log.warnings.length > 1 && (
+                                      <div className="text-[10px] text-gray-500 text-center">
+                                        +{log.warnings.length - 1}件
+                                      </div>
                                     )}
-                                  </ul>
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -2257,72 +2355,18 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                         ))}
                     </div>
                   )}
-
-                  <p className="text-xs text-purple-700 mt-2">
-                    💡 シフト生成時のバリデーション結果を自動記録。対話ログIDで紐づけられます。
-                  </p>
                 </div>
 
-                <div className="bg-blue-50 p-3 rounded border border-blue-200">
-                  <p className="text-xs text-blue-800">
-                    💡 <strong>設定方法:</strong>{' '}
-                    .envファイルにVITE_OPENAI_API_KEY=your_api_keyを設定してください。
-                    <br />
-                    <strong>AI対話モード:</strong> GPT-4で自由に質問や分析ができます。
-                    <br />
-                    <strong>シフト生成モード:</strong> Assistants
-                    APIを使用してシフトを自動生成します。Vector
-                    Storeに固定データを保存し、短いプロンプトで高速生成します（初回セットアップ必要）。
-                    <br />
-                    <strong>ログ機能:</strong>{' '}
-                    すべての対話履歴とバリデーション結果をIndexedDBに自動記録し、{LOG_THRESHOLD}
-                    件溜まると自動的に.logファイルに保存してローテーションされます。
-                  </p>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </div>
 
-        {/* クイックリンク */}
-        <Card className="mt-6 shadow-lg">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Database className="h-5 w-5" />
-              テストページへのリンク
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="p-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <a
-                href="/tests/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 p-4 border border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
-              >
-                <FileText className="h-5 w-5 text-blue-600" />
-                <div>
-                  <h4 className="font-semibold text-gray-800">テストメニュー</h4>
-                  <p className="text-sm text-gray-600">全テストページ一覧</p>
-                </div>
-              </a>
-
-              <a
-                href="/tests/validation/test-validator.html"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 p-4 border border-gray-300 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition-colors"
-              >
-                <CheckCircle2 className="h-5 w-5 text-green-600" />
-                <div>
-                  <h4 className="font-semibold text-gray-800">基本バリデーションテスト</h4>
-                  <p className="text-sm text-gray-600">詳細な検証結果を表示</p>
-                </div>
-              </a>
-            </div>
-          </CardContent>
-        </Card>
       </div>
+
+      {/* AI対話チャットボット */}
+      <ChatBot assistantId={assistantId} />
     </motion.div>
   )
 }

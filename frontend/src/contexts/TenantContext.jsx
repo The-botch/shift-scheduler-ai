@@ -13,16 +13,8 @@ export const useTenant = () => {
 }
 
 export const TenantProvider = ({ children }) => {
-  // LocalStorageから初期値を取得、なければデフォルト値
-  const [tenantId, setTenantId] = useState(() => {
-    const saved = localStorage.getItem('tenantId')
-    return saved ? parseInt(saved) : DEFAULT_CONFIG.TENANT_ID
-  })
-
-  const [tenantName, setTenantName] = useState(() => {
-    return localStorage.getItem('tenantName') || 'DEMO'
-  })
-
+  const [tenantId, setTenantId] = useState(null)
+  const [tenantName, setTenantName] = useState('')
   const [availableTenants, setAvailableTenants] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -30,29 +22,36 @@ export const TenantProvider = ({ children }) => {
   useEffect(() => {
     const fetchTenants = async () => {
       try {
+        // DBのマスターデータからテナント一覧を取得
         const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.TENANTS}`)
         const result = await response.json()
-        if (result.success) {
+
+        if (result.success && result.data.length > 0) {
+          // テナント一覧を保存
           setAvailableTenants(result.data)
 
-          // LocalStorageに保存されているtenantIdが利用可能なテナントに含まれているか確認
+          // localStorageに保存されているテナントIDを確認
           const savedTenantId = localStorage.getItem('tenantId')
+
           if (savedTenantId) {
+            // 保存されているテナントIDが利用可能なテナントに含まれているか確認
             const savedTenant = result.data.find(t => t.tenant_id === parseInt(savedTenantId))
             if (savedTenant) {
               setTenantId(savedTenant.tenant_id)
-              setTenantName(savedTenant.tenant_code)
+              setTenantName(savedTenant.tenant_name || savedTenant.tenant_code)
             } else {
-              // 保存されているテナントが存在しない場合は最初のテナントを使用
-              if (result.data.length > 0) {
-                setTenantId(result.data[0].tenant_id)
-                setTenantName(result.data[0].tenant_code)
-              }
+              // 存在しない場合は最初のテナントを選択
+              const firstTenant = result.data[0]
+              setTenantId(firstTenant.tenant_id)
+              setTenantName(firstTenant.tenant_name || firstTenant.tenant_code)
+              localStorage.setItem('tenantId', firstTenant.tenant_id.toString())
             }
-          } else if (result.data.length > 0) {
-            // LocalStorageにない場合は最初のテナントを使用
-            setTenantId(result.data[0].tenant_id)
-            setTenantName(result.data[0].tenant_code)
+          } else {
+            // 保存されていない場合は最初のテナントを選択
+            const firstTenant = result.data[0]
+            setTenantId(firstTenant.tenant_id)
+            setTenantName(firstTenant.tenant_name || firstTenant.tenant_code)
+            localStorage.setItem('tenantId', firstTenant.tenant_id.toString())
           }
         }
       } catch (error) {
@@ -65,17 +64,11 @@ export const TenantProvider = ({ children }) => {
     fetchTenants()
   }, [])
 
-  // tenantIdが変更されたらLocalStorageに保存
-  useEffect(() => {
-    if (!loading) {
-      localStorage.setItem('tenantId', tenantId.toString())
-      localStorage.setItem('tenantName', tenantName)
-    }
-  }, [tenantId, tenantName, loading])
-
   const changeTenant = (newTenantId, newTenantName) => {
     setTenantId(newTenantId)
     setTenantName(newTenantName)
+    // 選択したテナントをlocalStorageに保存
+    localStorage.setItem('tenantId', newTenantId.toString())
   }
 
   return (
