@@ -228,22 +228,45 @@ router.get('/shift-patterns', async (req, res) => {
   try {
     const { tenant_id = 1, store_id } = req.query;
 
-    let queryText = `
-      SELECT
-        pattern_id,
-        pattern_code,
-        pattern_name,
-        start_time,
-        end_time,
-        break_minutes,
-        store_id
-      FROM core.shift_patterns
-      WHERE tenant_id = $1 AND is_active = TRUE
-        AND (store_id IS NULL OR store_id = $2)
-      ORDER BY pattern_id
-    `;
+    let queryText;
+    let queryParams;
 
-    const result = await query(queryText, [tenant_id, store_id || null]);
+    if (store_id) {
+      // 店舗指定ありの場合: その店舗のパターンのみ
+      queryText = `
+        SELECT
+          pattern_id,
+          pattern_code,
+          pattern_name,
+          start_time,
+          end_time,
+          break_minutes,
+          store_id
+        FROM core.shift_patterns
+        WHERE tenant_id = $1 AND is_active = TRUE
+          AND (store_id IS NULL OR store_id = $2)
+        ORDER BY pattern_id
+      `;
+      queryParams = [tenant_id, store_id];
+    } else {
+      // 店舗指定なしの場合: そのテナントの全パターン（重複除外）
+      queryText = `
+        SELECT DISTINCT ON (pattern_code)
+          pattern_id,
+          pattern_code,
+          pattern_name,
+          start_time,
+          end_time,
+          break_minutes,
+          store_id
+        FROM core.shift_patterns
+        WHERE tenant_id = $1 AND is_active = TRUE
+        ORDER BY pattern_code, pattern_id
+      `;
+      queryParams = [tenant_id];
+    }
+
+    const result = await query(queryText, queryParams);
 
     res.json({
       success: true,

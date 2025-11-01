@@ -65,6 +65,11 @@ export const calculateSocialInsurance = (
  * @returns {number} 所得税額
  */
 export const calculateIncomeTax = (taxableIncome, taxBrackets) => {
+  // 税率テーブルが存在しない場合は計算できないので0を返す
+  if (!taxBrackets || taxBrackets.length === 0) {
+    return 0
+  }
+
   // 月額の場合は年額に換算してから計算
   const annualIncome = taxableIncome * 12
 

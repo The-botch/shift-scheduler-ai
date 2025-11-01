@@ -858,10 +858,10 @@ const StaffManagement = ({
                             ) || taxBrackets[taxBrackets.length - 1]
 
                           // 所得税
-                          const annualIncomeTax = Math.floor(
+                          const annualIncomeTax = bracket ? Math.floor(
                             taxableAmount * (parseFloat(bracket.tax_rate) / 100) -
                               parseFloat(bracket.deduction)
-                          )
+                          ) : 0
 
                           // 住民税（年額：課税所得の10%）
                           const annualResidentTax = Math.floor(predictedAnnualBaseSalary * 0.1)

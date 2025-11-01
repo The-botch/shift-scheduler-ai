@@ -213,7 +213,6 @@ const LineShiftInput = ({
   const [staffList, setStaffList] = useState([])
   const [selectedStaffId, setSelectedStaffId] = useState(DEMO_PARAMS.staff_id)
   const [storeList, setStoreList] = useState([])
-  const [selectedStoreId, setSelectedStoreId] = useState(DEMO_PARAMS.store_id)
   const nextMonthYearMonth = getNextMonthYearMonth()
   const [selectedYear, setSelectedYear] = useState(nextMonthYearMonth.year)
   const [selectedMonth, setSelectedMonth] = useState(nextMonthYearMonth.month)
@@ -223,6 +222,13 @@ const LineShiftInput = ({
   // デモ用の日付データ
   const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1)
 
+  // 選択中のスタッフ情報を取得
+  const selectedStaff = staffList.find(s => s.staff_id === selectedStaffId)
+  const isPartTimeStaff = selectedStaff?.employment_type === 'PART_TIME' || selectedStaff?.employment_type === 'PART'
+
+  // デバッグ用
+  console.log('Selected Staff:', selectedStaff?.name, 'Employment Type:', selectedStaff?.employment_type, 'Is Part Time:', isPartTimeStaff)
+
   useEffect(() => {
     loadShiftPatterns()
     loadStaffList()
@@ -231,16 +237,18 @@ const LineShiftInput = ({
   }, [tenantId])
 
   useEffect(() => {
-    if (selectedStoreId) {
-      loadShiftPatterns()
-    }
-  }, [selectedStoreId])
+    if (selectedStaffId) {
+      // スタッフ切り替え時、まずカレンダーをクリア（前のスタッフのデータが残らないように）
+      setDatePreferences({})
+      setExistingPreferenceId(null)
+      setIsSubmitted(false)
 
-  useEffect(() => {
-    if (selectedStaffId && selectedStoreId) {
+      // その後、新しいスタッフのデータを読み込む
       loadShiftPreferences()
+      // シフトパターンは「曜日ごとのパターン設定」ボタンを押したときに読み込む
+      // loadShiftPatterns()
     }
-  }, [selectedStaffId, selectedStoreId, selectedYear, selectedMonth])
+  }, [selectedStaffId, selectedYear, selectedMonth])
 
   const loadStaffList = async () => {
     try {
@@ -267,10 +275,6 @@ const LineShiftInput = ({
       const result = await response.json()
       if (result.success) {
         setStoreList(result.data)
-        // 最初の店舗を自動選択
-        if (result.data.length > 0 && !result.data.find(s => s.store_id === selectedStoreId)) {
-          setSelectedStoreId(result.data[0].store_id)
-        }
       }
     } catch (error) {
       console.error('店舗リスト読み込みエラー:', error)
@@ -293,10 +297,21 @@ const LineShiftInput = ({
 
   const loadShiftPatterns = async () => {
     try {
+      // 正社員の場合はシフトパターン不要
+      const currentStaff = staffList.find(s => s.staff_id === selectedStaffId)
+      const isPartTime = currentStaff?.employment_type === 'PART_TIME' || currentStaff?.employment_type === 'PART'
+
+      if (!isPartTime) {
+        setShiftPatterns([])
+        return
+      }
+
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}&store_id=${selectedStoreId}`)
+      // テナント全体のシフトパターンを取得（store_idでのフィルタはしない）
+      const response = await fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}`)
       const result = await response.json()
       if (result.success) {
+        console.log('シフトパターン読み込み成功:', result.data.length, '件')
         setShiftPatterns(result.data)
       }
     } catch (error) {
@@ -315,7 +330,9 @@ const LineShiftInput = ({
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-      const url = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&store_id=${selectedStoreId}&staff_id=${selectedStaffId}&year=${selectedYear}&month=${selectedMonth}`
+      // store_idは使用せず、tenant_id、staff_id、年月でフィルタ
+      // （スタッフマスターとシフト希望のstore_idが不一致の場合があるため）
+      const url = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&staff_id=${selectedStaffId}&year=${selectedYear}&month=${selectedMonth}`
 
       const response = await fetch(url)
 
@@ -338,7 +355,7 @@ const LineShiftInput = ({
         }
 
         result.data.forEach(preference => {
-          // preferred_days: "2024-11-01,2024-11-03,2024-11-05"
+          // preferred_days: "2024-11-01,2024-11-03,2024-11-05" (アルバイトの場合)
           if (preference.preferred_days) {
             const dates = preference.preferred_days.split(',').map(d => d.trim())
             dates.forEach(dateStr => {
@@ -352,10 +369,18 @@ const LineShiftInput = ({
             })
           }
 
-          // ng_days も同様に処理（表示のみ）
+          // ng_days: "2025-12-10,2025-12-11,2025-12-16" (正社員の場合)
           if (preference.ng_days) {
             const ngDates = preference.ng_days.split(',').map(d => d.trim())
-            // NG日は別途処理する場合はここで対応
+            ngDates.forEach(dateStr => {
+              const day = parseInt(dateStr.split('-')[2]) // "2025-12-10" → 10
+              if (!isNaN(day) && day >= 1 && day <= 31) {
+                prefs[day] = {
+                  patterns: [], // 正社員はパターン不要
+                  comment: preference.notes || '',
+                }
+              }
+            })
           }
         })
 
@@ -385,21 +410,22 @@ const LineShiftInput = ({
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
       // 選択された日付を配列化
-      const preferredDays = Object.keys(datePreferences)
+      const selectedDays = Object.keys(datePreferences)
         .map(day => {
           const dayNum = parseInt(day)
           return `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
         })
         .join(',')
 
+      // アルバイトは勤務希望日、正社員は休み希望日として扱う
       const requestBody = {
         tenant_id: tenantId,
-        store_id: selectedStoreId,
+        store_id: selectedStaff?.store_id || null, // スタッフの所属店舗を使用
         staff_id: selectedStaffId,
         year: selectedYear,
         month: selectedMonth,
-        preferred_days: preferredDays,
-        ng_days: '',
+        preferred_days: isPartTimeStaff ? selectedDays : '', // アルバイト: 勤務希望日
+        ng_days: isPartTimeStaff ? '' : selectedDays, // 正社員: 休み希望日
         notes: '',
         status: SHIFT_PREFERENCE_STATUS.PENDING,
       }
@@ -433,9 +459,29 @@ const LineShiftInput = ({
     }
   }
 
-  const toggleDate = date => {
-    // どちらの場合も詳細入力画面を表示（編集または新規入力）
-    setSelectedDate(date)
+  const toggleDate = async date => {
+    if (isPartTimeStaff) {
+      // アルバイト: 詳細入力画面を表示（シフトパターン選択）
+      // シフトパターンがまだ読み込まれていない場合は読み込む
+      if (shiftPatterns.length === 0) {
+        await loadShiftPatterns()
+      }
+      setSelectedDate(date)
+    } else {
+      // 正社員: 単純にON/OFF切り替え（休み希望の日付だけマーク）
+      if (datePreferences[date]) {
+        // 既に選択されている場合は削除
+        const newPrefs = { ...datePreferences }
+        delete newPrefs[date]
+        setDatePreferences(newPrefs)
+      } else {
+        // 選択されていない場合は追加（パターンは空配列）
+        setDatePreferences({
+          ...datePreferences,
+          [date]: { patterns: [], comment: '' },
+        })
+      }
+    }
   }
 
   const saveDatePreference = (date, patterns, comment) => {
@@ -702,14 +748,32 @@ const LineShiftInput = ({
                   <div className="p-3 bg-gray-50 h-[calc(100%-48px)] overflow-y-auto">
                     {/* 新規/更新ステータス表示 */}
                     {!isLoadingPreferences && (
-                      <div className={`mb-3 p-2 rounded-lg border-2 ${existingPreferenceId ? 'bg-blue-50 border-blue-300' : 'bg-green-50 border-green-300'}`}>
-                        <p className={`text-xs font-bold ${existingPreferenceId ? 'text-blue-800' : 'text-green-800'}`}>
+                      <div className={`mb-3 p-2 rounded-lg border-2 ${
+                        existingPreferenceId
+                          ? 'bg-blue-50 border-blue-300'
+                          : isPartTimeStaff
+                            ? 'bg-green-50 border-green-300'
+                            : 'bg-red-50 border-red-300'
+                      }`}>
+                        <p className={`text-xs font-bold ${
+                          existingPreferenceId
+                            ? 'text-blue-800'
+                            : isPartTimeStaff
+                              ? 'text-green-800'
+                              : 'text-red-800'
+                        }`}>
                           {existingPreferenceId ? '📝 更新モード' : '✨ 新規登録モード'}
                         </p>
-                        <p className={`text-xs ${existingPreferenceId ? 'text-blue-600' : 'text-green-600'} mt-0.5`}>
+                        <p className={`text-xs ${
+                          existingPreferenceId
+                            ? 'text-blue-600'
+                            : isPartTimeStaff
+                              ? 'text-green-600'
+                              : 'text-red-600'
+                        } mt-0.5`}>
                           {existingPreferenceId
-                            ? '既存のシフト希望が読み込まれました。変更して更新できます。'
-                            : 'このスタッフ・年月のシフト希望はまだ登録されていません。'}
+                            ? `既存の${isPartTimeStaff ? 'シフト希望' : '休み希望'}が読み込まれました。変更して更新できます。`
+                            : `このスタッフ・年月の${isPartTimeStaff ? 'シフト希望' : '休み希望'}はまだ登録されていません。`}
                         </p>
                       </div>
                     )}
@@ -732,35 +796,39 @@ const LineShiftInput = ({
                           ))}
                         </select>
                       </div>
-                      <div className="grid grid-cols-2 gap-2">
-                        <div>
-                          <label className="text-xs font-bold text-gray-700 mb-1 block">
-                            対象年
-                          </label>
-                          <select
-                            value={selectedYear}
-                            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
-                            className="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5"
-                          >
-                            {[2024, 2025, 2026].map(year => (
-                              <option key={year} value={year}>{year}年</option>
-                            ))}
-                          </select>
-                        </div>
-                        <div>
-                          <label className="text-xs font-bold text-gray-700 mb-1 block">
-                            対象月
-                          </label>
-                          <select
-                            value={selectedMonth}
-                            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
-                            className="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5"
-                          >
-                            {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
-                              <option key={month} value={month}>{month}月</option>
-                            ))}
-                          </select>
-                        </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 mb-1 block">
+                          対象年月
+                        </label>
+                        <select
+                          value={`${selectedYear}-${selectedMonth}`}
+                          onChange={(e) => {
+                            const [year, month] = e.target.value.split('-').map(Number)
+                            setSelectedYear(year)
+                            setSelectedMonth(month)
+                          }}
+                          className="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5"
+                        >
+                          {(() => {
+                            // 今月から4ヶ月先までの選択肢を生成
+                            const options = []
+                            const today = new Date()
+
+                            for (let i = 0; i < 4; i++) {
+                              const targetDate = new Date(today.getFullYear(), today.getMonth() + i, 1)
+                              const year = targetDate.getFullYear()
+                              const month = targetDate.getMonth() + 1
+
+                              options.push(
+                                <option key={`${year}-${month}`} value={`${year}-${month}`}>
+                                  {year}年{month}月
+                                </option>
+                              )
+                            }
+
+                            return options
+                          })()}
+                        </select>
                       </div>
                     </div>
 
@@ -785,10 +853,14 @@ const LineShiftInput = ({
                       </div>
                     )}
 
-                    {/* 繰り返しパターン設定ボタン */}
-                    {!selectedDate && !showWeeklyPattern && !isLoadingPreferences && (
+                    {/* 繰り返しパターン設定ボタン（アルバイトのみ） */}
+                    {isPartTimeStaff && !selectedDate && !showWeeklyPattern && !isLoadingPreferences && (
                       <Button
-                        onClick={() => setShowWeeklyPattern(true)}
+                        onClick={() => {
+                          // ボタンを押したときにシフトパターンを読み込む
+                          loadShiftPatterns()
+                          setShowWeeklyPattern(true)
+                        }}
                         variant="outline"
                         className="w-full mb-2 text-xs"
                         size="sm"
@@ -852,9 +924,13 @@ const LineShiftInput = ({
                       <>
                         <div className="mb-2">
                           <h3 className="text-sm font-bold text-gray-800 mb-0.5">
-                            {selectedYear}年{selectedMonth}月のシフト希望
+                            {selectedYear}年{selectedMonth}月の{isPartTimeStaff ? 'シフト希望' : '休み希望'}
                           </h3>
-                          <p className="text-xs text-gray-600">日付をタップして希望を入力</p>
+                          <p className="text-xs text-gray-600">
+                            {isPartTimeStaff
+                              ? '勤務したい日をタップして希望を入力'
+                              : '休みたい日をタップして入力'}
+                          </p>
                         </div>
 
                         <div className="grid grid-cols-7 gap-0.5 mb-2">
@@ -883,7 +959,9 @@ const LineShiftInput = ({
                                 min-h-[50px] rounded text-xs transition-all p-0.5 relative
                                 ${
                                   pref
-                                    ? 'bg-green-600 text-white shadow-md'
+                                    ? isPartTimeStaff
+                                      ? 'bg-green-600 text-white shadow-md'
+                                      : 'bg-red-600 text-white shadow-md'
                                     : weekend
                                       ? 'bg-blue-50 text-blue-600 hover:bg-blue-100'
                                       : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -910,15 +988,21 @@ const LineShiftInput = ({
 
                         <div className="mb-2 p-2 bg-white rounded border">
                           <p className="text-xs text-gray-600">
-                            選択:{' '}
-                            <span className="font-bold text-green-600">{selectedDatesCount}日</span>
+                            {isPartTimeStaff ? '勤務希望' : '休み希望'}:{' '}
+                            <span className={`font-bold ${isPartTimeStaff ? 'text-green-600' : 'text-red-600'}`}>
+                              {selectedDatesCount}日
+                            </span>
                           </p>
                         </div>
 
                         <Button
                           onClick={handleSubmit}
                           disabled={selectedDatesCount === 0}
-                          className="w-full bg-green-600 hover:bg-green-700 text-white text-sm py-2"
+                          className={`w-full text-white text-sm py-2 ${
+                            isPartTimeStaff
+                              ? 'bg-green-600 hover:bg-green-700'
+                              : 'bg-red-600 hover:bg-red-700'
+                          }`}
                         >
                           <Check className="mr-2 h-3.5 w-3.5" />
                           送信する ({selectedDatesCount}日)
@@ -926,8 +1010,8 @@ const LineShiftInput = ({
                       </>
                     )}
 
-                    {/* 日付詳細入力モーダル */}
-                    {selectedDate && (
+                    {/* 日付詳細入力モーダル（アルバイトのみ） */}
+                    {isPartTimeStaff && selectedDate && (
                       <DetailInputModal
                         date={selectedDate}
                         shiftPatterns={shiftPatterns}

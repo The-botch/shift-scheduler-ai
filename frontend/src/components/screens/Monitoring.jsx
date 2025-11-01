@@ -87,25 +87,26 @@ const Monitoring = ({
     setLoading(true)
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const store_id = 1
 
       // タブに応じてAPIパラメータを決定
       let preferencesUrl
       if (activeTab === 'management') {
         // 管理タブ：当月と次月のみ
         // 2つの月のデータを取得するため、年月フィルタなしで取得して後でフィルタ
-        preferencesUrl = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&store_id=${store_id}`
+        // テナント全体のデータを取得（store_idフィルタなし）
+        preferencesUrl = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}`
       } else {
         // 履歴タブ：選択した年月
+        // テナント全体のデータを取得（store_idフィルタなし）
         preferencesUrl = historyMonth
-          ? `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&store_id=${store_id}&year=${historyYear}&month=${historyMonth}`
-          : `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&store_id=${store_id}&year=${historyYear}`
+          ? `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&year=${historyYear}&month=${historyMonth}`
+          : `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&year=${historyYear}`
       }
 
       const [staffResponse, rolesResponse, patternsResponse, preferencesResponse] = await Promise.all([
         fetch(`${apiUrl}/api/master/staff?tenant_id=${tenantId}`),
         fetch(`${apiUrl}/api/master/roles?tenant_id=${tenantId}`),
-        fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}&store_id=${store_id}`),
+        fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}`),
         fetch(preferencesUrl),
       ])
 
@@ -353,9 +354,20 @@ const Monitoring = ({
     const year = latestRequest.year
     const month = latestRequest.month
 
-    // preferred_daysフィールドから日付を抽出
+    // preferred_daysフィールドから日付を抽出（アルバイトの勤務希望日）
     if (latestRequest.preferred_days) {
       const days = latestRequest.preferred_days.split(',')
+      days.forEach(dateStr => {
+        const date = new Date(dateStr.trim())
+        if (!isNaN(date.getTime())) {
+          preferredDaysSet.add(date.getDate())
+        }
+      })
+    }
+
+    // ng_daysフィールドから日付を抽出（正社員の休み希望日）
+    if (latestRequest.ng_days) {
+      const days = latestRequest.ng_days.split(',')
       days.forEach(dateStr => {
         const date = new Date(dateStr.trim())
         if (!isNaN(date.getTime())) {
@@ -679,11 +691,24 @@ const Monitoring = ({
                     calendarDays.push(day)
                   }
 
+                  // スタッフの雇用形態を確認
+                  // selectedStaff.idは数値、staffMapのキーは文字列なので変換が必要
+                  const staffKey = selectedStaff.id.toString()
+                  const currentStaff = staffMap[staffKey]
+
+                  if (!currentStaff) {
+                    console.error('Staff not found in staffMap:', selectedStaff.id, 'staffMap keys:', Object.keys(staffMap))
+                  }
+
+                  const isPartTimeStaff = currentStaff?.employment_type === 'PART_TIME' || currentStaff?.employment_type === 'PART'
+                  const hasNgDays = latestRequest.ng_days && latestRequest.ng_days.length > 0
+                  const hasPreferredDays = latestRequest.preferred_days && latestRequest.preferred_days.length > 0
+
                   return (
                     <div>
                       <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                         <Calendar className="h-5 w-5 text-blue-600" />
-                        {year}年{month}月の希望シフト
+                        {year}年{month}月の{isPartTimeStaff ? 'シフト希望' : '休み希望'}
                       </h3>
 
                       {/* 追加情報 */}
@@ -732,7 +757,9 @@ const Monitoring = ({
                               key={day}
                               className={`p-2 border-2 rounded-lg min-h-[100px] ${
                                 isPreferred
-                                  ? 'bg-green-50 border-green-300 cursor-pointer hover:bg-green-100'
+                                  ? isPartTimeStaff
+                                    ? 'bg-green-50 border-green-300 cursor-pointer hover:bg-green-100'
+                                    : 'bg-red-50 border-red-300 cursor-pointer hover:bg-red-100'
                                   : 'bg-gray-50 border-gray-200'
                               } ${isWeekend && !isPreferred ? 'bg-blue-50' : ''}`}
                               initial={{ opacity: 0, scale: 0.9 }}
@@ -749,8 +776,8 @@ const Monitoring = ({
                               </div>
                               {isPreferred && (
                                 <div className="space-y-1">
-                                  <div className="text-xs font-bold text-green-700">
-                                    ◯ 出勤希望
+                                  <div className={`text-xs font-bold ${isPartTimeStaff ? 'text-green-700' : 'text-red-700'}`}>
+                                    {isPartTimeStaff ? '◯ 出勤希望' : '✕ 休み希望'}
                                   </div>
                                 </div>
                               )}
@@ -762,8 +789,8 @@ const Monitoring = ({
                       {/* 凡例 */}
                       <div className="mt-4 flex items-center gap-4 text-sm">
                         <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 bg-green-50 border-2 border-green-300 rounded"></div>
-                          <span>出勤希望</span>
+                          <div className={`w-4 h-4 border-2 rounded ${isPartTimeStaff ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`}></div>
+                          <span>{isPartTimeStaff ? '出勤希望' : '休み希望'}</span>
                         </div>
                         <div className="flex items-center gap-2">
                           <div className="w-4 h-4 bg-gray-50 border-2 border-gray-200 rounded"></div>
