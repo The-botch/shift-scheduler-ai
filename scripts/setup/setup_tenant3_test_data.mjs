@@ -13,20 +13,16 @@
  * - シフトパターンマスタ (core.shift_patterns) - 早番、中番、遅番など
  * - スタッフマスタ (hr.staff) - 51名（シフトCSVから抽出）
  *
- * 【トランザクションテーブル】
- * - ops.shift_plans
- * - ops.shifts
- * - hr.payroll
- * - analytics.sales_actual
- * - analytics.demand_forecasts
- * - hr.work_hours_actual
- * - ops.shift_preferences
- * - ops.availability_requests
+ * 【トランザクションデータ】
+ * - ops.shift_plans (シフト計画)
+ * - ops.shifts (確定シフト - CSVから自動登録)
+ * - ops.shift_preferences (シフト希望)
  *
- * 注意: トランザクションデータはCSVインポートで登録してください。
- * - 給与明細 → BudgetActualManagement.jsxからインポート
- * - 労働時間実績 → BudgetActualManagement.jsxからインポート
- * - 売上実績・予測 → BudgetActualManagement.jsxからインポート
+ * 注意: 以下のトランザクションデータはCSVインポートで登録してください。
+ * - hr.payroll → BudgetActualManagement.jsxからインポート
+ * - hr.work_hours_actual → BudgetActualManagement.jsxからインポート
+ * - analytics.sales_actual → BudgetActualManagement.jsxからインポート
+ * - analytics.demand_forecasts → BudgetActualManagement.jsxからインポート
  *
  * Usage:
  *   node scripts/setup/setup_tenant3_test_data.mjs register  # セットアップ
@@ -110,24 +106,50 @@ async function deleteMasterData(client) {
 }
 
 /**
+ * トランザクションデータを削除
+ */
+async function deleteTransactionData(client) {
+  console.log('\n🗑️  トランザクションデータを削除中...');
+
+  // シフト削除（ops.shiftsはops.shift_plansに依存）
+  const shiftsResult = await client.query(`
+    DELETE FROM ops.shifts WHERE tenant_id = $1
+  `, [TENANT_ID]);
+  console.log(`  - シフト実績: ${shiftsResult.rowCount}件`);
+
+  // シフト計画削除
+  const plansResult = await client.query(`
+    DELETE FROM ops.shift_plans WHERE tenant_id = $1
+  `, [TENANT_ID]);
+  console.log(`  - シフト計画: ${plansResult.rowCount}件`);
+
+  // シフト希望削除
+  const prefsResult = await client.query(`
+    DELETE FROM ops.shift_preferences WHERE tenant_id = $1
+  `, [TENANT_ID]);
+  console.log(`  - シフト希望: ${prefsResult.rowCount}件`);
+
+  console.log('✅ トランザクションデータ削除完了');
+}
+
+/**
  * マスターデータを登録
  */
 async function registerMasterData(client) {
   console.log('\n📝 マスターデータを登録中...');
 
-  // 1. テナント登録
+  // 1. テナント登録（tenant_idを明示的に指定）
   console.log('\n1️⃣  テナント情報登録中...');
-  const tenantResult = await client.query(`
+  await client.query(`
     INSERT INTO core.tenants (
-      tenant_code, tenant_name, contract_start_date,
+      tenant_id, tenant_code, tenant_name, contract_start_date,
       contract_plan, max_stores, max_staff, is_active
     )
-    VALUES ($1, $2, CURRENT_DATE, 'STANDARD', 10, 100, true)
+    VALUES ($1, $2, $3, CURRENT_DATE, 'STANDARD', 10, 100, true)
     ON CONFLICT (tenant_id) DO UPDATE
     SET tenant_name = EXCLUDED.tenant_name,
         updated_at = CURRENT_TIMESTAMP
-    RETURNING tenant_id
-  `, [TENANT_CODE, TENANT_NAME]);
+  `, [TENANT_ID, TENANT_CODE, TENANT_NAME]);
 
   const tenantId = TENANT_ID;
   console.log(`✅ テナント登録完了: ${TENANT_NAME} (ID: ${tenantId})`);
@@ -151,22 +173,22 @@ async function registerMasterData(client) {
   // 3. 雇用形態登録
   console.log('\n3️⃣  雇用形態登録中...');
   const employmentTypes = [
-    { code: 'FULL_TIME', name: '正社員' },
-    { code: 'PART_TIME', name: 'アルバイト' }
+    { code: 'FULL_TIME', name: '正社員', paymentType: 'MONTHLY' },
+    { code: 'PART_TIME', name: 'アルバイト', paymentType: 'HOURLY' }
   ];
 
   const empTypeIds = {};
   for (const empType of employmentTypes) {
     const result = await client.query(`
-      INSERT INTO core.employment_types (tenant_id, employment_type_code, employment_type_name, is_active)
-      VALUES ($1, $2, $3, true)
+      INSERT INTO core.employment_types (tenant_id, employment_code, employment_name, payment_type, is_active)
+      VALUES ($1, $2, $3, $4, true)
       ON CONFLICT DO NOTHING
       RETURNING employment_type_id
-    `, [tenantId, empType.code, empType.name]);
+    `, [tenantId, empType.code, empType.name, empType.paymentType]);
 
     const empTypeId = result.rows.length > 0
       ? result.rows[0].employment_type_id
-      : (await client.query(`SELECT employment_type_id FROM core.employment_types WHERE tenant_id = $1 AND employment_type_code = $2`, [tenantId, empType.code])).rows[0].employment_type_id;
+      : (await client.query(`SELECT employment_type_id FROM core.employment_types WHERE tenant_id = $1 AND employment_code = $2`, [tenantId, empType.code])).rows[0].employment_type_id;
     empTypeIds[empType.code] = empTypeId;
     console.log(`  - ${empType.name}: ID ${empTypeId}`);
   }
@@ -176,8 +198,7 @@ async function registerMasterData(client) {
   console.log('\n4️⃣  役職登録中...');
   const roles = [
     { code: 'STAFF', name: '一般スタッフ', order: 1 },
-    { code: 'SENIOR', name: '社員', order: 2 },
-    { code: 'TRIAL', name: 'トライアル', order: 3 }
+    { code: 'SENIOR', name: '社員', order: 2 }
   ];
 
   const roleIds = {};
@@ -263,53 +284,284 @@ async function registerMasterData(client) {
       skip_empty_lines: true
     });
 
-    // スタッフ名の正規化と役職判定
+    // スタッフ名の抽出と雇用形態判定
     const staffSet = new Map();
     shifts.forEach(shift => {
-      const originalName = shift.staff_name;
-      let baseName = originalName.replace(/[（(].*?[）)]/, '').trim().replace(/\s+/g, '');
+      const staffName = shift.staff_name;
+      const empTypeFromCSV = shift.employment_type; // MONTHLY or HOURLY
 
-      if (!staffSet.has(baseName)) {
-        staffSet.set(baseName, {
-          originalName,
-          role: 'STAFF',
-          empType: 'PART_TIME'
+      if (!staffSet.has(staffName)) {
+        // CSVの雇用形態から判定
+        // MONTHLY → FULL_TIME (正社員), HOURLY → PART_TIME (アルバイト)
+        const empType = empTypeFromCSV === 'MONTHLY' ? 'FULL_TIME' : 'PART_TIME';
+        const role = empTypeFromCSV === 'MONTHLY' ? 'SENIOR' : 'STAFF';
+
+        staffSet.set(staffName, {
+          role,
+          empType
         });
-      }
-
-      const staffInfo = staffSet.get(baseName);
-      if (originalName.includes('社員') || originalName.includes('（社員）')) {
-        staffInfo.role = 'SENIOR';
-        staffInfo.empType = 'FULL_TIME';
-      } else if (originalName.includes('トライアル')) {
-        staffInfo.role = 'TRIAL';
       }
     });
 
     console.log(`   スタッフ数: ${staffSet.size}名`);
 
     let count = 0;
-    for (const [baseName, info] of staffSet.entries()) {
+    for (const [staffName, info] of staffSet.entries()) {
+      // スタッフコードを生成（STAFF_001, STAFF_002, ...）
+      const staffCode = `STAFF_${String(count + 1).padStart(3, '0')}`;
+
       await client.query(`
         INSERT INTO hr.staff (
-          tenant_id, name, role_id, employment_type_id, store_id
+          tenant_id, staff_code, name, role_id, employment_type, store_id, hire_date, is_active
         )
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE, true)
         ON CONFLICT DO NOTHING
       `, [
         tenantId,
-        baseName,
+        staffCode,
+        staffName,
         roleIds[info.role],
-        empTypeIds[info.empType],
+        info.empType, // employment_typeは文字列
         storeIds['COME'] // デフォルト店舗
       ]);
       count++;
       if (count <= 5 || count % 10 === 0 || count === staffSet.size) {
-        console.log(`  [${count}/${staffSet.size}] ${baseName} (${info.role})`);
+        console.log(`  [${count}/${staffSet.size}] ${staffName} (${info.role})`);
       }
     }
     console.log(`✅ スタッフ登録完了: ${staffSet.size}名`);
   }
+
+  // 登録したIDを返す
+  return {
+    tenantId,
+    divisionId,
+    storeIds,
+    empTypeIds,
+    roleIds
+  };
+}
+
+/**
+ * シフトデータをCSVから登録
+ */
+async function registerShiftData(client, masterIds) {
+  console.log('\n8️⃣  シフトデータ登録中...');
+
+  const csvPath = 'fixtures/shift_pdfs/csv_output/シフト.csv';
+  if (!fs.existsSync(csvPath)) {
+    console.log(`⚠️  シフトCSVが見つかりません: ${csvPath}`);
+    console.log('   シフトデータ登録をスキップします。');
+    return;
+  }
+
+  const csvContent = fs.readFileSync(csvPath, 'utf-8');
+  const shifts = parse(csvContent, {
+    columns: true,
+    skip_empty_lines: true
+  });
+
+  console.log(`   読み込んだシフト数: ${shifts.length}件`);
+
+  // 店舗名 → store_id マッピング（先に定義）
+  const storeNameMap = {
+    'COME': masterIds.storeIds['COME'],
+    'Stand Banh Mi': masterIds.storeIds['STAND_BANH_MI'],
+    'Stand Bo Bun': masterIds.storeIds['STAND_BO_BUN'],
+    'Atelier': masterIds.storeIds['ATELIER'],
+    'SHIBUYA': masterIds.storeIds['SHIBUYA']
+  };
+
+  // シフトを年月+店舗でグループ化
+  const shiftsByMonthStore = {};
+  shifts.forEach(shift => {
+    const date = new Date(shift.shift_date);
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const storeId = storeNameMap[shift.store_name] || masterIds.storeIds['COME'];
+    const key = `${yearMonth}_${storeId}`;
+
+    if (!shiftsByMonthStore[key]) {
+      shiftsByMonthStore[key] = {
+        yearMonth,
+        storeId,
+        storeName: shift.store_name,
+        shifts: []
+      };
+    }
+    shiftsByMonthStore[key].shifts.push(shift);
+  });
+
+  console.log(`   対象パターン: ${Object.keys(shiftsByMonthStore).length}件 (月×店舗)`);
+
+  // 月×店舗ごとにシフト計画を作成
+  const planIdsByMonthStore = {};
+  for (const key of Object.keys(shiftsByMonthStore).sort()) {
+    const group = shiftsByMonthStore[key];
+    const [year, month] = group.yearMonth.split('-').map(Number);
+    const monthName = `${year}年${month}月`;
+
+    // 月の初日と最終日を計算
+    const periodStart = new Date(year, month - 1, 1);
+    const periodEnd = new Date(year, month, 0);
+    const periodStartStr = periodStart.toISOString().split('T')[0];
+    const periodEndStr = periodEnd.toISOString().split('T')[0];
+
+    const planResult = await client.query(`
+      INSERT INTO ops.shift_plans (
+        tenant_id, store_id, plan_year, plan_month,
+        plan_code, plan_name, period_start, period_end,
+        status, generation_type
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'PUBLISHED', 'CSV_IMPORT')
+      ON CONFLICT DO NOTHING
+      RETURNING plan_id
+    `, [
+      TENANT_ID,
+      group.storeId,
+      year,
+      month,
+      `PLAN_${year}${String(month).padStart(2, '0')}_STORE${group.storeId}`,
+      `${monthName}シフト計画 (${group.storeName})`,
+      periodStartStr,
+      periodEndStr
+    ]);
+
+    if (planResult.rows.length > 0) {
+      planIdsByMonthStore[key] = planResult.rows[0].plan_id;
+      console.log(`   ${monthName} ${group.storeName} シフト計画作成 (plan_id: ${planResult.rows[0].plan_id}, ${group.shifts.length}件)`);
+    } else {
+      // 既存のプランを取得
+      const existingPlan = await client.query(`
+        SELECT plan_id FROM ops.shift_plans
+        WHERE tenant_id = $1 AND store_id = $2 AND plan_year = $3 AND plan_month = $4
+        LIMIT 1
+      `, [TENANT_ID, group.storeId, year, month]);
+      planIdsByMonthStore[key] = existingPlan.rows[0].plan_id;
+      console.log(`   ${monthName} ${group.storeName} 既存計画を使用 (plan_id: ${existingPlan.rows[0].plan_id})`);
+    }
+  }
+
+  // スタッフ名→staff_idのマッピングを取得
+  const staffResult = await client.query(`
+    SELECT staff_id, name FROM hr.staff WHERE tenant_id = $1
+  `, [TENANT_ID]);
+
+  const staffMap = {};
+  staffResult.rows.forEach(row => {
+    staffMap[row.name] = row.staff_id;
+  });
+
+  // シフトパターン取得（デフォルトパターンを使用）
+  const patternResult = await client.query(`
+    SELECT pattern_id FROM core.shift_patterns
+    WHERE tenant_id = $1 AND pattern_code = 'EARLY'
+    LIMIT 1
+  `, [TENANT_ID]);
+
+  const defaultPatternId = patternResult.rows.length > 0
+    ? patternResult.rows[0].pattern_id
+    : 1; // フォールバック
+
+  // シフトデータを登録
+  let inserted = 0;
+  let skipped = 0;
+
+  for (const shift of shifts) {
+    const staffName = shift.staff_name;
+    const staffId = staffMap[staffName];
+
+    if (!staffId) {
+      skipped++;
+      if (skipped <= 5) {
+        console.log(`   ⚠️  スキップ: ${staffName} (スタッフマスタに存在しません)`);
+      }
+      continue;
+    }
+
+    // 店舗IDを取得
+    const storeId = storeNameMap[shift.store_name] || masterIds.storeIds['COME'];
+
+    // 日付はCSVに既にYYYY-MM-DD形式で入っている
+    const shiftDate = shift.shift_date;
+
+    // このシフトの年月+店舗を取得し、対応するplan_idを使用
+    const date = new Date(shiftDate);
+    const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    const key = `${yearMonth}_${storeId}`;
+    const planId = planIdsByMonthStore[key];
+
+    if (!planId) {
+      skipped++;
+      console.error(`   ❌ plan_idが見つかりません: ${key} (店舗: ${shift.store_name})`);
+      continue;
+    }
+
+    // 開始・終了時刻を HH:MM → HH:MM:SS に変換
+    // 24時を超える時刻（27:00など）は正規化する（27:00 → 03:00）
+    const normalizeTime = (timeStr) => {
+      const parts = timeStr.split(':');
+      let hour = parseInt(parts[0]);
+      const minute = parts[1];
+
+      // 24時を超える場合は24で割った余りを使用
+      if (hour >= 24) {
+        hour = hour % 24;
+      }
+
+      return `${String(hour).padStart(2, '0')}:${minute}:00`;
+    };
+
+    const startTime = normalizeTime(shift.start_time);
+    const endTime = normalizeTime(shift.end_time);
+
+    // 労働時間を計算（開始〜終了 - 休憩時間）
+    const breakMinutes = parseInt(shift.break_minutes) || 0;
+    const [startHour, startMin] = startTime.split(':').map(Number);
+    const [endHour, endMin] = endTime.split(':').map(Number);
+    const startMinutes = startHour * 60 + startMin;
+    let endMinutes = endHour * 60 + endMin;
+
+    // 終了時刻が翌日にまたがる場合（27:00など）
+    if (endMinutes < startMinutes) {
+      endMinutes += 24 * 60;
+    }
+
+    const workMinutes = endMinutes - startMinutes - breakMinutes;
+    const totalHours = workMinutes / 60;
+
+    try {
+      await client.query(`
+        INSERT INTO ops.shifts (
+          tenant_id, store_id, plan_id, staff_id, shift_date,
+          pattern_id, start_time, end_time, break_minutes,
+          total_hours, notes
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+        ON CONFLICT DO NOTHING
+      `, [
+        TENANT_ID,
+        storeId,
+        planId,
+        staffId,
+        shiftDate,
+        defaultPatternId,
+        startTime,
+        endTime,
+        breakMinutes,
+        totalHours,
+        shift.notes || null
+      ]);
+      inserted++;
+
+      if (inserted <= 5 || inserted % 100 === 0) {
+        console.log(`  [${inserted}/${shifts.length}] ${shiftDate} - ${staffName} (${shift.store_name})`);
+      }
+    } catch (error) {
+      console.error(`   ❌ エラー (${staffName}, ${shiftDate}):`, error.message);
+    }
+  }
+
+  console.log(`✅ シフトデータ登録完了: ${inserted}件 (スキップ: ${skipped}件)`);
 }
 
 /**
@@ -342,6 +594,17 @@ async function showSummary(client) {
 
   const staffCount = await client.query(`SELECT COUNT(*) as count FROM hr.staff WHERE tenant_id = $1`, [TENANT_ID]);
   console.log(`👥 スタッフ: ${staffCount.rows[0].count}名`);
+
+  console.log('\n--- トランザクションデータ ---');
+
+  const planCount = await client.query(`SELECT COUNT(*) as count FROM ops.shift_plans WHERE tenant_id = $1`, [TENANT_ID]);
+  console.log(`📅 シフト計画: ${planCount.rows[0].count}件`);
+
+  const shiftCount = await client.query(`SELECT COUNT(*) as count FROM ops.shifts WHERE tenant_id = $1`, [TENANT_ID]);
+  console.log(`🔄 確定シフト: ${shiftCount.rows[0].count}件`);
+
+  const prefCount = await client.query(`SELECT COUNT(*) as count FROM ops.shift_preferences WHERE tenant_id = $1`, [TENANT_ID]);
+  console.log(`💭 シフト希望: ${prefCount.rows[0].count}件`);
 
   console.log('\n' + '='.repeat(70));
   console.log('\n📝 次のステップ:');
@@ -378,11 +641,20 @@ async function main() {
     await client.query('BEGIN');
 
     if (action === 'delete') {
+      await deleteTransactionData(client);
       await deleteMasterData(client);
       console.log('\n✅ テストデータの削除が完了しました');
     } else {
-      await deleteMasterData(client); // 既存データを削除してクリーンアップ
-      await registerMasterData(client);
+      // 既存データを削除してクリーンアップ
+      await deleteTransactionData(client);
+      await deleteMasterData(client);
+
+      // マスターデータを登録
+      const masterIds = await registerMasterData(client);
+
+      // シフトデータを登録
+      await registerShiftData(client, masterIds);
+
       console.log('\n✅ テストデータのセットアップが完了しました');
     }
 

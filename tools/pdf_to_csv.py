@@ -9,6 +9,30 @@ import csv
 import re
 from pathlib import Path
 import sys
+import unicodedata
+
+
+def normalize_staff_name(name):
+    """
+    スタッフ名を正規化して重複を防ぐ
+    - Unicode正規化（NFKC）で異体字を統一
+    - 「（社員）」「(社員)」を削除
+    - 前後の空白を削除
+    """
+    if not name:
+        return ""
+
+    # Unicode正規化（NFKC: 互換文字を標準形に変換）
+    normalized = unicodedata.normalize('NFKC', name)
+
+    # 「（社員）」「(社員)」を削除
+    normalized = normalized.replace('（社員）', '').replace('(社員)', '')
+    normalized = normalized.replace('社員', '')  # 括弧なしの「社員」も削除
+
+    # 前後の空白を削除
+    normalized = normalized.strip()
+
+    return normalized
 
 
 def pdf_to_data_rows(pdf_path):
@@ -60,8 +84,9 @@ def pdf_to_data_rows(pdf_path):
                 header_row = table[0] if table else []
                 staff_names = []
 
-                # 不要な列名をスキップ
-                skip_keywords = ['日付', '自由ヶ丘', '自由が丘', 'のシフト', 'L\'Atelier', 'Stand', 'Banh', 'Mi', 'COME', 'SHIBUYA', 'Bo', 'Bun']
+                # 不要な列名をスキップ（店舗名や勤務地名を含む）
+                skip_keywords = ['日付', '自由ヶ丘', '自由が丘', '祐天寺', '学大', '学⼤', '麻布台', '⿇布台', '渋谷', '渋⾕',
+                                'のシフト', 'L\'Atelier', 'Stand', 'Banh', 'Mi', 'COME', 'SHIBUYA', 'Bo', 'Bun']
 
                 for cell in header_row:
                     if cell and cell.strip():
@@ -70,9 +95,12 @@ def pdf_to_data_rows(pdf_path):
                         if should_skip:
                             continue
 
-                        # 社員区分を判定
-                        is_employee = '(社員)' in cell or '社員' in cell
-                        name = cell.replace('(社員)', '').strip()
+                        # 社員区分を判定（正規化前の元データで判定）
+                        is_employee = '(社員)' in cell or '社員' in cell or '（社員）' in cell
+
+                        # 名前を正規化
+                        name = normalize_staff_name(cell)
+
                         if name and name not in ['日付 / 日', '']:
                             staff_names.append({
                                 'name': name,
