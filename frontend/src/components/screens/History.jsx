@@ -272,10 +272,10 @@ const History = ({
           status: 'completed', // 全て確定済みとして表示
         }))
         .filter(s => {
-          // 過去の月のみ表示（現在月と未来月は除外）
+          // 過去の月と現在月を表示（未来月のみ除外）
           const targetDate = new Date(s.year, s.month - 1, 1)
           const currentDate = new Date(currentYear, currentMonth - 1, 1)
-          return targetDate < currentDate
+          return targetDate <= currentDate
         })
 
       setMonthlySummary(summaryDataProcessed)
@@ -745,8 +745,7 @@ const History = ({
               {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
             </h1>
             <p className="text-lg text-gray-600">
-              実績{' '}
-              · 全{detailShifts.length}件
+              確定済み · 全{detailShifts.length}件
             </p>
           </div>
 
