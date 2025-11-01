@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
 import './App.css'
 
+// Context Providers
+import { TenantProvider } from './contexts/TenantContext'
+
 // Screen Components
 import Dashboard from './components/screens/Dashboard'
 import FirstPlan from './components/screens/FirstPlan'
@@ -404,17 +407,19 @@ function App() {
   }
 
   const approveSecondPlan = () => {
-    // 第2案を承認・確定して履歴画面に遷移
+    // 第2案を承認・確定してシフト管理画面に戻る
     setShiftStatus({ ...shiftStatus, 10: 'completed' })
     setHasUnsavedChanges(false)
     setCurrentStep(1)
-    setShowShiftManagement(false)
+    setShowShiftManagement(true)
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowMonitoring(false)
     setShowFirstPlanFromShiftMgmt(false)
     setShowBudgetActualManagement(false)
-    setShowHistory(true)
+    setShowHistory(false)
+    // データを再読み込みするために再マウント
+    setShiftManagementKey(prev => prev + 1)
   }
 
   const renderCurrentScreen = () => {
@@ -618,7 +623,8 @@ function App() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <TenantProvider>
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
       {/* ハンバーガーメニュー */}
       <div className="fixed top-4 right-4 z-50">
         <Button
@@ -718,7 +724,8 @@ function App() {
           </div>
         </AnimatePresence>
       </div>
-    </div>
+      </div>
+    </TenantProvider>
   )
 }
 

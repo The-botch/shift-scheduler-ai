@@ -5,6 +5,7 @@ import csvRoutes from './routes/csv.js'
 import masterRoutes from './routes/master.js'
 import shiftsRoutes from './routes/shifts.js'
 import analyticsRoutes from './routes/analytics.js'
+import tenantsRoutes from './routes/tenants.js'
 import { appendLog } from './utils/logger.js'
 
 const app = express()
@@ -20,6 +21,7 @@ app.use('/api', csvRoutes)
 app.use('/api/master', masterRoutes)
 app.use('/api/shifts', shiftsRoutes)
 app.use('/api/analytics', analyticsRoutes)
+app.use('/api/tenants', tenantsRoutes)
 
 // Server startup
 app.listen(PORT, () => {

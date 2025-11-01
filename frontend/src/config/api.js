@@ -23,6 +23,7 @@ export const API_ENDPOINTS = {
   LOAD_CSV: '/api/load-csv',
 
   // Analytics API
+  ANALYTICS_WORK_HOURS: '/api/analytics/work-hours',
   ANALYTICS_PAYROLL: '/api/analytics/payroll',
   ANALYTICS_SALES_ACTUAL: '/api/analytics/sales-actual',
   ANALYTICS_SALES_FORECAST: '/api/analytics/sales-forecast',
@@ -50,6 +51,9 @@ export const API_ENDPOINTS = {
   MASTER_EMPLOYMENT_TYPES: '/api/master/employment-types',
   MASTER_LABOR_MANAGEMENT_RULES: '/api/master/labor-management-rules',
   MASTER_SHIFT_VALIDATION_RULES: '/api/master/shift-validation-rules',
+
+  // Tenants API
+  TENANTS: '/api/tenants',
 }
 
 // 完全なAPIエンドポイントURLを取得

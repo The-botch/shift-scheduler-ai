@@ -11,7 +11,9 @@ import {
   Shield,
   TrendingUp,
   Code2,
+  Building2,
 } from 'lucide-react'
+import { useTenant } from '../../contexts/TenantContext'
 
 const AppHeader = ({
   onHome,
@@ -25,6 +27,7 @@ const AppHeader = ({
   onDevTools,
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
+  const { tenantId, tenantName, changeTenant, availableTenants, loading } = useTenant()
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -33,6 +36,16 @@ const AppHeader = ({
 
     return () => clearInterval(timer)
   }, [])
+
+  const handleTenantChange = (e) => {
+    const selectedTenantId = parseInt(e.target.value)
+    const selectedTenant = availableTenants.find(t => t.tenant_id === selectedTenantId)
+    if (selectedTenant) {
+      changeTenant(selectedTenant.tenant_id, selectedTenant.tenant_code)
+      // ページをリロードして全データを再取得
+      window.location.reload()
+    }
+  }
 
   const formatDate = date => {
     const year = date.getFullYear()
@@ -57,6 +70,23 @@ const AppHeader = ({
               <CalendarIcon className="h-3 w-3" />
               {formatDate(currentTime)}
             </div>
+            {/* テナント切り替え - 複数テナントがある場合のみ表示 */}
+            {!loading && availableTenants.length > 1 && (
+              <div className="flex items-center gap-2 ml-4 px-3 py-1.5 bg-slate-50 rounded-md border border-slate-200">
+                <Building2 className="h-4 w-4 text-slate-600" />
+                <select
+                  value={tenantId}
+                  onChange={handleTenantChange}
+                  className="text-xs font-medium text-slate-700 bg-transparent border-none outline-none cursor-pointer"
+                >
+                  {availableTenants.map(tenant => (
+                    <option key={tenant.tenant_id} value={tenant.tenant_id}>
+                      {tenant.tenant_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           {/* 右側：ナビゲーションメニュー */}
