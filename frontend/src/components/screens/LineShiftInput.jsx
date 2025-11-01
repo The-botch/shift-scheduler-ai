@@ -212,6 +212,8 @@ const LineShiftInput = ({
   // スタッフ選択と年月選択
   const [staffList, setStaffList] = useState([])
   const [selectedStaffId, setSelectedStaffId] = useState(DEMO_PARAMS.staff_id)
+  const [storeList, setStoreList] = useState([])
+  const [selectedStoreId, setSelectedStoreId] = useState(DEMO_PARAMS.store_id)
   const nextMonthYearMonth = getNextMonthYearMonth()
   const [selectedYear, setSelectedYear] = useState(nextMonthYearMonth.year)
   const [selectedMonth, setSelectedMonth] = useState(nextMonthYearMonth.month)
@@ -224,14 +226,21 @@ const LineShiftInput = ({
   useEffect(() => {
     loadShiftPatterns()
     loadStaffList()
+    loadStoreList()
     loadTenantInfo()
   }, [tenantId])
 
   useEffect(() => {
-    if (selectedStaffId) {
+    if (selectedStoreId) {
+      loadShiftPatterns()
+    }
+  }, [selectedStoreId])
+
+  useEffect(() => {
+    if (selectedStaffId && selectedStoreId) {
       loadShiftPreferences()
     }
-  }, [selectedStaffId, selectedYear, selectedMonth])
+  }, [selectedStaffId, selectedStoreId, selectedYear, selectedMonth])
 
   const loadStaffList = async () => {
     try {
@@ -251,6 +260,23 @@ const LineShiftInput = ({
     }
   }
 
+  const loadStoreList = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${apiUrl}/api/master/stores?tenant_id=${tenantId}`)
+      const result = await response.json()
+      if (result.success) {
+        setStoreList(result.data)
+        // 最初の店舗を自動選択
+        if (result.data.length > 0 && !result.data.find(s => s.store_id === selectedStoreId)) {
+          setSelectedStoreId(result.data[0].store_id)
+        }
+      }
+    } catch (error) {
+      console.error('店舗リスト読み込みエラー:', error)
+    }
+  }
+
   const loadTenantInfo = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -267,9 +293,8 @@ const LineShiftInput = ({
 
   const loadShiftPatterns = async () => {
     try {
-      const { store_id } = DEMO_PARAMS
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-      const response = await fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}&store_id=${store_id}`)
+      const response = await fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}&store_id=${selectedStoreId}`)
       const result = await response.json()
       if (result.success) {
         setShiftPatterns(result.data)
@@ -288,10 +313,9 @@ const LineShiftInput = ({
     setExistingPreferenceId(null) // リセット
 
     try {
-      const { store_id } = DEMO_PARAMS
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-      const url = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&store_id=${store_id}&staff_id=${selectedStaffId}&year=${selectedYear}&month=${selectedMonth}`
+      const url = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&store_id=${selectedStoreId}&staff_id=${selectedStaffId}&year=${selectedYear}&month=${selectedMonth}`
 
       const response = await fetch(url)
 
@@ -358,7 +382,6 @@ const LineShiftInput = ({
 
   const handleSubmit = async () => {
     try {
-      const { store_id } = DEMO_PARAMS
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
       // 選択された日付を配列化
@@ -371,7 +394,7 @@ const LineShiftInput = ({
 
       const requestBody = {
         tenant_id: tenantId,
-        store_id,
+        store_id: selectedStoreId,
         staff_id: selectedStaffId,
         year: selectedYear,
         month: selectedMonth,

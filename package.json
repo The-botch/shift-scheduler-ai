@@ -11,9 +11,10 @@
     "db:setup": "node scripts/run_db_setup.mjs"
   },
   "dependencies": {
+    "csv-parse": "^6.1.0",
+    "dotenv": "^17.2.3",
     "pg": "^8.16.3"
   },
-  "devDependencies": {},
   "engines": {
     "node": ">=18.0.0"
   }
