@@ -123,6 +123,8 @@ router.get('/summary', async (req, res) => {
         sp.plan_month as month,
         sp.status,
         sp.plan_id,
+        sp.store_id,
+        st.store_name,
         COUNT(sh.shift_id)::int as shift_count,
         COUNT(DISTINCT sh.staff_id)::int as staff_count,
         ROUND(SUM(COALESCE(sh.total_hours, EXTRACT(EPOCH FROM (sh.end_time - sh.start_time)) / 3600 - COALESCE(sh.break_minutes, 0) / 60.0))::numeric, 2) as total_hours,
@@ -139,6 +141,7 @@ router.get('/summary', async (req, res) => {
 
       FROM ops.shift_plans sp
       LEFT JOIN ops.shifts sh ON sp.plan_id = sh.plan_id
+      LEFT JOIN core.stores st ON sp.store_id = st.store_id
       WHERE sp.tenant_id = $1
         AND sp.plan_year = $2
     `;
@@ -158,8 +161,8 @@ router.get('/summary', async (req, res) => {
       paramIndex++;
     }
 
-    sql += ` GROUP BY sp.plan_year, sp.plan_month, sp.status, sp.plan_id`;
-    sql += ` ORDER BY year DESC, month DESC`;
+    sql += ` GROUP BY sp.plan_year, sp.plan_month, sp.status, sp.plan_id, sp.store_id, st.store_name`;
+    sql += ` ORDER BY year DESC, month DESC, sp.store_id`;
 
     const result = await query(sql, params);
 

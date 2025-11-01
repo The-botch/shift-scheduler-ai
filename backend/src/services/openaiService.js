@@ -1,10 +1,12 @@
 import OpenAI from 'openai'
 import dotenv from 'dotenv'
 
+// .env.localと.envの両方を読み込む
+dotenv.config({ path: '.env.local' })
 dotenv.config()
 
 // OpenAI API設定
-const OPENAI_API_KEY = process.env.VITE_OPENAI_API_KEY
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const OPENAI_API_BASE = 'https://api.openai.com/v1'
 const ASSISTANTS_BETA_HEADER = 'assistants=v2'
 
