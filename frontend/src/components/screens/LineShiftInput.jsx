@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { MESSAGES } from '../../constants/messages'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -448,13 +449,13 @@ const LineShiftInput = ({
         setIsSubmitted(true)
         setShowLiffApp(false)
         setShowLineMessage(true)
-        alert('シフト希望を登録しました！')
+        alert(MESSAGES.SUCCESS.SHIFT_REQUEST_REGISTERED)
       } else {
         throw new Error(result.error || '登録に失敗しました')
       }
     } catch (error) {
       console.error('シフト希望登録エラー:', error)
-      alert(`シフト希望の登録に失敗しました。\n${error.message}`)
+      alert(MESSAGES.ERROR.SHIFT_REQUEST_FAILED(error.message))
     }
   }
 

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence } from 'framer-motion'
+import { MESSAGES } from './constants/messages'
 import './App.css'
 
 // Context Providers
@@ -7,7 +8,8 @@ import { TenantProvider } from './contexts/TenantContext'
 
 // Screen Components
 import Dashboard from './components/screens/Dashboard'
-import FirstPlan from './components/screens/FirstPlan'
+import DraftShiftEditor from './components/screens/DraftShiftEditor'
+import ShiftCreationMethodSelector from './components/screens/ShiftCreationMethodSelector'
 import LineShiftInput from './components/screens/LineShiftInput'
 import Monitoring from './components/screens/Monitoring'
 import SecondPlan from './components/screens/SecondPlan'
@@ -30,7 +32,8 @@ function AppContent() {
   const [showConstraintManagement, setShowConstraintManagement] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [showShiftManagement, setShowShiftManagement] = useState(false)
-  const [showFirstPlanFromShiftMgmt, setShowFirstPlanFromShiftMgmt] = useState(false)
+  const [showDraftShiftEditor, setShowDraftShiftEditor] = useState(false)
+  const [showShiftCreationMethodSelector, setShowShiftCreationMethodSelector] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [shiftStatus, setShiftStatus] = useState({
     10: 'not_started', // 10月のステータス
@@ -40,6 +43,7 @@ function AppContent() {
   const [showBudgetActualManagement, setShowBudgetActualManagement] = useState(false)
   const [showDevTools, setShowDevTools] = useState(false)
   const [showTenantSettings, setShowTenantSettings] = useState(false)
+  const [selectedShiftForEdit, setSelectedShiftForEdit] = useState(null)
   const [selectedShiftForSecondPlan, setSelectedShiftForSecondPlan] = useState(null)
   const [shiftManagementKey, setShiftManagementKey] = useState(0) // 再マウント用
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -92,7 +96,8 @@ function AppContent() {
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
     setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
+    setShowDraftShiftEditor(false)
+    setShowShiftCreationMethodSelector(false)
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
@@ -112,7 +117,6 @@ function AppContent() {
     setShowStaffManagement(false)
     setShowConstraintManagement(false)
     setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
@@ -132,7 +136,6 @@ function AppContent() {
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
@@ -153,7 +156,8 @@ function AppContent() {
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
     setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
+    setShowDraftShiftEditor(false)
+    setShowShiftCreationMethodSelector(false)
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
@@ -171,7 +175,6 @@ function AppContent() {
     }
     setShowHistory(true)
     setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
@@ -190,7 +193,6 @@ function AppContent() {
     }
     setShowLineMessages(true)
     setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
@@ -209,7 +211,6 @@ function AppContent() {
     }
     setShowMonitoring(true)
     setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
@@ -229,7 +230,6 @@ function AppContent() {
     setShowBudgetActualManagement(true)
     setShowMonitoring(false)
     setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
@@ -251,7 +251,6 @@ function AppContent() {
     setShowBudgetActualManagement(false)
     setShowMonitoring(false)
     setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
@@ -272,7 +271,6 @@ function AppContent() {
     setShowBudgetActualManagement(false)
     setShowMonitoring(false)
     setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
@@ -296,7 +294,8 @@ function AppContent() {
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
+    setShowDraftShiftEditor(false)
+    setShowShiftCreationMethodSelector(false)
     setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
@@ -324,79 +323,92 @@ function AppContent() {
     const month = shift?.month || new Date().getMonth() + 1
 
     if (status === 'completed') {
-      // 承認済みの場合は閲覧のみ（履歴画面へ）
-      alert('このシフトは確定済みのため、閲覧のみ可能です')
+      // 確定済みの場合は閲覧のみ
+      alert(MESSAGES.INFO.VIEW_ONLY)
       return
     } else if (status === 'second_plan_approved') {
-      // 第2案承認済みの場合は第2案編集画面へ
-      setSelectedShiftForSecondPlan(shift)
+      // 第2案承認済みの場合は第2案画面で編集可能
+      goToCreateSecondPlan(shift)
+    } else if (status === 'first_plan_approved' || status === 'draft') {
+      // 第1案承認済みまたは下書きの場合はカレンダー表示・編集画面へ
+      setSelectedShiftForEdit(shift)
+      setShowDraftShiftEditor(true)
       setShowShiftManagement(false)
-      setCurrentStep(2)
-    } else if (status === 'first_plan_approved') {
-      // 第1案承認済みの場合は第1案表示または第2案作成へ
-      setSelectedShiftForSecondPlan(shift)
-      setShowFirstPlanFromShiftMgmt(true)
-      setShowShiftManagement(false)
+      setShowShiftCreationMethodSelector(false)
     } else {
-      // 未作成の場合は開発者ツール画面に遷移（データ確認・設定のため）
-      console.log('未作成シフト - 開発者ツール画面に遷移:', shift)
-      setSelectedShiftForSecondPlan(shift)
-      setShowDevTools(true)
+      // 未作成の場合は作成方法選択画面へ
+      setSelectedShiftForEdit(shift)
+      setShowShiftCreationMethodSelector(true)
       setShowShiftManagement(false)
+      setShowDraftShiftEditor(false)
     }
   }
 
-  const backToShiftManagementFromFirstPlan = () => {
+  const backToShiftManagementFromDraft = () => {
     if (hasUnsavedChanges) {
       if (!window.confirm('変更が保存されていません。シフト管理に戻りますか？')) {
         return
       }
       setHasUnsavedChanges(false)
     }
-    setShowFirstPlanFromShiftMgmt(false)
+    setShowDraftShiftEditor(false)
     setShowShiftManagement(true)
     // データを再読み込みするために再マウント
     setShiftManagementKey(prev => prev + 1)
+  }
+
+  const backToShiftManagementFromMethodSelector = () => {
+    setShowShiftCreationMethodSelector(false)
+    setShowShiftManagement(true)
+  }
+
+  const handleSelectCreationMethod = (methodId) => {
+    // 作成方法選択後の処理
+    if (methodId === 'manual' || methodId === 'ai' || methodId === 'csv') {
+      // どの方法でも下書き編集画面に遷移
+      // TODO: 将来的にAIやCSVの専用画面を作る場合はここで分岐
+      setShowShiftCreationMethodSelector(false)
+      setShowDraftShiftEditor(true)
+    }
   }
 
   const approveFirstPlan = () => {
     // 第1案を仮承認してシフト管理画面に戻る
     setShiftStatus({ ...shiftStatus, 10: 'first_plan_approved' })
     setHasUnsavedChanges(false)
-    setShowFirstPlanFromShiftMgmt(false)
+    setShowDraftShiftEditor(false)
     setShowShiftManagement(true)
     setShowBudgetActualManagement(false)
-  }
-
-  const goToSecondPlanFromFirstPlan = () => {
-    // 第1案から修正ボタンで第2案へ
-    setShowFirstPlanFromShiftMgmt(false)
-    setCurrentStep(2) // 第2案画面へ
+    // データを再読み込みするために再マウント
+    setShiftManagementKey(prev => prev + 1)
   }
 
   const goToCreateSecondPlan = (shift) => {
     // 第2案作成画面へ
     setSelectedShiftForSecondPlan(shift)
     setShowShiftManagement(false)
-    setShowFirstPlanFromShiftMgmt(false)
+    setShowDraftShiftEditor(false)
+    setShowShiftCreationMethodSelector(false)
     setShowStaffManagement(false)
     setShowStoreManagement(false)
+    setShowConstraintManagement(false)
     setShowMonitoring(false)
     setShowHistory(false)
+    setShowLineMessages(false)
     setShowBudgetActualManagement(false)
+    setShowDevTools(false)
+    setShowTenantSettings(false)
     setCurrentStep(2)
   }
 
   const approveSecondPlan = () => {
-    // 第2案を承認・確定してシフト管理画面に戻る
-    setShiftStatus({ ...shiftStatus, 10: 'completed' })
+    // 第2案を承認してシフト管理画面に戻る（ステータスはバックエンドで管理）
     setHasUnsavedChanges(false)
     setCurrentStep(1)
     setShowShiftManagement(true)
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowMonitoring(false)
-    setShowFirstPlanFromShiftMgmt(false)
     setShowBudgetActualManagement(false)
     setShowHistory(false)
     // データを再読み込みするために再マウント
@@ -549,15 +561,23 @@ function AppContent() {
       )
     }
 
-    if (showFirstPlanFromShiftMgmt) {
+    if (showShiftCreationMethodSelector) {
       return (
-        <FirstPlan
-          onNext={goToSecondPlanFromFirstPlan}
-          onPrev={backToShiftManagementFromFirstPlan}
+        <ShiftCreationMethodSelector
+          selectedShift={selectedShiftForEdit}
+          onBack={backToShiftManagementFromMethodSelector}
+          onSelectMethod={handleSelectCreationMethod}
+        />
+      )
+    }
+
+    if (showDraftShiftEditor) {
+      return (
+        <DraftShiftEditor
+          selectedShift={selectedShiftForEdit}
+          onBack={backToShiftManagementFromDraft}
           onApprove={approveFirstPlan}
-          onMarkUnsaved={() => setHasUnsavedChanges(true)}
-          onMarkSaved={() => setHasUnsavedChanges(false)}
-          selectedShift={selectedShiftForSecondPlan}
+          onCreateSecondPlan={goToCreateSecondPlan}
         />
       )
     }
@@ -632,11 +652,13 @@ function AppContent() {
                       ? 'history'
                       : showShiftManagement
                         ? 'shift-management'
-                        : showFirstPlanFromShiftMgmt
-                          ? 'first-plan-shift-mgmt'
-                          : showBudgetActualManagement
-                            ? 'budget-actual-management'
-                            : currentStep
+                        : showShiftCreationMethodSelector
+                          ? 'shift-creation-method-selector'
+                          : showDraftShiftEditor
+                            ? 'draft-shift-editor'
+                            : showBudgetActualManagement
+                              ? 'budget-actual-management'
+                              : currentStep
             }
           >
             {renderCurrentScreen()}

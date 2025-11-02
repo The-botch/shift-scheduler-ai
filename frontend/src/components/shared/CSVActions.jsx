@@ -1,4 +1,5 @@
 import React from 'react'
+import { MESSAGES } from '../../constants/messages'
 import { Button } from '../ui/button'
 import { Download, Upload } from 'lucide-react'
 import { exportCSV, importCSV, generateFilename } from '../../utils/csvHelper'
@@ -13,9 +14,9 @@ const CSVActions = ({
   const handleExportCSV = () => {
     const result = exportCSV(data, generateFilename(filename))
     if (result.success) {
-      alert('✅ CSVファイルをエクスポートしました')
+      alert(MESSAGES.SUCCESS.CSV_EXPORT)
     } else {
-      alert(`❌ エクスポートに失敗しました: ${result.error}`)
+      alert(MESSAGES.ERROR.EXPORT_ERROR(result.error))
     }
   }
 
@@ -32,11 +33,11 @@ const CSVActions = ({
       file,
       importedData => {
         onImport(importedData)
-        alert(`✅ ${importedData.length}件のデータをインポートしました`)
+        alert(MESSAGES.SUCCESS.CSV_IMPORT(importedData.length))
         event.target.value = ''
       },
       error => {
-        alert(`❌ インポートエラー:\n${error}`)
+        alert(MESSAGES.ERROR.IMPORT_ERROR(error))
         event.target.value = ''
       },
       validateFunction

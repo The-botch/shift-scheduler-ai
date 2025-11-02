@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { MESSAGES } from '../../constants/messages'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -100,9 +101,9 @@ const ConstraintManagement = ({
   const handleExportCSV = () => {
     const result = exportCSVHelper(laborLaws, generateFilename('labor_law_constraints'))
     if (result.success) {
-      alert('✅ CSVファイルをエクスポートしました')
+      alert(MESSAGES.SUCCESS.CSV_EXPORT)
     } else {
-      alert(`❌ エクスポートに失敗しました: ${result.error}`)
+      alert(MESSAGES.ERROR.EXPORT_ERROR(result.error))
     }
   }
 
@@ -119,11 +120,11 @@ const ConstraintManagement = ({
       file,
       data => {
         setLaborLaws(data)
-        alert(`✅ ${data.length}件の制約データをインポートしました`)
+        alert(MESSAGES.SUCCESS.CONSTRAINT_IMPORT(data.length))
         event.target.value = ''
       },
       error => {
-        alert(`❌ インポートエラー:\n${error}`)
+        alert(MESSAGES.ERROR.IMPORT_ERROR(error))
         event.target.value = ''
       },
       validateConstraintCSV

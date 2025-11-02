@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { MESSAGES } from '../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -210,7 +211,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
     } catch (error) {
       console.error('初期データ読み込みエラー:', error)
       setLoading(false)
-      alert('データの読み込みに失敗しました')
+      alert(MESSAGES.ERROR.LOAD_FAILED)
     }
   }
 
@@ -556,7 +557,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
       })
     } catch (err) {
       console.error('第2案データ読み込みエラー:', err)
-      alert('第2案データの読み込みに失敗しました。CSVファイルを確認してください。')
+      alert(MESSAGES.ERROR.SECOND_PLAN_LOAD_FAILED)
     } finally {
       setGenerating(false)
     }
@@ -908,7 +909,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
       await loadInitialData()
     } catch (error) {
       console.error('シフト更新エラー:', error)
-      alert('シフトの更新に失敗しました')
+      alert(MESSAGES.ERROR.SHIFT_UPDATE_FAILED)
     }
   }
 
@@ -936,7 +937,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
       await loadInitialData()
     } catch (error) {
       console.error('シフト削除エラー:', error)
-      alert('シフトの削除に失敗しました')
+      alert(MESSAGES.ERROR.SHIFT_DELETE_FAILED)
     }
   }
 
@@ -964,13 +965,13 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
       }
 
       if (errorCount > 0) {
-        alert(`${successCount}件の修正を適用しました。${errorCount}件の修正に失敗しました。`)
+        alert(MESSAGES.SUCCESS.AI_MODIFICATION_APPLIED_WITH_ERRORS(successCount, errorCount))
       } else {
-        alert(`${successCount}件の修正を適用しました。`)
+        alert(MESSAGES.SUCCESS.AI_MODIFICATION_APPLIED(successCount))
       }
     } catch (error) {
       console.error('AI提案適用エラー:', error)
-      alert('修正の適用中にエラーが発生しました')
+      alert(MESSAGES.ERROR.AI_MODIFICATION_FAILED)
     }
   }
 
@@ -980,7 +981,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
       const planId = selectedShift?.plan_id || selectedShift?.planId
 
       if (!planId) {
-        alert('シフト計画IDが見つかりません')
+        alert(MESSAGES.ERROR.NO_PLAN_ID)
         console.error('selectedShift:', selectedShift)
         return
       }
@@ -989,7 +990,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
       await shiftRepository.updatePlanStatus(planId, 'SECOND_PLAN_APPROVED')
 
       console.log('第2案を承認しました。plan_id:', planId)
-      alert('第2案を承認しました')
+      alert(MESSAGES.SUCCESS.APPROVE_SECOND_PLAN)
 
       // 親コンポーネントの承認処理を呼び出し（シフト管理画面に戻る）
       if (onNext) {
@@ -997,7 +998,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
       }
     } catch (error) {
       console.error('第2案承認エラー:', error)
-      alert('第2案の承認中にエラーが発生しました')
+      alert(MESSAGES.ERROR.SHIFT_APPROVE_FAILED)
     }
   }
 

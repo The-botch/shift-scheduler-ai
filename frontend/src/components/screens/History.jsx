@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { MESSAGES } from '../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -165,6 +166,11 @@ const History = ({
   onStoreManagement,
   onConstraintManagement,
   onBudgetActualManagement,
+  onFirstPlan,
+  selectedStore: externalSelectedStore,
+  onStoreChange: externalOnStoreChange,
+  availableStores: externalAvailableStores,
+  hideStoreSelector = false,
 }) => {
   const [loading, setLoading] = useState(true)
   const [monthlySummary, setMonthlySummary] = useState([])
@@ -182,8 +188,13 @@ const History = ({
   const [diffAnalysis, setDiffAnalysis] = useState(null) // 差分分析結果
   const [monthStatus, setMonthStatus] = useState({}) // 月別ステータス管理
   const [selectedYear, setSelectedYear] = useState(2025) // 選択中の年（実データは2025年）
-  const [selectedStore, setSelectedStore] = useState('all') // 選択中の店舗（'all'は全店舗）
-  const [availableStores, setAvailableStores] = useState([]) // 利用可能な店舗リスト
+  const [internalSelectedStore, setInternalSelectedStore] = useState('all') // 選択中の店舗（'all'は全店舗）
+  const [internalAvailableStores, setInternalAvailableStores] = useState([]) // 利用可能な店舗リスト
+
+  // Use external props if provided, otherwise use internal state
+  const selectedStore = externalSelectedStore !== undefined ? externalSelectedStore : internalSelectedStore
+  const setSelectedStore = externalOnStoreChange || setInternalSelectedStore
+  const availableStores = externalAvailableStores || internalAvailableStores
 
   useEffect(() => {
     loadHistoryData()
@@ -193,7 +204,7 @@ const History = ({
   // initialMonthが設定されている場合、データ読み込み完了後に自動的に開く
   useEffect(() => {
     if (!loading && initialMonth && staffMap && Object.keys(staffMap).length > 0) {
-      handleMonthClick(initialMonth.year, initialMonth.month)
+      handleMonthClick(initialMonth.year, initialMonth.month, initialMonth.storeId)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, initialMonth])
@@ -269,13 +280,13 @@ const History = ({
           staff_count: parseInt(s.staff_count || 0),
           total_hours: parseFloat(s.total_hours || 0),
           total_labor_cost: parseFloat(s.total_labor_cost || 0),
-          status: 'completed', // 全て確定済みとして表示
+          status: s.status || 'completed',
         }))
         .filter(s => {
-          // 過去の月と現在月を表示（未来月のみ除外）
+          // 過去の月のみ表示（現在月と未来月を除外）
           const targetDate = new Date(s.year, s.month - 1, 1)
           const currentDate = new Date(currentYear, currentMonth - 1, 1)
-          return targetDate <= currentDate
+          return targetDate < currentDate
         })
 
       setMonthlySummary(summaryDataProcessed)
@@ -288,7 +299,7 @@ const History = ({
             .map(s => [s.store_id, { store_id: s.store_id, store_name: s.store_name }])
         ).values()
       ).sort((a, b) => a.store_name.localeCompare(b.store_name))
-      setAvailableStores(stores)
+      setInternalAvailableStores(stores)
 
       // 過去のシフト履歴をAPIから読み込み
       const allShifts = await shiftRepository.getShifts({ year: 2025 })
@@ -353,7 +364,7 @@ const History = ({
 
   const handleExportCSV = () => {
     if (!selectedMonth || detailShifts.length === 0) {
-      alert('エクスポートするデータがありません')
+      alert(MESSAGES.ERROR.NO_EXPORT_DATA)
       return
     }
 
@@ -361,11 +372,9 @@ const History = ({
     const result = exportCSV(detailShifts, filename)
 
     if (result.success) {
-      alert(
-        `✅ ${selectedMonth.year}年${selectedMonth.month}月のシフトデータをエクスポートしました`
-      )
+      alert(MESSAGES.SUCCESS.CSV_EXPORT_SUCCESS(selectedMonth.year, selectedMonth.month))
     } else {
-      alert(`❌ エクスポートに失敗しました: ${result.error}`)
+      alert(MESSAGES.ERROR.EXPORT_ERROR(result.error))
     }
   }
 
@@ -396,13 +405,13 @@ const History = ({
               })
             }
 
-            alert(`✅ 実績データ ${results.data.length}件をインポートしました`)
+            alert(MESSAGES.SUCCESS.ACTUAL_DATA_IMPORT(results.data.length))
           } else {
-            alert('❌ 有効なデータが見つかりませんでした')
+            alert(MESSAGES.ERROR.NO_VALID_DATA)
           }
         },
         error: error => {
-          alert(`❌ インポートエラー: ${error.message}`)
+          alert(MESSAGES.ERROR.IMPORT_ERROR_SHORT(error.message))
         },
       })
     }
@@ -414,7 +423,7 @@ const History = ({
   // 予定vs実績の差分分析
   const analyzeDifference = actualShifts => {
     if (!selectedMonth || !detailShifts || detailShifts.length === 0) {
-      alert('予定データが見つかりません')
+      alert(MESSAGES.ERROR.PLANNED_SHIFT_NOT_FOUND)
       return
     }
 
@@ -737,10 +746,12 @@ const History = ({
           className="app-container"
         >
           <div className="mb-8">
-            <Button variant="outline" onClick={backToSummary} className="mb-4">
-              <ArrowLeft className="h-4 w-4 mr-2" />
-              サマリーに戻る
-            </Button>
+            <div className="flex items-center gap-2 mb-4">
+              <Button variant="outline" onClick={backToSummary}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                サマリーに戻る
+              </Button>
+            </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
               {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
             </h1>
@@ -981,7 +992,7 @@ const History = ({
           </div>
 
           {/* 店舗選択 */}
-          {availableStores.length > 1 && (
+          {!hideStoreSelector && availableStores.length > 1 && (
             <div className="flex items-center gap-2 px-4 py-2 bg-white rounded-lg border border-slate-200 shadow-sm">
               <Store className="h-4 w-4 text-slate-600" />
               <select

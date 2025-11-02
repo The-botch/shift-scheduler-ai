@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { MESSAGES } from '../../constants/messages'
 import { motion } from 'framer-motion'
 import Papa from 'papaparse'
 import {
@@ -381,7 +382,7 @@ const BudgetActualManagement = ({
       })
     } catch (error) {
       console.error('サンプルデータロードエラー:', error)
-      alert('サンプルデータの読み込みに失敗しました')
+      alert(MESSAGES.ERROR.SAMPLE_DATA_LOAD_FAILED)
     } finally {
       setImporting(false)
     }
@@ -411,9 +412,7 @@ const BudgetActualManagement = ({
     })
 
     if (futureData.length > 0) {
-      alert(
-        `未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`
-      )
+      alert(MESSAGES.ERROR.FUTURE_DATA_NOT_ALLOWED(currentYear, currentMonth, futureData.length))
       setImportStatus(prev => ({
         ...prev,
         workHours: { status: 'error', message: '未来のデータが含まれています' },
@@ -551,9 +550,7 @@ const BudgetActualManagement = ({
     })
 
     if (futureData.length > 0) {
-      alert(
-        `未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`
-      )
+      alert(MESSAGES.ERROR.FUTURE_DATA_NOT_ALLOWED(currentYear, currentMonth, futureData.length))
       setImportStatus(prev => ({
         ...prev,
         payroll: { status: 'error', message: '未来のデータが含まれています' },
@@ -670,9 +667,7 @@ const BudgetActualManagement = ({
     })
 
     if (futureData.length > 0) {
-      alert(
-        `未来のデータは登録できません。${currentYear}年${currentMonth}月以降のデータ（${futureData.length}件）が含まれています。`
-      )
+      alert(MESSAGES.ERROR.FUTURE_DATA_NOT_ALLOWED(currentYear, currentMonth, futureData.length))
       setImportStatus(prev => ({
         ...prev,
         salesActual: { status: 'error', message: '未来のデータが含まれています' },
@@ -849,10 +844,10 @@ const BudgetActualManagement = ({
         salesActual: { status: 'idle', message: '' },
         forecast: { status: 'idle', message: '' },
       })
-      alert('データを削除しました')
+      alert(MESSAGES.SUCCESS.DELETE)
     } catch (error) {
       console.error('削除エラー:', error)
-      alert('削除に失敗しました')
+      alert(MESSAGES.ERROR.DELETE_FAILED_SIMPLE)
     }
   }
 
@@ -879,7 +874,7 @@ const BudgetActualManagement = ({
       !monthData.hasPayroll ||
       !monthData.hasSalesActual
     ) {
-      alert('予実分析には、売上予測・労働時間実績・給与明細・売上実績の全てのデータが必要です。')
+      alert(MESSAGES.ERROR.REQUIRED_DATA_MISSING)
       return
     }
 
@@ -893,14 +888,14 @@ const BudgetActualManagement = ({
 
       // 実績データが本当に存在するか確認
       if (actualShifts.length === 0) {
-        alert('労働時間実績データがありません。')
+        alert(MESSAGES.ERROR.WORK_HOURS_DATA_MISSING)
         setSelectedMonth(null)
         setLoading(false)
         return
       }
 
       if (actualPayroll.length === 0) {
-        alert('給与明細データがありません。')
+        alert(MESSAGES.ERROR.PAYROLL_DATA_MISSING)
         setSelectedMonth(null)
         setLoading(false)
         return
@@ -911,7 +906,7 @@ const BudgetActualManagement = ({
 
       // 予定データが存在するか確認
       if (plannedShifts.length === 0) {
-        alert('予定シフトデータがありません。この月のシフト作成履歴が見つかりませんでした。')
+        alert(MESSAGES.ERROR.PLANNED_SHIFT_HISTORY_NOT_FOUND)
         setSelectedMonth(null)
         setLoading(false)
         return
@@ -934,7 +929,7 @@ const BudgetActualManagement = ({
       setDiffAnalysis(analysis)
     } catch (error) {
       console.error('差分分析エラー:', error)
-      alert('差分分析に失敗しました')
+      alert(MESSAGES.ERROR.ANALYSIS_FAILED)
       setSelectedMonth(null)
     } finally {
       setLoading(false)
