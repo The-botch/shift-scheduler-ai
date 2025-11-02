@@ -491,7 +491,7 @@ const BudgetActualManagement = ({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            tenant_id: 1,
+            tenant_id: tenantId,
             data: batches[i]
           })
         })
@@ -614,7 +614,7 @@ const BudgetActualManagement = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tenant_id: 1,
+          tenant_id: tenantId,
           data: formattedData
         })
       })
@@ -718,7 +718,7 @@ const BudgetActualManagement = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tenant_id: 1,
+          tenant_id: tenantId,
           data: formattedData
         })
       })
@@ -799,7 +799,7 @@ const BudgetActualManagement = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          tenant_id: 1,
+          tenant_id: tenantId,
           data: formattedData
         })
       })
