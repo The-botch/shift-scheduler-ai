@@ -141,6 +141,7 @@ CREATE TABLE IF NOT EXISTS hr.staff (
     resignation_date DATE,
     monthly_salary NUMERIC(10,2),
     hourly_rate NUMERIC(8,2),
+    commute_distance_km NUMERIC(5,2),
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP

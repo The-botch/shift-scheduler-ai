@@ -16,7 +16,7 @@ def normalize_staff_name(name):
     """
     スタッフ名を正規化して重複を防ぐ
     - Unicode正規化（NFKC）で異体字を統一
-    - 「（社員）」「(社員)」を削除
+    - 「（社員）」「(社員)」「(トライアル)」「（トライアル）」を削除
     - 前後の空白を削除
     """
     if not name:
@@ -25,9 +25,11 @@ def normalize_staff_name(name):
     # Unicode正規化（NFKC: 互換文字を標準形に変換）
     normalized = unicodedata.normalize('NFKC', name)
 
-    # 「（社員）」「(社員)」を削除
+    # 括弧内の役割表記を削除
     normalized = normalized.replace('（社員）', '').replace('(社員)', '')
     normalized = normalized.replace('社員', '')  # 括弧なしの「社員」も削除
+    normalized = normalized.replace('（トライアル）', '').replace('(トライアル)', '')
+    normalized = normalized.replace('トライアル', '')  # 括弧なしの「トライアル」も削除
 
     # 前後の空白を削除
     normalized = normalized.strip()
@@ -88,11 +90,14 @@ def pdf_to_data_rows(pdf_path):
                 skip_keywords = ['日付', '自由ヶ丘', '自由が丘', '祐天寺', '学大', '学⼤', '麻布台', '⿇布台', '渋谷', '渋⾕',
                                 'のシフト', 'L\'Atelier', 'Stand', 'Banh', 'Mi', 'COME', 'SHIBUYA', 'Bo', 'Bun']
 
-                for cell in header_row:
+                # ヘッダー行も日付列をスキップして処理（データ行と同じインデックスにする）
+                for cell in header_row[1:]:
                     if cell and cell.strip():
                         # スキップ対象かチェック
                         should_skip = any(keyword in cell for keyword in skip_keywords)
                         if should_skip:
+                            # スキップする場合もNone要素を追加してインデックスを保持
+                            staff_names.append(None)
                             continue
 
                         # 社員区分を判定（正規化前の元データで判定）
@@ -106,6 +111,9 @@ def pdf_to_data_rows(pdf_path):
                                 'name': name,
                                 'is_employee': '社員' if is_employee else 'アルバイト'
                             })
+                        else:
+                            # 空のセルもNone要素を追加してインデックスを保持
+                            staff_names.append(None)
 
                 # データ行を処理
                 for row in table[1:]:
@@ -132,6 +140,10 @@ def pdf_to_data_rows(pdf_path):
                     for i, cell in enumerate(row[1:], start=0):
                         if i >= len(staff_names):
                             break
+
+                        # Noneの場合（スキップされた列）は処理しない
+                        if staff_names[i] is None:
+                            continue
 
                         if not cell or cell.strip() in ['/', '-', '']:
                             continue

@@ -282,101 +282,69 @@ router.post('/work-hours', async (req, res) => {
       });
     }
 
-    let insertCount = 0;
-    let updateCount = 0;
+    // バッチINSERT用のクエリを構築
+    const values = [];
+    const placeholders = [];
+    let paramIndex = 1;
 
-    // 各行ごとに存在確認してINSERTまたはUPDATE
     for (const row of data) {
-      // 既存データを確認
-      const checkQuery = `
-        SELECT work_hours_id FROM ops.work_hours_actual
-        WHERE tenant_id = $1 AND store_id = $2 AND staff_id = $3 AND work_date = $4
-      `;
-      const checkResult = await query(checkQuery, [
+      // work_dateから年月を抽出
+      const workDate = new Date(row.shift_date);
+      const year = workDate.getFullYear();
+      const month = workDate.getMonth() + 1;
+
+      values.push(
         tenant_id,
         row.store_id || 1,
         row.staff_id,
-        row.shift_date
-      ]);
+        row.shift_date,
+        year,
+        month,
+        row.scheduled_start || null,
+        row.scheduled_end || null,
+        row.actual_start,
+        row.actual_end,
+        row.actual_hours,
+        row.break_minutes || 0,
+        row.is_overtime ? parseInt(row.overtime_minutes || 0) : 0,
+        row.is_late || false,
+        row.is_early_leave || false,
+        row.notes || null
+      );
 
-      if (checkResult.rows.length > 0) {
-        // 既存データがある場合はUPDATE
-        const updateQuery = `
-          UPDATE ops.work_hours_actual SET
-            scheduled_start = $1,
-            scheduled_end = $2,
-            actual_start = $3,
-            actual_end = $4,
-            actual_hours = $5,
-            break_minutes = $6,
-            overtime_minutes = $7,
-            is_late = $8,
-            is_early_leave = $9,
-            notes = $10,
-            updated_at = CURRENT_TIMESTAMP
-          WHERE tenant_id = $11 AND store_id = $12 AND staff_id = $13 AND work_date = $14
-        `;
-        await query(updateQuery, [
-          row.scheduled_start || null,
-          row.scheduled_end || null,
-          row.actual_start,
-          row.actual_end,
-          row.actual_hours,
-          row.break_minutes || 0,
-          row.is_overtime ? parseInt(row.overtime_minutes || 0) : 0,
-          row.is_late || false,
-          row.is_early_leave || false,
-          row.notes || null,
-          tenant_id,
-          row.store_id || 1,
-          row.staff_id,
-          row.shift_date
-        ]);
-        updateCount++;
-      } else {
-        // 既存データがない場合はINSERT
-        const insertQuery = `
-          INSERT INTO ops.work_hours_actual (
-            tenant_id, store_id, staff_id, work_date, year, month,
-            scheduled_start, scheduled_end, actual_start, actual_end,
-            actual_hours, break_minutes, overtime_minutes, is_late, is_early_leave, notes
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
-          )
-        `;
-
-        // work_dateから年月を抽出
-        const workDate = new Date(row.shift_date);
-        const year = workDate.getFullYear();
-        const month = workDate.getMonth() + 1;
-
-        await query(insertQuery, [
-          tenant_id,
-          row.store_id || 1,
-          row.staff_id,
-          row.shift_date,
-          year,
-          month,
-          row.scheduled_start || null,
-          row.scheduled_end || null,
-          row.actual_start,
-          row.actual_end,
-          row.actual_hours,
-          row.break_minutes || 0,
-          row.is_overtime ? parseInt(row.overtime_minutes || 0) : 0,
-          row.is_late || false,
-          row.is_early_leave || false,
-          row.notes || null
-        ]);
-        insertCount++;
-      }
+      placeholders.push(
+        `($${paramIndex}, $${paramIndex+1}, $${paramIndex+2}, $${paramIndex+3}, $${paramIndex+4}, $${paramIndex+5}, $${paramIndex+6}, $${paramIndex+7}, $${paramIndex+8}, $${paramIndex+9}, $${paramIndex+10}, $${paramIndex+11}, $${paramIndex+12}, $${paramIndex+13}, $${paramIndex+14}, $${paramIndex+15})`
+      );
+      paramIndex += 16;
     }
+
+    // ON CONFLICT DO UPDATEで既存データは更新、新規データは挿入
+    const insertQuery = `
+      INSERT INTO ops.work_hours_actual (
+        tenant_id, store_id, staff_id, work_date, year, month,
+        scheduled_start, scheduled_end, actual_start, actual_end,
+        actual_hours, break_minutes, overtime_minutes, is_late, is_early_leave, notes
+      ) VALUES ${placeholders.join(', ')}
+      ON CONFLICT (tenant_id, store_id, staff_id, work_date)
+      DO UPDATE SET
+        scheduled_start = EXCLUDED.scheduled_start,
+        scheduled_end = EXCLUDED.scheduled_end,
+        actual_start = EXCLUDED.actual_start,
+        actual_end = EXCLUDED.actual_end,
+        actual_hours = EXCLUDED.actual_hours,
+        break_minutes = EXCLUDED.break_minutes,
+        overtime_minutes = EXCLUDED.overtime_minutes,
+        is_late = EXCLUDED.is_late,
+        is_early_leave = EXCLUDED.is_early_leave,
+        notes = EXCLUDED.notes,
+        updated_at = CURRENT_TIMESTAMP
+    `;
+
+    await query(insertQuery, values);
 
     res.json({
       success: true,
-      message: `労働時間実績データを登録しました（新規: ${insertCount}件、更新: ${updateCount}件）`,
-      insertCount,
-      updateCount,
+      message: `労働時間実績データを登録しました（${data.length}件）`,
       total: data.length
     });
   } catch (error) {
@@ -403,121 +371,80 @@ router.post('/payroll', async (req, res) => {
       });
     }
 
-    let insertCount = 0;
-    let updateCount = 0;
+    // バッチINSERT用のクエリを構築
+    const values = [];
+    const placeholders = [];
+    let paramIndex = 1;
 
-    // 各行ごとに存在確認してINSERTまたはUPDATE
     for (const row of data) {
-      // 既存データを確認
-      const checkQuery = `
-        SELECT payroll_id FROM hr.payroll
-        WHERE tenant_id = $1 AND store_id = $2 AND year = $3 AND month = $4 AND staff_id = $5
-      `;
-      const checkResult = await query(checkQuery, [
+      values.push(
         tenant_id,
         row.store_id || 1,
         row.year,
         row.month,
-        row.staff_id
-      ]);
+        row.staff_id,
+        row.staff_name,
+        row.work_days,
+        row.work_hours,
+        row.base_salary,
+        row.overtime_pay || 0,
+        row.commute_allowance || 0,
+        row.other_allowances || 0,
+        row.gross_salary,
+        row.health_insurance || 0,
+        row.pension_insurance || 0,
+        row.employment_insurance || 0,
+        row.income_tax || 0,
+        row.resident_tax || 0,
+        row.total_deduction || 0,
+        row.net_salary,
+        row.payment_date || null,
+        row.payment_status || 'PENDING'
+      );
 
-      if (checkResult.rows.length > 0) {
-        // 既存データがある場合はUPDATE
-        const updateQuery = `
-          UPDATE hr.payroll SET
-            staff_name = $1,
-            work_days = $2,
-            work_hours = $3,
-            base_salary = $4,
-            overtime_pay = $5,
-            commute_allowance = $6,
-            other_allowances = $7,
-            gross_salary = $8,
-            health_insurance = $9,
-            pension_insurance = $10,
-            employment_insurance = $11,
-            income_tax = $12,
-            resident_tax = $13,
-            total_deduction = $14,
-            net_salary = $15,
-            payment_date = $16,
-            payment_status = $17,
-            updated_at = CURRENT_TIMESTAMP
-          WHERE tenant_id = $18 AND store_id = $19 AND year = $20 AND month = $21 AND staff_id = $22
-        `;
-        await query(updateQuery, [
-          row.staff_name,
-          row.work_days,
-          row.work_hours,
-          row.base_salary,
-          row.overtime_pay || 0,
-          row.commute_allowance || 0,
-          row.other_allowances || 0,
-          row.gross_salary,
-          row.health_insurance || 0,
-          row.pension_insurance || 0,
-          row.employment_insurance || 0,
-          row.income_tax || 0,
-          row.resident_tax || 0,
-          row.total_deduction || 0,
-          row.net_salary,
-          row.payment_date || null,
-          row.payment_status || 'PENDING',
-          tenant_id,
-          row.store_id || 1,
-          row.year,
-          row.month,
-          row.staff_id
-        ]);
-        updateCount++;
-      } else {
-        // 既存データがない場合はINSERT
-        const insertQuery = `
-          INSERT INTO hr.payroll (
-            tenant_id, store_id, year, month, staff_id, staff_name,
-            work_days, work_hours, base_salary, overtime_pay,
-            commute_allowance, other_allowances, gross_salary,
-            health_insurance, pension_insurance, employment_insurance,
-            income_tax, resident_tax, total_deduction, net_salary,
-            payment_date, payment_status
-          ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13,
-            $14, $15, $16, $17, $18, $19, $20, $21, $22
-          )
-        `;
-        await query(insertQuery, [
-          tenant_id,
-          row.store_id || 1,
-          row.year,
-          row.month,
-          row.staff_id,
-          row.staff_name,
-          row.work_days,
-          row.work_hours,
-          row.base_salary,
-          row.overtime_pay || 0,
-          row.commute_allowance || 0,
-          row.other_allowances || 0,
-          row.gross_salary,
-          row.health_insurance || 0,
-          row.pension_insurance || 0,
-          row.employment_insurance || 0,
-          row.income_tax || 0,
-          row.resident_tax || 0,
-          row.total_deduction || 0,
-          row.net_salary,
-          row.payment_date || null,
-          row.payment_status || 'PENDING'
-        ]);
-        insertCount++;
-      }
+      placeholders.push(
+        `($${paramIndex}, $${paramIndex+1}, $${paramIndex+2}, $${paramIndex+3}, $${paramIndex+4}, $${paramIndex+5}, $${paramIndex+6}, $${paramIndex+7}, $${paramIndex+8}, $${paramIndex+9}, $${paramIndex+10}, $${paramIndex+11}, $${paramIndex+12}, $${paramIndex+13}, $${paramIndex+14}, $${paramIndex+15}, $${paramIndex+16}, $${paramIndex+17}, $${paramIndex+18}, $${paramIndex+19}, $${paramIndex+20}, $${paramIndex+21})`
+      );
+      paramIndex += 22;
     }
+
+    // ON CONFLICT DO UPDATEで既存データは更新、新規データは挿入
+    const insertQuery = `
+      INSERT INTO hr.payroll (
+        tenant_id, store_id, year, month, staff_id, staff_name,
+        work_days, work_hours, base_salary, overtime_pay,
+        commute_allowance, other_allowances, gross_salary,
+        health_insurance, pension_insurance, employment_insurance,
+        income_tax, resident_tax, total_deduction, net_salary,
+        payment_date, payment_status
+      ) VALUES ${placeholders.join(', ')}
+      ON CONFLICT (tenant_id, store_id, year, month, staff_id)
+      DO UPDATE SET
+        staff_name = EXCLUDED.staff_name,
+        work_days = EXCLUDED.work_days,
+        work_hours = EXCLUDED.work_hours,
+        base_salary = EXCLUDED.base_salary,
+        overtime_pay = EXCLUDED.overtime_pay,
+        commute_allowance = EXCLUDED.commute_allowance,
+        other_allowances = EXCLUDED.other_allowances,
+        gross_salary = EXCLUDED.gross_salary,
+        health_insurance = EXCLUDED.health_insurance,
+        pension_insurance = EXCLUDED.pension_insurance,
+        employment_insurance = EXCLUDED.employment_insurance,
+        income_tax = EXCLUDED.income_tax,
+        resident_tax = EXCLUDED.resident_tax,
+        total_deduction = EXCLUDED.total_deduction,
+        net_salary = EXCLUDED.net_salary,
+        payment_date = EXCLUDED.payment_date,
+        payment_status = EXCLUDED.payment_status,
+        updated_at = CURRENT_TIMESTAMP
+    `;
+
+    await query(insertQuery, values);
 
     res.json({
       success: true,
-      message: `給与データを登録しました（新規: ${insertCount}件、更新: ${updateCount}件）`,
-      insertCount,
-      updateCount,
+      message: `給与データを登録しました（${data.length}件）`,
       total: data.length
     });
   } catch (error) {

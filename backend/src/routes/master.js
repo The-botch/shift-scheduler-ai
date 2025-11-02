@@ -118,30 +118,32 @@ router.get('/staff', async (req, res) => {
 
     let queryText = `
       SELECT
-        staff_id,
-        staff_code,
-        name,
-        email,
-        phone_number,
-        employment_type,
-        hire_date,
-        monthly_salary,
-        hourly_rate,
-        is_active,
-        store_id,
-        role_id
-      FROM hr.staff
-      WHERE tenant_id = $1 AND is_active = TRUE
+        s.staff_id,
+        s.staff_code,
+        s.name,
+        s.email,
+        s.phone_number,
+        s.employment_type,
+        s.hire_date,
+        s.monthly_salary,
+        s.hourly_rate,
+        s.is_active,
+        s.store_id,
+        s.role_id,
+        st.store_name
+      FROM hr.staff s
+      LEFT JOIN core.stores st ON s.store_id = st.store_id
+      WHERE s.tenant_id = $1 AND s.is_active = TRUE
     `;
 
     const params = [tenant_id];
 
     if (store_id) {
-      queryText += ' AND store_id = $2';
+      queryText += ' AND s.store_id = $2';
       params.push(store_id);
     }
 
-    queryText += ' ORDER BY staff_id';
+    queryText += ' ORDER BY s.staff_id';
 
     const result = await query(queryText, params);
 

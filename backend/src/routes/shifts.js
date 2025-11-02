@@ -121,7 +121,7 @@ router.get('/summary', async (req, res) => {
       SELECT
         sp.plan_year as year,
         sp.plan_month as month,
-        sp.status,
+        LOWER(sp.status) as status,
         sp.plan_id,
         sp.store_id,
         st.store_name,

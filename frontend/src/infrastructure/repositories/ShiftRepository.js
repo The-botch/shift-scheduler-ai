@@ -272,4 +272,149 @@ export class ShiftRepository {
       throw new Error(`希望シフト取得エラー: ${error.message}`)
     }
   }
+
+  /**
+   * シフトを更新
+   * @param {number} shiftId - シフトID
+   * @param {Object} data - 更新データ
+   * @param {number} tenantId - テナントID
+   * @returns {Promise<Object>} 更新後のシフトデータ
+   */
+  async updateShift(shiftId, data, tenantId = null) {
+    try {
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS}/${shiftId}?tenant_id=${actualTenantId}`
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'シフト更新に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      console.error('シフト更新エラー:', error)
+      throw new Error(`シフト更新エラー: ${error.message}`)
+    }
+  }
+
+  /**
+   * シフトを削除
+   * @param {number} shiftId - シフトID
+   * @param {number} tenantId - テナントID
+   * @returns {Promise<boolean>} 削除成功フラグ
+   */
+  async deleteShift(shiftId, tenantId = null) {
+    try {
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS}/${shiftId}?tenant_id=${actualTenantId}`
+      const response = await fetch(url, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'シフト削除に失敗しました')
+      }
+
+      return true
+    } catch (error) {
+      console.error('シフト削除エラー:', error)
+      throw new Error(`シフト削除エラー: ${error.message}`)
+    }
+  }
+
+  /**
+   * 新規シフトを作成
+   * @param {Object} data - シフトデータ
+   * @param {number} tenantId - テナントID
+   * @returns {Promise<Object>} 作成されたシフトデータ
+   */
+  async createShift(data, tenantId = null) {
+    try {
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS}`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          ...data,
+          tenant_id: actualTenantId,
+        }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'シフト作成に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      console.error('シフト作成エラー:', error)
+      throw new Error(`シフト作成エラー: ${error.message}`)
+    }
+  }
+
+  /**
+   * シフト計画のステータスを更新
+   * @param {number} planId - プランID
+   * @param {string} status - 新しいステータス (DRAFT/SUBMITTED/APPROVED/PUBLISHED/ARCHIVED)
+   * @param {number} tenantId - テナントID
+   * @returns {Promise<Object>} 更新後のプランデータ
+   */
+  async updatePlanStatus(planId, status, tenantId = null) {
+    try {
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS_PLANS}/${planId}/status?tenant_id=${actualTenantId}`
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'プランステータス更新に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      console.error('プランステータス更新エラー:', error)
+      throw new Error(`プランステータス更新エラー: ${error.message}`)
+    }
+  }
 }

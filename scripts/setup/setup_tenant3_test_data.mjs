@@ -138,6 +138,9 @@ async function deleteTransactionData(client) {
 async function registerMasterData(client) {
   console.log('\n📝 マスターデータを登録中...');
 
+  // スキーマ更新：通勤距離カラムを追加
+  await client.query('ALTER TABLE hr.staff ADD COLUMN IF NOT EXISTS commute_distance_km NUMERIC(5,2)');
+
   // 1. テナント登録（tenant_idを明示的に指定）
   console.log('\n1️⃣  テナント情報登録中...');
   await client.query(`
@@ -197,7 +200,7 @@ async function registerMasterData(client) {
   // 4. 役職登録
   console.log('\n4️⃣  役職登録中...');
   const roles = [
-    { code: 'STAFF', name: '一般スタッフ', order: 1 },
+    { code: 'STAFF', name: 'アルバイト', order: 1 },
     { code: 'SENIOR', name: '社員', order: 2 }
   ];
 
@@ -248,8 +251,101 @@ async function registerMasterData(client) {
   }
   console.log('✅ 店舗登録完了');
 
-  // 6. シフトパターン登録
-  console.log('\n6️⃣  シフトパターン登録中...');
+  // 6. 社会保険料率マスタ登録
+  console.log('\n6️⃣  社会保険料率マスタ登録中...');
+  const insuranceRates = [
+    {
+      insurance_type: 'HEALTH',
+      rate_name: '健康保険',
+      employee_rate: 0.0495,
+      employer_rate: 0.0495,
+      employee_percentage: 4.95,
+      employer_percentage: 4.95,
+      applicable_employment_types: 'MONTHLY,HOURLY'
+    },
+    {
+      insurance_type: 'PENSION',
+      rate_name: '厚生年金',
+      employee_rate: 0.0915,
+      employer_rate: 0.0915,
+      employee_percentage: 9.15,
+      employer_percentage: 9.15,
+      applicable_employment_types: 'MONTHLY,HOURLY'
+    },
+    {
+      insurance_type: 'EMPLOYMENT',
+      rate_name: '雇用保険',
+      employee_rate: 0.0060,
+      employer_rate: 0.0095,
+      employee_percentage: 0.60,
+      employer_percentage: 0.95,
+      applicable_employment_types: 'MONTHLY,HOURLY'
+    },
+    {
+      insurance_type: 'WORKERS_COMP',
+      rate_name: '労災保険',
+      employee_rate: 0.0000,
+      employer_rate: 0.0030,
+      employee_percentage: 0.00,
+      employer_percentage: 0.30,
+      applicable_employment_types: 'MONTHLY,HOURLY'
+    }
+  ];
+
+  for (const rate of insuranceRates) {
+    await client.query(`
+      INSERT INTO hr.insurance_rates (
+        tenant_id, insurance_type, rate_name,
+        employee_rate, employer_rate,
+        employee_percentage, employer_percentage,
+        applicable_employment_types,
+        effective_from, is_active
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, '2025-01-01', true)
+    `, [
+      tenantId,
+      rate.insurance_type,
+      rate.rate_name,
+      rate.employee_rate,
+      rate.employer_rate,
+      rate.employee_percentage,
+      rate.employer_percentage,
+      rate.applicable_employment_types
+    ]);
+    console.log(`  - ${rate.rate_name}: 従業員${rate.employee_percentage}% / 事業主${rate.employer_percentage}%`);
+  }
+  console.log('✅ 社会保険料率マスタ登録完了');
+
+  // 7. 通勤手当マスタ登録
+  console.log('\n7️⃣  通勤手当マスタ登録中...');
+  const commuteAllowances = [
+    { distance_from_km: 0, distance_to_km: 2, allowance_amount: 0, description: '2km未満' },
+    { distance_from_km: 2, distance_to_km: 5, allowance_amount: 3000, description: '2km以上5km未満' },
+    { distance_from_km: 5, distance_to_km: 10, allowance_amount: 6000, description: '5km以上10km未満' },
+    { distance_from_km: 10, distance_to_km: 15, allowance_amount: 9000, description: '10km以上15km未満' },
+    { distance_from_km: 15, distance_to_km: 999, allowance_amount: 12000, description: '15km以上' }
+  ];
+
+  for (const allowance of commuteAllowances) {
+    await client.query(`
+      INSERT INTO hr.commute_allowance (
+        tenant_id, distance_from_km, distance_to_km,
+        allowance_amount, description, is_active
+      )
+      VALUES ($1, $2, $3, $4, $5, true)
+    `, [
+      tenantId,
+      allowance.distance_from_km,
+      allowance.distance_to_km,
+      allowance.allowance_amount,
+      allowance.description
+    ]);
+    console.log(`  - ${allowance.description}: ¥${allowance.allowance_amount.toLocaleString()}`);
+  }
+  console.log('✅ 通勤手当マスタ登録完了');
+
+  // 8. シフトパターン登録
+  console.log('\n8️⃣  シフトパターン登録中...');
   const shiftPatterns = [
     { code: 'EARLY', name: '早番', start: '09:00', end: '17:00', break: 60 },
     { code: 'MID', name: '中番', start: '12:00', end: '20:00', break: 60 },
@@ -284,12 +380,16 @@ async function registerMasterData(client) {
       skip_empty_lines: true
     });
 
-    // スタッフ名の抽出と雇用形態判定
+    // スタッフ名の抽出と雇用形態判定、店舗別出勤回数の集計
     const staffSet = new Map();
+    const staffStoreCount = new Map(); // { staff_name: { store_name: count } }
+
     shifts.forEach(shift => {
       const staffName = shift.staff_name;
+      const storeName = shift.store_name;
       const empTypeFromCSV = shift.employment_type; // MONTHLY or HOURLY
 
+      // スタッフ情報の収集
       if (!staffSet.has(staffName)) {
         // CSVの雇用形態から判定
         // MONTHLY → FULL_TIME (正社員), HOURLY → PART_TIME (アルバイト)
@@ -301,35 +401,114 @@ async function registerMasterData(client) {
           empType
         });
       }
+
+      // 店舗別出勤回数の集計
+      if (!staffStoreCount.has(staffName)) {
+        staffStoreCount.set(staffName, new Map());
+      }
+      const storeCounts = staffStoreCount.get(staffName);
+      storeCounts.set(storeName, (storeCounts.get(storeName) || 0) + 1);
     });
+
+    // 各スタッフの最頻出店舗を計算
+    const staffDefaultStores = new Map();
+    for (const [staffName, storeCounts] of staffStoreCount.entries()) {
+      let maxCount = 0;
+      let mostFrequentStore = 'COME'; // デフォルト
+
+      for (const [storeName, count] of storeCounts.entries()) {
+        if (count > maxCount) {
+          maxCount = count;
+          mostFrequentStore = storeName;
+        }
+      }
+
+      staffDefaultStores.set(staffName, mostFrequentStore);
+    }
 
     console.log(`   スタッフ数: ${staffSet.size}名`);
 
     let count = 0;
+    let updated = 0;
+    let inserted = 0;
+
     for (const [staffName, info] of staffSet.entries()) {
       // スタッフコードを生成（STAFF_001, STAFF_002, ...）
       const staffCode = `STAFF_${String(count + 1).padStart(3, '0')}`;
 
-      await client.query(`
+      // 最頻出店舗を取得
+      const defaultStoreName = staffDefaultStores.get(staffName) || 'COME';
+      const defaultStoreId = storeIds[defaultStoreName] || storeIds['COME'];
+
+      // 仮のメールアドレスを生成（ローマ字化は簡易版）
+      const email = `${staffCode.toLowerCase()}@standbahnmi.example.com`;
+
+      // 仮の電話番号を生成
+      const phoneNumber = `090-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}-${String(Math.floor(Math.random() * 10000)).padStart(4, '0')}`;
+
+      // 給与設定（雇用形態に基づく）
+      let monthlySalary = null;
+      let hourlyRate = null;
+
+      if (info.empType === 'MONTHLY') {
+        // 社員：月給250,000円〜350,000円の範囲でランダム
+        monthlySalary = 250000 + Math.floor(Math.random() * 100000);
+      } else {
+        // アルバイト：時給1,200円〜1,500円の範囲でランダム
+        hourlyRate = 1200 + Math.floor(Math.random() * 300);
+      }
+
+      // 通勤距離を生成（0km〜20kmの範囲でランダム、0.5km刻み）
+      const commuteDistance = (Math.floor(Math.random() * 41) * 0.5).toFixed(1);
+
+      const result = await client.query(`
         INSERT INTO hr.staff (
-          tenant_id, staff_code, name, role_id, employment_type, store_id, hire_date, is_active
+          tenant_id, staff_code, name, role_id, employment_type, store_id,
+          hire_date, email, phone_number, monthly_salary, hourly_rate,
+          commute_distance_km, is_active
         )
-        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE, true)
-        ON CONFLICT DO NOTHING
+        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE, $7, $8, $9, $10, $11, true)
+        ON CONFLICT (tenant_id, staff_code)
+        DO UPDATE SET
+          name = EXCLUDED.name,
+          role_id = EXCLUDED.role_id,
+          employment_type = EXCLUDED.employment_type,
+          store_id = EXCLUDED.store_id,
+          email = EXCLUDED.email,
+          phone_number = EXCLUDED.phone_number,
+          monthly_salary = EXCLUDED.monthly_salary,
+          hourly_rate = EXCLUDED.hourly_rate,
+          commute_distance_km = EXCLUDED.commute_distance_km,
+          is_active = EXCLUDED.is_active
       `, [
         tenantId,
         staffCode,
         staffName,
         roleIds[info.role],
-        info.empType, // employment_typeは文字列
-        storeIds['COME'] // デフォルト店舗
+        info.empType,
+        defaultStoreId, // シフト履歴から計算したデフォルト店舗
+        email,
+        phoneNumber,
+        monthlySalary,
+        hourlyRate,
+        commuteDistance
       ]);
+
+      if (result.rowCount > 0) {
+        // ON CONFLICTのDO UPDATEはrowCount=1を返す
+        if (count === 0) {
+          inserted++;
+        } else {
+          updated++;
+        }
+      }
+
       count++;
       if (count <= 5 || count % 10 === 0 || count === staffSet.size) {
-        console.log(`  [${count}/${staffSet.size}] ${staffName} (${info.role})`);
+        console.log(`  [${count}/${staffSet.size}] ${staffName} (${info.role}) → ${defaultStoreName}`);
       }
     }
-    console.log(`✅ スタッフ登録完了: ${staffSet.size}名`);
+    console.log(`✅ スタッフ登録完了: ${staffSet.size}名 (新規: ${inserted}名, 更新: ${updated}名)`);
   }
 
   // 登録したIDを返す
