@@ -96,13 +96,20 @@ def generate_work_hours_csv(shifts, output_path, staff_map):
         month = date_obj.month
         day = date_obj.day
 
-        # 開始・終了時刻
-        start_time = shift['start_time']
-        end_time = shift['end_time']
+        # 開始・終了時刻（24時を超える時刻を正規化）
+        def normalize_time(time_str):
+            """24時を超える時刻を正規化 (例: 27:00 → 03:00)"""
+            h, m = map(int, time_str.split(':'))
+            if h >= 24:
+                h = h % 24
+            return f"{h:02d}:{m:02d}"
 
-        # 予定時間を計算
-        start_h, start_m = map(int, start_time.split(':'))
-        end_h, end_m = map(int, end_time.split(':'))
+        start_time = normalize_time(shift['start_time'])
+        end_time = normalize_time(shift['end_time'])
+
+        # 予定時間を計算（元の値を使用）
+        start_h, start_m = map(int, shift['start_time'].split(':'))
+        end_h, end_m = map(int, shift['end_time'].split(':'))
 
         start_minutes = start_h * 60 + start_m
         end_minutes = end_h * 60 + end_m
