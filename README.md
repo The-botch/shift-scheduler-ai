@@ -146,6 +146,22 @@ git commit -m "commit message"
 git push origin feature/branch-name
 ```
 
+## dev環境（工事中）
+### DB
+- DBはneonを使います
+
+### 接続手順（mac）
+1. postgresqlをinstall
+```
+brew install postgresql
+```
+
+2. 接続（下記を実行）
+```
+PGPASSWORD=npg_gzpjw1PGrWK6 psql -h ep-still-sky-adajaflk.c-2.us-east-1.aws.neon.tech -p 5432 -U neondb_owner -d neondb
+```
+※渡邊が個人的に入れているDBクライアント（Sequal Ace）ではなぜか接続失敗するので確認中
+
 ## ライセンス
 
 MIT License
