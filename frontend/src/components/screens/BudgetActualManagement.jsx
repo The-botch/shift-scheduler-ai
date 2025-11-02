@@ -430,7 +430,7 @@ const BudgetActualManagement = ({
 
     try {
       // データの変換と検証
-      const formattedData = workHoursData.map((row, index) => {
+      const formattedDataWithDuplicates = workHoursData.map((row, index) => {
         const staffId = parseInt(row.staff_id)
         const storeId = staffIdToStoreIdMap[staffId]
 
@@ -455,6 +455,19 @@ const BudgetActualManagement = ({
           notes: row.notes || '',
         }
       })
+
+      // 重複を除去（同じstore_id, staff_id, shift_dateの組み合わせは最後のレコードを使用）
+      const uniqueDataMap = new Map()
+      formattedDataWithDuplicates.forEach(record => {
+        const key = `${record.store_id}_${record.staff_id}_${record.shift_date}`
+        uniqueDataMap.set(key, record)
+      })
+      const formattedData = Array.from(uniqueDataMap.values())
+
+      const duplicatesCount = formattedDataWithDuplicates.length - formattedData.length
+      if (duplicatesCount > 0) {
+        console.log(`⚠️ ${duplicatesCount}件の重複レコードを除去しました`)
+      }
 
       // バッチサイズ（1000件ずつ送信してPostgreSQLのパラメータ制限を回避）
       const BATCH_SIZE = 1000
