@@ -1,11 +1,12 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { motion } from 'framer-motion'
-import { X } from 'lucide-react'
+import { X, Trash2 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { ROLE_COLORS, getRoleColor } from '../../config/colors'
 
-const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
+const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, onUpdate, onDelete }) => {
+  const [selectedShift, setSelectedShift] = useState(null)
   // 時間範囲（7:00 - 翌3:00）
   const startHour = 7
   const endHour = 27 // 翌日3:00を27:00として扱う
@@ -96,6 +97,82 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
 
   const { columns, shifts: processedShifts } = calculateOverlaps()
 
+  // 位置（%）を分に変換
+  const positionToMinutes = position => {
+    const startMinutes = startHour * 60
+    const endMinutes = endHour * 60
+    const totalMinutes = endMinutes - startMinutes
+    return startMinutes + (position / 100) * totalMinutes
+  }
+
+  // 分を時間文字列に変換（例: 570 -> "09:30"）
+  const minutesToTimeString = minutes => {
+    let hour = Math.floor(minutes / 60)
+    const minute = Math.floor(minutes % 60)
+
+    // 24時以降は0時に戻す（例: 27:30 -> 03:30）
+    if (hour >= 24) {
+      hour = hour - 24
+    }
+
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  }
+
+  // ドラッグ終了時の処理
+  const handleDragEnd = (shift, event, info) => {
+    if (!editable || !onUpdate) return
+
+    const container = event.target.closest('.shift-container')
+    if (!container) return
+
+    const containerRect = container.getBoundingClientRect()
+    const containerHeight = containerRect.height
+
+    // ドラッグ後の位置を計算
+    const currentTop = parseFloat(shift._currentTop || getShiftStyle(shift).top)
+    const deltaY = info.offset.y
+    const newTopPercent = currentTop + (deltaY / containerHeight) * 100
+
+    // パーセントを分に変換
+    const newStartMinutes = positionToMinutes(Math.max(0, Math.min(100, newTopPercent)))
+
+    // 元の勤務時間を計算
+    const originalStartMinutes = timeToMinutes(shift.start_time)
+    const originalEndMinutes = timeToMinutes(shift.end_time)
+    const duration = originalEndMinutes - originalStartMinutes
+
+    // 新しい終了時間を計算
+    const newEndMinutes = newStartMinutes + duration
+
+    // 15分単位に丸める
+    const roundedStartMinutes = Math.round(newStartMinutes / 15) * 15
+    const roundedEndMinutes = Math.round(newEndMinutes / 15) * 15
+
+    // 時間文字列に変換
+    const newStartTime = minutesToTimeString(roundedStartMinutes)
+    const newEndTime = minutesToTimeString(roundedEndMinutes)
+
+    // 更新を実行
+    if (newStartTime !== shift.start_time || newEndTime !== shift.end_time) {
+      onUpdate(shift.shift_id, {
+        start_time: newStartTime,
+        end_time: newEndTime
+      })
+    }
+
+    // 選択解除
+    shift._currentTop = null
+  }
+
+  // 削除ハンドラー
+  const handleDelete = (shift) => {
+    if (!editable || !onDelete) return
+
+    if (confirm(`${shift.staff_name}のシフト（${shift.start_time}-${shift.end_time}）を削除しますか？`)) {
+      onDelete(shift.shift_id)
+    }
+  }
+
   // 凡例用の役職リスト（コンフィグから生成）
   const roleLegend = Object.keys(ROLE_COLORS).map(roleName => ({
     name: roleName,
@@ -163,7 +240,7 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
               ))}
 
               {/* シフトブロック */}
-              <div className="absolute inset-0">
+              <div className="absolute inset-0 shift-container">
                 {processedShifts.map((shift, index) => {
                   const style = getShiftStyle(shift)
                   const columnWidth = 100 / columns
@@ -172,10 +249,17 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
                   return (
                     <motion.div
                       key={shift.shift_id || index}
+                      drag={editable ? "y" : false}
+                      dragConstraints={{ top: 0, bottom: 0 }}
+                      dragElastic={0}
+                      dragMomentum={false}
+                      onDragEnd={(event, info) => handleDragEnd(shift, event, info)}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
-                      className={`absolute rounded-lg shadow-md border-2 border-white overflow-hidden ${getRoleColor(shift.role).bg}`}
+                      className={`absolute rounded-lg shadow-md border-2 overflow-hidden ${
+                        editable ? 'cursor-move hover:shadow-lg' : ''
+                      } ${shift.modified_flag ? 'border-yellow-400' : 'border-white'} ${getRoleColor(shift.role).bg}`}
                       style={{
                         top: style.top,
                         height: style.height,
@@ -183,8 +267,10 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
                         width: `${columnWidth - 1}%`,
                         minHeight: '40px',
                       }}
+                      whileHover={editable ? { scale: 1.02 } : {}}
+                      whileDrag={{ scale: 1.05, zIndex: 50 }}
                     >
-                      <div className="p-2 h-full text-white">
+                      <div className="p-2 h-full text-white relative">
                         <div className="font-bold text-sm mb-0.5 truncate">{shift.staff_name}</div>
                         <div className="text-xs opacity-90">{shift.role}</div>
                         <div className="text-xs mt-1 font-medium">
@@ -197,6 +283,18 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month }) => {
                           <div className="text-xs mt-1 bg-yellow-400 text-yellow-900 px-1 py-0.5 rounded inline-block">
                             ⚠️ 変更
                           </div>
+                        )}
+                        {editable && onDelete && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              handleDelete(shift)
+                            }}
+                            className="absolute top-1 right-1 p-1 bg-red-500 hover:bg-red-600 rounded opacity-0 hover:opacity-100 transition-opacity"
+                            title="削除"
+                          >
+                            <Trash2 className="h-3 w-3" />
+                          </button>
                         )}
                       </div>
                     </motion.div>

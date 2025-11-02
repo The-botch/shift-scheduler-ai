@@ -48,6 +48,10 @@ function AppContent() {
   const [shiftManagementKey, setShiftManagementKey] = useState(0) // 再マウント用
   const [isMenuOpen, setIsMenuOpen] = useState(false)
 
+  // 店舗フィルター（ShiftManagementとHistoryで共通）
+  const [selectedStore, setSelectedStore] = useState('all')
+  const [availableStores, setAvailableStores] = useState([])
+
   const nextStep = () => {
     if (currentStep < 3) {
       setCurrentStep(currentStep + 1)
@@ -362,11 +366,59 @@ function AppContent() {
     setShowShiftManagement(true)
   }
 
-  const handleSelectCreationMethod = (methodId) => {
+  const handleSelectCreationMethod = async (methodId) => {
     // 作成方法選択後の処理
-    if (methodId === 'manual' || methodId === 'ai' || methodId === 'csv') {
-      // どの方法でも下書き編集画面に遷移
-      // TODO: 将来的にAIやCSVの専用画面を作る場合はここで分岐
+    if (methodId === 'ai') {
+      // AI自動生成を実行
+      try {
+        const year = selectedShiftForEdit?.year || new Date().getFullYear()
+        const month = selectedShiftForEdit?.month || new Date().getMonth() + 1
+
+        console.log('[AI自動生成] 開始:', { year, month })
+
+        const response = await fetch('http://localhost:3001/api/shifts/plans/generate-ai', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            tenant_id: 1,
+            store_id: 1,
+            year,
+            month,
+            created_by: 1,
+          }),
+        })
+
+        const data = await response.json()
+
+        if (!response.ok) {
+          console.error('[AI自動生成] エラー:', data)
+          alert(`AI自動生成に失敗しました: ${data.error || data.message}`)
+          return
+        }
+
+        console.log('[AI自動生成] 成功:', data)
+
+        // 制約違反がある場合は警告を表示
+        if (data.data.validation && !data.data.validation.is_valid) {
+          const errorCount = data.data.validation.error || 0
+          const warningCount = data.data.validation.warning || 0
+          const message = `AI自動生成が完了しました。\n\nシフト数: ${data.data.shifts_count}件\n\n⚠️ 制約違反が検出されました:\n- エラー: ${errorCount}件\n- 警告: ${warningCount}件\n\n下書き編集画面で確認・修正してください。`
+          alert(message)
+        } else {
+          alert(`AI自動生成が完了しました!\n\nシフト数: ${data.data.shifts_count}件\n\n下書き編集画面で確認できます。`)
+        }
+
+        // 下書き編集画面に遷移
+        setShowShiftCreationMethodSelector(false)
+        setShowDraftShiftEditor(true)
+      } catch (error) {
+        console.error('[AI自動生成] ネットワークエラー:', error)
+        alert(`AI自動生成中にエラーが発生しました: ${error.message}`)
+      }
+    } else if (methodId === 'manual' || methodId === 'csv') {
+      // 手動入力 or CSVインポート -> 下書き編集画面に遷移
       setShowShiftCreationMethodSelector(false)
       setShowDraftShiftEditor(true)
     }
@@ -557,6 +609,10 @@ function AppContent() {
           onStoreManagement={goToStoreManagement}
           onConstraintManagement={goToConstraintManagement}
           onBudgetActualManagement={goToBudgetActualManagement}
+          selectedStore={selectedStore}
+          setSelectedStore={setSelectedStore}
+          availableStores={availableStores}
+          setAvailableStores={setAvailableStores}
         />
       )
     }

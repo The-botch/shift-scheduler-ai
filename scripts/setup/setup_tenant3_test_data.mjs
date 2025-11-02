@@ -450,7 +450,7 @@ async function registerMasterData(client) {
       let monthlySalary = null;
       let hourlyRate = null;
 
-      if (info.empType === 'MONTHLY') {
+      if (info.empType === 'FULL_TIME') {
         // 社員：月給250,000円〜350,000円の範囲でランダム
         monthlySalary = 250000 + Math.floor(Math.random() * 100000);
       } else {

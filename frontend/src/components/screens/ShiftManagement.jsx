@@ -10,6 +10,7 @@ import {
   Check,
   Clock,
   History as HistoryIcon,
+  Store,
 } from 'lucide-react'
 import History from './History'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
@@ -43,10 +44,14 @@ const ShiftManagement = ({
   onStoreManagement,
   onConstraintManagement,
   onBudgetActualManagement,
+  selectedStore,
+  setSelectedStore,
+  availableStores,
+  setAvailableStores,
 }) => {
   const [activeTab, setActiveTab] = useState('management') // 'management' or 'history'
   const [initialHistoryMonth, setInitialHistoryMonth] = useState(null)
-  const [shifts, setShifts] = useState([])
+  const [shifts, setShifts] = useState([]) // マトリックスデータ: { storeId, storeName, months: [{month, status, ...}] }
   const [loading, setLoading] = useState(true)
   const [creatingShift, setCreatingShift] = useState(null) // 作成中の月を追跡
 
@@ -66,51 +71,84 @@ const ShiftManagement = ({
     loadShiftSummary()
   }, [])
 
+  // 店舗選択が変更されたときに再読み込み
+  useEffect(() => {
+    if (activeTab === 'management') {
+      loadShiftSummary()
+    }
+  }, [selectedStore])
+
   const loadShiftSummary = async () => {
     try {
       setLoading(true)
       const summary = await shiftRepository.getSummary({ year: currentYear })
 
-      // 現在の月と次月のみ表示
+      // 店舗リストを抽出してグローバル状態に保存
+      const stores = Array.from(
+        new Map(
+          summary
+            .filter(s => s.store_id && s.store_name)
+            .map(s => [s.store_id, { store_id: s.store_id, store_name: s.store_name }])
+        ).values()
+      ).sort((a, b) => a.store_name.localeCompare(b.store_name))
+      setAvailableStores(stores)
+
+      // 表示する月（現在月と次月）
       const now = new Date()
       const currentMonth = now.getMonth() + 1 // 1-12
       const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
       const monthsToShow = [currentMonth, nextMonth]
 
-      // 月別にグループ化してUI用のデータに変換
-      const monthlyShifts = monthsToShow.map(month => {
-        const monthData = summary.find(s => parseInt(s.month) === month)
+      // 店舗フィルタを適用
+      const filteredStores = selectedStore === 'all'
+        ? stores
+        : stores.filter(s => s.store_id === parseInt(selectedStore))
 
-        // データベースのステータス（大文字）を小文字に変換
-        let status = 'not_started'
-        if (monthData && monthData.status) {
-          status = monthData.status.toLowerCase()
-        } else if (monthData) {
-          status = 'completed'
-        }
+      // マトリックスデータ構造を生成: 店舗×月
+      const matrixData = filteredStores.map(store => {
+        const months = monthsToShow.map(month => {
+          const monthData = summary.find(
+            s => parseInt(s.store_id) === store.store_id && parseInt(s.month) === month
+          )
 
-        // 対象月が過去の場合（現在月より前）はCOMPLETEDに変更
-        const targetDate = new Date(currentYear, month - 1, 1)
-        const todayDate = new Date()
-        const currentMonthDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1)
+          // ステータス判定
+          let status = 'not_started'
+          if (monthData && monthData.status) {
+            status = monthData.status.toLowerCase()
+          } else if (monthData) {
+            status = 'completed'
+          }
 
-        // 現在月は含めず、過去月のみcompletedにする
-        if (targetDate < currentMonthDate && monthData) {
-          status = 'completed'
-        }
+          // 過去月は自動的にcompleted扱い
+          const targetDate = new Date(currentYear, month - 1, 1)
+          const todayDate = new Date()
+          const currentMonthDate = new Date(todayDate.getFullYear(), todayDate.getMonth(), 1)
+
+          if (targetDate < currentMonthDate && monthData) {
+            status = 'completed'
+          }
+
+          return {
+            month,
+            year: currentYear,
+            storeId: store.store_id,
+            storeName: store.store_name,
+            planId: monthData ? monthData.plan_id : null,
+            status,
+            createdAt: monthData ? new Date().toISOString().split('T')[0] : null,
+            staff: monthData ? parseInt(monthData.staff_count) : 0,
+            totalHours: monthData ? parseFloat(monthData.total_hours) || 0 : 0,
+          }
+        })
 
         return {
-          month,
-          year: currentYear,
-          planId: monthData ? monthData.plan_id : null,
-          status,
-          createdAt: monthData ? new Date().toISOString().split('T')[0] : null,
-          staff: monthData ? parseInt(monthData.staff_count) : 0,
-          totalHours: monthData ? parseFloat(monthData.total_hours) || 0 : 0,
+          storeId: store.store_id,
+          storeName: store.store_name,
+          months
         }
       })
 
-      setShifts(monthlyShifts)
+      setShifts(matrixData)
     } catch (error) {
       console.error('シフトサマリー取得エラー:', error)
       setShifts([])
@@ -322,83 +360,97 @@ const ShiftManagement = ({
 
         {/* タブコンテンツ */}
         {activeTab === 'history' ? (
-          <History initialMonth={initialHistoryMonth} />
+          <History initialMonth={initialHistoryMonth} selectedStore={selectedStore} setSelectedStore={setSelectedStore} availableStores={availableStores} />
         ) : (
           <div>
-            {/* シフト一覧 */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {shifts.map(shift => {
-                const statusInfo = getStatusInfo(shift.status)
-                const StatusIcon = statusInfo.icon
-
-                return (
-                  <motion.div
-                    key={shift.month}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: shift.month * 0.1 }}
-                  >
-                    <Card
-                      className={`shadow-lg border-2 hover:shadow-xl transition-shadow ${
-                        shift.status === 'completed'
-                          ? 'border-green-500'
-                          : shift.status === 'first_plan_approved' || shift.status === 'in_progress'
-                            ? 'border-blue-500'
-                            : 'border-gray-200'
-                      }`}
-                    >
-                      <CardHeader className="pb-3">
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-xl">{shift.month}月</CardTitle>
-                          <Calendar className="h-5 w-5 text-gray-400" />
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-3">
-                        {/* ステータスバッジ */}
-                        <div
-                          className={`flex items-center gap-2 px-3 py-2 rounded-lg bg-${statusInfo.color}-50 border border-${statusInfo.color}-200`}
-                        >
-                          <StatusIcon className={`h-4 w-4 text-${statusInfo.color}-600`} />
-                          <span className={`text-sm font-medium text-${statusInfo.color}-800`}>
-                            {statusInfo.label}
-                          </span>
-                        </div>
-
-                        {/* シフト情報 */}
-                        {shift.status !== 'not_started' && (
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">スタッフ数</span>
-                              <span className="font-bold">{shift.staff}名</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">総労働時間</span>
-                              <span className="font-bold">{shift.totalHours}h</span>
-                            </div>
-                            {shift.createdAt && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">作成日</span>
-                                <span className="font-bold text-xs">{shift.createdAt}</span>
-                              </div>
-                            )}
-                          </div>
-                        )}
-
-                        {shift.status === 'not_started' && (
-                          <div className="py-6 text-center text-gray-400">
-                            <Plus className="h-8 w-8 mx-auto mb-2" />
-                            <p className="text-sm">未作成</p>
-                          </div>
-                        )}
-
-                        {/* アクションボタン */}
-                        <div className="pt-2">{getActionButton(shift)}</div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                )
-              })}
+            {/* 店舗フィルター */}
+            <div className="mb-6 flex items-center gap-4">
+              <Store className="h-5 w-5 text-gray-600" />
+              <select
+                value={selectedStore}
+                onChange={(e) => setSelectedStore(e.target.value)}
+                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="all">全店舗</option>
+                {availableStores.map(store => (
+                  <option key={store.store_id} value={store.store_id}>
+                    {store.store_name}
+                  </option>
+                ))}
+              </select>
             </div>
+
+            {/* マトリックステーブル */}
+            {loading ? (
+              <div className="text-center py-12">
+                <Clock className="h-8 w-8 mx-auto mb-2 animate-spin text-gray-400" />
+                <p className="text-gray-600">読み込み中...</p>
+              </div>
+            ) : shifts.length === 0 ? (
+              <div className="text-center py-12">
+                <p className="text-gray-600">シフトデータがありません</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full border-collapse bg-white shadow-lg rounded-lg overflow-hidden">
+                  <thead className="bg-gray-100">
+                    <tr>
+                      <th className="px-6 py-4 text-left font-semibold text-gray-700 border-b-2 border-gray-300">
+                        店舗
+                      </th>
+                      {shifts[0]?.months.map(monthData => (
+                        <th key={monthData.month} className="px-6 py-4 text-center font-semibold text-gray-700 border-b-2 border-gray-300">
+                          {monthData.month}月
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {shifts.map((storeData, storeIndex) => (
+                      <tr key={storeData.storeId} className={storeIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                        <td className="px-6 py-4 font-medium text-gray-900 border-b border-gray-200">
+                          {storeData.storeName}
+                        </td>
+                        {storeData.months.map(monthData => {
+                          const statusInfo = getStatusInfo(monthData.status)
+                          const StatusIcon = statusInfo.icon
+
+                          return (
+                            <td key={`${storeData.storeId}-${monthData.month}`} className="px-4 py-4 border-b border-gray-200">
+                              <div className="space-y-2">
+                                {/* ステータスバッジ */}
+                                <div className={`flex items-center justify-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                                  statusInfo.color === 'green' ? 'bg-green-100 text-green-800' :
+                                  statusInfo.color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                                  statusInfo.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  <StatusIcon className="h-3 w-3" />
+                                  <span>{statusInfo.label}</span>
+                                </div>
+
+                                {/* シフト情報 */}
+                                {monthData.status !== 'not_started' && (
+                                  <div className="text-xs text-gray-600 text-center">
+                                    <div>{monthData.staff}名</div>
+                                    <div>{monthData.totalHours}h</div>
+                                  </div>
+                                )}
+
+                                {/* アクションボタン */}
+                                <div className="flex justify-center">
+                                  {getActionButton(monthData)}
+                                </div>
+                              </div>
+                            </td>
+                          )
+                        })}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
       </motion.div>

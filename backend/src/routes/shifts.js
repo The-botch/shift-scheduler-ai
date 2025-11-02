@@ -3,6 +3,7 @@ import { query } from '../config/database.js';
 import DEFAULT_CONFIG from '../config/defaults.js';
 import { SHIFT_PREFERENCE_STATUS, VALID_PREFERENCE_STATUSES } from '../config/constants.js';
 import { VALIDATION_MESSAGES } from '../config/validation.js';
+import ShiftGenerationService from '../services/shift/ShiftGenerationService.js';
 
 const router = express.Router();
 
@@ -608,6 +609,212 @@ router.post('/plans/generate', async (req, res) => {
     res.status(500).json({
       success: false,
       error: error.message
+    });
+  }
+});
+
+/**
+ * AIシフト自動生成
+ * POST /api/shifts/plans/generate-ai
+ *
+ * Request Body:
+ * {
+ *   tenant_id: number,
+ *   store_id: number,
+ *   year: number,
+ *   month: number,
+ *   created_by?: number,
+ *   options?: {
+ *     model?: string (default: 'gpt-4-turbo-preview'),
+ *     temperature?: number (default: 0.7),
+ *     maxRetries?: number (default: 3)
+ *   }
+ * }
+ */
+router.post('/plans/generate-ai', async (req, res) => {
+  try {
+    const { tenant_id, store_id, year, month, created_by, options = {} } = req.body;
+
+    // 必須項目のバリデーション
+    if (!tenant_id || !store_id || !year || !month) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        required: ['tenant_id', 'store_id', 'year', 'month']
+      });
+    }
+
+    // year と month のバリデーション
+    if (year < 2000 || year > 2100) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid year: must be between 2000 and 2100'
+      });
+    }
+
+    if (month < 1 || month > 12) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid month: must be between 1 and 12'
+      });
+    }
+
+    // 過去月チェック
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth() + 1;
+
+    if (year < currentYear || (year === currentYear && month < currentMonth)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Cannot create shifts for past months',
+        message: `${year}年${month}月は過去の月のため、シフトを作成できません。`
+      });
+    }
+
+    console.log('[API] AI自動生成リクエスト:', { tenant_id, store_id, year, month, options });
+
+    // AIシフト生成サービスを実行
+    const generationService = new ShiftGenerationService();
+    const result = await generationService.generateShifts(
+      tenant_id,
+      store_id,
+      year,
+      month,
+      options
+    );
+
+    // トランザクション開始
+    await query('BEGIN');
+
+    try {
+      // 既存のシフト計画をチェック
+      const existingPlan = await query(`
+        SELECT plan_id, status FROM ops.shift_plans
+        WHERE tenant_id = $1 AND store_id = $2 AND plan_year = $3 AND plan_month = $4
+        FOR UPDATE
+      `, [tenant_id, store_id, year, month]);
+
+      let planId;
+      let isUpdate = false;
+
+      if (existingPlan.rows.length > 0) {
+        // 既存プランがある場合は更新
+        planId = existingPlan.rows[0].plan_id;
+        isUpdate = true;
+
+        // 既存シフトを削除
+        await query('DELETE FROM ops.shifts WHERE plan_id = $1', [planId]);
+      } else {
+        // 新規プラン作成
+        const periodStart = new Date(year, month - 1, 1);
+        const periodEnd = new Date(year, month, 0);
+        const planCode = `PLAN-${year}${String(month).padStart(2, '0')}-AI`;
+        const planName = `${year}年${month}月シフト（AI生成）`;
+
+        const planResult = await query(`
+          INSERT INTO ops.shift_plans (
+            tenant_id, store_id, plan_year, plan_month,
+            plan_code, plan_name, period_start, period_end,
+            status, generation_type, ai_model_version, created_by
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'DRAFT', 'AI_GENERATED', $9, $10)
+          RETURNING plan_id
+        `, [
+          tenant_id, store_id, year, month,
+          planCode, planName, periodStart, periodEnd,
+          options.model || 'gpt-4-turbo-preview',
+          created_by || null
+        ]);
+
+        planId = planResult.rows[0].plan_id;
+      }
+
+      // AIが生成したシフトをDBに登録
+      let insertedCount = 0;
+      for (const shift of result.shifts) {
+        await query(`
+          INSERT INTO ops.shifts (
+            tenant_id, store_id, plan_id, staff_id, shift_date, pattern_id,
+            start_time, end_time, break_minutes, total_hours, labor_cost,
+            is_preferred, is_modified, notes
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, false, false, 'AI自動生成')
+        `, [
+          tenant_id, store_id, planId, shift.staff_id, shift.shift_date, shift.pattern_id,
+          shift.start_time, shift.end_time, shift.break_minutes,
+          null, null // total_hours, labor_cost は後で集計
+        ]);
+
+        insertedCount++;
+      }
+
+      // シフト計画の集計値を更新
+      const summaryResult = await query(`
+        SELECT
+          COUNT(*) as shift_count,
+          SUM(total_hours) as total_hours,
+          SUM(labor_cost) as total_cost
+        FROM ops.shifts
+        WHERE plan_id = $1
+      `, [planId]);
+
+      const summary = summaryResult.rows[0];
+
+      await query(`
+        UPDATE ops.shift_plans
+        SET
+          total_labor_hours = $1,
+          total_labor_cost = $2,
+          constraint_violations = $3
+        WHERE plan_id = $4
+      `, [
+        parseFloat(summary.total_hours || 0),
+        parseInt(summary.total_cost || 0),
+        result.validation.violations.length,
+        planId
+      ]);
+
+      // コミット
+      await query('COMMIT');
+
+      res.status(isUpdate ? 200 : 201).json({
+        success: true,
+        message: isUpdate
+          ? `AI自動生成でシフトを更新しました (${insertedCount}件)`
+          : `AI自動生成でシフトを作成しました (${insertedCount}件)`,
+        is_update: isUpdate,
+        data: {
+          plan_id: planId,
+          year,
+          month,
+          shifts_count: insertedCount,
+          validation: result.validation.summary,
+          violations: result.validation.violations,
+          metadata: result.metadata
+        }
+      });
+
+    } catch (dbError) {
+      await query('ROLLBACK');
+      throw dbError;
+    }
+
+  } catch (error) {
+    console.error('[API] AI自動生成エラー:', error);
+
+    // ShiftGenerationServiceからのエラー
+    if (error.success === false) {
+      return res.status(500).json({
+        success: false,
+        error: error.error,
+        phase: error.phase,
+        elapsed_ms: error.elapsed_ms
+      });
+    }
+
+    // その他のエラー
+    res.status(500).json({
+      success: false,
+      error: error.message || 'AI自動生成中にエラーが発生しました'
     });
   }
 });
