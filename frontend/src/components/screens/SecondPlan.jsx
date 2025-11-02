@@ -710,7 +710,7 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
     })
   }
 
-  const sendMessage = (messageText = null) => {
+  const sendMessage = async (messageText = null) => {
     const textToSend = messageText || inputValue
     if (!textToSend.trim()) return
 
@@ -750,93 +750,116 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
       return
     }
 
-    // CSVソリューションから解決策を検索
-    setTimeout(() => {
-      // "X日の問題を解決してください" パターンをマッチ
-      const dateMatch = currentInput.match(/(\d+)日の問題を解決/)
+    try {
+      // ChatGPT APIを呼び出す
+      const systemPrompt = `あなたはシフト管理アシスタントです。現在、第2案を作成中です。
 
-      if (dateMatch) {
-        const targetDate = parseInt(dateMatch[1])
-        const issue = csvIssues.find(i => i.date === targetDate)
-        const solutions = csvSolutions.filter(s => s.date === targetDate)
+現在のシフト情報:
+- 年月: ${selectedShift?.year}年${selectedShift?.month}月
+- 問題: ${csvIssues.map(i => `${i.date}日: ${i.description}`).join(', ')}
 
-        if (issue && solutions.length > 0) {
-          // 解決策を構築
-          const changes = solutions
-            .map(sol => {
-              if (sol.action_type === 'add') {
-                return {
-                  date: sol.date,
-                  action: 'add',
-                  staff: sol.staff_to,
-                  time: sol.time_slot.replace(':00', ''),
-                  skill: sol.skill_level_to,
-                }
-              } else if (sol.action_type === 'modify') {
-                return {
-                  date: sol.date,
-                  action: 'modify',
-                  staff: sol.staff_from,
-                  newStaff: sol.staff_to,
-                  time: sol.time_slot.replace(':00', ''),
-                  skill: sol.skill_level_to,
-                }
-              }
-              return null
-            })
-            .filter(c => c !== null)
+ユーザーの質問に答え、必要に応じてシフトの修正を提案してください。
+修正を提案する場合は、以下のJSON形式で提案を含めてください:
 
-          const analysisContent = `📋 変更予定:\n• ${issue.description}\n\n⚠️ 影響分析:\n${solutions.map(s => `• ${s.expected_improvement}`).join('\n')}\n${solutions.map(s => `• ${s.implementation_note}`).join('\n')}\n\nこの変更を実行しますか？「OK」と入力してください。`
+{
+  "message": "修正の説明",
+  "changes": [
+    {
+      "date": 15,
+      "action": "modify",
+      "shift_id": 123,
+      "start_time": "09:00",
+      "end_time": "18:00"
+    }
+  ]
+}`
 
-          const responseContent = `✅ 変更を実行しました\n• ${issue.date}日の${issue.issue_type}問題を解決\n${solutions.map(s => `• ${s.expected_improvement}`).join('\n')}`
+      const response = await fetch('http://localhost:3001/api/openai/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            { role: 'system', content: systemPrompt },
+            ...messages.slice(-5).map(m => ({
+              role: m.type === 'user' ? 'user' : 'assistant',
+              content: m.content
+            })),
+            { role: 'user', content: currentInput }
+          ],
+          temperature: 0.7,
+        }),
+      })
 
-          const aiResponse = {
-            id: messages.length + 2,
-            type: 'assistant',
-            content: analysisContent,
-            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+      const data = await response.json()
+      let aiContent = data.choices[0].message.content
+
+      // JSON形式の修正提案を解析
+      let suggestedChanges = null
+      const jsonMatch = aiContent.match(/```json\n([\s\S]*?)\n```/)
+      if (jsonMatch) {
+        try {
+          const parsed = JSON.parse(jsonMatch[1])
+          if (parsed.changes) {
+            suggestedChanges = parsed.changes
+            // JSONコードブロックを表示から除去
+            aiContent = aiContent.replace(/```json\n[\s\S]*?\n```/, '').trim()
           }
-
-          setMessages(prev => [...prev, aiResponse])
-          setPendingChange({
-            changes,
-            response: responseContent,
-          })
-          scrollToBottom()
-        } else {
-          const aiResponse = {
-            id: messages.length + 2,
-            type: 'assistant',
-            content: `${targetDate}日の問題に対する解決策が見つかりませんでした。`,
-            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-          }
-          setMessages(prev => [...prev, aiResponse])
-          scrollToBottom()
+        } catch (e) {
+          console.error('JSON解析エラー:', e)
         }
-      } else {
-        const aiResponse = {
-          id: messages.length + 2,
-          type: 'assistant',
-          content:
-            '申し訳ございませんが、その指示は認識できませんでした。\n\n問題を解決するには「X日の問題を解決してください」と入力してください。',
-          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-        }
-        setMessages(prev => [...prev, aiResponse])
-        scrollToBottom()
       }
+
+      const aiResponse = {
+        id: messages.length + 2,
+        type: 'assistant',
+        content: aiContent,
+        time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+        suggestedChanges: suggestedChanges,
+      }
+
+      setMessages(prev => [...prev, aiResponse])
       setIsTyping(false)
-    }, 2000)
+      scrollToBottom()
+    } catch (error) {
+      console.error('ChatGPT API呼び出しエラー:', error)
+      const aiResponse = {
+        id: messages.length + 2,
+        type: 'assistant',
+        content: `エラーが発生しました: ${error.message}\n\n申し訳ございませんが、再度お試しください。`,
+        time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+      }
+      setMessages(prev => [...prev, aiResponse])
+      setIsTyping(false)
+      scrollToBottom()
+    }
   }
 
   const handleDayClick = date => {
+    // selectedShiftから年月を取得
+    const year = selectedShift?.year || new Date().getFullYear()
+    const month = selectedShift?.month || new Date().getMonth() + 1
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+
     // CSVデータから該当日のシフトを取得
-    const dayShiftsData = csvShifts.filter(s => s.date === date)
+    const dayShiftsData = csvShifts.filter(s => {
+      // s.dateが数値の場合と文字列の場合の両方に対応
+      if (typeof s.date === 'number') {
+        return s.date === date
+      } else if (typeof s.shift_date === 'string') {
+        return s.shift_date.startsWith(dateStr)
+      }
+      return s.date === date
+    })
 
     // ShiftTimelineコンポーネント用のフォーマットに変換
     const formattedShifts = dayShiftsData.map(shift => {
       const staffInfo = staffMap[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
       return {
         shift_id: shift.shift_id,
+        staff_id: shift.staff_id,
         staff_name: staffInfo.name,
         role: staffInfo.role_name,
         start_time: shift.start_time,
@@ -855,46 +878,120 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
     setDayShifts([])
   }
 
+  // シフト更新ハンドラー
+  const handleUpdateShift = async (shiftId, updates) => {
+    try {
+      // バックエンドAPIでシフトを更新
+      await shiftRepository.updateShift(shiftId, updates)
+
+      // ローカルステートを更新
+      setCsvShifts(prev =>
+        prev.map(shift =>
+          shift.shift_id === shiftId
+            ? { ...shift, ...updates, is_modified: true }
+            : shift
+        )
+      )
+
+      // 表示中の日のシフトも更新
+      if (selectedDate) {
+        setDayShifts(prev =>
+          prev.map(shift =>
+            shift.shift_id === shiftId
+              ? { ...shift, ...updates, modified_flag: true }
+              : shift
+          )
+        )
+      }
+
+      // カレンダー表示も更新
+      await loadInitialData()
+    } catch (error) {
+      console.error('シフト更新エラー:', error)
+      alert('シフトの更新に失敗しました')
+    }
+  }
+
+  // シフト削除ハンドラー
+  const handleDeleteShift = async (shiftId) => {
+    try {
+      // バックエンドAPIでシフトを削除
+      await shiftRepository.deleteShift(shiftId)
+
+      // ローカルステートから削除
+      setCsvShifts(prev => prev.filter(shift => shift.shift_id !== shiftId))
+
+      // 表示中の日のシフトからも削除
+      if (selectedDate) {
+        const updatedShifts = dayShifts.filter(s => s.shift_id !== shiftId)
+        setDayShifts(updatedShifts)
+
+        // その日のシフトがなくなったら閉じる
+        if (updatedShifts.length === 0) {
+          closeDayView()
+        }
+      }
+
+      // カレンダー表示も更新
+      await loadInitialData()
+    } catch (error) {
+      console.error('シフト削除エラー:', error)
+      alert('シフトの削除に失敗しました')
+    }
+  }
+
+  // AI提案の修正を適用するハンドラー
+  const handleApplySuggestedChanges = async (changes) => {
+    try {
+      let successCount = 0
+      let errorCount = 0
+
+      for (const change of changes) {
+        try {
+          if (change.action === 'modify' && change.shift_id) {
+            const updates = {}
+            if (change.start_time) updates.start_time = change.start_time
+            if (change.end_time) updates.end_time = change.end_time
+            if (change.staff_id) updates.staff_id = change.staff_id
+
+            await handleUpdateShift(change.shift_id, updates)
+            successCount++
+          }
+        } catch (error) {
+          console.error('シフト修正エラー:', change, error)
+          errorCount++
+        }
+      }
+
+      if (errorCount > 0) {
+        alert(`${successCount}件の修正を適用しました。${errorCount}件の修正に失敗しました。`)
+      } else {
+        alert(`${successCount}件の修正を適用しました。`)
+      }
+    } catch (error) {
+      console.error('AI提案適用エラー:', error)
+      alert('修正の適用中にエラーが発生しました')
+    }
+  }
+
   const handleApprove = async () => {
     try {
-      // 第2案のplan_idを取得（propsから受け取るか、stateから取得）
-      // ここでは現在の年月から取得
-      const now = new Date()
-      const currentYear = now.getFullYear()
-      const currentMonth = now.getMonth() + 1
+      // selectedShiftからplan_idを取得
+      const planId = selectedShift?.plan_id || selectedShift?.planId
 
-      // サマリーAPIから該当月のplan_idを取得
-      const summary = await shiftRepository.getSummary({
-        year: currentYear,
-        month: currentMonth
-      })
-
-      if (!summary || summary.length === 0) {
-        alert('シフト計画が見つかりません')
+      if (!planId) {
+        alert('シフト計画IDが見つかりません')
+        console.error('selectedShift:', selectedShift)
         return
       }
-
-      const planId = summary[0].plan_id
 
       // ステータスをSECOND_PLAN_APPROVEDに更新
-      const response = await fetch(`http://localhost:3001/api/shifts/plans/${planId}/status`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          status: 'SECOND_PLAN_APPROVED'
-        })
-      })
+      await shiftRepository.updatePlanStatus(planId, 'SECOND_PLAN_APPROVED')
 
-      const result = await response.json()
+      console.log('第2案を承認しました。plan_id:', planId)
+      alert('第2案を承認しました')
 
-      if (!result.success) {
-        alert(result.message || '第2案の承認に失敗しました')
-        return
-      }
-
-      console.log('第2案を承認しました:', result)
-
-      // 親コンポーネントの承認処理を呼び出し
+      // 親コンポーネントの承認処理を呼び出し（シフト管理画面に戻る）
       if (onNext) {
         onNext()
       }
@@ -1383,6 +1480,14 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
                           >
                             {message.time}
                           </div>
+                          {message.type === 'assistant' && message.suggestedChanges && (
+                            <button
+                              onClick={() => handleApplySuggestedChanges(message.suggestedChanges)}
+                              className="mt-2 w-full px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
+                            >
+                              修正する
+                            </button>
+                          )}
                         </div>
                       </motion.div>
                     ))}
@@ -1479,10 +1584,13 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
             {selectedDate && (
               <ShiftTimeline
                 date={selectedDate}
-                year={2024}
-                month={10}
+                year={selectedShift?.year || new Date().getFullYear()}
+                month={selectedShift?.month || new Date().getMonth() + 1}
                 shifts={dayShifts}
                 onClose={closeDayView}
+                editable={true}
+                onUpdate={handleUpdateShift}
+                onDelete={handleDeleteShift}
               />
             )}
           </AnimatePresence>
