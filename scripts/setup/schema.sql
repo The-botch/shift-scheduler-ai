@@ -539,7 +539,9 @@ CREATE TABLE IF NOT EXISTS ops.work_hours_actual (
     FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
     FOREIGN KEY (store_id) REFERENCES core.stores(store_id) ON DELETE CASCADE,
     FOREIGN KEY (staff_id) REFERENCES hr.staff(staff_id) ON DELETE CASCADE,
-    FOREIGN KEY (shift_id) REFERENCES ops.shifts(shift_id) ON DELETE SET NULL
+    FOREIGN KEY (shift_id) REFERENCES ops.shifts(shift_id) ON DELETE SET NULL,
+
+    CONSTRAINT uq_work_hours_actual_key UNIQUE (tenant_id, store_id, staff_id, work_date)
 );
 
 COMMENT ON TABLE ops.work_hours_actual IS '勤怠実績（CSV投入）';
@@ -572,6 +574,7 @@ CREATE TABLE IF NOT EXISTS hr.payroll (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+    CONSTRAINT uq_payroll_key UNIQUE (tenant_id, store_id, year, month, staff_id),
     FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
     FOREIGN KEY (store_id) REFERENCES core.stores(store_id) ON DELETE CASCADE,
     FOREIGN KEY (staff_id) REFERENCES hr.staff(staff_id) ON DELETE CASCADE,
@@ -593,6 +596,7 @@ CREATE TABLE IF NOT EXISTS analytics.sales_actual (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+    CONSTRAINT uq_sales_actual_key UNIQUE (tenant_id, year, month, store_id),
     FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
     FOREIGN KEY (store_id) REFERENCES core.stores(store_id) ON DELETE CASCADE
 );
@@ -613,6 +617,7 @@ CREATE TABLE IF NOT EXISTS analytics.sales_forecast (
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
+    CONSTRAINT uq_sales_forecast_key UNIQUE (tenant_id, year, month, store_id),
     FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
     FOREIGN KEY (store_id) REFERENCES core.stores(store_id) ON DELETE CASCADE
 );
@@ -726,10 +731,9 @@ CREATE INDEX IF NOT EXISTS idx_shift_solutions_issue ON ops.shift_solutions(issu
 CREATE INDEX IF NOT EXISTS idx_demand_forecasts_tenant ON ops.demand_forecasts(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_demand_forecasts_store ON ops.demand_forecasts(store_id);
 CREATE INDEX IF NOT EXISTS idx_demand_forecasts_date ON ops.demand_forecasts(forecast_date);
-CREATE INDEX IF NOT EXISTS idx_work_hours_actual_tenant ON ops.work_hours_actual(tenant_id);
-CREATE INDEX IF NOT EXISTS idx_work_hours_actual_store ON ops.work_hours_actual(store_id);
-CREATE INDEX IF NOT EXISTS idx_work_hours_actual_staff ON ops.work_hours_actual(staff_id);
-CREATE INDEX IF NOT EXISTS idx_work_hours_actual_date ON ops.work_hours_actual(work_date);
+-- 労働時間実績テーブルの最適化インデックス（ON CONFLICT高速化用）
+CREATE INDEX IF NOT EXISTS idx_work_hours_actual_composite ON ops.work_hours_actual(tenant_id, store_id, staff_id, work_date);
+CREATE INDEX IF NOT EXISTS idx_work_hours_actual_year_month ON ops.work_hours_actual(tenant_id, year, month);
 CREATE INDEX IF NOT EXISTS idx_payroll_tenant ON hr.payroll(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_payroll_store ON hr.payroll(store_id);
 CREATE INDEX IF NOT EXISTS idx_payroll_staff ON hr.payroll(staff_id);

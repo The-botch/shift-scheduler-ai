@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion } from 'framer-motion'
 import Papa from 'papaparse'
 import {
@@ -70,11 +70,76 @@ const BudgetActualManagement = ({
   const [loading, setLoading] = useState(false)
   const [selectedYear, setSelectedYear] = useState(getCurrentYear())
   const [monthlyPL, setMonthlyPL] = useState([])
+  const [storeCodeToIdMap, setStoreCodeToIdMap] = useState({})
+  const [staffIdToStoreIdMap, setStaffIdToStoreIdMap] = useState({})
+
+  // インポート処理中かどうかを追跡（画面離脱時の警告用）
+  const isImportingRef = useRef(false)
+
+  // 店舗マスターデータを取得してマッピングを作成
+  useEffect(() => {
+    const fetchStores = async () => {
+      try {
+        const response = await fetch(`${BACKEND_API_URL}/api/stores?tenant_id=${tenantId}`)
+        const data = await response.json()
+
+        if (data.success && data.stores) {
+          const map = {}
+          data.stores.forEach(store => {
+            map[store.store_code] = store.store_id
+          })
+          setStoreCodeToIdMap(map)
+          console.log('店舗マッピング取得完了:', map)
+        }
+      } catch (error) {
+        console.error('店舗マスターデータの取得エラー:', error)
+      }
+    }
+
+    fetchStores()
+  }, [tenantId])
+
+  // スタッフマスターデータを取得してstaff_id→store_idのマッピングを作成
+  useEffect(() => {
+    const fetchStaff = async () => {
+      try {
+        const response = await fetch(`${BACKEND_API_URL}/api/master/staff?tenant_id=${tenantId}`)
+        const result = await response.json()
+
+        if (result.success && result.data) {
+          const map = {}
+          result.data.forEach(staff => {
+            map[staff.staff_id] = staff.store_id
+          })
+          setStaffIdToStoreIdMap(map)
+          console.log('スタッフマッピング取得完了:', Object.keys(map).length, '件')
+        }
+      } catch (error) {
+        console.error('スタッフマスターデータの取得エラー:', error)
+      }
+    }
+
+    fetchStaff()
+  }, [tenantId])
 
   // IndexedDB内のデータ件数を取得
   useEffect(() => {
     loadImportStatus()
   }, [selectedYear])
+
+  // 画面離脱時の警告
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (isImportingRef.current) {
+        e.preventDefault()
+        e.returnValue = 'データのインポート中です。このページを離れると処理が中断される可能性があります。'
+        return e.returnValue
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [])
 
   const loadImportStatus = async () => {
     try {
@@ -113,14 +178,20 @@ const BudgetActualManagement = ({
           hasForecast: monthForecast.length > 0,
         })
 
-        // PL計算
-        const salesForecast =
-          monthForecast.length > 0 ? parseInt(monthForecast[0].forecasted_sales || 0) : 0
-        const salesActual =
-          monthSalesActual.length > 0 ? parseInt(monthSalesActual[0].actual_sales || 0) : 0
+        // PL計算（全店舗の合計）
+        const salesForecast = monthForecast.reduce(
+          (sum, f) => sum + parseInt(f.forecasted_sales || 0),
+          0
+        )
+        const salesActual = monthSalesActual.reduce(
+          (sum, s) => sum + parseInt(s.actual_sales || 0),
+          0
+        )
 
-        const laborCostForecast =
-          monthForecast.length > 0 ? parseInt(monthForecast[0].required_labor_cost || 0) : 0
+        const laborCostForecast = monthForecast.reduce(
+          (sum, f) => sum + parseInt(f.required_labor_cost || 0),
+          0
+        )
         const laborCostActual = monthPayroll.reduce(
           (sum, p) => sum + parseInt(p.gross_salary || 0),
           0
@@ -327,8 +398,10 @@ const BudgetActualManagement = ({
     }
 
     // 現在の月チェック（デモでは2024年10月として固定）
-    const currentYear = 2024
-    const currentMonth = 10
+    // 現在の年月を取得
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1 // 0-indexedなので+1
 
     // 未来のデータが含まれていないかチェック
     const futureData = workHoursData.filter(row => {
@@ -349,6 +422,7 @@ const BudgetActualManagement = ({
     }
 
     setImporting(true)
+    isImportingRef.current = true // 画面離脱警告を有効化
     setImportStatus(prev => ({
       ...prev,
       workHours: { status: 'loading', message: 'インポート中...' },
@@ -356,43 +430,73 @@ const BudgetActualManagement = ({
 
     try {
       // データの変換と検証
-      const formattedData = workHoursData.map(row => ({
-        store_id: 1,
-        staff_id: row.staff_id,
-        shift_date: `${row.year}-${String(row.month).padStart(2, '0')}-${String(row.date).padStart(2, '0')}`,
-        scheduled_start: row.scheduled_start,
-        scheduled_end: row.scheduled_end,
-        actual_start: row.actual_start,
-        actual_end: row.actual_end,
-        actual_hours: parseFloat(row.actual_hours),
-        break_minutes: parseInt(row.break_minutes),
-        is_overtime: parseInt(row.overtime_minutes || 0) > 0,
-        is_late: row.is_late === 'TRUE',
-        is_early_leave: row.is_early_leave === 'TRUE',
-        notes: row.notes || '',
-      }))
+      const formattedData = workHoursData.map((row, index) => {
+        const staffId = parseInt(row.staff_id)
+        const storeId = staffIdToStoreIdMap[staffId]
 
-      // バックエンドAPIに送信
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_WORK_HOURS}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tenant_id: 1,
-          data: formattedData
-        })
+        if (!storeId) {
+          throw new Error(`行${index + 1}: スタッフID "${staffId}" に対応する店舗が見つかりません。マスターデータに存在しないスタッフです。`)
+        }
+
+        return {
+          store_id: storeId,
+          staff_id: staffId,
+          staff_name: row.staff_name || '',
+          shift_date: `${row.year}-${String(row.month).padStart(2, '0')}-${String(row.date).padStart(2, '0')}`,
+          scheduled_start: row.scheduled_start,
+          scheduled_end: row.scheduled_end,
+          actual_start: row.actual_start,
+          actual_end: row.actual_end,
+          actual_hours: parseFloat(row.actual_hours),
+          break_minutes: parseInt(row.break_minutes),
+          is_overtime: parseInt(row.overtime_minutes || 0) > 0,
+          is_late: row.is_late === 'TRUE',
+          is_early_leave: row.is_early_leave === 'TRUE',
+          notes: row.notes || '',
+        }
       })
 
-      const result = await response.json()
+      // バッチサイズ（1000件ずつ送信してPostgreSQLのパラメータ制限を回避）
+      const BATCH_SIZE = 1000
+      const batches = []
+      for (let i = 0; i < formattedData.length; i += BATCH_SIZE) {
+        batches.push(formattedData.slice(i, i + BATCH_SIZE))
+      }
 
-      if (!result.success) {
-        throw new Error(result.error || '労働時間実績のインポートに失敗しました')
+      // バックエンドAPIにバッチごとに送信
+      let totalImported = 0
+      for (let i = 0; i < batches.length; i++) {
+        setImportStatus(prev => ({
+          ...prev,
+          workHours: {
+            status: 'loading',
+            message: `インポート中... (${i + 1}/${batches.length} バッチ, ${totalImported}/${formattedData.length}件)`
+          },
+        }))
+
+        const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_WORK_HOURS}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: 1,
+            data: batches[i]
+          })
+        })
+
+        const result = await response.json()
+
+        if (!result.success) {
+          throw new Error(result.error || '労働時間実績のインポートに失敗しました')
+        }
+
+        totalImported += batches[i].length
       }
 
       setImportStatus(prev => ({
         ...prev,
         workHours: {
           status: 'success',
-          message: result.message || `${formattedData.length}件のデータをインポートしました`,
+          message: `${totalImported}件のデータをインポートしました`,
         },
       }))
 
@@ -406,6 +510,7 @@ const BudgetActualManagement = ({
       }))
     } finally {
       setImporting(false)
+      isImportingRef.current = false // 画面離脱警告を無効化
     }
   }
 
@@ -420,8 +525,10 @@ const BudgetActualManagement = ({
     }
 
     // 現在の月チェック（デモでは2024年10月として固定）
-    const currentYear = 2024
-    const currentMonth = 10
+    // 現在の年月を取得
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1 // 0-indexedなので+1
 
     // 未来のデータが含まれていないかチェック
     const futureData = payrollData.filter(row => {
@@ -449,7 +556,14 @@ const BudgetActualManagement = ({
 
     try {
       // データの変換と検証
-      const formattedData = payrollData.map(row => {
+      const formattedData = payrollData.map((row, index) => {
+        const staffId = parseInt(row.staff_id)
+        const storeId = staffIdToStoreIdMap[staffId]
+
+        if (!storeId) {
+          throw new Error(`行${index + 1}: スタッフID "${staffId}" に対応する店舗が見つかりません。マスターデータに存在しないスタッフです。`)
+        }
+
         // payment_statusを大文字に変換（データベースのCHECK制約に適合）
         let paymentStatus = (row.payment_status || 'PENDING').toUpperCase();
         // 有効な値でない場合はPENDINGにフォールバック
@@ -458,11 +572,11 @@ const BudgetActualManagement = ({
         }
 
         return {
-          store_id: 1,
+          store_id: storeId,
           year: parseInt(row.year),
           month: parseInt(row.month),
-          staff_id: row.staff_id,
-          staff_name: row.staff_name,
+          staff_id: staffId,
+          staff_name: row.staff_name || '',
           work_days: parseInt(row.work_days),
           work_hours: parseFloat(row.work_hours),
           base_salary: parseInt(row.base_salary),
@@ -530,8 +644,10 @@ const BudgetActualManagement = ({
     }
 
     // 現在の月チェック（デモでは2024年10月として固定）
-    const currentYear = 2024
-    const currentMonth = 10
+    // 現在の年月を取得
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1 // 0-indexedなので+1
 
     // 未来のデータが含まれていないかチェック
     const futureData = salesActualData.filter(row => {
@@ -559,14 +675,30 @@ const BudgetActualManagement = ({
 
     try {
       // データの変換と検証
-      const formattedData = salesActualData.map(row => ({
-        year: parseInt(row.year),
-        month: parseInt(row.month),
-        store_id: parseInt(row.store_id) || 1,
-        actual_sales: parseInt(row.actual_sales),
-        daily_average: parseInt(row.daily_average),
-        notes: row.notes || '',
-      }))
+      const formattedData = salesActualData.map((row, index) => {
+        // store_codeがある場合はマスターデータから取得したマッピングで変換
+        let storeId
+        if (row.store_code) {
+          storeId = storeCodeToIdMap[row.store_code]
+          if (!storeId) {
+            throw new Error(`行${index + 1}: 不明な店舗コード "${row.store_code}" が見つかりました。マスターデータに存在しません。`)
+          }
+        } else {
+          storeId = parseInt(row.store_id)
+          if (!storeId) {
+            throw new Error(`行${index + 1}: store_id または store_code が必要です。`)
+          }
+        }
+
+        return {
+          year: parseInt(row.year),
+          month: parseInt(row.month),
+          store_id: storeId,
+          actual_sales: parseInt(row.actual_sales),
+          daily_average: parseInt(row.daily_average),
+          notes: row.notes || '',
+        }
+      })
 
       // バックエンドAPIに送信
       const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_SALES_ACTUAL}`, {
@@ -623,15 +755,31 @@ const BudgetActualManagement = ({
 
     try {
       // データの変換と検証
-      const formattedData = forecastData.map(row => ({
-        year: parseInt(row.year),
-        month: parseInt(row.month),
-        store_id: parseInt(row.store_id) || 1,
-        forecasted_sales: parseInt(row.forecasted_sales),
-        required_labor_cost: parseInt(row.required_labor_cost),
-        required_hours: parseInt(row.required_hours),
-        notes: row.notes || '',
-      }))
+      const formattedData = forecastData.map((row, index) => {
+        // store_codeがある場合はマスターデータから取得したマッピングで変換
+        let storeId
+        if (row.store_code) {
+          storeId = storeCodeToIdMap[row.store_code]
+          if (!storeId) {
+            throw new Error(`行${index + 1}: 不明な店舗コード "${row.store_code}" が見つかりました。マスターデータに存在しません。`)
+          }
+        } else {
+          storeId = parseInt(row.store_id)
+          if (!storeId) {
+            throw new Error(`行${index + 1}: store_id または store_code が必要です。`)
+          }
+        }
+
+        return {
+          year: parseInt(row.year),
+          month: parseInt(row.month),
+          store_id: storeId,
+          forecasted_sales: parseInt(row.forecasted_sales),
+          required_labor_cost: parseInt(row.required_labor_cost),
+          required_hours: parseInt(row.required_hours),
+          notes: row.notes || '',
+        }
+      })
 
       // バックエンドAPIに送信
       const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_SALES_FORECAST}`, {

@@ -408,6 +408,7 @@ AIが生成したシフト問題の解決策
 **データ投入元**: CSV投入
 
 **制約**:
+- UNIQUE: `uq_payroll_key (tenant_id, store_id, year, month, staff_id)`
 - CHECK: `payment_status IN ('PENDING', 'PROCESSING', 'PAID', 'FAILED')`
 
 ---
