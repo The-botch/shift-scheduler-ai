@@ -1023,19 +1023,42 @@ const SecondPlan = ({
   const renderCalendar = (isFirstPlan = false) => {
     const data = isFirstPlan ? firstPlanData : shiftData
 
-    return (
-      <div className="grid grid-cols-7 gap-1">
-        {Array.from({ length: 30 }, (_, i) => {
-          const date = i + 1
-          const dayData = data.find(d => d.date === date) || { date, shifts: [] }
-          const isProblem = !isFirstPlan && isProblematicDate(date)
-          const isChanged = !isFirstPlan && changedDates.has(date)
-          const isDayHoliday = isHoliday(selectedShift.year, selectedShift.month, date)
-          const holidayName = getHolidayName(selectedShift.year, selectedShift.month, date)
+    // 月の最初の日の曜日を取得（0=日曜, 1=月曜, ..., 6=土曜）
+    const firstDayOfMonth = new Date(selectedShift.year, selectedShift.month - 1, 1).getDay()
 
-          // 曜日を計算（0=日曜, 6=土曜）
-          const dayOfWeek = new Date(selectedShift.year, selectedShift.month - 1, date).getDay()
-          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+    // 曜日ヘッダー
+    const weekDays = ['日', '月', '火', '水', '木', '金', '土']
+
+    return (
+      <div>
+        {/* 曜日ヘッダー */}
+        <div className="grid grid-cols-7 gap-1 mb-2">
+          {weekDays.map(day => (
+            <div key={day} className="p-1 text-center text-xs font-bold bg-blue-50 rounded">
+              {day}
+            </div>
+          ))}
+        </div>
+
+        {/* カレンダーグリッド */}
+        <div className="grid grid-cols-7 gap-1">
+          {/* 月初の空セル */}
+          {Array.from({ length: firstDayOfMonth }, (_, i) => (
+            <div key={`empty-${i}`} style={{ minHeight: '80px' }} />
+          ))}
+
+          {/* 日付セル */}
+          {Array.from({ length: 30 }, (_, i) => {
+            const date = i + 1
+            const dayData = data.find(d => d.date === date) || { date, shifts: [] }
+            const isProblem = !isFirstPlan && isProblematicDate(date)
+            const isChanged = !isFirstPlan && changedDates.has(date)
+            const isDayHoliday = isHoliday(selectedShift.year, selectedShift.month, date)
+            const holidayName = getHolidayName(selectedShift.year, selectedShift.month, date)
+
+            // 曜日を計算（0=日曜, 6=土曜）
+            const dayOfWeek = (firstDayOfMonth + date - 1) % 7
+            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
 
           return (
             <motion.div
@@ -1095,6 +1118,7 @@ const SecondPlan = ({
             </motion.div>
           )
         })}
+        </div>
       </div>
     )
   }
