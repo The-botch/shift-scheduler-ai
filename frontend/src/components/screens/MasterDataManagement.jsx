@@ -23,6 +23,7 @@ import {
   Scale,
   Shield as Shield2,
   CheckSquare,
+  Download,
 } from 'lucide-react'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { getCurrentTenantId } from '../../config/tenant'
@@ -42,50 +43,45 @@ const pageTransition = {
 }
 
 const MasterDataManagement = ({ onPrev }) => {
-  const [selectedMaster, setSelectedMaster] = useState('staff') // 現在選択中のマスター種別
-  const [masterData, setMasterData] = useState([]) // マスターデータ一覧
+  const [selectedMaster, setSelectedMaster] = useState('staff')
+  const [masterData, setMasterData] = useState([])
   const [loading, setLoading] = useState(false)
   const [showModal, setShowModal] = useState(false)
-  const [modalMode, setModalMode] = useState('create') // 'create' or 'edit'
+  const [modalMode, setModalMode] = useState('create')
   const [editingItem, setEditingItem] = useState(null)
   const [formData, setFormData] = useState({})
   const [error, setError] = useState(null)
 
-  // ドロップダウン用のマスターデータ
   const [stores, setStores] = useState([])
   const [roles, setRoles] = useState([])
   const [divisions, setDivisions] = useState([])
 
   const tenantId = getCurrentTenantId()
 
-  // マスター種別の定義
   const masterTypes = [
-    { id: 'staff', label: 'スタッフマスター', icon: Users },
-    { id: 'stores', label: '店舗マスター', icon: Store },
-    { id: 'roles', label: '役職マスター', icon: Settings },
-    { id: 'skills', label: 'スキルマスター', icon: Award },
-    { id: 'employment_types', label: '雇用形態マスター', icon: Briefcase },
-    { id: 'shift_patterns', label: 'シフトパターンマスター', icon: Clock },
-    { id: 'divisions', label: '部署マスター', icon: Building2 },
-    { id: 'commute_allowance', label: '通勤手当マスター', icon: Car },
-    { id: 'insurance_rates', label: '保険料率マスター', icon: Shield },
-    { id: 'tax_brackets', label: '税率区分マスター', icon: Calculator },
-    { id: 'labor_law_constraints', label: '労働法制約マスター', icon: Scale },
-    { id: 'store_constraints', label: '店舗制約マスター', icon: FileText },
-    { id: 'labor_management_rules', label: '労務管理ルールマスター', icon: CheckSquare },
-    { id: 'shift_validation_rules', label: 'シフト検証ルールマスター', icon: Shield2 },
+    { id: 'staff', label: 'スタッフ', icon: Users },
+    { id: 'stores', label: '店舗', icon: Store },
+    { id: 'roles', label: '役職', icon: Settings },
+    { id: 'skills', label: 'スキル', icon: Award },
+    { id: 'employment_types', label: '雇用形態', icon: Briefcase },
+    { id: 'shift_patterns', label: 'シフトパターン', icon: Clock },
+    { id: 'divisions', label: '部署', icon: Building2 },
+    { id: 'commute_allowance', label: '通勤手当', icon: Car },
+    { id: 'insurance_rates', label: '保険料率', icon: Shield },
+    { id: 'tax_brackets', label: '税率区分', icon: Calculator },
+    { id: 'labor_law_constraints', label: '労働法制約', icon: Scale },
+    { id: 'store_constraints', label: '店舗制約', icon: FileText },
+    { id: 'labor_management_rules', label: '労務管理ルール', icon: CheckSquare },
+    { id: 'shift_validation_rules', label: 'シフト検証ルール', icon: Shield2 },
   ]
 
-  // 選択中のマスター種別が変更されたときにデータを読み込み
   useEffect(() => {
     loadMasterData()
   }, [selectedMaster])
 
-  // ドロップダウン用のマスターデータを読み込み
   useEffect(() => {
     const loadDropdownData = async () => {
       try {
-        // スタッフまたは店舗マスターの場合、必要なドロップダウンデータを読み込む
         if (selectedMaster === 'staff' || selectedMaster === 'stores') {
           const [storesData, rolesData, divisionsData] = await Promise.all([
             masterRepository.getStores(tenantId),
@@ -167,12 +163,10 @@ const MasterDataManagement = ({ onPrev }) => {
     }
   }
 
-  // 新規作成モーダルを開く
   const handleCreate = () => {
     setModalMode('create')
     setEditingItem(null)
 
-    // マスター種別ごとの初期フォームデータ
     switch (selectedMaster) {
       case 'staff':
         setFormData({
@@ -327,12 +321,10 @@ const MasterDataManagement = ({ onPrev }) => {
     setShowModal(true)
   }
 
-  // 編集モーダルを開く
   const handleEdit = (item) => {
     setModalMode('edit')
     setEditingItem(item)
 
-    // マスター種別ごとのフォームデータ設定
     switch (selectedMaster) {
       case 'staff':
         setFormData({
@@ -473,7 +465,6 @@ const MasterDataManagement = ({ onPrev }) => {
     setShowModal(true)
   }
 
-  // 削除処理
   const handleDelete = async (item) => {
     const itemName = getItemDisplayName(item)
     if (!window.confirm(`「${itemName}」を削除してもよろしいですか？\n※論理削除されます（is_active = false）`)) {
@@ -538,18 +529,15 @@ const MasterDataManagement = ({ onPrev }) => {
     }
   }
 
-  // 保存処理
   const handleSave = async () => {
     try {
       setError(null)
 
-      // バリデーション
       if (!validateForm()) {
         return
       }
 
       if (modalMode === 'create') {
-        // 新規作成
         switch (selectedMaster) {
           case 'staff':
             await masterRepository.createStaff(formData)
@@ -598,7 +586,6 @@ const MasterDataManagement = ({ onPrev }) => {
         }
         alert('作成しました')
       } else {
-        // 更新
         switch (selectedMaster) {
           case 'staff':
             await masterRepository.updateStaff(editingItem.staff_id, formData)
@@ -656,7 +643,6 @@ const MasterDataManagement = ({ onPrev }) => {
     }
   }
 
-  // フォームバリデーション
   const validateForm = () => {
     switch (selectedMaster) {
       case 'staff':
@@ -756,7 +742,6 @@ const MasterDataManagement = ({ onPrev }) => {
     }
   }
 
-  // アイテムの表示名を取得
   const getItemDisplayName = (item) => {
     switch (selectedMaster) {
       case 'staff':
@@ -792,7 +777,6 @@ const MasterDataManagement = ({ onPrev }) => {
     }
   }
 
-  // モーダルを閉じる
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingItem(null)
@@ -800,7 +784,6 @@ const MasterDataManagement = ({ onPrev }) => {
     setError(null)
   }
 
-  // フォーム入力ハンドラ
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
@@ -808,7 +791,6 @@ const MasterDataManagement = ({ onPrev }) => {
     }))
   }
 
-  // マスター種別ごとのテーブル列定義
   const getTableColumns = () => {
     switch (selectedMaster) {
       case 'staff':
@@ -953,7 +935,6 @@ const MasterDataManagement = ({ onPrev }) => {
     }
   }
 
-  // マスター種別ごとのフォームフィールド定義
   const getFormFields = () => {
     switch (selectedMaster) {
       case 'staff':
@@ -1906,7 +1887,6 @@ const MasterDataManagement = ({ onPrev }) => {
     }
   }
 
-  // セルの値を取得
   const getCellValue = (item, column) => {
     const value = item[column.key]
 
@@ -1925,6 +1905,8 @@ const MasterDataManagement = ({ onPrev }) => {
     return value || '-'
   }
 
+  const selectedMasterType = masterTypes.find(t => t.id === selectedMaster)
+
   return (
     <div className="min-h-screen bg-slate-50 pt-8">
       <motion.div
@@ -1933,125 +1915,147 @@ const MasterDataManagement = ({ onPrev }) => {
         exit="out"
         variants={pageVariants}
         transition={pageTransition}
-        className="app-container"
+        className="max-w-[1800px] mx-auto px-4"
       >
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-              マスターデータ管理
-            </h1>
-            <p className="text-lg text-gray-600">各種マスターデータの編集</p>
-          </div>
-          <button
-            onClick={onPrev}
-            className="px-4 py-2 text-gray-600 hover:text-gray-900 font-medium"
-          >
-            ← 戻る
-          </button>
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">
+            マスターデータ管理
+          </h1>
+          <p className="text-sm text-gray-600">各種マスターデータの閲覧・編集</p>
         </div>
 
-        <div className="flex gap-6 h-[calc(100vh-200px)] overflow-hidden">
-          {/* 左サイドバー: マスター種別選択 */}
-          <div className="w-64 flex-shrink-0 bg-white rounded-lg shadow-lg p-4 flex flex-col overflow-hidden">
-            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2 flex-shrink-0">
-              <Database className="h-5 w-5" />
-              マスター種別
-            </h2>
-            <div className="space-y-2 overflow-y-auto flex-1 pr-2">
+        <div className="flex gap-4 h-[calc(100vh-180px)]">
+          {/* 左エリア: マスター種別リスト */}
+          <div className="w-[200px] flex-shrink-0 bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+            <div className="p-3 bg-gradient-to-r from-blue-600 to-blue-500 border-b border-blue-700">
+              <div className="flex items-center gap-2 text-white">
+                <Database className="h-4 w-4" />
+                <h2 className="font-semibold text-sm">マスター種別</h2>
+              </div>
+            </div>
+            <div className="overflow-y-auto h-[calc(100%-50px)]">
               {masterTypes.map((type) => {
                 const Icon = type.icon
                 return (
                   <button
                     key={type.id}
                     onClick={() => setSelectedMaster(type.id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 rounded transition-colors ${
+                    className={`w-full flex items-center gap-2 px-3 py-2.5 text-sm transition-colors border-b border-gray-100 ${
                       selectedMaster === type.id
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                        ? 'bg-blue-50 text-blue-700 border-l-4 border-l-blue-600'
+                        : 'text-gray-700 hover:bg-gray-50 border-l-4 border-l-transparent'
                     }`}
                   >
-                    <Icon className="h-5 w-5" />
-                    <span className="font-medium">{type.label}</span>
+                    <Icon className="h-4 w-4 flex-shrink-0" />
+                    <span className="font-medium text-left truncate">{type.label}</span>
                   </button>
                 )
               })}
             </div>
           </div>
 
-          {/* 右側: データテーブル */}
-          <div className="flex-1 bg-white rounded-lg shadow-lg p-6 flex flex-col">
-            <div className="mb-4 flex justify-between items-center flex-shrink-0">
-              <h2 className="text-xl font-bold text-gray-800">
-                {masterTypes.find(t => t.id === selectedMaster)?.label || 'データ一覧'}
-              </h2>
-              <button
-                onClick={handleCreate}
-                className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-              >
-                <Plus className="h-4 w-4" />
-                新規作成
-              </button>
+          {/* 右エリア: データ表示 */}
+          <div className="flex-1 bg-white rounded-lg shadow-md border border-gray-200 flex flex-col overflow-hidden">
+            {/* ヘッダー */}
+            <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {selectedMasterType && (
+                    <>
+                      {React.createElement(selectedMasterType.icon, {
+                        className: 'h-6 w-6 text-blue-600',
+                      })}
+                      <div>
+                        <h2 className="text-lg font-bold text-gray-900">
+                          {selectedMasterType.label}
+                        </h2>
+                        <p className="text-xs text-gray-600">
+                          {masterData.length}件のデータ
+                        </p>
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {}}
+                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                  >
+                    <Download className="h-4 w-4" />
+                    エクスポート
+                  </button>
+                  <button
+                    onClick={handleCreate}
+                    className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+                  >
+                    <Plus className="h-4 w-4" />
+                    新規追加
+                  </button>
+                </div>
+              </div>
             </div>
 
+            {/* エラー表示 */}
             {error && (
-              <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded flex-shrink-0">
+              <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 rounded">
                 <p className="text-red-800 text-sm">{error}</p>
               </div>
             )}
 
-            {loading ? (
-              <div className="text-center py-12">
-                <p className="text-gray-600">読み込み中...</p>
-              </div>
-            ) : masterData.length === 0 ? (
-              <div className="text-center py-12">
-                <p className="text-gray-600">データがありません</p>
-              </div>
-            ) : (
-              <div className="flex-1 overflow-auto shadow-sm border border-gray-200 rounded-lg">
-                <table style={{ minWidth: '2000px' }} className="border-collapse">
-                    <thead className="bg-gray-50 sticky top-0 z-20">
-                      <tr>
-                        <th className="sticky left-0 z-30 bg-gray-50 px-4 py-3 text-center text-xs font-semibold text-gray-700 border-b border-r-2 border-r-gray-300" style={{ width: '80px' }}>
+            {/* データテーブル */}
+            <div className="flex-1 overflow-auto">
+              {loading ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-gray-600">読み込み中...</p>
+                </div>
+              ) : masterData.length === 0 ? (
+                <div className="flex items-center justify-center h-full">
+                  <p className="text-gray-600">データがありません</p>
+                </div>
+              ) : (
+                <table className="w-full border-collapse">
+                  <thead className="bg-gray-100 sticky top-0 z-10">
+                    <tr>
+                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap">
                         No.
                       </th>
                       {getTableColumns().map(column => (
                         <th
                           key={column.key}
-                          className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b whitespace-nowrap"
-                          style={{ width: column.width }}
+                          className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap"
+                          style={{ minWidth: column.width }}
                         >
                           {column.label}
                         </th>
                       ))}
-                      <th className="sticky right-0 z-30 bg-gray-50 px-4 py-3 text-center text-xs font-semibold text-gray-700 border-b border-l-2 border-l-gray-300" style={{ width: '128px' }}>
+                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap">
                         操作
                       </th>
                     </tr>
                   </thead>
                   <tbody>
                     {masterData.map((item, index) => (
-                      <tr key={index} className="hover:bg-gray-50 transition-colors">
-                        <td className="sticky left-0 z-10 bg-white px-4 py-3 text-sm text-center border-b border-r-2 border-r-gray-300 font-medium text-gray-600" style={{ width: '80px' }}>
+                      <tr key={index} className="hover:bg-blue-50 transition-colors border-b border-gray-200">
+                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
                           {index + 1}
                         </td>
                         {getTableColumns().map(column => (
-                          <td key={column.key} className="px-4 py-3 text-sm border-b whitespace-nowrap" style={{ width: column.width }}>
+                          <td key={column.key} className="px-4 py-3 text-sm text-gray-800 whitespace-nowrap">
                             {getCellValue(item, column)}
                           </td>
                         ))}
-                        <td className="sticky right-0 z-10 bg-white px-4 py-3 text-sm border-b border-l-2 border-l-gray-300" style={{ width: '128px' }}>
+                        <td className="px-4 py-3 text-sm whitespace-nowrap">
                           <div className="flex justify-center gap-2">
                             <button
                               onClick={() => handleEdit(item)}
-                              className="p-1 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"
                               title="編集"
                             >
                               <Edit3 className="h-4 w-4" />
                             </button>
                             <button
                               onClick={() => handleDelete(item)}
-                              className="p-1 text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
+                              className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors"
                               title="削除"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -2062,28 +2066,28 @@ const MasterDataManagement = ({ onPrev }) => {
                     ))}
                   </tbody>
                 </table>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
 
         {/* モーダル */}
         {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-md mx-4">
-              <div className="flex items-center justify-between p-6 border-b">
-                <h3 className="text-xl font-bold text-gray-800">
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
+              <div className="flex items-center justify-between p-5 border-b border-gray-200">
+                <h3 className="text-lg font-bold text-gray-900">
                   {modalMode === 'create' ? '新規作成' : '編集'}
                 </h3>
                 <button
                   onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600"
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <X className="h-6 w-6" />
+                  <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div className="p-6">
+              <div className="flex-1 overflow-y-auto p-5">
                 {error && (
                   <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
                     <p className="text-red-800 text-sm">{error}</p>
@@ -2093,16 +2097,16 @@ const MasterDataManagement = ({ onPrev }) => {
                 {getFormFields()}
               </div>
 
-              <div className="flex justify-end gap-3 p-6 border-t bg-gray-50">
+              <div className="flex justify-end gap-3 p-5 border-t border-gray-200 bg-gray-50">
                 <button
                   onClick={handleCloseModal}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded transition-colors"
+                  className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
                 >
                   キャンセル
                 </button>
                 <button
                   onClick={handleSave}
-                  className="flex items-center gap-2 px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                  className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
                 >
                   <Save className="h-4 w-4" />
                   保存

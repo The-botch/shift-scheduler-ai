@@ -24,9 +24,13 @@ import {
 import ShiftTimeline from '../shared/ShiftTimeline'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
+import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
 
 const shiftRepository = new ShiftRepository()
 const masterRepository = new MasterRepository()
+
+// 祝日データを事前に読み込む
+loadHolidays()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -1026,43 +1030,68 @@ const SecondPlan = ({
           const dayData = data.find(d => d.date === date) || { date, shifts: [] }
           const isProblem = !isFirstPlan && isProblematicDate(date)
           const isChanged = !isFirstPlan && changedDates.has(date)
+          const isDayHoliday = isHoliday(selectedShift.year, selectedShift.month, date)
+          const holidayName = getHolidayName(selectedShift.year, selectedShift.month, date)
+
+          // 曜日を計算（0=日曜, 6=土曜）
+          const dayOfWeek = new Date(selectedShift.year, selectedShift.month - 1, date).getDay()
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
 
           return (
             <motion.div
               key={i}
-              className={`p-1 border border-gray-100 rounded min-h-[80px] cursor-pointer transition-colors ${
+              className={`p-1 border rounded cursor-pointer transition-colors overflow-hidden ${
                 isProblem
                   ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
-                  : 'hover:border-green-300 hover:bg-green-50'
+                  : isDayHoliday || isWeekend
+                    ? 'bg-red-50 border-red-200 hover:bg-red-100'
+                    : 'border-gray-200 hover:bg-gray-50'
               }`}
+              style={{ minHeight: '80px', maxHeight: '120px' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: i * 0.02 }}
               onClick={() => !isFirstPlan && handleDayClick(date)}
             >
-              <div
-                className={`text-xs font-bold mb-1 ${isProblem ? 'text-yellow-700' : 'text-gray-700'}`}
-              >
-                {date}
-                {isProblem && <AlertTriangle className="h-3 w-3 inline ml-1 text-yellow-600" />}
+              <div className="flex items-center justify-between mb-0.5">
+                <div
+                  className={`text-xs font-bold ${
+                    isProblem
+                      ? 'text-yellow-700'
+                      : isDayHoliday || isWeekend
+                        ? 'text-red-600'
+                        : 'text-gray-700'
+                  }`}
+                >
+                  {date}
+                  {isProblem && <AlertTriangle className="h-3 w-3 inline ml-1 text-yellow-600" />}
+                </div>
+                {isDayHoliday && (
+                  <div className="text-[0.45rem] text-red-600 font-medium leading-tight truncate max-w-[50%]">
+                    {holidayName}
+                  </div>
+                )}
               </div>
-              {dayData.shifts.map((shift, idx) => (
+              {dayData.shifts.slice(0, 2).map((shift, idx) => (
                 <motion.div
                   key={idx}
                   initial={{ opacity: 0, scale: 0.8 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: idx * 0.1 }}
-                  className="text-xs p-1 rounded mb-1 bg-green-100 text-green-800"
+                  className="text-xs p-0.5 rounded mb-0.5 bg-green-100 text-green-800"
                 >
-                  <div className="font-medium flex items-center">
-                    {shift.name}
+                  <div className="font-medium flex items-center truncate">
+                    <span className="truncate">{shift.name}</span>
                     {(shift.preferred || shift.changed) && (
-                      <CheckCircle className="h-2 w-2 ml-1 text-green-600" />
+                      <CheckCircle className="h-2 w-2 ml-1 flex-shrink-0 text-green-600" />
                     )}
                   </div>
-                  <div className="text-xs opacity-80">{shift.time}</div>
+                  <div className="text-[0.65rem] opacity-80 truncate">{shift.time}</div>
                 </motion.div>
               ))}
+              {dayData.shifts.length > 2 && (
+                <div className="text-xs text-gray-500">+{dayData.shifts.length - 2}</div>
+              )}
             </motion.div>
           )
         })}
@@ -1100,7 +1129,10 @@ const SecondPlan = ({
           <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
             第2案希望反映版
           </h1>
-          <p className="text-lg text-gray-600">第1案をベースにスタッフ希望を反映したシフト</p>
+          <p className="text-lg text-gray-600">
+            {selectedShift?.store_name ? `${selectedShift.store_name} · ` : ''}
+            第1案をベースにスタッフ希望を反映したシフト
+          </p>
         </div>
 
         {/* 表示切り替えボタン */}

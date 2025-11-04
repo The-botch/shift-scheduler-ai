@@ -1126,7 +1126,8 @@ const StaffManagement = ({
               </div>
             </CardHeader>
 
-            <CardContent className="p-6">
+            <CardContent className="p-0">
+              <div className="p-6">
               {showMasters ? (
                 /* マスター編集セクション */
                 <>
@@ -1199,13 +1200,17 @@ const StaffManagement = ({
                     </div>
                   </div>
                 </>
-              ) : (
+              ) : null}
+              </div>
+              {!showMasters && (
                 /* スタッフ一覧テーブル */
-                <div>
-                  <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                    <div className="w-1 h-6 bg-orange-600 rounded"></div>
-                    スタッフ一覧 ({staffList.length}名)
-                  </h3>
+                <>
+                  <div className="px-6 pb-4">
+                    <h3 className="text-lg font-bold flex items-center gap-2">
+                      <div className="w-1 h-6 bg-orange-600 rounded"></div>
+                      スタッフ一覧 ({staffList.length}名)
+                    </h3>
+                  </div>
                   {staffList.length === 0 ? (
                     <Card className="bg-gray-50 border-2 border-gray-300">
                       <CardContent className="p-8 text-center">
@@ -1225,8 +1230,8 @@ const StaffManagement = ({
                       </CardContent>
                     </Card>
                   ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full bg-white border border-gray-200">
+                    <div className="overflow-x-auto w-full">
+                      <table className="min-w-full bg-white border border-gray-200 table-auto">
                         <thead className="bg-gray-50">
                           <tr>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
@@ -1322,7 +1327,7 @@ const StaffManagement = ({
                       </table>
                     </div>
                   )}
-                </div>
+                </>
               )}
             </CardContent>
           </Card>

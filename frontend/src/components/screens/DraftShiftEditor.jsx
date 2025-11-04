@@ -327,7 +327,10 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
         <h1 className="text-3xl font-bold text-gray-900">
           {year}年{month}月のシフト（{selectedShift?.status === 'first_plan_approved' ? '第1案承認済み' : '下書き'}）
         </h1>
-        <p className="text-gray-600 mt-2">日付をクリックして詳細を確認・編集できます</p>
+        <p className="text-gray-600 mt-2">
+          {selectedShift?.store_name ? `${selectedShift.store_name} · ` : ''}
+          日付をクリックして詳細を確認・編集できます
+        </p>
       </div>
 
       <Card className="shadow-lg border-0">

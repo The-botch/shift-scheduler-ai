@@ -226,9 +226,6 @@ const LineShiftInput = ({
   const selectedStaff = staffList.find(s => s.staff_id === selectedStaffId)
   const isPartTimeStaff = selectedStaff?.employment_type === 'PART_TIME' || selectedStaff?.employment_type === 'PART'
 
-  // デバッグ用
-  console.log('Selected Staff:', selectedStaff?.name, 'Employment Type:', selectedStaff?.employment_type, 'Is Part Time:', isPartTimeStaff)
-
   useEffect(() => {
     loadShiftPatterns()
     loadStaffList()
@@ -311,7 +308,6 @@ const LineShiftInput = ({
       const response = await fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}`)
       const result = await response.json()
       if (result.success) {
-        console.log('シフトパターン読み込み成功:', result.data.length, '件')
         setShiftPatterns(result.data)
       }
     } catch (error) {
@@ -343,14 +339,12 @@ const LineShiftInput = ({
       const result = await response.json()
 
       if (result.success && result.data && result.data.length > 0) {
-        console.log('既存のシフト希望を読み込みました:', result.data)
         // APIレスポンスをローカルステート形式に変換
         const prefs = {}
         const firstPreference = result.data[0]
 
         // 既存のpreference_idを保存（更新時に使用）
         if (firstPreference.preference_id) {
-          console.log('既存のpreference_idを保存:', firstPreference.preference_id)
           setExistingPreferenceId(firstPreference.preference_id)
         }
 
@@ -384,17 +378,12 @@ const LineShiftInput = ({
           }
         })
 
-        console.log('変換後のprefs:', prefs)
         setDatePreferences(prefs)
 
         // 既に希望が提出されている場合
         if (result.data.some(p => p.status === SHIFT_PREFERENCE_STATUS.PENDING || p.status === SHIFT_PREFERENCE_STATUS.APPROVED)) {
-          console.log('既に提出済みです')
           setIsSubmitted(true)
         }
-      } else {
-        // データが存在しない場合は空のまま
-        console.log('シフト希望データがまだ登録されていません')
       }
     } catch (error) {
       console.error('シフト希望読み込みエラー:', error)

@@ -99,7 +99,7 @@ const AppHeader = ({
             {onLineMessages && (
               <Button variant="ghost" size="sm" onClick={onLineMessages} className="text-slate-700">
                 <MessageSquare className="h-4 w-4 mr-1.5" />
-                メッセージ
+                LINE
               </Button>
             )}
             {onStaffManagement && (
@@ -110,7 +110,7 @@ const AppHeader = ({
                 className="text-slate-700"
               >
                 <Users className="h-4 w-4 mr-1.5" />
-                スタッフ
+                スタッフ管理
               </Button>
             )}
             {onStoreManagement && (
@@ -121,18 +121,7 @@ const AppHeader = ({
                 className="text-slate-700"
               >
                 <Store className="h-4 w-4 mr-1.5" />
-                店舗
-              </Button>
-            )}
-            {onConstraintManagement && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onConstraintManagement}
-                className="text-slate-700"
-              >
-                <Shield className="h-4 w-4 mr-1.5" />
-                制約
+                店舗管理
               </Button>
             )}
             {onBudgetActualManagement && (
@@ -154,7 +143,7 @@ const AppHeader = ({
                 className="text-slate-700"
               >
                 <Database className="h-4 w-4 mr-1.5" />
-                マスター
+                マスター管理
               </Button>
             )}
           </nav>

@@ -22,6 +22,7 @@ import ShiftTimeline from '../shared/ShiftTimeline'
 import { exportCSV, generateFilename } from '../../utils/csvHelper'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
+import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
 
 const shiftRepository = new ShiftRepository()
 const masterRepository = new MasterRepository()
@@ -42,6 +43,15 @@ const pageTransition = {
 const CalendarView = ({ selectedMonth, calendarData, onDayClick }) => {
   const { daysInMonth, firstDay, shiftsByDate } = calendarData
   const weekDays = ['日', '月', '火', '水', '木', '金', '土']
+
+  // selectedMonthから年と月を取得
+  const currentYear = selectedMonth.year
+  const currentMonth = selectedMonth.month
+
+  // 祝日データを事前に読み込む
+  useEffect(() => {
+    loadHolidays()
+  }, [])
 
   // カレンダーグリッド用の配列を作成
   const calendarDays = []
@@ -76,29 +86,39 @@ const CalendarView = ({ selectedMonth, calendarData, onDayClick }) => {
           const dayShifts = shiftsByDate[day] || []
           const dayOfWeek = (firstDay + day - 1) % 7
           const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+          const isDayHoliday = isHoliday(currentYear, currentMonth, day)
+          const holidayName = getHolidayName(currentYear, currentMonth, day)
           const hasModified = dayShifts.some(s => s.modified_flag)
 
           return (
             <motion.div
               key={day}
-              className={`p-1 border rounded min-h-[60px] cursor-pointer hover:shadow-md transition-shadow ${
+              className={`p-1 border rounded cursor-pointer hover:shadow-md transition-shadow ${
                 hasModified
                   ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
-                  : isWeekend
-                    ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                  : isDayHoliday || isWeekend
+                    ? 'bg-red-50 border-red-200 hover:bg-red-100'
                     : 'border-gray-200 hover:bg-gray-50'
               }`}
+              style={{ minHeight: '80px', maxHeight: '120px' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.01 }}
               onClick={() => dayShifts.length > 0 && onDayClick(day)}
             >
-              <div
-                className={`text-xs font-bold mb-0.5 ${
-                  hasModified ? 'text-yellow-700' : 'text-gray-700'
-                }`}
-              >
-                {day}
+              <div className="flex items-center justify-between mb-0.5">
+                <div
+                  className={`text-xs font-bold ${
+                    hasModified ? 'text-yellow-700' : isDayHoliday || isWeekend ? 'text-red-600' : 'text-gray-700'
+                  }`}
+                >
+                  {day}
+                </div>
+                {isDayHoliday && (
+                  <div className="text-[0.5rem] text-red-600 font-medium leading-tight">
+                    {holidayName}
+                  </div>
+                )}
               </div>
               {dayShifts.slice(0, 2).map((shift, idx) => (
                 <motion.div
@@ -147,8 +167,8 @@ const CalendarView = ({ selectedMonth, calendarData, onDayClick }) => {
           <span>修正あり</span>
         </div>
         <div className="flex items-center">
-          <div className="w-2.5 h-2.5 bg-blue-50 border border-blue-200 rounded mr-1.5"></div>
-          <span>土日</span>
+          <div className="w-2.5 h-2.5 bg-red-50 border border-red-200 rounded mr-1.5"></div>
+          <span>土日・祝日</span>
         </div>
       </div>
     </div>
@@ -748,6 +768,10 @@ const History = ({
             {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
           </h1>
           <p className="text-lg text-gray-600">
+            {(() => {
+              const store = availableStores.find(s => s.store_id === selectedMonth.storeId)
+              return store ? `${store.store_name} · ` : ''
+            })()}
             確定済み · 全{detailShifts.length}件
           </p>
         </div>

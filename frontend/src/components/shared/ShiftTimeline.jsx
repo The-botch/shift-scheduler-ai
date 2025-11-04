@@ -1,15 +1,24 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { X, Trash2 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { ROLE_COLORS, getRoleColor } from '../../config/colors'
+import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
 
 const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, onUpdate, onDelete }) => {
+  // 祝日データを事前に読み込む
+  useEffect(() => {
+    loadHolidays()
+  }, [])
+
+  // 祝日判定
+  const isDayHoliday = isHoliday(year, month, date)
+  const holidayName = getHolidayName(year, month, date)
   const [selectedShift, setSelectedShift] = useState(null)
-  // 時間範囲（7:00 - 翌3:00）
-  const startHour = 7
-  const endHour = 27 // 翌日3:00を27:00として扱う
+  // 時間範囲（5:00 - 翌4:00）
+  const startHour = 5
+  const endHour = 28 // 翌日4:00を28:00として扱う
   const hours = []
   for (let h = startHour; h <= endHour; h++) {
     hours.push(h)
@@ -144,9 +153,9 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
     // 新しい終了時間を計算
     const newEndMinutes = newStartMinutes + duration
 
-    // 15分単位に丸める
-    const roundedStartMinutes = Math.round(newStartMinutes / 15) * 15
-    const roundedEndMinutes = Math.round(newEndMinutes / 15) * 15
+    // 30分単位に丸める
+    const roundedStartMinutes = Math.round(newStartMinutes / 30) * 30
+    const roundedEndMinutes = Math.round(newEndMinutes / 30) * 30
 
     // 時間文字列に変換
     const newStartTime = minutesToTimeString(roundedStartMinutes)
@@ -191,9 +200,16 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
         {/* ヘッダー */}
         <div className="border-b bg-gray-50 px-6 py-4 flex-shrink-0">
           <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold">
-              {year}年{month}月{date}日のシフト詳細
-            </h2>
+            <div>
+              <h2 className="text-2xl font-bold">
+                {year}年{month}月{date}日のシフト詳細
+              </h2>
+              {isDayHoliday && (
+                <div className="text-sm text-red-600 font-medium mt-1">
+                  {holidayName}
+                </div>
+              )}
+            </div>
             <Button variant="ghost" size="sm" onClick={onClose}>
               <X className="h-5 w-5" />
             </Button>
@@ -218,16 +234,20 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
 
         {/* スクロール可能なコンテンツエリア */}
         <div className="flex-1 overflow-y-auto">
-          <div className="flex" style={{ height: '1260px' }}>
+          <div className="flex" style={{ height: '1260px', paddingTop: '8px' }}>
             {/* 時間軸（左側） */}
             <div className="w-20 flex-shrink-0 border-r bg-gray-50">
               {hours.map((hour, index) => (
                 <div key={hour} className="relative h-[60px] border-b border-gray-200">
-                  <div className="absolute -top-2 left-2 text-xs font-medium text-gray-600">
+                  <div className="absolute -top-2 left-2 text-xs font-bold text-gray-700">
                     {getHourLabel(hour)}
                   </div>
-                  {/* 30分の補助線 */}
-                  <div className="absolute top-1/2 left-0 right-0 border-t border-dashed border-gray-300" />
+                  {/* 30分の表示とライン */}
+                  <div className="absolute top-1/2 left-0 right-0 border-t border-dashed border-gray-300">
+                    <div className="absolute -top-2 left-2 text-xs font-medium text-gray-500">
+                      {hour < 24 ? `${hour}:30` : `${hour - 24}:30`}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>
@@ -236,14 +256,19 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
             <div className="flex-1 relative">
               {/* 時間グリッド背景 */}
               {hours.map(hour => (
-                <div key={`grid-${hour}`} className="h-[60px] border-b border-gray-200" />
+                <div key={`grid-${hour}`} className="h-[60px] border-b border-gray-200 relative">
+                  {/* 30分線 */}
+                  <div className="absolute top-1/2 left-0 right-0 border-t border-dashed border-gray-300" />
+                </div>
               ))}
 
               {/* シフトブロック */}
               <div className="absolute inset-0 shift-container">
                 {processedShifts.map((shift, index) => {
                   const style = getShiftStyle(shift)
-                  const columnWidth = 100 / columns
+                  // 最大幅を600pxに制限し、人数に応じて幅を調整
+                  const maxWidth = Math.min(600, window.innerWidth * 0.6)
+                  const columnWidth = maxWidth / columns
                   const left = shift._column * columnWidth
 
                   return (
@@ -263,8 +288,8 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
                       style={{
                         top: style.top,
                         height: style.height,
-                        left: `${left}%`,
-                        width: `${columnWidth - 1}%`,
+                        left: `${left}px`,
+                        width: `${columnWidth - 4}px`,
                         minHeight: '40px',
                       }}
                       whileHover={editable ? { scale: 1.02 } : {}}

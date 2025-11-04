@@ -348,8 +348,6 @@ function AppContent() {
   }
 
   const goToFirstPlanFromShiftMgmt = async (shift) => {
-    console.log('goToFirstPlanFromShiftMgmt called with:', shift)
-
     // shiftオブジェクトから情報を取得
     const status = shift?.status || 'not_started'
     const year = shift?.year || new Date().getFullYear()
