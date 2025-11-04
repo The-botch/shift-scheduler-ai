@@ -856,6 +856,116 @@ router.delete('/roles/:role_id', async (req, res) => {
 });
 
 // ===================
+// CRUD メソッド - 店舗マスター
+// ===================
+
+// 店舗作成
+router.post('/stores', async (req, res) => {
+  try {
+    const { tenant_id, store_code, store_name, division_id, address, phone_number, business_hours_start, business_hours_end } = req.body;
+
+    // 必須チェック
+    if (!tenant_id || !store_code || !store_name || !division_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id, store_code, store_name, division_id are required'
+      });
+    }
+
+    const result = await query(`
+      INSERT INTO core.stores (tenant_id, store_code, store_name, division_id, address, phone_number, business_hours_start, business_hours_end)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      RETURNING *
+    `, [tenant_id, store_code, store_name, division_id, address || null, phone_number || null, business_hours_start || null, business_hours_end || null]);
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating store:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 店舗更新
+router.put('/stores/:store_id', async (req, res) => {
+  try {
+    const { store_id } = req.params;
+    const { store_code, store_name, division_id, address, phone_number, business_hours_start, business_hours_end } = req.body;
+
+    // 必須チェック
+    if (!store_code || !store_name || !division_id) {
+      return res.status(400).json({
+        success: false,
+        error: 'store_code, store_name, and division_id are required'
+      });
+    }
+
+    const result = await query(`
+      UPDATE core.stores
+      SET store_code = $1, store_name = $2, division_id = $3, address = $4, phone_number = $5,
+          business_hours_start = $6, business_hours_end = $7, updated_at = CURRENT_TIMESTAMP
+      WHERE store_id = $8
+      RETURNING *
+    `, [store_code, store_name, division_id, address, phone_number, business_hours_start, business_hours_end, store_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Store not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating store:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 店舗削除（論理削除）
+router.delete('/stores/:store_id', async (req, res) => {
+  try {
+    const { store_id } = req.params;
+
+    const result = await query(`
+      UPDATE core.stores
+      SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+      WHERE store_id = $1
+      RETURNING *
+    `, [store_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Store not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting store:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ===================
 // CRUD メソッド - スキルマスター
 // ===================
 
