@@ -213,6 +213,7 @@ const LineShiftInput = ({
   const [staffList, setStaffList] = useState([])
   const [selectedStaffId, setSelectedStaffId] = useState(DEMO_PARAMS.staff_id)
   const [storeList, setStoreList] = useState([])
+  const [selectedStoreId, setSelectedStoreId] = useState(null) // 店舗フィルター
   const nextMonthYearMonth = getNextMonthYearMonth()
   const [selectedYear, setSelectedYear] = useState(nextMonthYearMonth.year)
   const [selectedMonth, setSelectedMonth] = useState(nextMonthYearMonth.month)
@@ -221,6 +222,11 @@ const LineShiftInput = ({
 
   // デモ用の日付データ
   const daysInMonth = Array.from({ length: 31 }, (_, i) => i + 1)
+
+  // 店舗でフィルタリングされたスタッフリスト
+  const filteredStaffList = selectedStoreId
+    ? staffList.filter(s => s.store_id === selectedStoreId)
+    : staffList
 
   // 選択中のスタッフ情報を取得
   const selectedStaff = staffList.find(s => s.staff_id === selectedStaffId)
@@ -518,7 +524,7 @@ const LineShiftInput = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-8">
+    <div className="min-h-screen bg-slate-50 pt-4 pb-8 overflow-y-auto">
       <motion.div
         initial="initial"
         animate="in"
@@ -545,15 +551,15 @@ const LineShiftInput = ({
                 /* LINEトーク画面 */
                 <div className="bg-[#7CB4D3] h-[600px] p-3 overflow-y-auto">
                   {/* LINEヘッダー */}
-                  <div className="bg-white rounded-t-lg px-3 py-2 flex items-center gap-2 border-b">
-                    <div className="w-8 h-8 bg-green-600 rounded-full flex items-center justify-center">
-                      <MessageSquare className="h-5 w-5 text-white" />
+                  <div className="bg-white rounded-t-lg px-3 py-1.5 flex items-center gap-2 border-b">
+                    <div className="w-7 h-7 bg-green-600 rounded-full flex items-center justify-center">
+                      <MessageSquare className="h-4 w-4 text-white" />
                     </div>
                     <div>
-                      <p className="font-bold text-sm text-gray-800">
+                      <p className="font-bold text-xs text-gray-800">
                         {tenantInfo ? `${tenantInfo.tenant_name} 店舗公式` : 'カフェ○○ 店舗公式'}
                       </p>
-                      <p className="text-xs text-gray-500">営業時間 9:00-22:00</p>
+                      <p className="text-[0.65rem] text-gray-500">営業時間 9:00-22:00</p>
                     </div>
                   </div>
 
@@ -708,10 +714,10 @@ const LineShiftInput = ({
                 /* LIFF入力画面 */
                 <div className="bg-white h-[600px] overflow-y-auto">
                   {/* LIFFヘッダー */}
-                  <div className="bg-green-600 text-white px-3 py-2.5 flex items-center justify-between">
+                  <div className="bg-green-600 text-white px-3 py-1.5 flex items-center justify-between">
                     <div className="flex items-center">
                       <MessageSquare className="h-4 w-4 mr-2" />
-                      <span className="font-bold text-sm">シフト希望入力</span>
+                      <span className="font-bold text-xs">シフト希望入力</span>
                     </div>
                     <button
                       onClick={() => {
@@ -760,6 +766,31 @@ const LineShiftInput = ({
                     <div className="mb-3 space-y-2">
                       <div>
                         <label className="text-xs font-bold text-gray-700 mb-1 block">
+                          店舗フィルター
+                        </label>
+                        <select
+                          value={selectedStoreId || ''}
+                          onChange={(e) => {
+                            const storeId = e.target.value ? parseInt(e.target.value) : null
+                            setSelectedStoreId(storeId)
+                            // フィルター変更時、最初のスタッフを選択
+                            const filtered = storeId ? staffList.filter(s => s.store_id === storeId) : staffList
+                            if (filtered.length > 0) {
+                              setSelectedStaffId(filtered[0].staff_id)
+                            }
+                          }}
+                          className="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5"
+                        >
+                          <option value="">全店舗</option>
+                          {storeList.map(store => (
+                            <option key={store.store_id} value={store.store_id}>
+                              {store.store_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-xs font-bold text-gray-700 mb-1 block">
                           スタッフ選択
                         </label>
                         <select
@@ -767,9 +798,9 @@ const LineShiftInput = ({
                           onChange={(e) => setSelectedStaffId(parseInt(e.target.value))}
                           className="w-full text-xs border border-gray-300 rounded-lg px-2 py-1.5"
                         >
-                          {staffList.map(staff => (
+                          {filteredStaffList.map(staff => (
                             <option key={staff.staff_id} value={staff.staff_id}>
-                              {staff.name} ({staff.staff_code})
+                              {staff.name} ({staff.staff_code}) - {staff.store_name}
                             </option>
                           ))}
                         </select>

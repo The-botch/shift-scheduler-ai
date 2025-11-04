@@ -228,9 +228,9 @@ const MasterDataManagement = ({ onPrev }) => {
       case 'employment_types':
         setFormData({
           tenant_id: tenantId,
-          employment_type_code: '',
-          employment_type_name: '',
-          description: '',
+          employment_code: '',
+          employment_name: '',
+          payment_type: '',
         })
         break
       case 'shift_patterns':
@@ -381,9 +381,9 @@ const MasterDataManagement = ({ onPrev }) => {
         break
       case 'employment_types':
         setFormData({
-          employment_type_code: item.employment_type_code,
-          employment_type_name: item.employment_type_name,
-          description: item.description || '',
+          employment_code: item.employment_code,
+          employment_name: item.employment_name,
+          payment_type: item.payment_type || '',
         })
         break
       case 'shift_patterns':
@@ -690,7 +690,7 @@ const MasterDataManagement = ({ onPrev }) => {
         }
         return true
       case 'employment_types':
-        if (!formData.employment_type_code || !formData.employment_type_name) {
+        if (!formData.employment_code || !formData.employment_name) {
           setError('雇用形態コードと雇用形態名は必須です')
           return false
         }
@@ -765,7 +765,7 @@ const MasterDataManagement = ({ onPrev }) => {
       case 'skills':
         return item.skill_name
       case 'employment_types':
-        return item.employment_type_name
+        return item.employment_name
       case 'shift_patterns':
         return item.pattern_name
       case 'divisions':
@@ -1055,13 +1055,18 @@ const MasterDataManagement = ({ onPrev }) => {
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 雇用形態
               </label>
-              <input
-                type="text"
+              <select
                 value={formData.employment_type || ''}
                 onChange={(e) => handleInputChange('employment_type', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例: 正社員"
-              />
+              >
+                <option value="">選択してください</option>
+                {employmentTypes.map((et) => (
+                  <option key={et.employment_type_id} value={et.employment_code}>
+                    {et.employment_name}
+                  </option>
+                ))}
+              </select>
             </div>
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1296,10 +1301,10 @@ const MasterDataManagement = ({ onPrev }) => {
               </label>
               <input
                 type="text"
-                value={formData.employment_type_code || ''}
-                onChange={(e) => handleInputChange('employment_type_code', e.target.value)}
+                value={formData.employment_code || ''}
+                onChange={(e) => handleInputChange('employment_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例: PT"
+                placeholder="例: PART_TIME"
               />
             </div>
             <div className="mb-4">
@@ -1308,23 +1313,26 @@ const MasterDataManagement = ({ onPrev }) => {
               </label>
               <input
                 type="text"
-                value={formData.employment_type_name || ''}
-                onChange={(e) => handleInputChange('employment_type_name', e.target.value)}
+                value={formData.employment_name || ''}
+                onChange={(e) => handleInputChange('employment_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例: パートタイム"
+                placeholder="例: アルバイト"
               />
             </div>
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                説明
+                支払タイプ
               </label>
-              <textarea
-                value={formData.description || ''}
-                onChange={(e) => handleInputChange('description', e.target.value)}
+              <select
+                value={formData.payment_type || ''}
+                onChange={(e) => handleInputChange('payment_type', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                rows="3"
-                placeholder="雇用形態の説明を入力"
-              />
+              >
+                <option value="">選択してください</option>
+                <option value="HOURLY">時給制</option>
+                <option value="MONTHLY">月給制</option>
+                <option value="DAILY">日給制</option>
+              </select>
             </div>
           </>
         )

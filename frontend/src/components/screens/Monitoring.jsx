@@ -423,187 +423,122 @@ const Monitoring = ({
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="app-container pt-8"
+      className="fixed inset-0 flex flex-col"
+      style={{ top: '64px' }}
     >
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-            シフト希望提出状況
-          </h1>
-          <p className="text-lg text-gray-600">スタッフのシフト希望提出状況を確認</p>
-        </div>
-
-        {/* 年月選択 */}
-        {(
-          <>
+      {/* ヘッダーエリア - 固定 */}
+      <div className="flex-shrink-0 px-8 pt-4 mb-2">
+        {/* 1行目: タイトル + 年月選択 */}
+        <div className="flex items-center justify-between mb-2">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">
+              シフト希望提出状況
+              <span className="text-sm font-normal text-gray-600 ml-3">
+                スタッフ希望提出状況を確認
+              </span>
+            </h1>
+          </div>
+          <div className="flex items-center gap-3">
             {/* 年選択 */}
-            <div className="flex items-center justify-center gap-6 mb-8">
+            <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setHistoryYear(historyYear - 1)}>
-                <ChevronLeft className="h-4 w-4" />
+                <ChevronLeft className="h-3 w-3" />
               </Button>
-              <div className="text-2xl font-bold">{historyYear}年</div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setHistoryYear(historyYear + 1)}
-              >
-                <ChevronRight className="h-4 w-4" />
+              <div className="text-base font-bold">{historyYear}年</div>
+              <Button variant="outline" size="sm" onClick={() => setHistoryYear(historyYear + 1)}>
+                <ChevronRight className="h-3 w-3" />
               </Button>
             </div>
-
-            {/* 月フィルター */}
-            <div className="flex flex-wrap gap-2 justify-center mb-8">
+            {/* 月選択 */}
+            <div className="flex gap-1">
               {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                 <Button
                   key={month}
                   variant={historyMonth === month ? 'default' : 'outline'}
                   size="sm"
+                  className={historyMonth === month ? 'bg-blue-600 hover:bg-blue-700 text-xs px-2 py-1' : 'text-xs px-2 py-1'}
                   onClick={() => setHistoryMonth(month)}
                 >
                   {month}月
                 </Button>
               ))}
             </div>
+          </div>
+        </div>
 
-            {/* 店舗フィルター */}
-            {storeList.length > 0 && (
-              <div className="flex items-center justify-center gap-3 mb-8">
-                <Store className="h-4 w-4 text-gray-600" />
-                <select
-                  value={selectedStoreId || ''}
-                  onChange={(e) => setSelectedStoreId(e.target.value ? parseInt(e.target.value) : null)}
-                  className="px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="">すべての店舗</option>
-                  {storeList.map(store => (
-                    <option key={store.store_id} value={store.store_id}>
-                      {store.store_name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-          </>
+        {/* 2行目: 店舗選択 */}
+        {storeList.length > 0 && (
+          <div className="flex items-center gap-2">
+            <Store className="h-3 w-3 text-gray-600" />
+            <select
+              value={selectedStoreId || ''}
+              onChange={(e) => setSelectedStoreId(e.target.value ? parseInt(e.target.value) : null)}
+              className="px-2 py-1 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="">すべての店舗</option>
+              {storeList.map(store => (
+                <option key={store.store_id} value={store.store_id}>
+                  {store.store_name}
+                </option>
+              ))}
+            </select>
+          </div>
         )}
+      </div>
 
-        {/* 提出状況サマリー */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-blue-100">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-blue-900">提出率</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-blue-600">{submissionRate}%</div>
-              <p className="text-xs text-blue-700 mt-2">
-                {submittedCount}/{totalCount}名が提出済み
-              </p>
-            </CardContent>
-          </Card>
+      {/* 提出状況サマリー - 固定 */}
+      <div className="flex-shrink-0 px-8 mb-2">
+        <div className="flex gap-3">
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+            <div>
+              <div className="text-[0.65rem] text-blue-700 font-medium">提出率</div>
+              <div className="text-lg font-bold text-blue-600">{submissionRate}%</div>
+            </div>
+            <div className="text-[0.65rem] text-blue-600">
+              {submittedCount}/{totalCount}名
+            </div>
+          </div>
 
-          <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-green-100">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-green-900 flex items-center gap-2">
-                <CheckCircle className="h-4 w-4" />
-                提出済み
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-green-600">{submittedCount}名</div>
-              <p className="text-xs text-green-700 mt-2">シフト希望を提出済み</p>
-            </CardContent>
-          </Card>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
+            <CheckCircle className="h-4 w-4 text-green-600" />
+            <div>
+              <div className="text-[0.65rem] text-green-700 font-medium">提出済み</div>
+              <div className="text-lg font-bold text-green-600">{submittedCount}名</div>
+            </div>
+          </div>
 
-          <Card className="shadow-lg border-0 bg-gradient-to-br from-red-50 to-red-100">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium text-red-900 flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                未提出
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="text-4xl font-bold text-red-600">{totalCount - submittedCount}名</div>
-              <p className="text-xs text-red-700 mt-2">まだ提出していない</p>
-            </CardContent>
-          </Card>
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-br from-red-50 to-red-100 rounded-lg border border-red-200">
+            <AlertCircle className="h-4 w-4 text-red-600" />
+            <div>
+              <div className="text-[0.65rem] text-red-700 font-medium">未提出</div>
+              <div className="text-lg font-bold text-red-600">{totalCount - submittedCount}名</div>
+            </div>
+          </div>
         </div>
+      </div>
 
-        {/* ビュー切り替えボタン */}
-        <div className="mb-4 flex gap-2">
-          <Button
-            variant={viewMode === 'staff' ? 'default' : 'outline'}
-            onClick={() => setViewMode('staff')}
-            className={viewMode === 'staff' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-          >
-            <LayoutGrid className="h-4 w-4 mr-2" />
-            スタッフ別表示
-          </Button>
-          <Button
-            variant={viewMode === 'calendar' ? 'default' : 'outline'}
-            onClick={() => setViewMode('calendar')}
-            className={viewMode === 'calendar' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-          >
-            <Table className="h-4 w-4 mr-2" />
-            カレンダー表示
-          </Button>
-        </div>
-
-        {viewMode === 'calendar' ? (
-          /* カレンダー表示 */
-          <Card className="shadow-lg border-0 mb-8">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Calendar className="h-5 w-5 mr-2 text-purple-600" />
-                シフト希望カレンダー
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {calendarShiftData.length > 0 ? (
-                <StaffTimeTable
-                  year={historyYear}
-                  month={historyMonth}
-                  shiftData={calendarShiftData}
-                  staffMap={Object.fromEntries(
-                    Object.entries(staffMap).filter(([id, info]) => {
-                      return !selectedStoreId || parseInt(info.store_id) === parseInt(selectedStoreId)
-                    })
-                  )}
-                  onCellClick={(date, staffId, shift) => {
-                    // 日付クリック時の処理（必要に応じて実装）
-                    if (shift) {
-                      handleDayClick(date)
-                    }
-                  }}
-                />
-              ) : (
-                <div className="text-center py-12 text-gray-500">
-                  <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
-                  <p>提出されたシフト希望がありません</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          /* スタッフ一覧 */
-          <Card className="shadow-lg border-0">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Users className="h-5 w-5 mr-2 text-purple-600" />
-                  スタッフ提出状況
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
+      {/* スタッフ一覧 - スクロール可能 */}
+      <Card className="shadow-lg border-0 flex-1 flex flex-col overflow-hidden mx-8 mb-4">
+        <CardHeader className="flex-shrink-0 py-3">
+          <CardTitle className="flex items-center justify-between text-base">
+            <div className="flex items-center">
+              <Users className="h-4 w-4 mr-2 text-purple-600" />
+              スタッフ提出状況
+            </div>
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-y-auto px-6 pb-4">
+          <div className="space-y-3">
                 {staffStatus.map(staff => (
                 <motion.div
                   key={staff.id}
-                  className={`flex items-center justify-between p-4 border rounded-lg ${
+                  className={`flex items-center justify-between p-3 border rounded-lg ${
                     staff.submitted ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'
                   }`}
                   whileHover={{ scale: 1.01 }}
                   onClick={() => handleStaffClick(staff)}
                 >
-                  <div className="flex items-center space-x-4">
+                  <div className="flex items-center space-x-3">
                     <div
                       className={`w-3 h-3 rounded-full ${
                         staff.submitted ? 'bg-green-500' : 'bg-red-500'
@@ -648,7 +583,6 @@ const Monitoring = ({
               </div>
             </CardContent>
           </Card>
-        )}
 
         {/* 希望シフト詳細モーダル */}
         {selectedStaff && (
