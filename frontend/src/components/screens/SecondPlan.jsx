@@ -40,7 +40,21 @@ const pageTransition = {
   duration: 0.5,
 }
 
-const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift }) => {
+const SecondPlan = ({
+  onNext,
+  onPrev,
+  onMarkUnsaved,
+  onMarkSaved,
+  selectedShift,
+  onHome,
+  onShiftManagement,
+  onLineMessages,
+  onMonitoring,
+  onStaffManagement,
+  onStoreManagement,
+  onConstraintManagement,
+  onBudgetActualManagement,
+}) => {
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
   const [comparison, setComparison] = useState(null)
@@ -1065,8 +1079,8 @@ const SecondPlan = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift 
       transition={pageTransition}
       className="container mx-auto px-4 py-8"
     >
-      {/* ナビゲーション */}
-      <div className="flex justify-between items-center mb-8">
+        {/* ナビゲーション */}
+        <div className="flex justify-between items-center mb-8">
         <Button onClick={onPrev} variant="outline" size="sm">
           <ChevronLeft className="mr-2 h-4 w-4" />
           戻る

@@ -12,6 +12,7 @@ import {
   TrendingUp,
   Code2,
   Building2,
+  Database,
 } from 'lucide-react'
 import { useTenant } from '../../contexts/TenantContext'
 
@@ -24,6 +25,7 @@ const AppHeader = ({
   onStoreManagement,
   onConstraintManagement,
   onBudgetActualManagement,
+  onMasterDataManagement,
   onTenantSettings,
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
@@ -62,7 +64,10 @@ const AppHeader = ({
         <div className="flex items-center justify-between h-16">
           {/* 左側：ロゴ/ホームボタン */}
           <div className="flex items-center gap-4">
-            <button onClick={onHome} className="app-logo">
+            <button
+              onClick={onHome}
+              className="app-logo"
+            >
               <BarChart3 className="h-6 w-6 text-slate-700" />
               <span className="font-bold text-lg text-slate-900">Shift Scheduler</span>
             </button>
@@ -91,27 +96,10 @@ const AppHeader = ({
 
           {/* 右側：ナビゲーションメニュー */}
           <nav className="flex items-center gap-2">
-            {onShiftManagement && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onShiftManagement}
-                className="text-slate-700"
-              >
-                <FolderOpen className="h-4 w-4 mr-1.5" />
-                シフト管理
-              </Button>
-            )}
             {onLineMessages && (
               <Button variant="ghost" size="sm" onClick={onLineMessages} className="text-slate-700">
                 <MessageSquare className="h-4 w-4 mr-1.5" />
                 メッセージ
-              </Button>
-            )}
-            {onMonitoring && (
-              <Button variant="ghost" size="sm" onClick={onMonitoring} className="text-slate-700">
-                <ClipboardList className="h-4 w-4 mr-1.5" />
-                シフト希望
               </Button>
             )}
             {onStaffManagement && (
@@ -156,6 +144,17 @@ const AppHeader = ({
               >
                 <TrendingUp className="h-4 w-4 mr-1.5" />
                 予実管理
+              </Button>
+            )}
+            {onMasterDataManagement && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onMasterDataManagement}
+                className="text-slate-700"
+              >
+                <Database className="h-4 w-4 mr-1.5" />
+                マスター
               </Button>
             )}
           </nav>

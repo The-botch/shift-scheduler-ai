@@ -16,6 +16,7 @@ import {
   Clock,
   ChevronLeft,
   ChevronRight,
+  BarChart3,
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -32,6 +33,7 @@ import { PAGE_VARIANTS, PAGE_TRANSITION } from '../../config/display'
 import { getCurrentYear } from '../../config/constants'
 import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
 import { useTenant } from '../../contexts/TenantContext'
+import Dashboard from './Dashboard'
 
 const csvRepository = new CSVRepository()
 
@@ -46,6 +48,7 @@ const BudgetActualManagement = ({
   onBudgetActualManagement,
 }) => {
   const { tenantId } = useTenant()
+  const [activeTab, setActiveTab] = useState('dashboard') // 'dashboard' or 'import'
   const [workHoursFile, setWorkHoursFile] = useState(null)
   const [payrollFile, setPayrollFile] = useState(null)
   const [salesActualFile, setSalesActualFile] = useState(null)
@@ -1278,7 +1281,56 @@ const BudgetActualManagement = ({
     )
   }
 
-  // 通常のインポート画面
+  // ダッシュボードタブの場合はDashboardコンポーネントを表示
+  if (activeTab === 'dashboard') {
+    return (
+      <div className="min-h-screen bg-slate-50">
+        <div className="bg-white border-b border-gray-200 sticky top-0 z-10">
+          <div className="app-container">
+            <div className="flex items-center justify-between py-4">
+              <h1 className="text-2xl font-bold text-gray-900">予実管理</h1>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setActiveTab('dashboard')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    activeTab === 'dashboard'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <BarChart3 className="h-4 w-4 inline-block mr-2" />
+                  ダッシュボード
+                </button>
+                <button
+                  onClick={() => setActiveTab('import')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                    activeTab === 'import'
+                      ? 'bg-blue-100 text-blue-700'
+                      : 'text-gray-600 hover:bg-gray-100'
+                  }`}
+                >
+                  <Upload className="h-4 w-4 inline-block mr-2" />
+                  データインポート
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+        <Dashboard
+          onHome={onHome}
+          onShiftManagement={onShiftManagement}
+          onMonitoring={onMonitoring}
+          onStaffManagement={onStaffManagement}
+          onStoreManagement={onStoreManagement}
+          onConstraintManagement={onConstraintManagement}
+          onLineMessages={onLineMessages}
+          onBudgetActualManagement={onBudgetActualManagement}
+        />
+      </div>
+    )
+  }
+
+  // インポート画面
   return (
     <div className="min-h-screen bg-slate-50 pt-8">
       <motion.div
@@ -1290,11 +1342,37 @@ const BudgetActualManagement = ({
         className="app-container"
       >
         <div className="max-w-7xl mx-auto space-y-6">
+          {/* タブナビゲーション */}
+          <div className="flex gap-2 mb-6">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === 'dashboard'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <BarChart3 className="h-4 w-4 inline-block mr-2" />
+              ダッシュボード
+            </button>
+            <button
+              onClick={() => setActiveTab('import')}
+              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                activeTab === 'import'
+                  ? 'bg-blue-100 text-blue-700'
+                  : 'text-gray-600 hover:bg-gray-100'
+              }`}
+            >
+              <Upload className="h-4 w-4 inline-block mr-2" />
+              データインポート
+            </button>
+          </div>
+
           {/* ヘッダー */}
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">予実管理</h1>
-              <p className="text-gray-600 mt-1">売上予測・実績データを管理します</p>
+              <h1 className="text-3xl font-bold text-gray-900">データインポート</h1>
+              <p className="text-gray-600 mt-1">売上予測・実績データをインポートします</p>
             </div>
             <div className="flex gap-2">
               <Button

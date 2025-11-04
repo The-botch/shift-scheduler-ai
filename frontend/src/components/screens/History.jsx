@@ -619,21 +619,19 @@ const History = ({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 pt-8">
-        <motion.div
-          initial="initial"
-          animate="in"
-          exit="out"
-          variants={pageVariants}
-          transition={pageTransition}
-          className="app-container"
-        >
-          <div className="flex flex-col items-center justify-center min-h-[400px]">
-            <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-            <p className="text-lg text-gray-600">履歴データを読み込んでいます...</p>
-          </div>
-        </motion.div>
-      </div>
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="app-container pt-8"
+      >
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+          <p className="text-lg text-gray-600">履歴データを読み込んでいます...</p>
+        </div>
+      </motion.div>
     )
   }
 
@@ -737,29 +735,22 @@ const History = ({
   // 詳細表示の場合
   if (selectedMonth) {
     return (
-      <div className="min-h-screen bg-slate-50 pt-8">
-        <motion.div
-          initial="initial"
-          animate="in"
-          exit="out"
-          variants={pageVariants}
-          transition={pageTransition}
-          className="app-container"
-        >
-          <div className="mb-8">
-            <div className="flex items-center gap-2 mb-4">
-              <Button variant="outline" onClick={backToSummary}>
-                <ArrowLeft className="h-4 w-4 mr-2" />
-                サマリーに戻る
-              </Button>
-            </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-              {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
-            </h1>
-            <p className="text-lg text-gray-600">
-              確定済み · 全{detailShifts.length}件
-            </p>
-          </div>
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="app-container pt-8"
+      >
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
+            {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
+          </h1>
+          <p className="text-lg text-gray-600">
+            確定済み · 全{detailShifts.length}件
+          </p>
+        </div>
 
           <Card className="shadow-lg border-0">
             <CardHeader>
@@ -958,22 +949,20 @@ const History = ({
               />
             )}
           </AnimatePresence>
-        </motion.div>
-      </div>
+      </motion.div>
     )
   }
 
   // 月次サマリー表示
   return (
-    <div className="min-h-screen bg-slate-50 pt-8">
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-        className="app-container"
-      >
+    <motion.div
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={pageTransition}
+      className="app-container pt-8"
+    >
         {/* 年・店舗選択 */}
         <div className="flex items-center justify-center gap-6 mb-8">
           {/* 年選択 */}
@@ -1149,8 +1138,7 @@ const History = ({
               ))}
           </div>
         )}
-      </motion.div>
-    </div>
+    </motion.div>
   )
 }
 

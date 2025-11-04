@@ -855,4 +855,933 @@ router.delete('/roles/:role_id', async (req, res) => {
   }
 });
 
+// ===================
+// CRUD メソッド - スキルマスター
+// ===================
+
+// スキル作成
+router.post('/skills', async (req, res) => {
+  try {
+    const { tenant_id, skill_code, skill_name, description } = req.body;
+
+    if (!tenant_id || !skill_code || !skill_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id, skill_code, skill_name are required'
+      });
+    }
+
+    const result = await query(`
+      INSERT INTO hr.skills (tenant_id, skill_code, skill_name, description)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [tenant_id, skill_code, skill_name, description || null]);
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating skill:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// スキル更新
+router.put('/skills/:skill_id', async (req, res) => {
+  try {
+    const { skill_id } = req.params;
+    const { skill_code, skill_name, description } = req.body;
+
+    if (!skill_code || !skill_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'skill_code and skill_name are required'
+      });
+    }
+
+    const result = await query(`
+      UPDATE hr.skills
+      SET skill_code = $1, skill_name = $2, description = $3, updated_at = CURRENT_TIMESTAMP
+      WHERE skill_id = $4
+      RETURNING *
+    `, [skill_code, skill_name, description || null, skill_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Skill not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating skill:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// スキル削除（論理削除）
+router.delete('/skills/:skill_id', async (req, res) => {
+  try {
+    const { skill_id } = req.params;
+
+    const result = await query(`
+      UPDATE hr.skills
+      SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+      WHERE skill_id = $1
+      RETURNING *
+    `, [skill_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Skill not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting skill:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ===================
+// CRUD メソッド - 雇用形態マスター
+// ===================
+
+// 雇用形態作成
+router.post('/employment-types', async (req, res) => {
+  try {
+    const { tenant_id, employment_type_code, employment_type_name, description } = req.body;
+
+    if (!tenant_id || !employment_type_code || !employment_type_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id, employment_type_code, employment_type_name are required'
+      });
+    }
+
+    const result = await query(`
+      INSERT INTO hr.employment_types (tenant_id, employment_type_code, employment_type_name, description)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [tenant_id, employment_type_code, employment_type_name, description || null]);
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating employment type:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 雇用形態更新
+router.put('/employment-types/:employment_type_id', async (req, res) => {
+  try {
+    const { employment_type_id } = req.params;
+    const { employment_type_code, employment_type_name, description } = req.body;
+
+    if (!employment_type_code || !employment_type_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'employment_type_code and employment_type_name are required'
+      });
+    }
+
+    const result = await query(`
+      UPDATE hr.employment_types
+      SET employment_type_code = $1, employment_type_name = $2, description = $3, updated_at = CURRENT_TIMESTAMP
+      WHERE employment_type_id = $4
+      RETURNING *
+    `, [employment_type_code, employment_type_name, description || null, employment_type_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Employment type not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating employment type:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 雇用形態削除（論理削除）
+router.delete('/employment-types/:employment_type_id', async (req, res) => {
+  try {
+    const { employment_type_id } = req.params;
+
+    const result = await query(`
+      UPDATE hr.employment_types
+      SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+      WHERE employment_type_id = $1
+      RETURNING *
+    `, [employment_type_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Employment type not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting employment type:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ===================
+// CRUD メソッド - シフトパターンマスター
+// ===================
+
+// シフトパターン作成
+router.post('/shift-patterns', async (req, res) => {
+  try {
+    const { tenant_id, store_id, pattern_code, pattern_name, start_time, end_time, break_minutes } = req.body;
+
+    if (!tenant_id || !pattern_code || !pattern_name || !start_time || !end_time) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id, pattern_code, pattern_name, start_time, end_time are required'
+      });
+    }
+
+    const result = await query(`
+      INSERT INTO hr.shift_patterns (tenant_id, store_id, pattern_code, pattern_name, start_time, end_time, break_minutes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING *
+    `, [tenant_id, store_id || null, pattern_code, pattern_name, start_time, end_time, break_minutes || 0]);
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating shift pattern:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// シフトパターン更新
+router.put('/shift-patterns/:pattern_id', async (req, res) => {
+  try {
+    const { pattern_id } = req.params;
+    const { pattern_code, pattern_name, start_time, end_time, break_minutes, store_id } = req.body;
+
+    if (!pattern_code || !pattern_name || !start_time || !end_time) {
+      return res.status(400).json({
+        success: false,
+        error: 'pattern_code, pattern_name, start_time, end_time are required'
+      });
+    }
+
+    const result = await query(`
+      UPDATE hr.shift_patterns
+      SET pattern_code = $1, pattern_name = $2, start_time = $3, end_time = $4, break_minutes = $5, store_id = $6, updated_at = CURRENT_TIMESTAMP
+      WHERE pattern_id = $7
+      RETURNING *
+    `, [pattern_code, pattern_name, start_time, end_time, break_minutes || 0, store_id || null, pattern_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Shift pattern not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating shift pattern:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// シフトパターン削除（論理削除）
+router.delete('/shift-patterns/:pattern_id', async (req, res) => {
+  try {
+    const { pattern_id } = req.params;
+
+    const result = await query(`
+      UPDATE hr.shift_patterns
+      SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+      WHERE pattern_id = $1
+      RETURNING *
+    `, [pattern_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Shift pattern not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting shift pattern:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ======================
+// Divisions Master CRUD
+// ======================
+
+// Create division
+router.post('/divisions', async (req, res) => {
+  try {
+    const {
+      tenant_id,
+      division_code,
+      division_name,
+      division_type,
+      parent_division_id,
+      contact_email,
+      contact_phone
+    } = req.body;
+
+    // Validation
+    if (!tenant_id || !division_code || !division_name) {
+      return res.status(400).json({
+        success: false,
+        error: '必須項目が不足しています（テナントID、部署コード、部署名は必須です）'
+      });
+    }
+
+    const result = await query(`
+      INSERT INTO core.divisions (
+        tenant_id,
+        division_code,
+        division_name,
+        division_type,
+        parent_division_id,
+        contact_email,
+        contact_phone,
+        is_active
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+      RETURNING *
+    `, [
+      tenant_id,
+      division_code,
+      division_name,
+      division_type || null,
+      parent_division_id || null,
+      contact_email || null,
+      contact_phone || null
+    ]);
+
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating division:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Update division
+router.put('/divisions/:division_id', async (req, res) => {
+  try {
+    const { division_id } = req.params;
+    const {
+      division_code,
+      division_name,
+      division_type,
+      parent_division_id,
+      contact_email,
+      contact_phone
+    } = req.body;
+
+    const result = await query(`
+      UPDATE core.divisions
+      SET
+        division_code = COALESCE($1, division_code),
+        division_name = COALESCE($2, division_name),
+        division_type = $3,
+        parent_division_id = $4,
+        contact_email = $5,
+        contact_phone = $6,
+        is_active = TRUE,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE division_id = $7
+      RETURNING *
+    `, [
+      division_code,
+      division_name,
+      division_type || null,
+      parent_division_id || null,
+      contact_email || null,
+      contact_phone || null,
+      division_id
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Division not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating division:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Delete division (logical delete)
+router.delete('/divisions/:division_id', async (req, res) => {
+  try {
+    const { division_id } = req.params;
+
+    const result = await query(`
+      UPDATE core.divisions
+      SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+      WHERE division_id = $1
+      RETURNING *
+    `, [division_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Division not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting division:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// ===========================
+// Commute Allowance Master CRUD
+// ===========================
+
+// Create commute allowance
+router.post('/commute-allowance', async (req, res) => {
+  try {
+    const {
+      tenant_id,
+      distance_from_km,
+      distance_to_km,
+      allowance_amount,
+      daily_allowance,
+      monthly_max,
+      description
+    } = req.body;
+
+    // Validation
+    if (!tenant_id || distance_from_km === undefined || distance_to_km === undefined || !allowance_amount) {
+      return res.status(400).json({
+        success: false,
+        error: '必須項目が不足しています（テナントID、距離範囲、手当金額は必須です）'
+      });
+    }
+
+    const result = await query(`
+      INSERT INTO hr.commute_allowance (
+        tenant_id,
+        distance_from_km,
+        distance_to_km,
+        allowance_amount,
+        daily_allowance,
+        monthly_max,
+        description,
+        is_active
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+      RETURNING *
+    `, [
+      tenant_id,
+      distance_from_km,
+      distance_to_km,
+      allowance_amount,
+      daily_allowance || null,
+      monthly_max || null,
+      description || null
+    ]);
+
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating commute allowance:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Update commute allowance
+router.put('/commute-allowance/:allowance_id', async (req, res) => {
+  try {
+    const { allowance_id } = req.params;
+    const {
+      distance_from_km,
+      distance_to_km,
+      allowance_amount,
+      daily_allowance,
+      monthly_max,
+      description
+    } = req.body;
+
+    const result = await query(`
+      UPDATE hr.commute_allowance
+      SET
+        distance_from_km = COALESCE($1, distance_from_km),
+        distance_to_km = COALESCE($2, distance_to_km),
+        allowance_amount = COALESCE($3, allowance_amount),
+        daily_allowance = $4,
+        monthly_max = $5,
+        description = $6,
+        is_active = TRUE,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE allowance_id = $7
+      RETURNING *
+    `, [
+      distance_from_km,
+      distance_to_km,
+      allowance_amount,
+      daily_allowance || null,
+      monthly_max || null,
+      description || null,
+      allowance_id
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Commute allowance not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating commute allowance:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Delete commute allowance (logical delete)
+router.delete('/commute-allowance/:allowance_id', async (req, res) => {
+  try {
+    const { allowance_id } = req.params;
+
+    const result = await query(`
+      UPDATE hr.commute_allowance
+      SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+      WHERE allowance_id = $1
+      RETURNING *
+    `, [allowance_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Commute allowance not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting commute allowance:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// =========================
+// Insurance Rates Master CRUD
+// =========================
+
+// Create insurance rate
+router.post('/insurance-rates', async (req, res) => {
+  try {
+    const {
+      tenant_id,
+      insurance_type,
+      employee_rate,
+      employer_rate,
+      effective_from,
+      effective_to,
+      rate_name
+    } = req.body;
+
+    // Validation
+    if (!tenant_id || !insurance_type || employee_rate === undefined || employer_rate === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: '必須項目が不足しています（テナントID、保険種別、料率は必須です）'
+      });
+    }
+
+    const result = await query(`
+      INSERT INTO hr.insurance_rates (
+        tenant_id,
+        insurance_type,
+        employee_rate,
+        employer_rate,
+        effective_from,
+        effective_to,
+        rate_name,
+        is_active
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, TRUE)
+      RETURNING *
+    `, [
+      tenant_id,
+      insurance_type,
+      employee_rate,
+      employer_rate,
+      effective_from || null,
+      effective_to || null,
+      rate_name || null
+    ]);
+
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating insurance rate:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Update insurance rate
+router.put('/insurance-rates/:rate_id', async (req, res) => {
+  try {
+    const { rate_id } = req.params;
+    const {
+      insurance_type,
+      employee_rate,
+      employer_rate,
+      effective_from,
+      effective_to,
+      rate_name
+    } = req.body;
+
+    const result = await query(`
+      UPDATE hr.insurance_rates
+      SET
+        insurance_type = COALESCE($1, insurance_type),
+        employee_rate = COALESCE($2, employee_rate),
+        employer_rate = COALESCE($3, employer_rate),
+        effective_from = $4,
+        effective_to = $5,
+        rate_name = $6,
+        is_active = TRUE,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE rate_id = $7
+      RETURNING *
+    `, [
+      insurance_type,
+      employee_rate,
+      employer_rate,
+      effective_from || null,
+      effective_to || null,
+      rate_name || null,
+      rate_id
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Insurance rate not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating insurance rate:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Delete insurance rate (logical delete)
+router.delete('/insurance-rates/:rate_id', async (req, res) => {
+  try {
+    const { rate_id } = req.params;
+
+    const result = await query(`
+      UPDATE hr.insurance_rates
+      SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+      WHERE rate_id = $1
+      RETURNING *
+    `, [rate_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Insurance rate not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting insurance rate:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// =======================
+// Tax Brackets Master CRUD
+// =======================
+
+// Create tax bracket
+router.post('/tax-brackets', async (req, res) => {
+  try {
+    const {
+      tenant_id,
+      tax_type,
+      income_from,
+      income_to,
+      tax_rate,
+      deduction_amount,
+      effective_from,
+      effective_to,
+      bracket_name
+    } = req.body;
+
+    // Validation
+    if (!tenant_id || !tax_type || income_from === undefined || tax_rate === undefined) {
+      return res.status(400).json({
+        success: false,
+        error: '必須項目が不足しています（テナントID、税種別、所得範囲、税率は必須です）'
+      });
+    }
+
+    const result = await query(`
+      INSERT INTO hr.tax_brackets (
+        tenant_id,
+        tax_type,
+        income_from,
+        income_to,
+        tax_rate,
+        deduction_amount,
+        effective_from,
+        effective_to,
+        bracket_name,
+        is_active
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, TRUE)
+      RETURNING *
+    `, [
+      tenant_id,
+      tax_type,
+      income_from,
+      income_to || null,
+      tax_rate,
+      deduction_amount || null,
+      effective_from || null,
+      effective_to || null,
+      bracket_name || null
+    ]);
+
+    res.status(201).json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating tax bracket:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Update tax bracket
+router.put('/tax-brackets/:bracket_id', async (req, res) => {
+  try {
+    const { bracket_id } = req.params;
+    const {
+      tax_type,
+      income_from,
+      income_to,
+      tax_rate,
+      deduction_amount,
+      effective_from,
+      effective_to,
+      bracket_name
+    } = req.body;
+
+    const result = await query(`
+      UPDATE hr.tax_brackets
+      SET
+        tax_type = COALESCE($1, tax_type),
+        income_from = COALESCE($2, income_from),
+        income_to = $3,
+        tax_rate = COALESCE($4, tax_rate),
+        deduction_amount = $5,
+        effective_from = $6,
+        effective_to = $7,
+        bracket_name = $8,
+        is_active = TRUE,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE bracket_id = $9
+      RETURNING *
+    `, [
+      tax_type,
+      income_from,
+      income_to || null,
+      tax_rate,
+      deduction_amount || null,
+      effective_from || null,
+      effective_to || null,
+      bracket_name || null,
+      bracket_id
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tax bracket not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating tax bracket:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Delete tax bracket (logical delete)
+router.delete('/tax-brackets/:bracket_id', async (req, res) => {
+  try {
+    const { bracket_id } = req.params;
+
+    const result = await query(`
+      UPDATE hr.tax_brackets
+      SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+      WHERE bracket_id = $1
+      RETURNING *
+    `, [bracket_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Tax bracket not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting tax bracket:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

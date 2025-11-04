@@ -34,7 +34,7 @@ const __dirname = path.dirname(__filename);
 const DATABASE_URL = process.env.DATABASE_URL ||
   'postgresql://postgres:gkfRVoPvcoLdoDHjCabWcBWhYYBONYfe@mainline.proxy.rlwy.net:50142/railway';
 
-const MASTER_DIR = path.join(__dirname, '..', 'frontend', 'public', 'data', 'master');
+const MASTER_DIR = path.join(__dirname, '..', '..', 'frontend', 'public', 'data', 'master');
 
 // CSVパーサー
 function parseCSV(csvText) {

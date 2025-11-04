@@ -40,6 +40,7 @@ export const API_ENDPOINTS = {
   MASTER_ROLES: '/api/master/roles',
   MASTER_SKILLS: '/api/master/skills',
   MASTER_STORES: '/api/master/stores',
+  MASTER_DIVISIONS: '/api/master/divisions',
   MASTER_SHIFT_PATTERNS: '/api/master/shift-patterns',
   MASTER_COMMUTE_ALLOWANCE: '/api/master/commute-allowance',
   MASTER_INSURANCE_RATES: '/api/master/insurance-rates',

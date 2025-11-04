@@ -43,6 +43,7 @@ const Monitoring = ({
   onStoreManagement,
   onConstraintManagement,
   onBudgetActualManagement,
+  initialMonth, // ShiftManagementから渡される月情報 { year, month }
 }) => {
   const { tenantId } = useTenant()
   const [staffStatus, setStaffStatus] = useState([])
@@ -53,54 +54,36 @@ const Monitoring = ({
   const [staffMap, setStaffMap] = useState({})
   const [rolesMap, setRolesMap] = useState({})
   const [shiftPatternsMap, setShiftPatternsMap] = useState({})
-  const [activeTab, setActiveTab] = useState('management') // 'management' or 'history'
-  const [selectedMonthIndex, setSelectedMonthIndex] = useState(0) // 管理タブで選択中の月のインデックス
 
-  // 管理タブ用（今月 + 次の3ヶ月 = 合計4ヶ月）
   const currentDate = useMemo(() => new Date(), [])
   const currentYear = currentDate.getFullYear()
   const currentMonth = currentDate.getMonth() + 1
 
-  // 今月から4ヶ月分の年月を計算
-  const managementMonths = useMemo(() => {
-    const months = []
-    for (let i = 0; i < 4; i++) {
-      const targetDate = new Date(currentYear, currentMonth - 1 + i, 1)
-      months.push({
-        year: targetDate.getFullYear(),
-        month: targetDate.getMonth() + 1
-      })
-    }
-    return months
-  }, [currentYear, currentMonth])
+  // 履歴表示用の年月
+  const [historyYear, setHistoryYear] = useState(initialMonth?.year || currentYear)
+  const [historyMonth, setHistoryMonth] = useState(initialMonth?.month || null) // null = 全月表示
 
-  // 履歴タブ用（全年月）
-  const [historyYear, setHistoryYear] = useState(currentYear)
-  const [historyMonth, setHistoryMonth] = useState(null) // null = 全月表示
+  // initialMonthが渡された場合は年月を設定
+  useEffect(() => {
+    if (initialMonth) {
+      setHistoryYear(initialMonth.year)
+      setHistoryMonth(initialMonth.month)
+    }
+  }, [initialMonth])
 
   useEffect(() => {
     loadAvailabilityData()
-  }, [activeTab, historyYear, historyMonth, tenantId])
+  }, [historyYear, historyMonth, tenantId])
 
   const loadAvailabilityData = async () => {
     setLoading(true)
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-      // タブに応じてAPIパラメータを決定
-      let preferencesUrl
-      if (activeTab === 'management') {
-        // 管理タブ：当月と次月のみ
-        // 2つの月のデータを取得するため、年月フィルタなしで取得して後でフィルタ
-        // テナント全体のデータを取得（store_idフィルタなし）
-        preferencesUrl = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}`
-      } else {
-        // 履歴タブ：選択した年月
-        // テナント全体のデータを取得（store_idフィルタなし）
-        preferencesUrl = historyMonth
-          ? `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&year=${historyYear}&month=${historyMonth}`
-          : `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&year=${historyYear}`
-      }
+      // 選択した年月のデータを取得
+      const preferencesUrl = historyMonth
+        ? `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&year=${historyYear}&month=${historyMonth}`
+        : `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&year=${historyYear}`
 
       const [staffResponse, rolesResponse, patternsResponse, preferencesResponse] = await Promise.all([
         fetch(`${apiUrl}/api/master/staff?tenant_id=${tenantId}`),
@@ -118,26 +101,6 @@ const Monitoring = ({
       const rolesData = rolesResult.success ? rolesResult.data : []
       const patternsData = patternsResult.success ? patternsResult.data : []
       let availData = preferencesResult.success ? preferencesResult.data : []
-
-      // 管理タブの場合、今月から4ヶ月先までにフィルタ
-      if (activeTab === 'management') {
-        availData = availData.filter(item => {
-          const itemYear = parseInt(item.year)
-          const itemMonth = parseInt(item.month)
-          return managementMonths.some(m => m.year === itemYear && m.month === itemMonth)
-        })
-      }
-
-      // 履歴タブの場合、今月より前のデータのみにフィルタ
-      if (activeTab === 'history') {
-        availData = availData.filter(item => {
-          const itemYear = parseInt(item.year)
-          const itemMonth = parseInt(item.month)
-          const itemDate = new Date(itemYear, itemMonth - 1, 1)
-          const currentDate = new Date(currentYear, currentMonth - 1, 1)
-          return itemDate < currentDate
-        })
-      }
 
       // スタッフマップと役職マップを作成
       const staffMapping = {}
@@ -213,44 +176,8 @@ const Monitoring = ({
     }
   }
 
-  // 管理タブで選択中の月の情報を取得
-  const selectedMonthData = activeTab === 'management' && managementMonths[selectedMonthIndex]
-    ? managementMonths[selectedMonthIndex]
-    : null
-
-  // 選択中の月でフィルタしたスタッフステータスを計算
-  const filteredStaffStatus = useMemo(() => {
-    if (activeTab !== 'management' || !selectedMonthData) {
-      return staffStatus
-    }
-
-    // 選択された月のデータのみを使用
-    const selectedMonthRequests = availabilityRequests.filter(
-      req => parseInt(req.year) === selectedMonthData.year && parseInt(req.month) === selectedMonthData.month
-    )
-
-    // スタッフごとに提出状況を再計算
-    return staffStatus.map(staff => {
-      const staffRequest = selectedMonthRequests.find(req => req.staff_id === staff.id && req.submitted_at)
-      if (staffRequest) {
-        const date = new Date(staffRequest.submitted_at)
-        const formatted = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
-        return {
-          ...staff,
-          submitted: true,
-          submittedAt: formatted
-        }
-      }
-      return {
-        ...staff,
-        submitted: false,
-        submittedAt: null
-      }
-    })
-  }, [activeTab, selectedMonthData, staffStatus, availabilityRequests])
-
-  const submittedCount = filteredStaffStatus.filter(s => s.submitted).length
-  const totalCount = filteredStaffStatus.length
+  const submittedCount = staffStatus.filter(s => s.submitted).length
+  const totalCount = staffStatus.length
   const submissionRate = totalCount > 0 ? Math.round((submittedCount / totalCount) * 100) : 0
 
   const sendReminder = staffId => {
@@ -401,54 +328,23 @@ const Monitoring = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-8">
-      <motion.div
-        initial="initial"
-        animate="in"
-        exit="out"
-        variants={pageVariants}
-        transition={pageTransition}
-        className="app-container"
-      >
+    <motion.div
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={pageTransition}
+      className="app-container pt-8"
+    >
         <div className="mb-8">
           <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-            シフト希望管理
+            シフト希望提出状況
           </h1>
-          <p className="text-lg text-gray-600">スタッフの希望提出状況を管理</p>
+          <p className="text-lg text-gray-600">スタッフのシフト希望提出状況を確認</p>
         </div>
 
-        {/* タブメニュー */}
-        <div className="flex gap-2 mb-6 border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('management')}
-            className={`px-6 py-3 font-medium transition-colors relative ${
-              activeTab === 'management'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              シフト希望管理
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`px-6 py-3 font-medium transition-colors relative ${
-              activeTab === 'history'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <HistoryIcon className="h-4 w-4" />
-              シフト希望履歴
-            </div>
-          </button>
-        </div>
-
-        {/* 履歴タブの年月選択 */}
-        {activeTab === 'history' && (
+        {/* 年月選択 */}
+        {(
           <>
             {/* 年選択 */}
             <div className="flex items-center justify-center gap-6 mb-8">
@@ -460,7 +356,6 @@ const Monitoring = ({
                 variant="outline"
                 size="sm"
                 onClick={() => setHistoryYear(historyYear + 1)}
-                disabled={historyYear >= currentYear}
               >
                 <ChevronRight className="h-4 w-4" />
               </Button>
@@ -468,91 +363,60 @@ const Monitoring = ({
 
             {/* 月フィルター */}
             <div className="flex flex-wrap gap-2 justify-center mb-8">
-              <Button
-                variant={historyMonth === null ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setHistoryMonth(null)}
-              >
-                全月
-              </Button>
-              {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
-                // 今年で今月以降の月は無効化
-                const isDisabled = historyYear === currentYear && month >= currentMonth
-
-                return (
-                  <Button
-                    key={month}
-                    variant={historyMonth === month ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setHistoryMonth(month)}
-                    disabled={isDisabled}
-                    className={isDisabled ? 'opacity-50 cursor-not-allowed' : ''}
-                  >
-                    {month}月
-                  </Button>
-                )
-              })}
+              {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
+                <Button
+                  key={month}
+                  variant={historyMonth === month ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setHistoryMonth(month)}
+                >
+                  {month}月
+                </Button>
+              ))}
             </div>
           </>
         )}
 
-        {/* 管理タブ：月別スクロールカード */}
-        {activeTab === 'management' && (
-          <div className="mb-8">
-            <h2 className="text-xl font-bold mb-4">対象月を選択</h2>
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {managementMonths.map((monthData, index) => {
-                // この月のデータがあるスタッフ数を計算
-                const monthStaffCount = availabilityRequests.filter(
-                  req => parseInt(req.year) === monthData.year && parseInt(req.month) === monthData.month && req.submitted_at
-                ).length
-                const totalStaff = staffStatus.length
-                const monthRate = totalStaff > 0 ? Math.round((monthStaffCount / totalStaff) * 100) : 0
-                const isSelected = selectedMonthIndex === index
+        {/* 提出状況サマリー */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-blue-50 to-blue-100">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-blue-900">提出率</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-blue-600">{submissionRate}%</div>
+              <p className="text-xs text-blue-700 mt-2">
+                {submittedCount}/{totalCount}名が提出済み
+              </p>
+            </CardContent>
+          </Card>
 
-                return (
-                  <Card
-                    key={`${monthData.year}-${monthData.month}`}
-                    className={`shadow-lg border-2 min-w-[250px] flex-shrink-0 cursor-pointer transition-all ${
-                      isSelected
-                        ? 'border-blue-600 bg-blue-50 ring-2 ring-blue-400'
-                        : 'border-blue-300 hover:border-blue-500 hover:shadow-xl'
-                    }`}
-                    onClick={() => setSelectedMonthIndex(index)}
-                  >
-                    <CardHeader className="pb-3">
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Calendar className={`h-5 w-5 ${isSelected ? 'text-blue-700' : 'text-blue-600'}`} />
-                        {monthData.year}年{monthData.month}月
-                        {isSelected && (
-                          <span className="ml-auto text-xs bg-blue-600 text-white px-2 py-1 rounded">選択中</span>
-                        )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="space-y-2">
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">提出率</span>
-                          <span className={`text-2xl font-bold ${isSelected ? 'text-blue-700' : 'text-blue-600'}`}>
-                            {monthRate}%
-                          </span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">提出済み</span>
-                          <span className="text-lg font-bold text-green-600">{monthStaffCount}名</span>
-                        </div>
-                        <div className="flex justify-between items-center">
-                          <span className="text-sm text-gray-600">未提出</span>
-                          <span className="text-lg font-bold text-red-600">{totalStaff - monthStaffCount}名</span>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </div>
-        )}
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-green-50 to-green-100">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-green-900 flex items-center gap-2">
+                <CheckCircle className="h-4 w-4" />
+                提出済み
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-green-600">{submittedCount}名</div>
+              <p className="text-xs text-green-700 mt-2">シフト希望を提出済み</p>
+            </CardContent>
+          </Card>
+
+          <Card className="shadow-lg border-0 bg-gradient-to-br from-red-50 to-red-100">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-medium text-red-900 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                未提出
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-4xl font-bold text-red-600">{totalCount - submittedCount}名</div>
+              <p className="text-xs text-red-700 mt-2">まだ提出していない</p>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* スタッフ一覧 */}
         <Card className="shadow-lg border-0">
@@ -562,16 +426,11 @@ const Monitoring = ({
                 <Users className="h-5 w-5 mr-2 text-purple-600" />
                 スタッフ提出状況
               </div>
-              {activeTab === 'management' && selectedMonthData && (
-                <span className="text-sm font-normal text-gray-600">
-                  {selectedMonthData.year}年{selectedMonthData.month}月
-                </span>
-              )}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {filteredStaffStatus.map(staff => (
+              {staffStatus.map(staff => (
                 <motion.div
                   key={staff.id}
                   className={`flex items-center justify-between p-4 border rounded-lg ${
@@ -806,8 +665,7 @@ const Monitoring = ({
           )}
         </AnimatePresence>
 
-      </motion.div>
-    </div>
+    </motion.div>
   )
 }
 
