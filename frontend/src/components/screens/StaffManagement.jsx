@@ -54,6 +54,7 @@ const StaffManagement = ({
   const [shiftPatterns, setShiftPatterns] = useState([])
   const [stores, setStores] = useState([])
   const [selectedStore, setSelectedStore] = useState('all')
+  const [statusFilter, setStatusFilter] = useState('all') // 'all', 'active', 'inactive'
 
   useEffect(() => {
     loadData()
@@ -257,10 +258,21 @@ const StaffManagement = ({
     return typeMap[employmentType] || employmentType
   }
 
-  // 店舗フィルタリング
-  const filteredStaffList = selectedStore === 'all'
-    ? staffList
-    : staffList.filter(staff => staff.store_id === parseInt(selectedStore))
+  // 店舗フィルタリング + 在籍状況フィルタリング
+  const filteredStaffList = staffList.filter(staff => {
+    // 店舗フィルター
+    const storeMatch = selectedStore === 'all' || staff.store_id === parseInt(selectedStore)
+
+    // 在籍状況フィルター
+    let statusMatch = true
+    if (statusFilter === 'active') {
+      statusMatch = staff.is_active === true
+    } else if (statusFilter === 'inactive') {
+      statusMatch = staff.is_active === false
+    }
+
+    return storeMatch && statusMatch
+  })
 
   if (loading) {
     return (
@@ -1222,8 +1234,17 @@ const StaffManagement = ({
                       <div className="w-1 h-6 bg-orange-600 rounded"></div>
                       スタッフ一覧 ({filteredStaffList.length}名)
                     </h3>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
                       <Filter className="h-4 w-4 text-gray-600" />
+                      <select
+                        value={statusFilter}
+                        onChange={(e) => setStatusFilter(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="all">全ての状態</option>
+                        <option value="active">在籍のみ</option>
+                        <option value="inactive">退職のみ</option>
+                      </select>
                       <select
                         value={selectedStore}
                         onChange={(e) => setSelectedStore(e.target.value)}
@@ -1340,7 +1361,7 @@ const StaffManagement = ({
                                 {staff.max_hours_per_week}時間
                               </td>
                               <td className="px-4 py-3 text-sm border-b">
-                                {staff.is_active === 'TRUE' ? (
+                                {staff.is_active === true ? (
                                   <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
                                     在籍
                                   </span>

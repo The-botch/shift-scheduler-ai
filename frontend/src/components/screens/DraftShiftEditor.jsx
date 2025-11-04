@@ -3,9 +3,10 @@ import { MESSAGES } from '../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent } from '../ui/card'
 import { Button } from '../ui/button'
-import { ArrowLeft, CheckCircle, Loader2, Save } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Loader2, Save, LayoutGrid, Table } from 'lucide-react'
 import ShiftCalendar from '../shared/ShiftCalendar'
 import ShiftTimeline from '../shared/ShiftTimeline'
+import StaffTimeTable from '../shared/StaffTimeTable'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 
@@ -37,10 +38,15 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
   const [selectedDay, setSelectedDay] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [viewMode, setViewMode] = useState('staff') // 'staff' | 'calendar'
 
   // ローカルで保持する変更
   const [modifiedShifts, setModifiedShifts] = useState({}) // { shiftId: { start_time, end_time, ... } }
   const [deletedShiftIds, setDeletedShiftIds] = useState(new Set())
+
+  // スタッフ情報とシフトデータ
+  const [staffMap, setStaffMap] = useState({})
+  const [shiftData, setShiftData] = useState([])
 
   const year = selectedShift?.year || new Date().getFullYear()
   const month = selectedShift?.month || new Date().getMonth() + 1
@@ -56,10 +62,15 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
     try {
       setLoading(true)
 
-      // APIから並行読み込み
-      const [shiftsResult, staffResult, rolesResult] = await Promise.all([
-        shiftRepository.getShifts({ planId }),
-        masterRepository.getStaff(),
+      // まずシフトデータを取得して店舗IDを特定
+      const shiftsResult = await shiftRepository.getShifts({ planId })
+
+      // シフトデータから店舗IDを取得（最初のシフトの店舗IDを使用）
+      const storeId = shiftsResult.length > 0 ? shiftsResult[0].store_id : null
+
+      // APIから並行読み込み（店舗IDでスタッフをフィルタリング）
+      const [staffResult, rolesResult] = await Promise.all([
+        masterRepository.getStaff(null, storeId),
         masterRepository.getRoles(),
       ])
 
@@ -110,6 +121,14 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
         year,
         month,
       })
+
+      // スタッフマップとシフトデータを保存（StaffTimeTable用）
+      setStaffMap(staffMap)
+      setShiftData(shiftsResult.map(shift => ({
+        ...shift,
+        staff_name: staffMap[shift.staff_id]?.name || '不明',
+        role: staffMap[shift.staff_id]?.role_name || 'スタッフ',
+      })))
 
       setLoading(false)
     } catch (err) {
@@ -333,15 +352,48 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
         </p>
       </div>
 
+      {/* ビュー切り替えボタン */}
+      <div className="mb-4 flex gap-2">
+        <Button
+          variant={viewMode === 'staff' ? 'default' : 'outline'}
+          onClick={() => setViewMode('staff')}
+          className={viewMode === 'staff' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+        >
+          <LayoutGrid className="h-4 w-4 mr-2" />
+          スタッフ別表示
+        </Button>
+        <Button
+          variant={viewMode === 'calendar' ? 'default' : 'outline'}
+          onClick={() => setViewMode('calendar')}
+          className={viewMode === 'calendar' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+        >
+          <Table className="h-4 w-4 mr-2" />
+          カレンダー表示
+        </Button>
+      </div>
+
       <Card className="shadow-lg border-0">
         <CardContent className="p-6">
-          {calendarData && (
-            <ShiftCalendar
+          {viewMode === 'staff' ? (
+            <StaffTimeTable
               year={year}
               month={month}
-              calendarData={calendarData}
-              onDayClick={handleDayClick}
+              shiftData={shiftData}
+              staffMap={staffMap}
+              onCellClick={(date, staffId, shift) => {
+                // 日付クリック時の処理
+                handleDayClick(date)
+              }}
             />
+          ) : (
+            calendarData && (
+              <ShiftCalendar
+                year={year}
+                month={month}
+                calendarData={calendarData}
+                onDayClick={handleDayClick}
+              />
+            )
           )}
         </CardContent>
       </Card>

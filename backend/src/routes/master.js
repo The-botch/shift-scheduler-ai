@@ -135,7 +135,7 @@ router.get('/staff', async (req, res) => {
         st.store_name
       FROM hr.staff s
       LEFT JOIN core.stores st ON s.store_id = st.store_id
-      WHERE s.tenant_id = $1 AND s.is_active = TRUE
+      WHERE s.tenant_id = $1
     `;
 
     const params = [tenant_id];

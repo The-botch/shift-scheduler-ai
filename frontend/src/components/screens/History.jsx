@@ -17,8 +17,11 @@ import {
   Loader2,
   AlertTriangle,
   Store,
+  LayoutGrid,
+  Table,
 } from 'lucide-react'
 import ShiftTimeline from '../shared/ShiftTimeline'
+import StaffTimeTable from '../shared/StaffTimeTable'
 import { exportCSV, generateFilename } from '../../utils/csvHelper'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
@@ -201,8 +204,9 @@ const History = ({
   const [detailShifts, setDetailShifts] = useState([])
   const [selectedDay, setSelectedDay] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
-  const [viewMode, setViewMode] = useState('calendar') // 'calendar' or 'staff'
+  const [viewMode, setViewMode] = useState('staff') // 'staff' | 'calendar'
   const [staffMap, setStaffMap] = useState({}) // スタッフID -> スタッフ情報
+  const [shiftData, setShiftData] = useState([]) // シフトデータ（StaffTimeTable用）
   const [rolesMap, setRolesMap] = useState({}) // 役職ID -> 役職名
   const [actualData, setActualData] = useState(null) // インポートした実績データ
   const [showDiff, setShowDiff] = useState(false) // 差分表示モード
@@ -274,18 +278,24 @@ const History = ({
         shiftRepository.getSummary({ year: 2025 }) // 実データは2025年
       ])
 
-      // スタッフマップと役職マップを作成
-      const staffMapping = {}
-      staffData.forEach(staff => {
-        staffMapping[staff.staff_id] = staff
-      })
-      setStaffMap(staffMapping)
-
+      // 役職IDから役職名へのマッピング
       const rolesMapping = {}
       rolesData.forEach(role => {
         rolesMapping[role.role_id] = role.role_name
       })
       setRolesMap(rolesMapping)
+
+      // スタッフマップを作成（StaffTimeTable用のフォーマット）
+      const staffMapping = {}
+      staffData.forEach(staff => {
+        staffMapping[staff.staff_id] = {
+          name: staff.name,
+          role_id: staff.role_id,
+          role_name: rolesMapping[staff.role_id] || 'スタッフ',
+          store_id: staff.store_id,
+        }
+      })
+      setStaffMap(staffMapping)
 
       // APIから取得したサマリーデータを数値に変換
       const now = new Date()
@@ -355,26 +365,55 @@ const History = ({
     }
   }
 
-  const handleMonthClick = (year, month, storeId) => {
-    // 履歴データから該当月と店舗を抽出
-    const filtered = shiftHistory.filter(s =>
-      s.year === year &&
-      s.month === month &&
-      s.store_id === storeId
-    )
+  const handleMonthClick = async (year, month, storeId) => {
+    try {
+      // 履歴データから該当月と店舗を抽出
+      const filtered = shiftHistory.filter(s =>
+        s.year === year &&
+        s.month === month &&
+        s.store_id === storeId
+      )
 
-    // 履歴データを表示用にフォーマット
-    const transformedHistory = filtered.map(shift => {
-      const staff = staffMap[shift.staff_id]
-      const roleName = staff ? rolesMap[staff.role_id] : shift.role || '一般スタッフ'
-      return {
-        ...shift,
-        role: roleName,
-      }
-    })
+      // 履歴データを表示用にフォーマット
+      const transformedHistory = filtered.map(shift => {
+        const staff = staffMap[shift.staff_id]
+        const roleName = staff ? staff.role_name : shift.role || '一般スタッフ'
+        return {
+          ...shift,
+          role: roleName,
+        }
+      })
 
-    setDetailShifts(transformedHistory)
-    setSelectedMonth({ year, month, storeId })
+      // StaffTimeTable用のフォーマットでシフトデータを準備
+      const shiftDataForTable = transformedHistory.map(shift => {
+        const shiftDate = new Date(year, month - 1, shift.date)
+        return {
+          shift_id: shift.shift_id,
+          shift_date: shiftDate.toISOString().split('T')[0],
+          staff_id: shift.staff_id,
+          staff_name: shift.staff_name,
+          start_time: shift.start_time,
+          end_time: shift.end_time,
+          break_minutes: shift.break_minutes || 60,
+          role: shift.role,
+          modified_flag: shift.modified_flag || false,
+        }
+      })
+
+      // 店舗IDでスタッフをフィルタリング（DraftShiftEditorと同様）
+      const filteredStaffMap = {}
+      Object.entries(staffMap).forEach(([staffId, staffInfo]) => {
+        if (staffInfo.store_id === storeId) {
+          filteredStaffMap[staffId] = staffInfo
+        }
+      })
+
+      setDetailShifts(transformedHistory)
+      setShiftData(shiftDataForTable)
+      setSelectedMonth({ year, month, storeId })
+    } catch (err) {
+      console.error('月別シフト読み込みエラー:', err)
+    }
   }
 
 
@@ -776,6 +815,26 @@ const History = ({
           </p>
         </div>
 
+        {/* ビュー切り替えボタン */}
+        <div className="mb-4 flex gap-2">
+          <Button
+            variant={viewMode === 'staff' ? 'default' : 'outline'}
+            onClick={() => setViewMode('staff')}
+            className={viewMode === 'staff' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+          >
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            スタッフ別表示
+          </Button>
+          <Button
+            variant={viewMode === 'calendar' ? 'default' : 'outline'}
+            onClick={() => setViewMode('calendar')}
+            className={viewMode === 'calendar' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+          >
+            <Table className="h-4 w-4 mr-2" />
+            カレンダー表示
+          </Button>
+        </div>
+
           <Card className="shadow-lg border-0">
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -803,7 +862,20 @@ const History = ({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {viewMode === 'diff' && diffAnalysis ? (
+              {viewMode === 'staff' ? (
+                <StaffTimeTable
+                  year={selectedMonth.year}
+                  month={selectedMonth.month}
+                  shiftData={shiftData}
+                  staffMap={Object.fromEntries(
+                    Object.entries(staffMap).filter(([id, info]) => info.store_id === selectedMonth.storeId)
+                  )}
+                  onCellClick={(date, staffId, shift) => {
+                    // 日付クリック時の処理
+                    handleDayClick(date)
+                  }}
+                />
+              ) : viewMode === 'diff' && diffAnalysis ? (
                 <div className="space-y-6">
                   {/* サマリー */}
                   <Card className="border-2 border-orange-300 bg-orange-50">
