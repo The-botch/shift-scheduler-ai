@@ -9,11 +9,10 @@ import {
   Eye,
   Check,
   Clock,
-  History as HistoryIcon,
   Store,
 } from 'lucide-react'
-import History from './History'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
+import History from './History'
 
 const shiftRepository = new ShiftRepository()
 
@@ -49,39 +48,32 @@ const ShiftManagement = ({
   availableStores,
   setAvailableStores,
 }) => {
-  const [activeTab, setActiveTab] = useState('management') // 'management' or 'history'
-  const [initialHistoryMonth, setInitialHistoryMonth] = useState(null)
   const [shifts, setShifts] = useState([]) // マトリックスデータ: { storeId, storeName, months: [{month, status, ...}] }
   const [loading, setLoading] = useState(true)
   const [creatingShift, setCreatingShift] = useState(null) // 作成中の月を追跡
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()) // 年度選択
+  const [viewMode, setViewMode] = useState('matrix') // 'matrix' or 'detail'
+  const [viewingShift, setViewingShift] = useState(null) // 閲覧中のシフト情報
 
   // 常に現在年を使用
   const currentYear = new Date().getFullYear()
 
   // APIからシフトサマリーを取得
-  // activeTabが'management'に変わった時も再読み込み
-  useEffect(() => {
-    if (activeTab === 'management') {
-      loadShiftSummary()
-    }
-  }, [activeTab])
-
   // 初回マウント時にも読み込み
   useEffect(() => {
     loadShiftSummary()
   }, [])
 
-  // 店舗選択が変更されたときに再読み込み
+  // 店舗選択・年度選択が変更されたときに再読み込み
   useEffect(() => {
-    if (activeTab === 'management') {
-      loadShiftSummary()
-    }
-  }, [selectedStore])
+    loadShiftSummary()
+  }, [selectedStore, selectedYear])
 
   const loadShiftSummary = async () => {
     try {
       setLoading(true)
-      const summary = await shiftRepository.getSummary({ year: currentYear })
+      const summary = await shiftRepository.getSummary({ year: selectedYear })
+      console.log('[ShiftManagement] サマリー取得:', summary)
 
       // 店舗リストを抽出してグローバル状態に保存
       const stores = Array.from(
@@ -93,11 +85,8 @@ const ShiftManagement = ({
       ).sort((a, b) => a.store_name.localeCompare(b.store_name))
       setAvailableStores(stores)
 
-      // 表示する月（現在月と次月）
-      const now = new Date()
-      const currentMonth = now.getMonth() + 1 // 1-12
-      const nextMonth = currentMonth === 12 ? 1 : currentMonth + 1
-      const monthsToShow = [currentMonth, nextMonth]
+      // 表示する月（1月から12月まで全て）
+      const monthsToShow = Array.from({ length: 12 }, (_, i) => i + 1) // [1, 2, 3, ..., 12]
 
       // 店舗フィルタを適用
       const filteredStores = selectedStore === 'all'
@@ -130,7 +119,7 @@ const ShiftManagement = ({
 
           return {
             month,
-            year: currentYear,
+            year: selectedYear,
             storeId: store.store_id,
             storeName: store.store_name,
             planId: monthData ? monthData.plan_id : null,
@@ -148,6 +137,7 @@ const ShiftManagement = ({
         }
       })
 
+      console.log('[ShiftManagement] マトリックスデータ:', matrixData)
       setShifts(matrixData)
     } catch (error) {
       console.error('シフトサマリー取得エラー:', error)
@@ -159,19 +149,28 @@ const ShiftManagement = ({
 
   const getStatusInfo = status => {
     const statusMap = {
-      completed: { label: '承認済み・確定', color: 'green', icon: Check },
-      second_plan_approved: { label: '第2案承認済み', color: 'blue', icon: Check },
-      first_plan_approved: { label: '第1案承認済み', color: 'blue', icon: Check },
-      draft: { label: '下書き', color: 'yellow', icon: Edit3 },
-      not_started: { label: '未作成', color: 'gray', icon: Plus },
+      second_plan_approved: { label: '確定', color: 'green' },
+      first_plan_approved: { label: '第1案承認', color: 'cyan' },
+      draft: { label: '下書き', color: 'yellow' },
+      not_started: { label: '未作成', color: 'gray' },
     }
     return statusMap[status] || statusMap.not_started
   }
 
   const handleViewShift = shift => {
-    // 履歴タブに切り替えて、該当月の詳細を開く
-    setInitialHistoryMonth({ year: currentYear, month: shift.month })
-    setActiveTab('history')
+    // 確定済みシフトの閲覧
+    console.log('シフト閲覧:', shift)
+    setViewingShift({
+      year: shift.year,
+      month: shift.month,
+      storeId: shift.storeId
+    })
+    setViewMode('detail')
+  }
+
+  const handleBackToMatrix = () => {
+    setViewingShift(null)
+    setViewMode('matrix')
   }
 
   const handleEditShift = async shift => {
@@ -199,116 +198,118 @@ const ShiftManagement = ({
     }
   }
 
+  const getRecruitmentStatus = (year, month) => {
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1
+
+    const targetDate = new Date(year, month - 1, 1)
+    const currentDate = new Date(currentYear, currentMonth - 1, 1)
+
+    if (targetDate < currentDate) {
+      return { label: '締切', color: 'text-gray-500' }
+    } else if (targetDate.getTime() === currentDate.getTime()) {
+      return { label: '募集中', color: 'text-orange-600' }
+    } else {
+      return { label: '未開始', color: 'text-gray-400' }
+    }
+  }
+
   const getActionButton = shift => {
+    const isCreating = creatingShift === shift.month
+
+    // 過去月かどうかを判定
+    const targetDate = new Date(shift.year, shift.month - 1, 1)
+    const currentDate = new Date()
+    const currentMonthDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1)
+    const isPastMonth = targetDate < currentMonthDate
+
+    // 過去月は閲覧のみ
+    if (isPastMonth) {
+      return (
+        <button
+          className="text-xs text-blue-600 hover:text-blue-800 hover:underline"
+          onClick={() => handleViewShift(shift)}
+        >
+          閲覧
+        </button>
+      )
+    }
+
+    // 現在月・未来月はステータスに応じて編集可能
     switch (shift.status) {
-      case 'completed':
-        return (
-          <Button
-            size="sm"
-            className="w-full bg-green-600 hover:bg-green-700"
-            onClick={() => handleViewShift(shift)}
-          >
-            <Eye className="h-4 w-4 mr-2" />
-            閲覧
-          </Button>
-        )
       case 'second_plan_approved':
         return (
-          <div className="space-y-2">
-            <Button
-              size="sm"
-              className="w-full bg-blue-600 hover:bg-blue-700"
-              onClick={() => handleViewShift(shift)}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              閲覧
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full"
-              onClick={() => handleEditShift(shift)}
-            >
-              <Edit3 className="h-4 w-4 mr-2" />
-              修正
-            </Button>
-          </div>
+          <button
+            className="text-xs text-green-600 hover:text-green-800 hover:underline"
+            onClick={() => handleEditShift(shift)}
+          >
+            編集
+          </button>
         )
       case 'first_plan_approved':
         return (
-          <div className="space-y-2">
-            <Button
-              size="sm"
-              className="w-full bg-blue-600 hover:bg-blue-700"
-              onClick={() => handleViewShift(shift)}
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              閲覧
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              className="w-full"
+          <div className="flex gap-2 text-xs">
+            <button
+              className="text-green-600 hover:text-green-800 hover:underline"
               onClick={() => handleEditShift(shift)}
             >
-              <Edit3 className="h-4 w-4 mr-2" />
-              修正
-            </Button>
-            <Button
-              size="sm"
-              className="w-full bg-purple-600 hover:bg-purple-700 mt-2"
+              編集
+            </button>
+            <span className="text-gray-300">|</span>
+            <button
+              className="text-purple-600 hover:text-purple-800 hover:underline"
               onClick={() => onCreateSecondPlan && onCreateSecondPlan(shift)}
             >
-              <Plus className="h-4 w-4 mr-2" />
-              第2案作成へ
-            </Button>
+              第2案作成
+            </button>
           </div>
-        )
-      case 'in_progress':
-        return (
-          <Button
-            size="sm"
-            className="w-full bg-blue-600 hover:bg-blue-700"
-            onClick={() => handleEditShift(shift)}
-          >
-            <Edit3 className="h-4 w-4 mr-2" />
-            編集を続ける
-          </Button>
         )
       case 'draft':
         return (
-          <Button
-            size="sm"
-            className="w-full bg-yellow-600 hover:bg-yellow-700"
+          <button
+            className="text-xs text-yellow-600 hover:text-yellow-800 hover:underline"
             onClick={() => handleEditShift(shift)}
           >
-            <Edit3 className="h-4 w-4 mr-2" />
-            下書きを開く
-          </Button>
+            編集続行
+          </button>
         )
       default:
-        const isCreating = creatingShift === shift.month
         return (
-          <Button
-            size="sm"
-            className="w-full bg-green-600 hover:bg-green-700"
+          <button
+            className="text-xs text-green-600 hover:text-green-800 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
             onClick={() => handleEditShift(shift)}
             disabled={isCreating}
           >
-            {isCreating ? (
-              <>
-                <Clock className="h-4 w-4 mr-2 animate-spin" />
-                作成中...
-              </>
-            ) : (
-              <>
-                <Plus className="h-4 w-4 mr-2" />
-                新規作成
-              </>
-            )}
-          </Button>
+            {isCreating ? '作成中...' : '新規作成'}
+          </button>
         )
     }
+  }
+
+  // 詳細表示モードの場合はHistoryコンポーネントを表示
+  if (viewMode === 'detail' && viewingShift) {
+    return (
+      <History
+        initialMonth={viewingShift}
+        onPrev={handleBackToMatrix}
+        selectedStore={selectedStore}
+        setSelectedStore={setSelectedStore}
+        availableStores={availableStores}
+        hideStoreSelector={true}
+        {...{
+          onHome,
+          onShiftManagement,
+          onLineMessages,
+          onMonitoring,
+          onStaffManagement,
+          onStoreManagement,
+          onConstraintManagement,
+          onBudgetActualManagement,
+          onFirstPlan,
+        }}
+      />
+    )
   }
 
   return (
@@ -325,59 +326,39 @@ const ShiftManagement = ({
           <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
             シフト管理
           </h1>
-          <p className="text-lg text-gray-600">月別シフトの作成・編集・閲覧</p>
+          <p className="text-lg text-gray-600">月別シフトの作成・編集</p>
         </div>
 
-        {/* タブメニュー */}
-        <div className="flex gap-2 mb-6 border-b border-gray-200">
-          <button
-            onClick={() => setActiveTab('management')}
-            className={`px-6 py-3 font-medium transition-colors relative ${
-              activeTab === 'management'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <Calendar className="h-4 w-4" />
-              シフト管理
-            </div>
-          </button>
-          <button
-            onClick={() => setActiveTab('history')}
-            className={`px-6 py-3 font-medium transition-colors relative ${
-              activeTab === 'history'
-                ? 'text-blue-600 border-b-2 border-blue-600'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <HistoryIcon className="h-4 w-4" />
-              シフト作成履歴
-            </div>
-          </button>
-        </div>
-
-        {/* タブコンテンツ */}
-        {activeTab === 'history' ? (
-          <History initialMonth={initialHistoryMonth} selectedStore={selectedStore} setSelectedStore={setSelectedStore} availableStores={availableStores} />
-        ) : (
-          <div>
-            {/* 店舗フィルター */}
-            <div className="mb-6 flex items-center gap-4">
-              <Store className="h-5 w-5 text-gray-600" />
-              <select
-                value={selectedStore}
-                onChange={(e) => setSelectedStore(e.target.value)}
-                className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="all">全店舗</option>
-                {availableStores.map(store => (
-                  <option key={store.store_id} value={store.store_id}>
-                    {store.store_name}
-                  </option>
-                ))}
-              </select>
+        <div>
+            {/* フィルター */}
+            <div className="mb-4 flex items-center gap-4 bg-white p-4 rounded-lg shadow">
+              <div className="flex items-center gap-2">
+                <Calendar className="h-4 w-4 text-gray-600" />
+                <select
+                  value={selectedYear}
+                  onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  {Array.from({ length: 5 }, (_, i) => currentYear - 2 + i).map(year => (
+                    <option key={year} value={year}>{year}年</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <Store className="h-4 w-4 text-gray-600" />
+                <select
+                  value={selectedStore}
+                  onChange={(e) => setSelectedStore(e.target.value)}
+                  className="px-3 py-1 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">全店舗</option>
+                  {availableStores.map(store => (
+                    <option key={store.store_id} value={store.store_id}>
+                      {store.store_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             {/* マトリックステーブル */}
@@ -391,15 +372,15 @@ const ShiftManagement = ({
                 <p className="text-gray-600">シフトデータがありません</p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full border-collapse bg-white shadow-lg rounded-lg overflow-hidden">
-                  <thead className="bg-gray-100">
+              <div className="overflow-x-auto bg-white shadow-lg rounded-lg">
+                <table className="w-full border-collapse text-xs">
+                  <thead className="bg-gray-50 sticky top-0">
                     <tr>
-                      <th className="px-6 py-4 text-left font-semibold text-gray-700 border-b-2 border-gray-300">
+                      <th className="px-3 py-2 text-left font-semibold text-gray-700 border-b border-gray-200 sticky left-0 bg-gray-50 z-10">
                         店舗
                       </th>
                       {shifts[0]?.months.map(monthData => (
-                        <th key={monthData.month} className="px-6 py-4 text-center font-semibold text-gray-700 border-b-2 border-gray-300">
+                        <th key={monthData.month} className="px-2 py-2 text-center font-semibold text-gray-700 border-b border-gray-200 min-w-[100px]">
                           {monthData.month}月
                         </th>
                       ))}
@@ -407,38 +388,42 @@ const ShiftManagement = ({
                   </thead>
                   <tbody>
                     {shifts.map((storeData, storeIndex) => (
-                      <tr key={storeData.storeId} className={storeIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-6 py-4 font-medium text-gray-900 border-b border-gray-200">
+                      <tr key={storeData.storeId} className={`hover:bg-gray-50 ${storeIndex % 2 === 0 ? 'bg-white' : 'bg-gray-25'}`}>
+                        <td className="px-3 py-2 font-medium text-gray-900 border-b border-gray-100 sticky left-0 bg-inherit z-10">
                           {storeData.storeName}
                         </td>
                         {storeData.months.map(monthData => {
                           const statusInfo = getStatusInfo(monthData.status)
-                          const StatusIcon = statusInfo.icon
+                          const recruitmentStatus = getRecruitmentStatus(monthData.year, monthData.month)
 
                           return (
-                            <td key={`${storeData.storeId}-${monthData.month}`} className="px-4 py-4 border-b border-gray-200">
-                              <div className="space-y-2">
-                                {/* ステータスバッジ */}
-                                <div className={`flex items-center justify-center gap-1 px-2 py-1 rounded text-xs font-medium ${
+                            <td key={`${storeData.storeId}-${monthData.month}`} className="px-2 py-2 border-b border-gray-100">
+                              <div className="space-y-1">
+                                {/* ステータス */}
+                                <div className={`px-2 py-0.5 rounded text-center font-medium ${
                                   statusInfo.color === 'green' ? 'bg-green-100 text-green-800' :
                                   statusInfo.color === 'blue' ? 'bg-blue-100 text-blue-800' :
+                                  statusInfo.color === 'cyan' ? 'bg-cyan-100 text-cyan-800' :
                                   statusInfo.color === 'yellow' ? 'bg-yellow-100 text-yellow-800' :
-                                  'bg-gray-100 text-gray-800'
+                                  'bg-gray-100 text-gray-600'
                                 }`}>
-                                  <StatusIcon className="h-3 w-3" />
-                                  <span>{statusInfo.label}</span>
+                                  {statusInfo.label}
+                                </div>
+
+                                {/* 募集状況 */}
+                                <div className={`text-center font-medium ${recruitmentStatus.color}`}>
+                                  {recruitmentStatus.label}
                                 </div>
 
                                 {/* シフト情報 */}
                                 {monthData.status !== 'not_started' && (
-                                  <div className="text-xs text-gray-600 text-center">
-                                    <div>{monthData.staff}名</div>
-                                    <div>{monthData.totalHours}h</div>
+                                  <div className="text-gray-600 text-center">
+                                    <div>{monthData.staff}名 / {monthData.totalHours}h</div>
                                   </div>
                                 )}
 
-                                {/* アクションボタン */}
-                                <div className="flex justify-center">
+                                {/* アクション */}
+                                <div className="flex justify-center pt-1">
                                   {getActionButton(monthData)}
                                 </div>
                               </div>
@@ -451,8 +436,7 @@ const ShiftManagement = ({
                 </table>
               </div>
             )}
-          </div>
-        )}
+        </div>
       </motion.div>
     </div>
   )

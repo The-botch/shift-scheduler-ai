@@ -168,6 +168,7 @@ const History = ({
   onBudgetActualManagement,
   onFirstPlan,
   selectedStore: externalSelectedStore,
+  setSelectedStore: externalSetSelectedStore,
   onStoreChange: externalOnStoreChange,
   availableStores: externalAvailableStores,
   hideStoreSelector = false,
@@ -193,7 +194,7 @@ const History = ({
 
   // Use external props if provided, otherwise use internal state
   const selectedStore = externalSelectedStore !== undefined ? externalSelectedStore : internalSelectedStore
-  const setSelectedStore = externalOnStoreChange || setInternalSelectedStore
+  const setSelectedStore = externalSetSelectedStore || externalOnStoreChange || setInternalSelectedStore
   const availableStores = externalAvailableStores || internalAvailableStores
 
   useEffect(() => {

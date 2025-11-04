@@ -744,4 +744,115 @@ router.get('/all', async (req, res) => {
   }
 });
 
+/**
+ * ===================
+ * CRUD API - 役職マスター
+ * ===================
+ */
+
+// 役職作成
+router.post('/roles', async (req, res) => {
+  try {
+    const { tenant_id, role_code, role_name, description } = req.body;
+
+    // 必須チェック
+    if (!tenant_id || !role_code || !role_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id, role_code, role_name are required'
+      });
+    }
+
+    const result = await query(`
+      INSERT INTO hr.roles (tenant_id, role_code, role_name, description)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `, [tenant_id, role_code, role_name, description || null]);
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating role:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 役職更新
+router.put('/roles/:role_id', async (req, res) => {
+  try {
+    const { role_id } = req.params;
+    const { role_code, role_name, description } = req.body;
+
+    // 必須チェック
+    if (!role_code || !role_name) {
+      return res.status(400).json({
+        success: false,
+        error: 'role_code and role_name are required'
+      });
+    }
+
+    const result = await query(`
+      UPDATE hr.roles
+      SET role_code = $1, role_name = $2, description = $3, updated_at = CURRENT_TIMESTAMP
+      WHERE role_id = $4
+      RETURNING *
+    `, [role_code, role_name, description || null, role_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Role not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating role:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// 役職削除（論理削除）
+router.delete('/roles/:role_id', async (req, res) => {
+  try {
+    const { role_id } = req.params;
+
+    const result = await query(`
+      UPDATE hr.roles
+      SET is_active = FALSE, updated_at = CURRENT_TIMESTAMP
+      WHERE role_id = $1
+      RETURNING *
+    `, [role_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'Role not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting role:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;
