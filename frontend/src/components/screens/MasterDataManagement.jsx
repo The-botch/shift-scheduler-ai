@@ -57,6 +57,7 @@ const MasterDataManagement = ({ onPrev }) => {
   const [stores, setStores] = useState([])
   const [roles, setRoles] = useState([])
   const [divisions, setDivisions] = useState([])
+  const [employmentTypes, setEmploymentTypes] = useState([])
 
   const tenantId = getCurrentTenantId()
 
@@ -86,14 +87,16 @@ const MasterDataManagement = ({ onPrev }) => {
     const loadDropdownData = async () => {
       try {
         if (selectedMaster === 'staff' || selectedMaster === 'stores') {
-          const [storesData, rolesData, divisionsData] = await Promise.all([
+          const [storesData, rolesData, divisionsData, employmentTypesData] = await Promise.all([
             masterRepository.getStores(tenantId),
             masterRepository.getRoles(tenantId),
             masterRepository.getDivisions(tenantId),
+            masterRepository.getEmploymentTypes(tenantId),
           ])
           setStores(storesData)
           setRoles(rolesData)
           setDivisions(divisionsData)
+          setEmploymentTypes(employmentTypesData)
         }
       } catch (error) {
         console.error('ドロップダウンデータ取得エラー:', error)
@@ -848,9 +851,9 @@ const MasterDataManagement = ({ onPrev }) => {
       case 'employment_types':
         return [
           { key: 'employment_type_id', label: 'ID', width: '80px' },
-          { key: 'employment_type_code', label: '雇用形態コード', width: '150px' },
-          { key: 'employment_type_name', label: '雇用形態名', width: '200px' },
-          { key: 'description', label: '説明', width: 'auto' },
+          { key: 'employment_code', label: '雇用形態コード', width: '150px' },
+          { key: 'employment_name', label: '雇用形態名', width: '200px' },
+          { key: 'payment_type', label: '支払タイプ', width: '150px' },
           { key: 'is_active', label: '状態', width: '100px' },
         ]
       case 'shift_patterns':
@@ -1909,6 +1912,30 @@ const MasterDataManagement = ({ onPrev }) => {
           無効
         </span>
       )
+    }
+
+    // 雇用形態を日本語名に変換（マスタデータから）
+    if (column.key === 'employment_type') {
+      const employmentType = employmentTypes.find(et => et.employment_code === value)
+      return employmentType ? employmentType.employment_name : value || '-'
+    }
+
+    // 役職IDを役職名に変換
+    if (column.key === 'role_id') {
+      const role = roles.find(r => r.role_id === value)
+      return role ? role.role_name : value || '-'
+    }
+
+    // 店舗IDを店舗名に変換
+    if (column.key === 'store_id') {
+      const store = stores.find(s => s.store_id === value)
+      return store ? store.store_name : value || '-'
+    }
+
+    // 部署IDを部署名に変換
+    if (column.key === 'division_id') {
+      const division = divisions.find(d => d.division_id === value)
+      return division ? division.division_name : value || '-'
     }
 
     return value || '-'
