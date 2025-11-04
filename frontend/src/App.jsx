@@ -50,6 +50,7 @@ function AppContent() {
   const [shiftManagementKey, setShiftManagementKey] = useState(0) // 再マウント用
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [monitoringInitialMonth, setMonitoringInitialMonth] = useState(null) // Monitoring画面に渡す初期月
+  const [monitoringInitialStoreId, setMonitoringInitialStoreId] = useState(null) // Monitoring画面に渡す初期店舗ID
 
   // 店舗フィルター（ShiftManagementとHistoryで共通）
   const [selectedStore, setSelectedStore] = useState('all')
@@ -198,14 +199,22 @@ function AppContent() {
     setIsMenuOpen(false)
   }
 
-  const goToMonitoring = (initialMonth = null) => {
+  const goToMonitoring = (initialData = null) => {
     if (hasUnsavedChanges) {
       if (!window.confirm('変更が保存されていません。モニタリング画面に移動しますか？')) {
         return
       }
       setHasUnsavedChanges(false)
     }
-    setMonitoringInitialMonth(initialMonth)
+    // initialDataがオブジェクトの場合、monthとstoreIdを抽出
+    if (initialData && typeof initialData === 'object') {
+      setMonitoringInitialMonth(initialData)
+      setMonitoringInitialStoreId(initialData.storeId || null)
+    } else {
+      // 後方互換性のため、nullまたは単純な値の場合は初期月のみ設定
+      setMonitoringInitialMonth(initialData)
+      setMonitoringInitialStoreId(null)
+    }
     setShowMonitoring(true)
     setShowShiftManagement(false)
     setShowStaffManagement(false)
@@ -585,6 +594,7 @@ function AppContent() {
           onConstraintManagement={goToConstraintManagement}
           onBudgetActualManagement={goToBudgetActualManagement}
           initialMonth={monitoringInitialMonth}
+          initialStoreId={monitoringInitialStoreId}
         />
       )
     }

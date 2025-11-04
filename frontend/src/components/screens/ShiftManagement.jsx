@@ -187,8 +187,9 @@ const ShiftManagement = ({
 
   const handleViewRecruitmentStatus = (shift) => {
     // Monitoring画面の履歴タブに遷移して、その月の希望提出状況を表示
+    // 店舗IDも一緒に渡す
     if (onMonitoring) {
-      onMonitoring(shift)
+      onMonitoring(shift) // shift オブジェクトには storeId が含まれている
     }
   }
 
