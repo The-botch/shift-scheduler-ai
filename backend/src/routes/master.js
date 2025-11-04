@@ -127,6 +127,8 @@ router.get('/staff', async (req, res) => {
         s.hire_date,
         s.monthly_salary,
         s.hourly_rate,
+        s.has_social_insurance,
+        s.commute_distance_km,
         s.is_active,
         s.store_id,
         s.role_id,

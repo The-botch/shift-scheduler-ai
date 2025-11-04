@@ -324,9 +324,9 @@ const StaffManagement = ({
                   <div>
                     <div className="text-gray-600">給与</div>
                     <div className="font-bold text-green-700">
-                      {selectedStaff.employment_type === 'monthly' &&
+                      {(selectedStaff.employment_type === 'monthly' || selectedStaff.employment_type === 'FULL_TIME') &&
                         `¥${parseInt(selectedStaff.monthly_salary || 0).toLocaleString()} / 月`}
-                      {selectedStaff.employment_type === 'hourly' &&
+                      {(selectedStaff.employment_type === 'hourly' || selectedStaff.employment_type === 'PART_TIME') &&
                         `¥${parseInt(selectedStaff.hourly_rate || 0).toLocaleString()} / 時間`}
                       {selectedStaff.employment_type === 'contract' &&
                         `¥${parseInt(selectedStaff.contract_fee || 0).toLocaleString()} / 月`}
@@ -374,9 +374,9 @@ const StaffManagement = ({
                       <div>
                         <div className="text-sm text-gray-600 mb-1">社会保険</div>
                         <div
-                          className={`font-bold text-lg ${selectedStaff.has_social_insurance === 'TRUE' ? 'text-green-700' : 'text-gray-500'}`}
+                          className={`font-bold text-lg ${selectedStaff.has_social_insurance ? 'text-green-700' : 'text-gray-500'}`}
                         >
-                          {selectedStaff.has_social_insurance === 'TRUE' ? '✓ 加入' : '未加入'}
+                          {selectedStaff.has_social_insurance ? '✓ 加入' : '未加入'}
                         </div>
                       </div>
                       <div>
@@ -422,7 +422,7 @@ const StaffManagement = ({
                     let totalWage = 0
                     let avgDailyWage = 0
 
-                    if (selectedStaff.employment_type === 'monthly') {
+                    if (selectedStaff.employment_type === 'monthly' || selectedStaff.employment_type === 'FULL_TIME') {
                       totalWage = parseInt(selectedStaff.monthly_salary || 0) * monthCount
                       avgDailyWage = Math.round(
                         totalWage / staffPerformance[selectedStaff.name].totalDays
@@ -432,7 +432,7 @@ const StaffManagement = ({
                       avgDailyWage = Math.round(
                         totalWage / staffPerformance[selectedStaff.name].totalDays
                       )
-                    } else if (selectedStaff.employment_type === 'hourly') {
+                    } else if (selectedStaff.employment_type === 'hourly' || selectedStaff.employment_type === 'PART_TIME') {
                       totalWage = Math.round(
                         staffPerformance[selectedStaff.name].totalHours *
                           parseInt(selectedStaff.hourly_rate || 0)
@@ -570,11 +570,11 @@ const StaffManagement = ({
                                   .map(([monthKey, stats]) => {
                                     // 給与計算: 正社員・業務委託は固定給、時給制のみ実績ベース
                                     let monthlySalary = 0
-                                    if (selectedStaff.employment_type === 'monthly') {
+                                    if (selectedStaff.employment_type === 'monthly' || selectedStaff.employment_type === 'FULL_TIME') {
                                       monthlySalary = parseInt(selectedStaff.monthly_salary || 0)
                                     } else if (selectedStaff.employment_type === 'contract') {
                                       monthlySalary = parseInt(selectedStaff.contract_fee || 0)
-                                    } else if (selectedStaff.employment_type === 'hourly') {
+                                    } else if (selectedStaff.employment_type === 'hourly' || selectedStaff.employment_type === 'PART_TIME') {
                                       monthlySalary = Math.round(
                                         stats.hours * parseInt(selectedStaff.hourly_rate || 0)
                                       )
@@ -773,7 +773,7 @@ const StaffManagement = ({
                           let annualEmploymentInsurance = 0
 
                           if (
-                            selectedStaff.has_social_insurance === 'TRUE' &&
+                            selectedStaff.has_social_insurance &&
                             selectedStaff.employment_type !== 'hourly'
                           ) {
                             // 月給制・業務委託の場合
@@ -1049,7 +1049,7 @@ const StaffManagement = ({
                                     <div>
                                       社会保険:{' '}
                                       <span className="font-bold">
-                                        {selectedStaff.has_social_insurance === 'TRUE'
+                                        {selectedStaff.has_social_insurance
                                           ? '加入'
                                           : '未加入'}
                                       </span>
@@ -1245,6 +1245,9 @@ const StaffManagement = ({
                               雇用形態
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                              デフォルト店舗
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
                               入社日
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
@@ -1280,6 +1283,9 @@ const StaffManagement = ({
                               </td>
                               <td className="px-4 py-3 text-sm border-b">
                                 {getEmploymentTypeName(staff.employment_type)}
+                              </td>
+                              <td className="px-4 py-3 text-sm border-b">
+                                {staff.store_name || '未設定'}
                               </td>
                               <td className="px-4 py-3 text-sm border-b">{staff.hire_date}</td>
                               <td className="px-4 py-3 text-sm border-b">

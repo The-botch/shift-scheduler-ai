@@ -138,8 +138,9 @@ async function deleteTransactionData(client) {
 async function registerMasterData(client) {
   console.log('\n📝 マスターデータを登録中...');
 
-  // スキーマ更新：通勤距離カラムを追加
+  // スキーマ更新：通勤距離・社会保険カラムを追加
   await client.query('ALTER TABLE hr.staff ADD COLUMN IF NOT EXISTS commute_distance_km NUMERIC(5,2)');
+  await client.query('ALTER TABLE hr.staff ADD COLUMN IF NOT EXISTS has_social_insurance BOOLEAN DEFAULT false');
 
   // 1. テナント登録（tenant_idを明示的に指定）
   console.log('\n1️⃣  テナント情報登録中...');
@@ -461,13 +462,16 @@ async function registerMasterData(client) {
       // 通勤距離を生成（0km〜20kmの範囲でランダム、0.5km刻み）
       const commuteDistance = (Math.floor(Math.random() * 41) * 0.5).toFixed(1);
 
+      // 社会保険加入判定：FULL_TIMEは必ず加入
+      const hasSocialInsurance = info.empType === 'FULL_TIME';
+
       const result = await client.query(`
         INSERT INTO hr.staff (
           tenant_id, staff_code, name, role_id, employment_type, store_id,
           hire_date, email, phone_number, monthly_salary, hourly_rate,
-          commute_distance_km, is_active
+          commute_distance_km, has_social_insurance, is_active
         )
-        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE, $7, $8, $9, $10, $11, true)
+        VALUES ($1, $2, $3, $4, $5, $6, CURRENT_DATE, $7, $8, $9, $10, $11, $12, true)
         ON CONFLICT (tenant_id, staff_code)
         DO UPDATE SET
           name = EXCLUDED.name,
@@ -479,6 +483,7 @@ async function registerMasterData(client) {
           monthly_salary = EXCLUDED.monthly_salary,
           hourly_rate = EXCLUDED.hourly_rate,
           commute_distance_km = EXCLUDED.commute_distance_km,
+          has_social_insurance = EXCLUDED.has_social_insurance,
           is_active = EXCLUDED.is_active
       `, [
         tenantId,
@@ -491,7 +496,8 @@ async function registerMasterData(client) {
         phoneNumber,
         monthlySalary,
         hourlyRate,
-        commuteDistance
+        commuteDistance,
+        hasSocialInsurance
       ]);
 
       if (result.rowCount > 0) {

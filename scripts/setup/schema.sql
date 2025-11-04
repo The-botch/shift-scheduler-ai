@@ -142,6 +142,7 @@ CREATE TABLE IF NOT EXISTS hr.staff (
     monthly_salary NUMERIC(10,2),
     hourly_rate NUMERIC(8,2),
     commute_distance_km NUMERIC(5,2),
+    has_social_insurance BOOLEAN DEFAULT false,
     is_active BOOLEAN NOT NULL DEFAULT true,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
