@@ -249,8 +249,12 @@ const StaffManagement = ({
   }
 
   const getEmploymentTypeName = employmentType => {
-    // employment_typeは文字列（monthly, hourly, contract）
+    // employment_typeは文字列（FULL_TIME, PART_TIME, CONTRACT）
     const typeMap = {
+      FULL_TIME: '正社員',
+      PART_TIME: 'アルバイト・パート',
+      CONTRACT: '業務委託',
+      // 旧形式との互換性
       monthly: '正社員',
       hourly: 'アルバイト・パート',
       contract: '業務委託',

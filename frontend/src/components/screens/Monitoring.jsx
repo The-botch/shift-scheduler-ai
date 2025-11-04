@@ -16,8 +16,11 @@ import {
   Calendar,
   History as HistoryIcon,
   Store,
+  LayoutGrid,
+  Table,
 } from 'lucide-react'
 import ShiftTimeline from '../shared/ShiftTimeline'
+import StaffTimeTable from '../shared/StaffTimeTable'
 import { AnimatePresence } from 'framer-motion'
 import { useTenant } from '../../contexts/TenantContext'
 
@@ -58,6 +61,8 @@ const Monitoring = ({
   const [shiftPatternsMap, setShiftPatternsMap] = useState({})
   const [storeList, setStoreList] = useState([])
   const [selectedStoreId, setSelectedStoreId] = useState(initialStoreId || null)
+  const [viewMode, setViewMode] = useState('staff') // 'staff' | 'calendar'
+  const [calendarShiftData, setCalendarShiftData] = useState([]) // カレンダー表示用のシフトデータ
 
   const currentDate = useMemo(() => new Date(), [])
   const currentYear = currentDate.getFullYear()
@@ -203,6 +208,56 @@ const Monitoring = ({
       console.log('Availability Requests:', availData)
       setStaffStatus(staffStatusArray)
       setAvailabilityRequests(availData)
+
+      // StaffTimeTable用のシフトデータを準備（希望データをシフトとして表示）
+      const calendarShifts = []
+      availData.forEach(req => {
+        if (req.submitted_at && req.preferred_days) {
+          // preferred_daysをパース
+          const preferredDays = req.preferred_days.split(',')
+          preferredDays.forEach(dateStr => {
+            const date = new Date(dateStr.trim())
+            if (!isNaN(date.getTime()) && date.getFullYear() === historyYear && date.getMonth() + 1 === historyMonth) {
+              const staffInfo = staffMapping[req.staff_id]
+              if (staffInfo && (!selectedStoreId || parseInt(staffInfo.store_id) === parseInt(selectedStoreId))) {
+                calendarShifts.push({
+                  shift_date: dateStr.trim(),
+                  staff_id: req.staff_id,
+                  staff_name: staffInfo.name,
+                  start_time: '09:00', // 希望シフトは時刻未定なので仮の値
+                  end_time: '18:00',
+                  role: rolesMapping[staffInfo.role_id] || 'スタッフ',
+                  is_preference: true,
+                })
+              }
+            }
+          })
+        }
+
+        // ng_daysもパース（休み希望として表示）
+        if (req.submitted_at && req.ng_days) {
+          const ngDays = req.ng_days.split(',')
+          ngDays.forEach(dateStr => {
+            const date = new Date(dateStr.trim())
+            if (!isNaN(date.getTime()) && date.getFullYear() === historyYear && date.getMonth() + 1 === historyMonth) {
+              const staffInfo = staffMapping[req.staff_id]
+              if (staffInfo && (!selectedStoreId || parseInt(staffInfo.store_id) === parseInt(selectedStoreId))) {
+                calendarShifts.push({
+                  shift_date: dateStr.trim(),
+                  staff_id: req.staff_id,
+                  staff_name: staffInfo.name,
+                  start_time: '00:00', // NG日は休みとして表示
+                  end_time: '00:00',
+                  role: rolesMapping[staffInfo.role_id] || 'スタッフ',
+                  is_ng_day: true,
+                })
+              }
+            }
+          })
+        }
+      })
+
+      setCalendarShiftData(calendarShifts)
     } catch (error) {
       console.error('データ読み込みエラー:', error)
     } finally {
@@ -471,19 +526,75 @@ const Monitoring = ({
           </Card>
         </div>
 
-        {/* スタッフ一覧 */}
-        <Card className="shadow-lg border-0">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <div className="flex items-center">
-                <Users className="h-5 w-5 mr-2 text-purple-600" />
-                スタッフ提出状況
-              </div>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {staffStatus.map(staff => (
+        {/* ビュー切り替えボタン */}
+        <div className="mb-4 flex gap-2">
+          <Button
+            variant={viewMode === 'staff' ? 'default' : 'outline'}
+            onClick={() => setViewMode('staff')}
+            className={viewMode === 'staff' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+          >
+            <LayoutGrid className="h-4 w-4 mr-2" />
+            スタッフ別表示
+          </Button>
+          <Button
+            variant={viewMode === 'calendar' ? 'default' : 'outline'}
+            onClick={() => setViewMode('calendar')}
+            className={viewMode === 'calendar' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+          >
+            <Table className="h-4 w-4 mr-2" />
+            カレンダー表示
+          </Button>
+        </div>
+
+        {viewMode === 'calendar' ? (
+          /* カレンダー表示 */
+          <Card className="shadow-lg border-0 mb-8">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Calendar className="h-5 w-5 mr-2 text-purple-600" />
+                シフト希望カレンダー
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {calendarShiftData.length > 0 ? (
+                <StaffTimeTable
+                  year={historyYear}
+                  month={historyMonth}
+                  shiftData={calendarShiftData}
+                  staffMap={Object.fromEntries(
+                    Object.entries(staffMap).filter(([id, info]) => {
+                      return !selectedStoreId || parseInt(info.store_id) === parseInt(selectedStoreId)
+                    })
+                  )}
+                  onCellClick={(date, staffId, shift) => {
+                    // 日付クリック時の処理（必要に応じて実装）
+                    if (shift) {
+                      handleDayClick(date)
+                    }
+                  }}
+                />
+              ) : (
+                <div className="text-center py-12 text-gray-500">
+                  <Calendar className="h-12 w-12 mx-auto mb-4 text-gray-400" />
+                  <p>提出されたシフト希望がありません</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        ) : (
+          /* スタッフ一覧 */
+          <Card className="shadow-lg border-0">
+            <CardHeader>
+              <CardTitle className="flex items-center justify-between">
+                <div className="flex items-center">
+                  <Users className="h-5 w-5 mr-2 text-purple-600" />
+                  スタッフ提出状況
+                </div>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {staffStatus.map(staff => (
                 <motion.div
                   key={staff.id}
                   className={`flex items-center justify-between p-4 border rounded-lg ${
@@ -532,11 +643,12 @@ const Monitoring = ({
                       </>
                     )}
                   </div>
-                </motion.div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* 希望シフト詳細モーダル */}
         {selectedStaff && (

@@ -20,8 +20,11 @@ import {
   Minimize2,
   GripVertical,
   AlertTriangle,
+  LayoutGrid,
+  Table,
 } from 'lucide-react'
 import ShiftTimeline from '../shared/ShiftTimeline'
+import StaffTimeTable from '../shared/StaffTimeTable'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
@@ -65,6 +68,7 @@ const SecondPlan = ({
   const [selectedDate, setSelectedDate] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
   const [viewMode, setViewMode] = useState('second') // 'second', 'first', 'compare'
+  const [calendarViewMode, setCalendarViewMode] = useState('staff') // 'staff' | 'calendar'
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -195,6 +199,8 @@ const SecondPlan = ({
       // スタッフマスタを取得（先に取得してマッピング用に使用）
       const staffData = await masterRepository.getStaff()
       const staffMapping = {}
+      const storeId = selectedShift?.storeId || selectedShift?.store_id
+
       staffData.forEach(s => {
         staffMapping[s.staff_id] = s
       })
@@ -1245,42 +1251,86 @@ const SecondPlan = ({
               {/* 左側: カレンダー */}
               <Card className="shadow-lg border-0 ring-2 ring-green-200">
                 <CardHeader>
-                  <CardTitle className="flex items-center">
-                    <CalendarIcon className="h-5 w-5 mr-2 text-green-600" />
-                    第2案（希望反映版）
-                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                      改善版
-                    </span>
+                  <CardTitle className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <CalendarIcon className="h-5 w-5 mr-2 text-green-600" />
+                      第2案（希望反映版）
+                      <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                        改善版
+                      </span>
+                    </div>
+                    {/* ビュー切り替えボタン */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant={calendarViewMode === 'staff' ? 'default' : 'outline'}
+                        onClick={() => setCalendarViewMode('staff')}
+                        size="sm"
+                        className={calendarViewMode === 'staff' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                      >
+                        <LayoutGrid className="h-4 w-4 mr-1" />
+                        スタッフ別
+                      </Button>
+                      <Button
+                        variant={calendarViewMode === 'calendar' ? 'default' : 'outline'}
+                        onClick={() => setCalendarViewMode('calendar')}
+                        size="sm"
+                        className={calendarViewMode === 'calendar' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                      >
+                        <Table className="h-4 w-4 mr-1" />
+                        カレンダー
+                      </Button>
+                    </div>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-7 gap-1 mb-4">
-                    {['日', '月', '火', '水', '木', '金', '土'].map(day => (
-                      <div
-                        key={day}
-                        className="p-2 text-center text-xs font-bold bg-green-50 rounded"
-                      >
-                        {day}
+                  {calendarViewMode === 'staff' ? (
+                    <StaffTimeTable
+                      year={selectedShift?.year || new Date().getFullYear()}
+                      month={selectedShift?.month || new Date().getMonth() + 1}
+                      shiftData={csvShifts}
+                      staffMap={Object.fromEntries(
+                        Object.entries(staffMap).filter(([id, info]) => {
+                          const storeId = selectedShift?.storeId || selectedShift?.store_id
+                          return !storeId || info.store_id === storeId
+                        })
+                      )}
+                      onCellClick={(date, staffId, shift) => {
+                        if (shift) {
+                          handleDayClick(date)
+                        }
+                      }}
+                    />
+                  ) : (
+                    <>
+                      <div className="grid grid-cols-7 gap-1 mb-4">
+                        {['日', '月', '火', '水', '木', '金', '土'].map(day => (
+                          <div
+                            key={day}
+                            className="p-2 text-center text-xs font-bold bg-green-50 rounded"
+                          >
+                            {day}
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
-                  {renderCalendar(false)}
+                      {renderCalendar(false)}
 
-                  {/* 凡例 */}
-                  <div className="mt-4 flex flex-wrap gap-4 text-xs">
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-green-100 border border-green-300 rounded mr-2"></div>
-                      <span>希望時間帯</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-red-100 border border-red-300 rounded mr-2"></div>
-                      <span>希望外時間帯</span>
-                    </div>
-                    <div className="flex items-center">
-                      <div className="w-3 h-3 bg-yellow-50 border border-yellow-300 rounded mr-2"></div>
-                      <span>問題のある日</span>
-                    </div>
-                  </div>
+                      {/* 凡例 */}
+                      <div className="mt-4 flex flex-wrap gap-4 text-xs">
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 bg-green-100 border border-green-300 rounded mr-2"></div>
+                          <span>希望時間帯</span>
+                        </div>
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 bg-red-100 border border-red-300 rounded mr-2"></div>
+                          <span>希望外時間帯</span>
+                        </div>
+                        <div className="flex items-center">
+                          <div className="w-3 h-3 bg-yellow-50 border border-yellow-300 rounded mr-2"></div>
+                          <span>問題のある日</span>
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </CardContent>
               </Card>
 
