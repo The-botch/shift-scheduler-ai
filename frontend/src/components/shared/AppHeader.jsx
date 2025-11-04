@@ -13,6 +13,7 @@ import {
   Code2,
   Building2,
   Database,
+  BookOpen,
 } from 'lucide-react'
 import { useTenant } from '../../contexts/TenantContext'
 
@@ -26,6 +27,7 @@ const AppHeader = ({
   onConstraintManagement,
   onBudgetActualManagement,
   onMasterDataManagement,
+  onDataImpactDocumentation,
   onTenantSettings,
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date())

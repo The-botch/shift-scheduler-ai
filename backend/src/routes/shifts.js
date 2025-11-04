@@ -2155,4 +2155,233 @@ router.put('/plans/:plan_id/status', async (req, res) => {
   }
 });
 
+/**
+ * 先月のシフトをコピーして新規プラン作成
+ * POST /api/shifts/plans/copy-from-previous
+ *
+ * Body Parameters:
+ * - tenant_id: テナントID (required)
+ * - store_id: 店舗ID (required)
+ * - target_year: コピー先の年 (required)
+ * - target_month: コピー先の月 (required)
+ * - created_by: 作成者ID (optional)
+ *
+ * ロジック:
+ * - 先月（target_month - 1）のシフトを取得
+ * - 曜日ベース + 第N週でマッピング
+ *   例: 先月の「第1月曜日」→ 今月の「第1月曜日」
+ */
+router.post('/plans/copy-from-previous', async (req, res) => {
+  try {
+    const { tenant_id = 1, store_id, target_year, target_month, created_by } = req.body;
+
+    // バリデーション
+    if (!store_id || !target_year || !target_month) {
+      return res.status(400).json({
+        success: false,
+        error: 'store_id, target_year, target_month は必須です'
+      });
+    }
+
+    // 先月を計算
+    let source_year = target_year;
+    let source_month = target_month - 1;
+    if (source_month === 0) {
+      source_month = 12;
+      source_year = target_year - 1;
+    }
+
+    console.log(`[CopyFromPrevious] ${source_year}年${source_month}月 → ${target_year}年${target_month}月へコピー`);
+
+    // トランザクション開始
+    await query('BEGIN');
+
+    try {
+      // 先月のシフトプランを検索
+      const sourcePlanResult = await query(`
+        SELECT plan_id
+        FROM ops.shift_plans
+        WHERE tenant_id = $1 AND store_id = $2
+          AND plan_year = $3 AND plan_month = $4
+        ORDER BY created_at DESC
+        LIMIT 1
+      `, [tenant_id, store_id, source_year, source_month]);
+
+      if (sourcePlanResult.rows.length === 0) {
+        await query('ROLLBACK');
+        return res.status(404).json({
+          success: false,
+          error: `${source_year}年${source_month}月のシフトが見つかりません`
+        });
+      }
+
+      const source_plan_id = sourcePlanResult.rows[0].plan_id;
+
+      // 先月のシフトを取得
+      const sourceShiftsResult = await query(`
+        SELECT *
+        FROM ops.shifts
+        WHERE plan_id = $1
+        ORDER BY shift_date, start_time
+      `, [source_plan_id]);
+
+      if (sourceShiftsResult.rows.length === 0) {
+        await query('ROLLBACK');
+        return res.status(404).json({
+          success: false,
+          error: `${source_year}年${source_month}月のシフトデータが空です`
+        });
+      }
+
+      console.log(`[CopyFromPrevious] コピー元シフト件数: ${sourceShiftsResult.rows.length}件`);
+
+      // 新規プラン作成
+      const periodStart = new Date(target_year, target_month - 1, 1);
+      const periodEnd = new Date(target_year, target_month, 0);
+      const planCode = `PLAN-${target_year}${String(target_month).padStart(2, '0')}-COPY`;
+      const planName = `${target_year}年${target_month}月シフト（前月コピー）`;
+
+      const newPlanResult = await query(`
+        INSERT INTO ops.shift_plans (
+          tenant_id, store_id, plan_year, plan_month,
+          plan_code, plan_name, period_start, period_end,
+          status, generation_type, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'DRAFT', 'COPIED_FROM_PREVIOUS', $9)
+        RETURNING plan_id
+      `, [
+        tenant_id, store_id, target_year, target_month,
+        planCode, planName, periodStart, periodEnd,
+        created_by || null
+      ]);
+
+      const new_plan_id = newPlanResult.rows[0].plan_id;
+      console.log(`[CopyFromPrevious] 新規プランID: ${new_plan_id}`);
+
+      // 曜日ベースマッピングを構築
+      // 先月の各日について「第N週の○曜日」を計算
+      const sourceMapping = {}; // { "第1月曜日": [日付1, 日付2, ...], "第2月曜日": [...], ... }
+
+      sourceShiftsResult.rows.forEach(shift => {
+        const shiftDate = new Date(shift.shift_date);
+        const dayOfWeek = shiftDate.getDay(); // 0=日, 1=月, ..., 6=土
+        const dayOfMonth = shiftDate.getDate();
+
+        // その月の1日から数えて、その曜日が何回目に現れるか
+        const firstDayOfMonth = new Date(source_year, source_month - 1, 1);
+        let weekCount = 0;
+        for (let d = 1; d <= dayOfMonth; d++) {
+          const checkDate = new Date(source_year, source_month - 1, d);
+          if (checkDate.getDay() === dayOfWeek) {
+            weekCount++;
+          }
+        }
+
+        const key = `week${weekCount}_dow${dayOfWeek}`; // 例: "week1_dow1" (第1月曜日)
+
+        if (!sourceMapping[key]) {
+          sourceMapping[key] = [];
+        }
+        sourceMapping[key].push(shift);
+      });
+
+      // 今月の「第N週の○曜日」の日付を計算
+      const targetMapping = {}; // { "week1_dow1": 日付, ... }
+      const daysInTargetMonth = new Date(target_year, target_month, 0).getDate();
+
+      for (let day = 1; day <= daysInTargetMonth; day++) {
+        const date = new Date(target_year, target_month - 1, day);
+        const dayOfWeek = date.getDay();
+
+        // その曜日が何回目か計算
+        let weekCount = 0;
+        for (let d = 1; d <= day; d++) {
+          const checkDate = new Date(target_year, target_month - 1, d);
+          if (checkDate.getDay() === dayOfWeek) {
+            weekCount++;
+          }
+        }
+
+        const key = `week${weekCount}_dow${dayOfWeek}`;
+        targetMapping[key] = day;
+      }
+
+      // シフトをコピー挿入
+      let insertedCount = 0;
+      let skippedCount = 0;
+
+      for (const [key, sourceShifts] of Object.entries(sourceMapping)) {
+        const targetDay = targetMapping[key];
+
+        if (!targetDay) {
+          // 今月にその「第N週の○曜日」が存在しない場合（例: 第5月曜日）
+          console.log(`[CopyFromPrevious] スキップ: ${key} (今月に存在しない)`);
+          skippedCount += sourceShifts.length;
+          continue;
+        }
+
+        const targetDate = `${target_year}-${String(target_month).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`;
+
+        // その日のシフトをコピー
+        for (const sourceShift of sourceShifts) {
+          await query(`
+            INSERT INTO ops.shifts (
+              tenant_id, store_id, plan_id, staff_id, shift_date, pattern_id,
+              start_time, end_time, break_minutes, total_hours, labor_cost,
+              assigned_skills, is_preferred, is_modified, notes
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, false, $14)
+          `, [
+            tenant_id,
+            store_id,
+            new_plan_id,
+            sourceShift.staff_id,
+            targetDate,
+            sourceShift.pattern_id,
+            sourceShift.start_time,
+            sourceShift.end_time,
+            sourceShift.break_minutes,
+            sourceShift.total_hours,
+            sourceShift.labor_cost,
+            sourceShift.assigned_skills,
+            sourceShift.is_preferred,
+            '前月からコピー'
+          ]);
+
+          insertedCount++;
+        }
+      }
+
+      console.log(`[CopyFromPrevious] コピー完了: ${insertedCount}件挿入, ${skippedCount}件スキップ`);
+
+      // コミット
+      await query('COMMIT');
+
+      res.status(201).json({
+        success: true,
+        message: `${source_year}年${source_month}月のシフトを${target_year}年${target_month}月にコピーしました`,
+        data: {
+          plan_id: new_plan_id,
+          source_year,
+          source_month,
+          target_year,
+          target_month,
+          inserted_count: insertedCount,
+          skipped_count: skippedCount,
+          total_source_count: sourceShiftsResult.rows.length
+        }
+      });
+
+    } catch (dbError) {
+      await query('ROLLBACK');
+      throw dbError;
+    }
+
+  } catch (error) {
+    console.error('Error copying shifts from previous month:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
 export default router;

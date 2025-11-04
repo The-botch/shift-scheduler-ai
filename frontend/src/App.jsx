@@ -260,6 +260,7 @@ function AppContent() {
     setIsMenuOpen(false)
   }
 
+
   const goToTenantSettings = () => {
     if (hasUnsavedChanges) {
       if (!window.confirm('変更が保存されていません。テナント設定に移動しますか？')) {
@@ -610,6 +611,7 @@ function AppContent() {
         />
       )
     }
+
 
     if (showDevTools) {
       return (

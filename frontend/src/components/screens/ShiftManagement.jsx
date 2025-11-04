@@ -10,6 +10,9 @@ import {
   Check,
   Clock,
   Store,
+  Upload,
+  Copy,
+  X,
 } from 'lucide-react'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 import History from './History'
@@ -54,6 +57,9 @@ const ShiftManagement = ({
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()) // 年度選択
   const [viewMode, setViewMode] = useState('matrix') // 'matrix' or 'detail'
   const [viewingShift, setViewingShift] = useState(null) // 閲覧中のシフト情報
+  const [showCreateModal, setShowCreateModal] = useState(false) // 新規作成モーダル表示
+  const [modalShift, setModalShift] = useState(null) // モーダルで選択されたシフト
+  const [isCopying, setIsCopying] = useState(false) // コピー中の状態
 
   // 常に現在年を使用
   const currentYear = new Date().getFullYear()
@@ -211,6 +217,66 @@ const ShiftManagement = ({
     }
   }
 
+  // 新規作成ボタンクリック時にモーダルを開く
+  const handleOpenCreateModal = (shift) => {
+    setModalShift(shift)
+    setShowCreateModal(true)
+  }
+
+  // モーダルを閉じる
+  const handleCloseCreateModal = () => {
+    setShowCreateModal(false)
+    setModalShift(null)
+  }
+
+  // 前月からコピー
+  const handleCopyFromPrevious = async () => {
+    if (!modalShift) return
+
+    try {
+      // ローディング開始
+      setIsCopying(true)
+
+      // API呼び出し
+      const result = await shiftRepository.copyFromPreviousMonth({
+        store_id: modalShift.storeId,
+        target_year: modalShift.year,
+        target_month: modalShift.month,
+        created_by: 1 // TODO: 実際のユーザーIDに置き換え
+      })
+
+      // 成功したらシフト編集画面に直接遷移
+      if (result.success && onFirstPlan) {
+        // データ再読み込み後に遷移
+        await loadShiftSummary()
+
+        // モーダルを閉じる
+        setShowCreateModal(false)
+        setIsCopying(false)
+        setModalShift(null)
+
+        // plan_idを設定し、status='draft'で遷移（直接編集画面へ）
+        onFirstPlan({
+          ...modalShift,
+          planId: result.data.plan_id,
+          status: 'draft'  // コピー後は下書き状態なので、直接編集画面に遷移
+        })
+      }
+    } catch (error) {
+      console.error('前月からのコピーエラー:', error)
+      setIsCopying(false)
+      alert(`エラー: ${error.message || 'シフトのコピーに失敗しました'}`)
+    }
+  }
+
+  // CSVアップロード（TODO: 実装）
+  const handleUploadCSV = () => {
+    setShowCreateModal(false)
+    // TODO: CSV アップロード機能を実装
+    alert('CSV アップロード機能は未実装です')
+    setModalShift(null)
+  }
+
   const getRecruitmentStatus = (year, month) => {
     const now = new Date()
     const currentYear = now.getFullYear()
@@ -284,7 +350,7 @@ const ShiftManagement = ({
         return (
           <button
             className="text-xs text-blue-600 hover:text-blue-800 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
-            onClick={() => handleEditShift(shift)}
+            onClick={() => handleOpenCreateModal(shift)}
             disabled={isCreating}
           >
             {isCreating ? '作成中...' : '新規作成'}
@@ -473,6 +539,98 @@ const ShiftManagement = ({
             )}
         </div>
       </motion.div>
+
+      {/* 新規作成モーダル */}
+      {showCreateModal && modalShift && (
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={handleCloseCreateModal}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white rounded-lg shadow-2xl max-w-md w-full mx-4"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* ヘッダー */}
+            <div className="border-b px-6 py-4 flex items-center justify-between">
+              <h2 className="text-xl font-bold text-gray-800">
+                {modalShift.year}年{modalShift.month}月のシフト作成
+              </h2>
+              <button
+                onClick={handleCloseCreateModal}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* コンテンツ */}
+            <div className="p-6">
+              <p className="text-sm text-gray-600 mb-6">
+                シフトの作成方法を選択してください
+              </p>
+
+              <div className="space-y-3">
+                {/* 前月からコピー */}
+                <button
+                  onClick={handleCopyFromPrevious}
+                  disabled={isCopying}
+                  className="w-full flex items-center gap-3 p-4 border-2 border-blue-200 rounded-lg hover:border-blue-400 hover:bg-blue-50 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="flex-shrink-0 w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center group-hover:bg-blue-200 transition-colors">
+                    {isCopying ? (
+                      <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
+                    ) : (
+                      <Copy className="h-5 w-5 text-blue-600" />
+                    )}
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="font-semibold text-gray-800">
+                      {isCopying ? 'コピー中...' : '前月からコピー'}
+                    </div>
+                    <div className="text-xs text-gray-500">
+                      {isCopying ?
+                        'シフトデータをコピーしています' :
+                        `${modalShift.month === 1 ? `${modalShift.year - 1}年12月` : `${modalShift.year}年${modalShift.month - 1}月`}のシフトを曜日ベースでコピー`
+                      }
+                    </div>
+                  </div>
+                </button>
+
+                {/* CSVアップロード */}
+                <button
+                  onClick={handleUploadCSV}
+                  disabled={isCopying}
+                  className="w-full flex items-center gap-3 p-4 border-2 border-green-200 rounded-lg hover:border-green-400 hover:bg-green-50 transition-all group disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <div className="flex-shrink-0 w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center group-hover:bg-green-200 transition-colors">
+                    <Upload className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div className="flex-1 text-left">
+                    <div className="font-semibold text-gray-800">CSVアップロード</div>
+                    <div className="text-xs text-gray-500">
+                      シフトデータをCSVファイルから読み込む
+                    </div>
+                  </div>
+                </button>
+              </div>
+            </div>
+
+            {/* フッター */}
+            <div className="border-t px-6 py-4 bg-gray-50 rounded-b-lg">
+              <button
+                onClick={handleCloseCreateModal}
+                disabled={isCopying}
+                className="w-full px-4 py-2 text-sm text-gray-600 hover:text-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                キャンセル
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   )
 }

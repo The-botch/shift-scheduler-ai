@@ -15,6 +15,7 @@ import {
   X,
   Calendar,
   History as HistoryIcon,
+  Store,
 } from 'lucide-react'
 import ShiftTimeline from '../shared/ShiftTimeline'
 import { AnimatePresence } from 'framer-motion'
@@ -44,6 +45,7 @@ const Monitoring = ({
   onConstraintManagement,
   onBudgetActualManagement,
   initialMonth, // ShiftManagementから渡される月情報 { year, month }
+  initialStoreId, // 店舗IDを受け取る
 }) => {
   const { tenantId } = useTenant()
   const [staffStatus, setStaffStatus] = useState([])
@@ -54,6 +56,8 @@ const Monitoring = ({
   const [staffMap, setStaffMap] = useState({})
   const [rolesMap, setRolesMap] = useState({})
   const [shiftPatternsMap, setShiftPatternsMap] = useState({})
+  const [storeList, setStoreList] = useState([])
+  const [selectedStoreId, setSelectedStoreId] = useState(initialStoreId || null)
 
   const currentDate = useMemo(() => new Date(), [])
   const currentYear = currentDate.getFullYear()
@@ -71,9 +75,34 @@ const Monitoring = ({
     }
   }, [initialMonth])
 
+  // initialStoreIdが渡された場合は店舗を設定
+  useEffect(() => {
+    if (initialStoreId) {
+      setSelectedStoreId(initialStoreId)
+    }
+  }, [initialStoreId])
+
+  useEffect(() => {
+    loadStoreList()
+  }, [tenantId])
+
   useEffect(() => {
     loadAvailabilityData()
-  }, [historyYear, historyMonth, tenantId])
+  }, [historyYear, historyMonth, selectedStoreId, tenantId])
+
+  const loadStoreList = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      const response = await fetch(`${apiUrl}/api/master/stores?tenant_id=${tenantId}`)
+      const result = await response.json()
+
+      if (result.success) {
+        setStoreList(result.data)
+      }
+    } catch (error) {
+      console.error('店舗リスト読み込みエラー:', error)
+    }
+  }
 
   const loadAvailabilityData = async () => {
     setLoading(true)
@@ -126,9 +155,14 @@ const Monitoring = ({
       })
       setShiftPatternsMap(patternsMapping)
 
+      // スタッフを店舗でフィルタリング
+      const filteredStaffData = selectedStoreId
+        ? staffData.filter(staff => parseInt(staff.store_id) === parseInt(selectedStoreId))
+        : staffData
+
       // スタッフごとに集計
       const staffMap = {}
-      staffData.forEach(staff => {
+      filteredStaffData.forEach(staff => {
         staffMap[staff.staff_id] = {
           id: parseInt(staff.staff_id),
           name: staff.name,
@@ -374,6 +408,25 @@ const Monitoring = ({
                 </Button>
               ))}
             </div>
+
+            {/* 店舗フィルター */}
+            {storeList.length > 0 && (
+              <div className="flex items-center justify-center gap-3 mb-8">
+                <Store className="h-4 w-4 text-gray-600" />
+                <select
+                  value={selectedStoreId || ''}
+                  onChange={(e) => setSelectedStoreId(e.target.value ? parseInt(e.target.value) : null)}
+                  className="px-4 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">すべての店舗</option>
+                  {storeList.map(store => (
+                    <option key={store.store_id} value={store.store_id}>
+                      {store.store_name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
           </>
         )}
 

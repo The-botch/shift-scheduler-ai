@@ -24,9 +24,11 @@ import {
   Shield as Shield2,
   CheckSquare,
   Download,
+  BookOpen,
 } from 'lucide-react'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { getCurrentTenantId } from '../../config/tenant'
+import DataImpactDocumentation from './DataImpactDocumentation'
 
 const masterRepository = new MasterRepository()
 
@@ -73,6 +75,7 @@ const MasterDataManagement = ({ onPrev }) => {
     { id: 'store_constraints', label: '店舗制約', icon: FileText },
     { id: 'labor_management_rules', label: '労務管理ルール', icon: CheckSquare },
     { id: 'shift_validation_rules', label: 'シフト検証ルール', icon: Shield2 },
+    { id: 'impact_documentation', label: '影響範囲ドキュメント', icon: BookOpen, isSpecial: true },
   ]
 
   useEffect(() => {
@@ -101,6 +104,12 @@ const MasterDataManagement = ({ onPrev }) => {
   }, [selectedMaster, tenantId])
 
   const loadMasterData = async () => {
+    // 影響範囲ドキュメントの場合はデータをロードしない
+    if (selectedMaster === 'impact_documentation') {
+      setLoading(false)
+      return
+    }
+
     try {
       setLoading(true)
       setError(null)
@@ -1956,6 +1965,13 @@ const MasterDataManagement = ({ onPrev }) => {
 
           {/* 右エリア: データ表示 */}
           <div className="flex-1 bg-white rounded-lg shadow-md border border-gray-200 flex flex-col overflow-hidden">
+            {selectedMaster === 'impact_documentation' ? (
+              /* 影響範囲ドキュメント */
+              <div className="h-full overflow-auto">
+                <DataImpactDocumentation onPrev={onPrev} />
+              </div>
+            ) : (
+              <>
             {/* ヘッダー */}
             <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
               <div className="flex items-center justify-between">
@@ -2068,6 +2084,8 @@ const MasterDataManagement = ({ onPrev }) => {
                 </table>
               )}
             </div>
+            </>
+            )}
           </div>
         </div>
 

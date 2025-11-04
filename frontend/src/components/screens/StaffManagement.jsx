@@ -13,6 +13,8 @@ import {
   FileText,
   Edit3,
   Database,
+  Store,
+  Filter,
 } from 'lucide-react'
 import { validateStaffCSV } from '../../utils/csvHelper'
 import { calculatePayslip } from '../../utils/salaryCalculator'
@@ -50,6 +52,8 @@ const StaffManagement = ({
   const [payslips, setPayslips] = useState({})
   const [showMasters, setShowMasters] = useState(false)
   const [shiftPatterns, setShiftPatterns] = useState([])
+  const [stores, setStores] = useState([])
+  const [selectedStore, setSelectedStore] = useState('all')
 
   useEffect(() => {
     loadData()
@@ -67,7 +71,8 @@ const StaffManagement = ({
         insuranceRatesData,
         taxBracketsData,
         commuteAllowancesData,
-        shiftPatternsData
+        shiftPatternsData,
+        storesData
       ] = await Promise.all([
         masterRepository.getStaff(tenantId),
         masterRepository.getRoles(tenantId),
@@ -76,7 +81,8 @@ const StaffManagement = ({
         masterRepository.getInsuranceRates(tenantId),
         masterRepository.getTaxBrackets(tenantId),
         masterRepository.getCommuteAllowance(tenantId),
-        masterRepository.getShiftPatterns(tenantId)
+        masterRepository.getShiftPatterns(tenantId),
+        masterRepository.getStores(tenantId)
       ])
 
       // データを旧形式に合わせる（Papa.parseの戻り値形式）
@@ -215,6 +221,7 @@ const StaffManagement = ({
       setTaxBrackets(taxBracketsParsed.data)
       setCommuteAllowances(commuteAllowancesParsed.data)
       setShiftPatterns(shiftPatternsParsed.data)
+      setStores(storesData)
 
       // 給与明細を計算
       const payslipMap = {}
@@ -249,6 +256,11 @@ const StaffManagement = ({
     }
     return typeMap[employmentType] || employmentType
   }
+
+  // 店舗フィルタリング
+  const filteredStaffList = selectedStore === 'all'
+    ? staffList
+    : staffList.filter(staff => staff.store_id === parseInt(selectedStore))
 
   if (loading) {
     return (
@@ -1205,13 +1217,28 @@ const StaffManagement = ({
               {!showMasters && (
                 /* スタッフ一覧テーブル */
                 <>
-                  <div className="px-6 pb-4">
+                  <div className="px-6 pb-4 flex items-center justify-between">
                     <h3 className="text-lg font-bold flex items-center gap-2">
                       <div className="w-1 h-6 bg-orange-600 rounded"></div>
-                      スタッフ一覧 ({staffList.length}名)
+                      スタッフ一覧 ({filteredStaffList.length}名)
                     </h3>
+                    <div className="flex items-center gap-2">
+                      <Filter className="h-4 w-4 text-gray-600" />
+                      <select
+                        value={selectedStore}
+                        onChange={(e) => setSelectedStore(e.target.value)}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                      >
+                        <option value="all">全ての店舗</option>
+                        {stores.map(store => (
+                          <option key={store.store_id} value={store.store_id}>
+                            {store.store_name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
-                  {staffList.length === 0 ? (
+                  {filteredStaffList.length === 0 ? (
                     <Card className="bg-gray-50 border-2 border-gray-300">
                       <CardContent className="p-8 text-center">
                         <div className="flex flex-col items-center gap-3">
@@ -1220,10 +1247,12 @@ const StaffManagement = ({
                           </div>
                           <div>
                             <p className="text-lg font-bold text-gray-700 mb-1">
-                              スタッフデータがありません
+                              {selectedStore === 'all' ? 'スタッフデータがありません' : 'この店舗にスタッフがいません'}
                             </p>
                             <p className="text-sm text-gray-500">
-                              CSVインポートボタンからスタッフデータをインポートしてください
+                              {selectedStore === 'all'
+                                ? 'CSVインポートボタンからスタッフデータをインポートしてください'
+                                : '別の店舗を選択するか、フィルターを「全ての店舗」に変更してください'}
                             </p>
                           </div>
                         </div>
@@ -1267,7 +1296,7 @@ const StaffManagement = ({
                           </tr>
                         </thead>
                         <tbody>
-                          {staffList.map((staff, index) => (
+                          {filteredStaffList.map((staff, index) => (
                             <motion.tr
                               key={staff.staff_id}
                               initial={{ opacity: 0, y: 10 }}

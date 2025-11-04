@@ -218,7 +218,8 @@ async function importAll17Masters() {
     const { rows: staffRows } = parseCSV(staffCSV);
     let staffInserted = 0;
     for (const row of staffRows) {
-      const storeId = storeCodeToId[row.store_code] || storesMap.rows[0].store_id;
+      // CSVのstore_idを直接使用（store_codeではなく）
+      const storeId = parseInt(row.store_id) || storesMap.rows[0].store_id;
       const roleId = roleCodeToId[row.role_code] || rolesMap.rows[0].role_id;
       const employmentType = (row.employment_type || 'HOURLY').toUpperCase();
       const hourlyRate = (employmentType === 'HOURLY' || employmentType === 'PART_TIME') ? parseFloat(row.hourly_rate || 1200) : null;
@@ -236,6 +237,64 @@ async function importAll17Masters() {
       }
     }
     console.log(`        ✅ ${staffInserted}件\n`);
+
+    // 6.5. 重複スタッフの検出と統合
+    console.log(`  🔍 重複スタッフの検出と統合中...`);
+
+    // 名前の正規化（空白・全角半角を統一）
+    function normalizeName(name) {
+      return name.replace(/\s+/g, '').replace(/　/g, '');
+    }
+
+    // 重複を検出
+    const duplicateCheck = await client.query(`
+      SELECT
+        name,
+        ARRAY_AGG(staff_id ORDER BY staff_id) as staff_ids,
+        COUNT(*) as count
+      FROM hr.staff
+      WHERE tenant_id = $1 AND is_active = TRUE
+      GROUP BY REPLACE(REPLACE(name, ' ', ''), '　', '')
+      HAVING COUNT(*) > 1
+    `, [tenantId]);
+
+    if (duplicateCheck.rows.length > 0) {
+      console.log(`        ⚠️  ${duplicateCheck.rows.length}組の重複が見つかりました`);
+
+      for (const dup of duplicateCheck.rows) {
+        const staffIds = dup.staff_ids;
+
+        // シフト数が最も多いスタッフを残す
+        const shiftCounts = await client.query(`
+          SELECT staff_id, COUNT(*) as shift_count
+          FROM ops.shifts
+          WHERE staff_id = ANY($1::int[])
+          GROUP BY staff_id
+          ORDER BY shift_count DESC
+        `, [staffIds]);
+
+        const keepStaffId = shiftCounts.rows[0]?.staff_id || staffIds[0];
+        const removeStaffIds = staffIds.filter(id => id !== keepStaffId);
+
+        console.log(`        🔄 "${dup.name}" → ID ${keepStaffId} を残して ID ${removeStaffIds.join(', ')} を統合`);
+
+        for (const removeId of removeStaffIds) {
+          // シフトデータを移行
+          await client.query(`UPDATE ops.shifts SET staff_id = $1 WHERE staff_id = $2`, [keepStaffId, removeId]);
+          // シフト希望を移行
+          await client.query(`UPDATE ops.shift_preferences SET staff_id = $1 WHERE staff_id = $2`, [keepStaffId, removeId]);
+          // スキルを削除（重複回避のため移行ではなく削除）
+          await client.query(`DELETE FROM hr.staff_skills WHERE staff_id = $1`, [removeId]);
+          // 資格を移行
+          await client.query(`UPDATE hr.staff_certifications SET staff_id = $1 WHERE staff_id = $2`, [keepStaffId, removeId]);
+          // 重複スタッフを論理削除
+          await client.query(`UPDATE hr.staff SET is_active = FALSE WHERE staff_id = $1`, [removeId]);
+        }
+      }
+      console.log(`        ✅ 重複統合完了\n`);
+    } else {
+      console.log(`        ✅ 重複なし\n`);
+    }
 
     // 7. Staff Skills
     console.log(`  📋 ${++masterCount}/17 staff_skills.csv`);
