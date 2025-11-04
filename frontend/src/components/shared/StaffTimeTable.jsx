@@ -6,15 +6,17 @@ import { isHoliday, getHolidayName } from '../../utils/holidays'
  * 縦軸: 日付、横軸: スタッフ
  * 各セルに勤務時間を表示
  */
-const StaffTimeTable = ({ year, month, shiftData, staffMap, onCellClick }) => {
+const StaffTimeTable = ({ year, month, shiftData, staffMap, storeName, onCellClick }) => {
   // 月の日数を計算
   const daysInMonth = new Date(year, month, 0).getDate()
   const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
-  // スタッフリストを取得（staff_idでソート）
-  const staffList = Object.entries(staffMap)
-    .map(([id, info]) => ({ staff_id: parseInt(id), ...info }))
-    .sort((a, b) => a.staff_id - b.staff_id)
+  // 時刻をHH:MM形式にフォーマット
+  const formatTime = (time) => {
+    if (!time) return ''
+    // HH:MM:SS形式の場合、HH:MMだけを取得
+    return time.substring(0, 5)
+  }
 
   // 日付とスタッフIDからシフトを検索
   const getShiftForDateAndStaff = (date, staffId) => {
@@ -26,21 +28,12 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, onCellClick }) => {
     )
   }
 
-  // 時間帯による色分け
-  const getTimeSlotColor = startTime => {
-    if (!startTime) return 'bg-gray-100'
-    const hour = parseInt(startTime.split(':')[0])
-    if (hour < 9) return 'bg-blue-50 border-blue-200' // 早番
-    if (hour < 12) return 'bg-green-50 border-green-200' // 中番
-    return 'bg-orange-50 border-orange-200' // 遅番
-  }
-
   // 勤務時間を計算
   const calculateHours = (startTime, endTime) => {
     if (!startTime || !endTime) return 0
     const [startH, startM] = startTime.split(':').map(Number)
     const [endH, endM] = endTime.split(':').map(Number)
-    return (endH * 60 + endM - startH * 60 - startM) / 60
+    return Math.abs((endH * 60 + endM - startH * 60 - startM) / 60)
   }
 
   // スタッフごとの月間合計を計算
@@ -55,6 +48,26 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, onCellClick }) => {
       }
     })
     return { totalDays, totalHours }
+  }
+
+  // スタッフリストを取得（staff_idでソート）
+  // 該当月にシフトが1つもないスタッフは除外
+  const staffList = Object.entries(staffMap)
+    .map(([id, info]) => ({ staff_id: parseInt(id), ...info }))
+    .filter(staff => {
+      // このスタッフが該当月に1つ以上のシフトを持つかチェック
+      const { totalDays } = getStaffMonthlyTotal(staff.staff_id)
+      return totalDays > 0
+    })
+    .sort((a, b) => a.staff_id - b.staff_id)
+
+  // 時間帯による色分け
+  const getTimeSlotColor = startTime => {
+    if (!startTime) return 'bg-gray-100'
+    const hour = parseInt(startTime.split(':')[0])
+    if (hour < 9) return 'bg-blue-50 border-blue-200' // 早番
+    if (hour < 12) return 'bg-green-50 border-green-200' // 中番
+    return 'bg-orange-50 border-orange-200' // 遅番
   }
 
   // 日付ごとの合計を計算
@@ -88,44 +101,75 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, onCellClick }) => {
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-lg border border-gray-200">
-      <div className="overflow-x-auto max-h-[calc(100vh-300px)]">
-        <table className="w-full border-collapse text-xs">
-        <colgroup>
-          <col style={{ width: '80px' }} />
-          {staffList.map(staff => (
-            <col key={staff.staff_id} style={{ minWidth: '100px' }} />
-          ))}
-          <col style={{ width: '100px' }} />
-        </colgroup>
+    <div className="flex flex-col h-full bg-white rounded-lg shadow-lg border border-gray-200">
+      {/* 店舗名ヘッダー */}
+      <div className="px-2 py-0.5 bg-blue-50 border-b border-blue-200 flex-shrink-0">
+        <h3 className="text-[0.65rem] font-semibold text-blue-900">店舗: {storeName || '全店舗'}</h3>
+      </div>
 
-        {/* ヘッダー: スタッフ名 */}
-        <thead className="bg-gray-50 sticky top-0 z-10">
-          <tr>
-            <th className="px-3 py-3 text-left font-semibold text-gray-700 border-b-2 border-r-2 border-gray-300">
-              日付
-            </th>
+      {/* テーブルヘッダー（固定） */}
+      <div className="overflow-x-auto flex-shrink-0 border-b-2 border-gray-300">
+        <table className="w-full border-collapse text-[0.6rem]" style={{ tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '30px' }} />
+            <col style={{ width: '15px' }} />
             {staffList.map(staff => (
-              <th
-                key={staff.staff_id}
-                className="px-2 py-3 text-center font-semibold text-gray-700 border-b-2 border-r border-gray-200"
-              >
-                <div className="text-sm">{staff.name}</div>
-                <div className="text-xs text-gray-500 font-normal">{staff.role_name}</div>
-              </th>
+              <col key={staff.staff_id} style={{ width: '38px' }} />
             ))}
-            <th className="px-3 py-3 text-center font-semibold text-gray-700 border-b-2 border-gray-300 bg-gray-100">
-              合計
-            </th>
-          </tr>
-        </thead>
+          </colgroup>
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-300">
+                日付
+              </th>
+              <th className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-300 bg-gray-100">
+                日別
+              </th>
+              {staffList.map(staff => (
+                <th
+                  key={staff.staff_id}
+                  className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r border-gray-200"
+                >
+                  <div className="text-[0.55rem] leading-tight">{staff.name}</div>
+                  <div className="text-[0.45rem] text-gray-500 font-normal leading-tight">{staff.role_name}</div>
+                </th>
+              ))}
+            </tr>
+            {/* 月間合計行 */}
+            <tr className="bg-gray-100 font-semibold">
+              <td className="px-0 py-0.5 border-r-2 border-gray-300 text-center text-gray-700">月合計</td>
+              <td className="px-0 py-0.5 border-r-2 border-gray-300 text-center bg-gray-100"></td>
+              {staffList.map(staff => {
+                const { totalDays, totalHours } = getStaffMonthlyTotal(staff.staff_id)
+                return (
+                  <td
+                    key={staff.staff_id}
+                    className="px-0.5 py-0.5 border-r border-gray-200 text-center"
+                  >
+                    <div className="text-gray-800 text-[0.5rem] leading-tight">{totalDays}日 {totalHours.toFixed(1)}h</div>
+                  </td>
+                )
+              })}
+            </tr>
+          </thead>
+        </table>
+      </div>
 
-        {/* ボディ: 日付ごとの行 */}
-        <tbody>
+      {/* テーブルボディ（スクロール可能） */}
+      <div className="overflow-x-auto overflow-y-auto flex-1">
+        <table className="w-full border-collapse text-[0.6rem]" style={{ tableLayout: 'fixed' }}>
+          <colgroup>
+            <col style={{ width: '30px' }} />
+            <col style={{ width: '15px' }} />
+            {staffList.map(staff => (
+              <col key={staff.staff_id} style={{ width: '38px' }} />
+            ))}
+          </colgroup>
+          <tbody>
           {dates.map((date, index) => {
             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-            const holiday = isHoliday(dateStr)
-            const holidayName = getHolidayName(dateStr)
+            const holiday = isHoliday(year, month, date)
+            const holidayName = getHolidayName(year, month, date)
             const weekday = getWeekday(date)
             const dailyTotal = getDailyTotal(date)
             const isWeekend = weekday === '日' || weekday === '土'
@@ -134,15 +178,20 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, onCellClick }) => {
             return (
               <tr key={date} className={rowBgColor}>
                 {/* 日付セル */}
-                <td className="px-3 py-2 border-r-2 border-b border-gray-200 bg-gray-50">
-                  <div className="flex items-center gap-2">
-                    <span className={`font-semibold ${getWeekdayColor(date)}`}>
+                <td className="px-1 py-0.5 border-r-2 border-b border-gray-200 bg-gray-50">
+                  <div className="flex items-center gap-0.5">
+                    <span className={`font-bold text-[0.85rem] leading-tight ${getWeekdayColor(date)}`}>
                       {date}({weekday})
                     </span>
                     {holiday && (
-                      <span className="text-xs text-red-600 font-medium">{holidayName}</span>
+                      <span className="text-[0.5rem] text-red-600 font-medium leading-tight">{holidayName}</span>
                     )}
                   </div>
+                </td>
+
+                {/* 日別合計セル */}
+                <td className="px-1 py-0.5 border-r-2 border-b border-gray-200 text-center bg-gray-50">
+                  <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">{dailyTotal.staffCount}名 {dailyTotal.totalHours.toFixed(1)}h</div>
                 </td>
 
                 {/* スタッフごとのシフトセル */}
@@ -153,78 +202,33 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, onCellClick }) => {
                   return (
                     <td
                       key={staff.staff_id}
-                      className="px-2 py-2 border-r border-b border-gray-200 text-center cursor-pointer hover:bg-gray-100 transition-colors"
+                      className="px-0.5 py-0.5 border-r border-b border-gray-200 text-center cursor-pointer hover:bg-gray-100 transition-colors"
                       onClick={() => onCellClick && onCellClick(date, staff.staff_id, shift)}
                     >
                       {shift ? (
                         <motion.div
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className={`p-1.5 rounded border ${getTimeSlotColor(shift.start_time)} ${
-                            shift.modified_flag ? 'ring-2 ring-yellow-400' : ''
+                          className={`px-0.5 py-0.5 rounded border ${getTimeSlotColor(shift.start_time)} ${
+                            shift.modified_flag ? 'ring-1 ring-yellow-400' : ''
                           }`}
                         >
-                          <div className="font-semibold text-gray-800">
-                            {shift.start_time}-{shift.end_time}
+                          <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
+                            {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
                           </div>
-                          <div className="text-xs text-gray-600 mt-0.5">{hours.toFixed(1)}h</div>
+                          <div className="text-[0.45rem] text-gray-600 leading-tight">{hours.toFixed(1)}h</div>
                         </motion.div>
                       ) : (
-                        <div className="text-gray-400 text-xs py-3">休</div>
+                        <div className="text-gray-400 text-[0.45rem] leading-tight">休</div>
                       )}
                     </td>
                   )
                 })}
-
-                {/* 日別合計セル */}
-                <td className="px-3 py-2 border-b border-gray-300 text-center bg-gray-50">
-                  <div className="font-semibold text-gray-800">{dailyTotal.staffCount}名</div>
-                  <div className="text-xs text-gray-600">{dailyTotal.totalHours.toFixed(1)}h</div>
-                </td>
               </tr>
             )
           })}
-
-          {/* 月間合計行 */}
-          <tr className="bg-gray-100 font-semibold border-t-2 border-gray-300">
-            <td className="px-3 py-3 border-r-2 border-gray-300 text-gray-700">合計</td>
-            {staffList.map(staff => {
-              const { totalDays, totalHours } = getStaffMonthlyTotal(staff.staff_id)
-              return (
-                <td
-                  key={staff.staff_id}
-                  className="px-2 py-3 border-r border-gray-200 text-center"
-                >
-                  <div className="text-gray-800">{totalDays}日</div>
-                  <div className="text-xs text-gray-600">{totalHours.toFixed(1)}h</div>
-                </td>
-              )
-            })}
-            <td className="px-3 py-3 border-gray-300 text-center bg-gray-100"></td>
-          </tr>
-        </tbody>
-      </table>
-      </div>
-
-      {/* 凡例 */}
-      <div className="px-4 py-3 bg-gray-50 border-t border-gray-200 flex items-center gap-4 text-xs flex-wrap">
-        <span className="font-semibold text-gray-700">時間帯:</span>
-        <div className="flex items-center gap-1">
-          <div className="w-4 h-4 bg-blue-50 border border-blue-200 rounded"></div>
-          <span className="text-gray-600">早番(&lt;9:00)</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-4 h-4 bg-green-50 border border-green-200 rounded"></div>
-          <span className="text-gray-600">中番(9:00-12:00)</span>
-        </div>
-        <div className="flex items-center gap-1">
-          <div className="w-4 h-4 bg-orange-50 border border-orange-200 rounded"></div>
-          <span className="text-gray-600">遅番(12:00~)</span>
-        </div>
-        <div className="flex items-center gap-1 ml-4">
-          <div className="w-4 h-4 bg-yellow-100 border-2 border-yellow-400 rounded"></div>
-          <span className="text-gray-600">変更あり</span>
-        </div>
+          </tbody>
+        </table>
       </div>
     </div>
   )

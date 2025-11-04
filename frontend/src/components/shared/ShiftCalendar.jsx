@@ -6,9 +6,15 @@ import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
  * シフトカレンダー表示用の共通コンポーネント
  * History, DraftShiftEditor, SecondPlanEditorで使用
  */
-const ShiftCalendar = ({ year, month, calendarData, onDayClick }) => {
+const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => {
   const { daysInMonth, firstDay, shiftsByDate } = calendarData
   const weekDays = ['日', '月', '火', '水', '木', '金', '土']
+
+  // 時刻をHH:MM形式にフォーマット
+  const formatTime = (time) => {
+    if (!time) return ''
+    return time.substring(0, 5)
+  }
 
   // 祝日データを事前に読み込む
   useEffect(() => {
@@ -27,22 +33,26 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick }) => {
   }
 
   return (
-    <div>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* 店舗名ヘッダー */}
+      <div className="px-2 py-0.5 bg-blue-50 border-b border-blue-200 rounded-t-lg mb-1 flex-shrink-0">
+        <h3 className="text-[0.65rem] font-semibold text-blue-900">店舗: {storeName || '全店舗'}</h3>
+      </div>
       {/* 曜日ヘッダー */}
-      <div className="grid grid-cols-7 gap-1 mb-2">
+      <div className="grid grid-cols-7 gap-0.5 mb-1 flex-shrink-0" style={{ maxWidth: '490px', margin: '0 auto' }}>
         {weekDays.map(day => (
-          <div key={day} className="p-1 text-center text-xs font-bold bg-blue-50 rounded">
+          <div key={day} className="px-0.5 py-0.5 text-center text-[0.5rem] leading-tight font-bold bg-blue-50 rounded" style={{ width: '70px' }}>
             {day}
           </div>
         ))}
       </div>
 
       {/* カレンダーグリッド */}
-      <div className="grid grid-cols-7 gap-1">
+      <div className="grid grid-cols-7 gap-0.5 overflow-y-auto flex-1" style={{ maxWidth: '490px', margin: '0 auto' }}>
         {calendarDays.map((day, index) => {
           if (!day) {
             // 空セル
-            return <div key={`empty-${index}`} style={{ minHeight: '80px', maxHeight: '120px' }} />
+            return <div key={`empty-${index}`} style={{ minHeight: '50px', maxHeight: '70px' }} />
           }
 
           const dayShifts = shiftsByDate[day] || []
@@ -55,14 +65,14 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick }) => {
           return (
             <motion.div
               key={day}
-              className={`p-1 border rounded cursor-pointer hover:shadow-md transition-shadow ${
+              className={`px-0.5 py-0.5 border rounded cursor-pointer hover:shadow-md transition-shadow ${
                 hasModified
                   ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
                   : isDayHoliday || isWeekend
                     ? 'bg-red-50 border-red-200 hover:bg-red-100'
                     : 'border-gray-200 hover:bg-gray-50'
               }`}
-              style={{ minHeight: '80px', maxHeight: '120px' }}
+              style={{ minHeight: '50px', maxHeight: '70px', width: '70px' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.01 }}
@@ -70,14 +80,14 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick }) => {
             >
               <div className="flex items-center justify-between mb-0.5">
                 <div
-                  className={`text-xs font-bold ${
+                  className={`text-[0.5rem] leading-tight font-bold ${
                     hasModified ? 'text-yellow-700' : isDayHoliday || isWeekend ? 'text-red-600' : 'text-gray-700'
                   }`}
                 >
                   {day}
                 </div>
                 {isDayHoliday && (
-                  <div className="text-[0.5rem] text-red-600 font-medium leading-tight">
+                  <div className="text-[0.4rem] text-red-600 font-medium leading-tight">
                     {holidayName}
                   </div>
                 )}
@@ -85,7 +95,7 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick }) => {
               {dayShifts.slice(0, 2).map((shift, idx) => (
                 <motion.div
                   key={shift.shift_id}
-                  className={`text-xs p-0.5 rounded mb-0.5 ${
+                  className={`text-[0.45rem] px-0.5 py-0.5 rounded mb-0.5 ${
                     shift.modified_flag
                       ? 'bg-yellow-200 border border-yellow-400'
                       : 'bg-green-100 border border-green-300'
@@ -95,43 +105,27 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick }) => {
                   transition={{ delay: index * 0.01 + idx * 0.05 }}
                 >
                   <div
-                    className={`font-medium text-xs leading-tight ${
+                    className={`font-medium text-[0.45rem] leading-tight ${
                       shift.modified_flag ? 'text-yellow-900' : 'text-green-800'
                     }`}
                   >
                     {shift.staff_name}
                   </div>
                   <div
-                    className={`text-xs ${
+                    className={`text-[0.45rem] leading-tight ${
                       shift.modified_flag ? 'text-yellow-700' : 'text-green-700'
                     }`}
                   >
-                    {shift.start_time}-{shift.end_time}
+                    {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
                   </div>
                 </motion.div>
               ))}
               {dayShifts.length > 2 && (
-                <div className="text-xs text-gray-500">+{dayShifts.length - 2}</div>
+                <div className="text-[0.45rem] leading-tight text-gray-500">+{dayShifts.length - 2}</div>
               )}
             </motion.div>
           )
         })}
-      </div>
-
-      {/* 凡例 */}
-      <div className="mt-3 flex items-center gap-3 text-xs">
-        <div className="flex items-center">
-          <div className="w-2.5 h-2.5 bg-green-100 border border-green-300 rounded mr-1.5"></div>
-          <span>配置済み</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-2.5 h-2.5 bg-yellow-200 border border-yellow-400 rounded mr-1.5"></div>
-          <span>修正あり</span>
-        </div>
-        <div className="flex items-center">
-          <div className="w-2.5 h-2.5 bg-red-50 border border-red-200 rounded mr-1.5"></div>
-          <span>土日・祝日</span>
-        </div>
       </div>
     </div>
   )

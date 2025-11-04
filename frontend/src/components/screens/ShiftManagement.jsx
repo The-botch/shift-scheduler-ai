@@ -130,7 +130,7 @@ const ShiftManagement = ({
             month,
             year: selectedYear,
             storeId: store.store_id,
-            storeName: store.store_name,
+            store_name: store.store_name,
             planId: monthData ? monthData.plan_id : null,
             status,
             createdAt: monthData ? new Date().toISOString().split('T')[0] : null,
@@ -141,7 +141,7 @@ const ShiftManagement = ({
 
         return {
           storeId: store.store_id,
-          storeName: store.store_name,
+          store_name: store.store_name,
           months
         }
       })
@@ -472,7 +472,7 @@ const ShiftManagement = ({
                           {/* 1行目: 作成状況 */}
                           <tr key={`${storeData.storeId}-status`} className={`${bgClass} border-b border-gray-100`}>
                             <td rowSpan="3" className="px-2 py-3 font-medium text-gray-900 border-r border-gray-200 text-xs align-middle">
-                              {storeData.storeName}
+                              {storeData.store_name}
                             </td>
                             <td className="px-2 py-2 text-xs text-gray-600 border-r border-gray-200 bg-gray-50">
                               作成状況
