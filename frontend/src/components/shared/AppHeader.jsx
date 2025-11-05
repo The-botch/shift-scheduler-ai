@@ -54,6 +54,23 @@ const AppHeader = ({
     }
   }
 
+  // 環境判定
+  const getEnvironment = () => {
+    const hostname = window.location.hostname
+
+    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      return { name: 'LOCAL', label: 'ローカル', color: 'blue' }
+    } else if (hostname.includes('vercel.app') && !hostname.includes('shift-scheduler-ai.vercel.app')) {
+      // プレビューデプロイ（xxxxx-username.vercel.app）
+      return { name: 'DEV', label: '開発', color: 'amber' }
+    } else {
+      // 本番ドメイン
+      return { name: 'PRD', label: '本番', color: 'green' }
+    }
+  }
+
+  const environment = getEnvironment()
+
   const formatDate = date => {
     const year = date.getFullYear()
     const month = date.getMonth() + 1
@@ -110,6 +127,31 @@ const AppHeader = ({
                 </select>
               </div>
             )}
+            {/* 環境表示インジケーター */}
+            <div className={`flex items-center gap-1.5 px-2 md:px-3 py-1 rounded-md text-xs font-medium ${
+              environment.color === 'green'
+                ? 'bg-green-50 text-green-700 border border-green-200'
+                : environment.color === 'amber'
+                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                : 'bg-blue-50 text-blue-700 border border-blue-200'
+            }`}>
+              <div className={`h-2 w-2 rounded-full ${
+                environment.color === 'green'
+                  ? 'bg-green-500'
+                  : environment.color === 'amber'
+                  ? 'bg-amber-500'
+                  : 'bg-blue-500'
+              }`} />
+              <span className="font-semibold">{environment.name}</span>
+              <span className="hidden sm:inline opacity-70">
+                ({environment.label})
+              </span>
+              {!loading && tenantId && (
+                <span className="text-[10px] opacity-70">
+                  ID:{tenantId}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* デスクトップナビゲーション */}
