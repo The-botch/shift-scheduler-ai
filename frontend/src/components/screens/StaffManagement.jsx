@@ -342,6 +342,33 @@ const StaffManagement = ({
                     <div className="font-medium">{selectedStaff.phone_number}</div>
                   </div>
                   <div>
+                    <div className="text-gray-600">LINE連携状況</div>
+                    <div className="font-medium">
+                      {selectedStaff.line_user_id ? (
+                        <span className="inline-flex items-center gap-1 text-green-600">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          連携済み
+                        </span>
+                      ) : (
+                        <span className="text-gray-400">未連携</span>
+                      )}
+                    </div>
+                  </div>
+                  {selectedStaff.line_user_id && (
+                    <div>
+                      <div className="text-gray-600">LINE User ID</div>
+                      <div className="font-mono text-xs text-gray-500 break-all">{selectedStaff.line_user_id}</div>
+                    </div>
+                  )}
+                  {selectedStaff.line_display_name && (
+                    <div>
+                      <div className="text-gray-600">LINE表示名</div>
+                      <div className="font-medium">{selectedStaff.line_display_name}</div>
+                    </div>
+                  )}
+                  <div>
                     <div className="text-gray-600">給与</div>
                     <div className="font-bold text-green-700">
                       {(selectedStaff.employment_type === 'monthly' || selectedStaff.employment_type === 'FULL_TIME') &&
@@ -1308,6 +1335,9 @@ const StaffManagement = ({
                               週最大時間
                             </th>
                             <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                              LINE連携
+                            </th>
+                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
                               状態
                             </th>
                           </tr>
@@ -1355,6 +1385,20 @@ const StaffManagement = ({
                               </td>
                               <td className="px-4 py-3 text-sm border-b">
                                 {staff.max_hours_per_week}時間
+                              </td>
+                              <td className="px-4 py-3 text-sm border-b">
+                                {staff.line_user_id ? (
+                                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                    済
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded-full text-xs">
+                                    未
+                                  </span>
+                                )}
                               </td>
                               <td className="px-4 py-3 text-sm border-b">
                                 {staff.is_active === true ? (
