@@ -20,27 +20,43 @@ app.use(express.json({ limit: '50mb' }))
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  // 環境判定
+  // Railwayの環境名を取得（全体で共通使用）
+  const railwayEnv = process.env.RAILWAY_ENVIRONMENT_NAME
+
+  // 環境判定: Railwayの環境変数でPRD/DEV/LOCALを判定
   const getEnvironment = () => {
-    const hostname = req.hostname
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    // Railwayの環境変数がない場合はLOCAL
+    if (!railwayEnv) {
       return 'LOCAL'
-    } else if (hostname.includes('railway.app') || hostname.includes('up.railway.app')) {
-      return 'Railway'
+    }
+
+    // Railwayの環境名で判定
+    if (railwayEnv === 'production') {
+      return 'PRD'
     } else {
-      return 'PRODUCTION'
+      return 'DEV'
     }
   }
 
-  // DB環境判定
+  // DB環境判定: バックエンドと同じRailway環境変数で判定
   const getDbEnvironment = () => {
     const dbUrl = process.env.DATABASE_URL || ''
+
+    // ローカルDBの場合
     if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
       return 'LOCAL'
-    } else if (dbUrl.includes('railway')) {
-      return 'Railway'
+    }
+
+    // Railwayの環境変数がない場合はLOCAL
+    if (!railwayEnv) {
+      return 'LOCAL'
+    }
+
+    // Railwayの環境名で判定（バックエンドと同じ環境のDBを使用）
+    if (railwayEnv === 'production') {
+      return 'PRD'
     } else {
-      return 'UNKNOWN'
+      return 'DEV'
     }
   }
 
