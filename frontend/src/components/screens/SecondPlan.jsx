@@ -120,7 +120,11 @@ const SecondPlan = ({
   }
 
   // バックエンドAPIから取得したシフトデータをカレンダー表示用にフォーマット
+  // History.jsxと同じ形式でShiftCalendarが期待するデータを返す
   const formatShiftsForCalendar = (shifts, staffMapping, year, month) => {
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const firstDay = new Date(year, month - 1, 1).getDay()
+
     // 日付ごとにグループ化
     const shiftsByDate = {}
 
@@ -142,35 +146,17 @@ const SecondPlan = ({
         role_name: 'スタッフ'
       }
 
-      // 時刻をフォーマット（"09:00:00" → "9-18"）
-      const startTime = shift.start_time ? shift.start_time.substring(0, 5).replace(':00', '') : ''
-      const endTime = shift.end_time ? shift.end_time.substring(0, 5).replace(':00', '') : ''
-      const timeStr = `${startTime}-${endTime}`
-
       shiftsByDate[day].push({
-        name: staffInfo.name,
-        time: timeStr,
-        skill: shift.skill_level || staffInfo.skill_level || 1,
-        role: staffInfo.role_name,
-        preferred: shift.is_preferred || false,
-        changed: shift.is_modified || false
+        shift_id: shift.shift_id || shift.id,
+        staff_id: shift.staff_id,
+        staff_name: staffInfo.name,
+        start_time: shift.start_time,
+        end_time: shift.end_time,
+        modified_flag: shift.is_modified || false
       })
     })
 
-    // カレンダー表示用の配列に変換
-    const daysInMonth = new Date(year, month, 0).getDate()
-    const formattedData = []
-
-    for (let day = 1; day <= daysInMonth; day++) {
-      const dayOfWeek = new Date(year, month - 1, day).getDay()
-      formattedData.push({
-        date: day,
-        day: ['日', '月', '火', '水', '木', '金', '土'][dayOfWeek],
-        shifts: shiftsByDate[day] || []
-      })
-    }
-
-    return formattedData
+    return { daysInMonth, firstDay, shiftsByDate }
   }
 
   // マウント時に第1案と希望シフトを読み込み
@@ -1172,7 +1158,7 @@ const SecondPlan = ({
                   month={selectedShift?.month || new Date().getMonth() + 1}
                   shiftData={csvShifts}
                   staffMap={staffMap}
-                  calendarData={null}
+                  calendarData={firstPlanData}
                   storeId={selectedShift?.storeId || selectedShift?.store_id}
                   storeName={selectedShift?.store_name}
                   readonly={false}
@@ -1209,7 +1195,7 @@ const SecondPlan = ({
                   month={selectedShift?.month || new Date().getMonth() + 1}
                   shiftData={firstPlanShifts}
                   staffMap={staffMap}
-                  calendarData={null}
+                  calendarData={firstPlanData}
                   storeId={selectedShift?.storeId || selectedShift?.store_id}
                   storeName={selectedShift?.store_name}
                   readonly={true}
