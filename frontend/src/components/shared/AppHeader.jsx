@@ -151,7 +151,29 @@ const AppHeader = ({
                 </select>
               </div>
             )}
-            {/* 環境表示インジケーター */}
+          </div>
+
+          {/* 中央：デスクトップナビゲーション */}
+          <nav className="hidden lg:flex items-center gap-2">
+            {menuItems.map((item, index) => {
+              const Icon = item.icon
+              return (
+                <Button
+                  key={index}
+                  variant="ghost"
+                  size="sm"
+                  onClick={item.onClick}
+                  className="text-slate-700"
+                >
+                  <Icon className="h-4 w-4 mr-1.5" />
+                  {item.label}
+                </Button>
+              )
+            })}
+          </nav>
+
+          {/* 右側：環境表示インジケーター */}
+          <div className="flex items-center gap-2">
             <div className={`flex items-center gap-1.5 px-2 md:px-3 py-1 rounded-md text-xs font-medium ${
               environment.color === 'green'
                 ? 'bg-green-50 text-green-700 border border-green-200'
@@ -192,39 +214,20 @@ const AppHeader = ({
                 </div>
               </div>
             </div>
+
+            {/* モバイルハンバーガーメニュー */}
+            <button
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+              aria-label="メニュー"
+            >
+              {isMobileMenuOpen ? (
+                <X className="h-6 w-6 text-slate-700" />
+              ) : (
+                <Menu className="h-6 w-6 text-slate-700" />
+              )}
+            </button>
           </div>
-
-          {/* デスクトップナビゲーション */}
-          <nav className="hidden lg:flex items-center gap-2">
-            {menuItems.map((item, index) => {
-              const Icon = item.icon
-              return (
-                <Button
-                  key={index}
-                  variant="ghost"
-                  size="sm"
-                  onClick={item.onClick}
-                  className="text-slate-700"
-                >
-                  <Icon className="h-4 w-4 mr-1.5" />
-                  {item.label}
-                </Button>
-              )
-            })}
-          </nav>
-
-          {/* モバイルハンバーガーメニュー */}
-          <button
-            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
-            aria-label="メニュー"
-          >
-            {isMobileMenuOpen ? (
-              <X className="h-6 w-6 text-slate-700" />
-            ) : (
-              <Menu className="h-6 w-6 text-slate-700" />
-            )}
-          </button>
         </div>
 
         {/* モバイルメニュー */}
