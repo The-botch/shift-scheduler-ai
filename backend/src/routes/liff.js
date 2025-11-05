@@ -33,7 +33,7 @@ router.post('/shift-request', verifyLineToken, async (req, res) => {
 
     // LINE User IDからスタッフ情報を取得
     const staffResult = await client.query(
-      'SELECT staff_id, store_id FROM staff WHERE line_user_id = $1',
+      'SELECT staff_id, store_id FROM hr.staff WHERE line_user_id = $1',
       [lineUserId]
     )
 
@@ -66,7 +66,7 @@ router.post('/shift-request', verifyLineToken, async (req, res) => {
 
       // 既存のシフト希望をチェック（同じ日付・スタッフの希望がある場合は上書き）
       const existingShift = await client.query(
-        `SELECT shift_id FROM shift
+        `SELECT shift_id FROM ops.shifts
          WHERE staff_id = $1
          AND date = $2
          AND status = 'requested'`,
@@ -76,7 +76,7 @@ router.post('/shift-request', verifyLineToken, async (req, res) => {
       if (existingShift.rows.length > 0) {
         // 既存の希望を更新
         await client.query(
-          `UPDATE shift
+          `UPDATE ops.shifts
            SET start_time = $1, end_time = $2, updated_at = CURRENT_TIMESTAMP
            WHERE shift_id = $3`,
           [start_time, end_time, existingShift.rows[0].shift_id]
@@ -92,7 +92,7 @@ router.post('/shift-request', verifyLineToken, async (req, res) => {
       } else {
         // 新規希望を登録
         const insertResult = await client.query(
-          `INSERT INTO shift
+          `INSERT INTO ops.shifts
            (staff_id, store_id, date, start_time, end_time, status, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, 'requested', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
            RETURNING shift_id`,
@@ -155,7 +155,7 @@ router.get('/shift-request', verifyLineToken, async (req, res) => {
 
     // LINE User IDからスタッフ情報を取得
     const staffResult = await client.query(
-      'SELECT staff_id, store_id FROM staff WHERE line_user_id = $1',
+      'SELECT staff_id, store_id FROM hr.staff WHERE line_user_id = $1',
       [lineUserId]
     )
 
@@ -178,7 +178,7 @@ router.get('/shift-request', verifyLineToken, async (req, res) => {
         status,
         created_at,
         updated_at
-       FROM shift
+       FROM ops.shifts
        WHERE staff_id = $1
        AND EXTRACT(YEAR FROM date) = $2
        AND EXTRACT(MONTH FROM date) = $3
@@ -229,8 +229,8 @@ router.get('/staff-info', verifyLineToken, async (req, res) => {
         s.monthly_hours_limit,
         s.health_insurance,
         s.employment_insurance
-       FROM staff s
-       LEFT JOIN store st ON s.store_id = st.store_id
+       FROM hr.staff s
+       LEFT JOIN core.stores st ON s.store_id = st.store_id
        WHERE s.line_user_id = $1`,
       [lineUserId]
     )
