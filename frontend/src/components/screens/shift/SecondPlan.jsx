@@ -202,11 +202,10 @@ const SecondPlan = ({
 
       // バックエンドのデータをカレンダー表示用にフォーマット
       const formattedData = formatShiftsForCalendar(firstPlanShiftsData, staffMapping, year, month)
-      console.log(`フォーマット後のデータ: ${formattedData.length}日分`, formattedData.slice(0, 3))
+      console.log(`フォーマット後のデータ:`, formattedData)
 
       setFirstPlanData(formattedData)
       setFirstPlanShifts(firstPlanShiftsData) // 第1案の生データを保存
-      setShiftData(formattedData) // 初期表示は第1案（希望反映版として表示）
       setCsvShifts(firstPlanShiftsData) // 元データも保存（詳細表示用）
 
       // 希望シフトを取得
@@ -219,7 +218,7 @@ const SecondPlan = ({
       setPreferences(preferencesData)
 
       // 第1案と希望シフトを突合してアラートを判定
-      checkPreferenceConflicts(firstPlanShifts, preferencesData, staffMapping, year, month)
+      checkPreferenceConflicts(firstPlanShiftsData, preferencesData, staffMapping, year, month)
 
       setLoading(false)
       setGenerated(true)
