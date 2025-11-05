@@ -95,14 +95,12 @@ const ShiftViewEditor = ({
               onCellClick={onCellClick}
             />
           ) : (
-            calendarData && (
-              <ShiftCalendar
-                year={year}
-                month={month}
-                calendarData={calendarData}
-                onDayClick={readonly ? undefined : onDayClick}
-              />
-            )
+            <ShiftCalendar
+              year={year}
+              month={month}
+              calendarData={calendarData}
+              onDayClick={readonly ? undefined : onDayClick}
+            />
           )}
         </CardContent>
       </Card>
