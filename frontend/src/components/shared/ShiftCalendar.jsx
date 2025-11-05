@@ -35,24 +35,24 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* 店舗名ヘッダー */}
-      <div className="px-2 py-0.5 bg-blue-50 border-b border-blue-200 rounded-t-lg mb-1 flex-shrink-0">
-        <h3 className="text-[0.65rem] font-semibold text-blue-900">店舗: {storeName || '全店舗'}</h3>
+      <div className="px-2 md:px-3 py-1 bg-blue-50 border-b border-blue-200 rounded-t-lg mb-1 flex-shrink-0">
+        <h3 className="text-base md:text-lg font-semibold text-blue-900">店舗: {storeName || '全店舗'}</h3>
       </div>
       {/* 曜日ヘッダー */}
-      <div className="grid grid-cols-7 gap-0.5 mb-1 flex-shrink-0" style={{ maxWidth: '490px', margin: '0 auto' }}>
+      <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2 flex-shrink-0">
         {weekDays.map(day => (
-          <div key={day} className="px-0.5 py-0.5 text-center text-[0.5rem] leading-tight font-bold bg-blue-50 rounded" style={{ width: '70px' }}>
+          <div key={day} className="p-2 md:p-3 text-center text-sm md:text-base font-bold bg-blue-50 rounded w-20 md:w-24 lg:w-28">
             {day}
           </div>
         ))}
       </div>
 
       {/* カレンダーグリッド */}
-      <div className="grid grid-cols-7 gap-0.5 overflow-y-auto flex-1" style={{ maxWidth: '490px', margin: '0 auto' }}>
+      <div className="grid grid-cols-7 gap-1 md:gap-2 overflow-y-auto flex-1">
         {calendarDays.map((day, index) => {
           if (!day) {
             // 空セル
-            return <div key={`empty-${index}`} style={{ minHeight: '50px', maxHeight: '70px' }} />
+            return <div key={`empty-${index}`} className="min-h-[60px] md:min-h-[80px]" />
           }
 
           const dayShifts = shiftsByDate[day] || []
@@ -65,14 +65,14 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
           return (
             <motion.div
               key={day}
-              className={`px-0.5 py-0.5 border rounded cursor-pointer hover:shadow-md transition-shadow ${
+              className={`p-2 md:p-3 border rounded cursor-pointer hover:shadow-md transition-shadow w-20 md:w-24 lg:w-28 ${
                 hasModified
                   ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
                   : isDayHoliday || isWeekend
                     ? 'bg-red-50 border-red-200 hover:bg-red-100'
                     : 'border-gray-200 hover:bg-gray-50'
               }`}
-              style={{ minHeight: '50px', maxHeight: '70px', width: '70px' }}
+              style={{ minHeight: '60px', maxHeight: '100px' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.01 }}
@@ -80,14 +80,14 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
             >
               <div className="flex items-center justify-between mb-0.5">
                 <div
-                  className={`text-[0.5rem] leading-tight font-bold ${
+                  className={`text-sm md:text-base leading-tight font-bold ${
                     hasModified ? 'text-yellow-700' : isDayHoliday || isWeekend ? 'text-red-600' : 'text-gray-700'
                   }`}
                 >
                   {day}
                 </div>
                 {isDayHoliday && (
-                  <div className="text-[0.4rem] text-red-600 font-medium leading-tight">
+                  <div className="text-[0.5rem] md:text-xs text-red-600 font-medium leading-tight">
                     {holidayName}
                   </div>
                 )}
@@ -95,7 +95,7 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
               {dayShifts.slice(0, 2).map((shift, idx) => (
                 <motion.div
                   key={shift.shift_id}
-                  className={`text-[0.45rem] px-0.5 py-0.5 rounded mb-0.5 ${
+                  className={`text-xs md:text-sm px-1 py-0.5 rounded mb-0.5 ${
                     shift.modified_flag
                       ? 'bg-yellow-200 border border-yellow-400'
                       : 'bg-green-100 border border-green-300'
@@ -105,14 +105,14 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
                   transition={{ delay: index * 0.01 + idx * 0.05 }}
                 >
                   <div
-                    className={`font-medium text-[0.45rem] leading-tight ${
+                    className={`font-medium text-xs md:text-sm leading-tight ${
                       shift.modified_flag ? 'text-yellow-900' : 'text-green-800'
                     }`}
                   >
                     {shift.staff_name}
                   </div>
                   <div
-                    className={`text-[0.45rem] leading-tight ${
+                    className={`text-xs md:text-sm leading-tight ${
                       shift.modified_flag ? 'text-yellow-700' : 'text-green-700'
                     }`}
                   >
@@ -121,7 +121,7 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
                 </motion.div>
               ))}
               {dayShifts.length > 2 && (
-                <div className="text-[0.45rem] leading-tight text-gray-500">+{dayShifts.length - 2}</div>
+                <div className="text-xs md:text-sm leading-tight text-gray-500">+{dayShifts.length - 2}</div>
               )}
             </motion.div>
           )

@@ -1035,109 +1035,6 @@ const SecondPlan = ({
     }
   }
 
-  const renderCalendar = (isFirstPlan = false) => {
-    const data = isFirstPlan ? firstPlanData : shiftData
-
-    // 月の最初の日の曜日を取得（0=日曜, 1=月曜, ..., 6=土曜）
-    const firstDayOfMonth = new Date(selectedShift.year, selectedShift.month - 1, 1).getDay()
-
-    // 曜日ヘッダー
-    const weekDays = ['日', '月', '火', '水', '木', '金', '土']
-
-    return (
-      <div>
-        {/* 曜日ヘッダー */}
-        <div className="grid grid-cols-7 gap-1 mb-2">
-          {weekDays.map(day => (
-            <div key={day} className="p-1 text-center text-xs font-bold bg-blue-50 rounded">
-              {day}
-            </div>
-          ))}
-        </div>
-
-        {/* カレンダーグリッド */}
-        <div className="grid grid-cols-7 gap-1">
-          {/* 月初の空セル */}
-          {Array.from({ length: firstDayOfMonth }, (_, i) => (
-            <div key={`empty-${i}`} style={{ minHeight: '80px' }} />
-          ))}
-
-          {/* 日付セル */}
-          {Array.from({ length: 30 }, (_, i) => {
-            const date = i + 1
-            const dayData = data.find(d => d.date === date) || { date, shifts: [] }
-            const isProblem = !isFirstPlan && isProblematicDate(date)
-            const isChanged = !isFirstPlan && changedDates.has(date)
-            const isDayHoliday = isHoliday(selectedShift.year, selectedShift.month, date)
-            const holidayName = getHolidayName(selectedShift.year, selectedShift.month, date)
-
-            // 曜日を計算（0=日曜, 6=土曜）
-            const dayOfWeek = (firstDayOfMonth + date - 1) % 7
-            const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-
-          return (
-            <motion.div
-              key={i}
-              className={`p-1 border rounded cursor-pointer transition-colors overflow-hidden ${
-                isProblem
-                  ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
-                  : isDayHoliday || isWeekend
-                    ? 'bg-red-50 border-red-200 hover:bg-red-100'
-                    : 'border-gray-200 hover:bg-gray-50'
-              }`}
-              style={{ minHeight: '80px', maxHeight: '120px' }}
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ delay: i * 0.02 }}
-              onClick={() => !isFirstPlan && handleDayClick(date)}
-            >
-              <div className="flex items-center justify-between mb-0.5">
-                <div
-                  className={`text-xs font-bold ${
-                    isProblem
-                      ? 'text-yellow-700'
-                      : isDayHoliday || isWeekend
-                        ? 'text-red-600'
-                        : 'text-gray-700'
-                  }`}
-                >
-                  {date}
-                  {isProblem && <AlertTriangle className="h-3 w-3 inline ml-1 text-yellow-600" />}
-                </div>
-                {isDayHoliday && (
-                  <div className="text-[0.45rem] text-red-600 font-medium leading-tight truncate max-w-[50%]">
-                    {holidayName}
-                  </div>
-                )}
-              </div>
-              {dayData.shifts.slice(0, 2).map((shift, idx) => (
-                <motion.div
-                  key={idx}
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: idx * 0.1 }}
-                  className="text-xs p-0.5 rounded mb-0.5 bg-green-100 text-green-800"
-                >
-                  <div className="font-medium flex items-center truncate">
-                    <span className="truncate">{shift.name}</span>
-                    {(shift.preferred || shift.changed) && (
-                      <CheckCircle className="h-2 w-2 ml-1 flex-shrink-0 text-green-600" />
-                    )}
-                  </div>
-                  <div className="text-[0.65rem] opacity-80 truncate">{shift.time}</div>
-                </motion.div>
-              ))}
-              {dayData.shifts.length > 2 && (
-                <div className="text-xs text-gray-500">+{dayData.shifts.length - 2}</div>
-              )}
-            </motion.div>
-          )
-        })}
-        </div>
-      </div>
-    )
-  }
-
   return (
     <motion.div
       initial="initial"
@@ -1289,85 +1186,102 @@ const SecondPlan = ({
           )}
 
           {viewMode === 'first' && (
-            <Card className="shadow-lg border-0">
-              <CardHeader>
-                <CardTitle className="flex items-center">
+            <div style={{ height: 'calc(100vh - 160px)' }} className="flex flex-col">
+              <div className="mb-2 px-4 flex items-center justify-between">
+                <div className="flex items-center">
                   <CalendarIcon className="h-5 w-5 mr-2 text-blue-600" />
-                  第1案（AI自動生成）
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setViewMode('second')}
-                    className="ml-auto"
-                  >
-                    <ArrowLeft className="h-4 w-4 mr-2" />
-                    第2案に戻る
-                  </Button>
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-7 gap-1 mb-4">
-                  {['日', '月', '火', '水', '木', '金', '土'].map(day => (
-                    <div key={day} className="p-2 text-center text-xs font-bold bg-blue-50 rounded">
-                      {day}
-                    </div>
-                  ))}
+                  <span className="font-semibold">第1案（AI自動生成）</span>
                 </div>
-                {renderCalendar(true)}
-              </CardContent>
-            </Card>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setViewMode('second')}
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  第2案に戻る
+                </Button>
+              </div>
+              <div className="flex-1 overflow-hidden px-4">
+                <ShiftViewEditor
+                  year={selectedShift?.year || new Date().getFullYear()}
+                  month={selectedShift?.month || new Date().getMonth() + 1}
+                  shiftData={firstPlanData}
+                  staffMap={staffMap}
+                  calendarData={null}
+                  storeId={selectedShift?.storeId || selectedShift?.store_id}
+                  storeName={selectedShift?.store_name}
+                  readonly={true}
+                  onCellClick={(date, staffId, shift) => {
+                    if (shift) {
+                      handleDayClick(date)
+                    }
+                  }}
+                  onDayClick={handleDayClick}
+                />
+              </div>
+            </div>
           )}
 
           {viewMode === 'compare' && (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4" style={{ height: 'calc(100vh - 160px)' }}>
               {/* 第1案 */}
-              <Card className="shadow-lg border-0">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
+              <div className="flex flex-col">
+                <div className="mb-2 px-4">
+                  <div className="flex items-center">
                     <CalendarIcon className="h-5 w-5 mr-2 text-blue-600" />
-                    第1案（AI自動生成）
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-7 gap-1 mb-4">
-                    {['日', '月', '火', '水', '木', '金', '土'].map(day => (
-                      <div
-                        key={day}
-                        className="p-2 text-center text-xs font-bold bg-blue-50 rounded"
-                      >
-                        {day}
-                      </div>
-                    ))}
+                    <span className="font-semibold">第1案（AI自動生成）</span>
                   </div>
-                  {renderCalendar(true)}
-                </CardContent>
-              </Card>
+                </div>
+                <div className="flex-1 overflow-hidden px-4">
+                  <ShiftViewEditor
+                    year={selectedShift?.year || new Date().getFullYear()}
+                    month={selectedShift?.month || new Date().getMonth() + 1}
+                    shiftData={firstPlanData}
+                    staffMap={staffMap}
+                    calendarData={null}
+                    storeId={selectedShift?.storeId || selectedShift?.store_id}
+                    storeName={selectedShift?.store_name}
+                    readonly={true}
+                    onCellClick={(date, staffId, shift) => {
+                      if (shift) {
+                        handleDayClick(date)
+                      }
+                    }}
+                    onDayClick={handleDayClick}
+                  />
+                </div>
+              </div>
 
               {/* 第2案 */}
-              <Card className="shadow-lg border-0 ring-2 ring-green-200">
-                <CardHeader>
-                  <CardTitle className="flex items-center">
+              <div className="flex flex-col ring-2 ring-green-200 rounded-lg">
+                <div className="mb-2 px-4 pt-2">
+                  <div className="flex items-center">
                     <CalendarIcon className="h-5 w-5 mr-2 text-green-600" />
-                    第2案（希望反映版）
+                    <span className="font-semibold">第2案（希望反映版）</span>
                     <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                       改善版
                     </span>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-7 gap-1 mb-4">
-                    {['日', '月', '火', '水', '木', '金', '土'].map(day => (
-                      <div
-                        key={day}
-                        className="p-2 text-center text-xs font-bold bg-green-50 rounded"
-                      >
-                        {day}
-                      </div>
-                    ))}
                   </div>
-                  {renderCalendar(false)}
-                </CardContent>
-              </Card>
+                </div>
+                <div className="flex-1 overflow-hidden px-4">
+                  <ShiftViewEditor
+                    year={selectedShift?.year || new Date().getFullYear()}
+                    month={selectedShift?.month || new Date().getMonth() + 1}
+                    shiftData={csvShifts}
+                    staffMap={staffMap}
+                    calendarData={null}
+                    storeId={selectedShift?.storeId || selectedShift?.store_id}
+                    storeName={selectedShift?.store_name}
+                    readonly={false}
+                    onCellClick={(date, staffId, shift) => {
+                      if (shift) {
+                        handleDayClick(date)
+                      }
+                    }}
+                    onDayClick={handleDayClick}
+                  />
+                </div>
+              </div>
             </div>
           )}
 

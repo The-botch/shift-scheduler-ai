@@ -1224,9 +1224,7 @@ const StaffManagement = ({
                     </div>
                   </div>
                 </>
-              ) : null}
-              </div>
-              {!showMasters && (
+              ) : (
                 /* スタッフ一覧テーブル */
                 <>
                   <div className="px-6 pb-4 flex items-center justify-between">
