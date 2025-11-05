@@ -798,7 +798,7 @@ function AppContent() {
   }
 
   return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col">
+      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col overflow-x-hidden w-full max-w-full">
         <AppHeader
           onHome={goToShiftManagement}
           onShiftManagement={goToShiftManagement}
@@ -810,7 +810,7 @@ function AppContent() {
           onBudgetActualManagement={goToBudgetActualManagement}
           onMasterDataManagement={goToMasterDataManagement}
         />
-      <div className="flex-1">
+      <div className="flex-1 overflow-x-hidden w-full max-w-full">
         <AnimatePresence mode="wait">
           <div
             key={
