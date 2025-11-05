@@ -16,8 +16,8 @@ export default defineConfig({
       ignored: ['**/public/data/generated/**']
     }
   },
-  // GitHub Pages用の設定（リポジトリ名に応じて調整）
-  base: process.env.NODE_ENV === 'production' ? '/shift-management-mvp/' : '/',
+  // Vercel用の設定（ルートドメインでホスト）
+  base: '/',
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
