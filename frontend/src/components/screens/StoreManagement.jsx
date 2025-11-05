@@ -117,24 +117,8 @@ const StoreManagement = ({
             transition={{ duration: 0.5 }}
             className="h-full"
           >
-            <Card className="shadow-lg flex flex-col overflow-hidden h-full">
-              <CardHeader className="bg-gradient-to-r from-green-600 to-green-700 text-white flex-shrink-0">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <Store className="h-8 w-8" />
-                    <CardTitle className="text-2xl">店舗情報管理</CardTitle>
-                  </div>
-                  <CSVActions
-                    data={stores}
-                    filename="stores"
-                    onImport={setStores}
-                    validateFunction={validateStoreCSV}
-                    importConfirmMessage="既存の店舗データを上書きします。よろしいですか？"
-                  />
-                </div>
-              </CardHeader>
-
-              <CardContent className="p-6 flex-1 overflow-auto">
+            <div className="flex flex-col overflow-hidden h-full">
+              <div className="p-6 flex-1 overflow-auto">
               {selectedStoreId === null ? (
                 /* 店舗一覧表示 */
                 <div className="space-y-3">
@@ -335,9 +319,10 @@ const StoreManagement = ({
                   )
                 })()
               )}
-            </CardContent>
-          </Card>
-        </motion.div>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       </div>
     </div>
   )
