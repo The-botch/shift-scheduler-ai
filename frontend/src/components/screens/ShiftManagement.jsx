@@ -280,19 +280,26 @@ const ShiftManagement = ({
 
   const getRecruitmentStatus = (year, month) => {
     const now = new Date()
-    const currentYear = now.getFullYear()
-    const currentMonth = now.getMonth() + 1
+    now.setHours(0, 0, 0, 0) // 時刻をリセットして日付のみで比較
 
-    const targetDate = new Date(year, month - 1, 1)
-    const currentDate = new Date(currentYear, currentMonth - 1, 1)
+    // 締め切り日を計算（対象月の前月20日）
+    const deadlineDate = new Date(year, month - 2, 20) // 前月の20日
 
-    if (targetDate < currentDate) {
-      return { label: '締切', color: 'text-red-600' }
-    } else if (targetDate.getTime() === currentDate.getTime()) {
+    // 対象月の翌月1日（対象月が完全に終わる日）
+    const nextMonthStart = new Date(year, month, 1)
+
+    // 締め切り前（募集中）
+    if (now < deadlineDate) {
       return { label: '募集中', color: 'text-green-600 font-semibold' }
-    } else {
-      return { label: '未開始', color: 'text-blue-500' }
     }
+
+    // 締め切り後だが対象月内または対象月前（変更可能）
+    if (now >= deadlineDate && now < nextMonthStart) {
+      return { label: '締切済', color: 'text-orange-600' }
+    }
+
+    // 対象月が完全に過去（募集終了）
+    return { label: '募集終了', color: 'text-gray-600' }
   }
 
   const getActionButton = shift => {

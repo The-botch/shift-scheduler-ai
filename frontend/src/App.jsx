@@ -398,6 +398,15 @@ function AppContent() {
     setShiftManagementKey(prev => prev + 1)
   }
 
+  const handleDeleteShiftPlan = () => {
+    // シフト削除後の処理
+    setHasUnsavedChanges(false)
+    setShowDraftShiftEditor(false)
+    setShowShiftManagement(true)
+    // データを再読み込みするために再マウント
+    setShiftManagementKey(prev => prev + 1)
+  }
+
   const backToShiftManagementFromMethodSelector = () => {
     setShowShiftCreationMethodSelector(false)
     setShowShiftManagement(true)
@@ -405,24 +414,25 @@ function AppContent() {
 
   const handleSelectCreationMethod = async (methodId) => {
     // 作成方法選択後の処理
-    if (methodId === 'ai') {
-      // AI自動生成を実行
+    if (methodId === 'copy') {
+      // 前月コピー（曜日ベース）を実行
       try {
         const year = selectedShiftForEdit?.year || new Date().getFullYear()
         const month = selectedShiftForEdit?.month || new Date().getMonth() + 1
+        const storeId = selectedShiftForEdit?.storeId || selectedShiftForEdit?.store_id || 1
 
-        console.log('[AI自動生成] 開始:', { year, month })
+        console.log('[前月コピー] 開始:', { year, month, storeId })
 
-        const response = await fetch('http://localhost:3001/api/shifts/plans/generate-ai', {
+        const response = await fetch('http://localhost:3001/api/shifts/plans/copy-from-previous', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
             tenant_id: 1,
-            store_id: 1,
-            year,
-            month,
+            store_id: storeId,
+            target_year: year,
+            target_month: month,
             created_by: 1,
           }),
         })
@@ -430,32 +440,80 @@ function AppContent() {
         const data = await response.json()
 
         if (!response.ok) {
-          console.error('[AI自動生成] エラー:', data)
-          alert(`AI自動生成に失敗しました: ${data.error || data.message}`)
+          console.error('[前月コピー] エラー:', data)
+          alert(`前月のシフトコピーに失敗しました: ${data.error || data.message}`)
           return
         }
 
-        console.log('[AI自動生成] 成功:', data)
+        console.log('[前月コピー] 成功:', data)
 
-        // 制約違反がある場合は警告を表示
-        if (data.data.validation && !data.data.validation.is_valid) {
-          const errorCount = data.data.validation.error || 0
-          const warningCount = data.data.validation.warning || 0
-          const message = `AI自動生成が完了しました。\n\nシフト数: ${data.data.shifts_count}件\n\n⚠️ 制約違反が検出されました:\n- エラー: ${errorCount}件\n- 警告: ${warningCount}件\n\n下書き編集画面で確認・修正してください。`
-          alert(message)
-        } else {
-          alert(`AI自動生成が完了しました!\n\nシフト数: ${data.data.shifts_count}件\n\n下書き編集画面で確認できます。`)
+        // バリデーション結果を確認
+        const validation = data.data.validation
+        const hasErrors = validation && validation.summary && validation.summary.error > 0
+        const hasWarnings = validation && validation.summary && validation.summary.warning > 0
+
+        // メッセージを作成
+        let message = `前月のシフトをコピーしました！\n\nコピー元: ${data.data.source_year}年${data.data.source_month}月\nコピー先: ${data.data.target_year}年${data.data.target_month}月\n\nシフト数: ${data.data.inserted_count}件`
+
+        if (data.data.fallback_count > 0) {
+          message += `\n（うち第1週にフォールバック: ${data.data.fallback_count}件）`
         }
+
+        if (data.data.skipped_count > 0) {
+          message += `\nスキップ: ${data.data.skipped_count}件`
+        }
+
+        // 労働基準法チェック結果を追加
+        if (validation && validation.summary) {
+          message += `\n\n【労働基準法チェック結果】`
+
+          if (hasErrors || hasWarnings) {
+            message += `\n⚠️ 制約違反が検出されました`
+            if (hasErrors) {
+              message += `\n・エラー: ${validation.summary.error}件`
+            }
+            if (hasWarnings) {
+              message += `\n・警告: ${validation.summary.warning}件`
+            }
+
+            // 主な違反内容を表示
+            if (validation.violations && validation.violations.length > 0) {
+              message += `\n\n主な違反内容:`
+              const errorViolations = validation.violations.filter(v => v.level === 'ERROR').slice(0, 3)
+              const warningViolations = validation.violations.filter(v => v.level === 'WARNING').slice(0, 3)
+
+              errorViolations.forEach(v => {
+                message += `\n❌ ${v.message}`
+              })
+              warningViolations.forEach(v => {
+                message += `\n⚠️ ${v.message}`
+              })
+
+              if (validation.violations.length > 6) {
+                message += `\n...他${validation.violations.length - 6}件`
+              }
+            }
+
+            message += `\n\n下書き編集画面で詳細を確認し、修正してください。`
+          } else {
+            message += `\n✅ 問題なし（労働基準法に準拠）`
+            message += `\n\n下書き編集画面で確認できます。`
+          }
+        }
+
+        alert(message)
 
         // 下書き編集画面に遷移
         setShowShiftCreationMethodSelector(false)
         setShowDraftShiftEditor(true)
+        // データを再読み込みするために再マウント
+        setShiftManagementKey(prev => prev + 1)
       } catch (error) {
-        console.error('[AI自動生成] ネットワークエラー:', error)
-        alert(`AI自動生成中にエラーが発生しました: ${error.message}`)
+        console.error('[前月コピー] ネットワークエラー:', error)
+        alert(`前月コピー中にエラーが発生しました: ${error.message}`)
       }
-    } else if (methodId === 'manual' || methodId === 'csv') {
-      // 手動入力 or CSVインポート -> 下書き編集画面に遷移
+    } else if (methodId === 'csv') {
+      // CSVインポート -> 下書き編集画面に遷移
       setShowShiftCreationMethodSelector(false)
       setShowDraftShiftEditor(true)
     }
@@ -657,6 +715,7 @@ function AppContent() {
           onBack={backToShiftManagementFromDraft}
           onApprove={approveFirstPlan}
           onCreateSecondPlan={goToCreateSecondPlan}
+          onDelete={handleDeleteShiftPlan}
         />
       )
     }

@@ -54,7 +54,7 @@ export const API_ENDPOINTS = {
   MASTER_SHIFT_VALIDATION_RULES: '/api/master/shift-validation-rules',
 
   // Tenants API
-  TENANTS: '/api/tenants',
+  TENANTS: '/api/master/tenants',
 }
 
 // 完全なAPIエンドポイントURLを取得

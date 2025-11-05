@@ -508,50 +508,33 @@ export const collectStaffData = async (year, month) => {
  * @returns {Promise<Object>} イベント情報
  */
 export const collectJapaneseEvents = async (year, month) => {
-  // 日本の祝日データ（簡易版）
-  const holidays2024 = {
-    1: [
-      { day: 1, name: '元日' },
-      { day: 8, name: '成人の日' },
-    ],
-    2: [
-      { day: 11, name: '建国記念の日' },
-      { day: 12, name: '振替休日' },
-      { day: 23, name: '天皇誕生日' },
-    ],
-    3: [{ day: 20, name: '春分の日' }],
-    4: [{ day: 29, name: '昭和の日' }],
-    5: [
-      { day: 3, name: '憲法記念日' },
-      { day: 4, name: 'みどりの日' },
-      { day: 5, name: 'こどもの日' },
-      { day: 6, name: '振替休日' },
-    ],
-    7: [{ day: 15, name: '海の日' }],
-    8: [
-      { day: 11, name: '山の日' },
-      { day: 12, name: '振替休日' },
-    ],
-    9: [
-      { day: 16, name: '敬老の日' },
-      { day: 22, name: '秋分の日' },
-      { day: 23, name: '振替休日' },
-    ],
-    10: [{ day: 14, name: 'スポーツの日' }],
-    11: [
-      { day: 3, name: '文化の日' },
-      { day: 4, name: '振替休日' },
-      { day: 23, name: '勤労感謝の日' },
-    ],
-    12: [],
-  }
+  // バックエンドAPIから祝日データを取得
+  let monthHolidays = []
+  let dataSource = 'Backend API'
 
-  const monthHolidays = holidays2024[month] || []
+  try {
+    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+    const response = await fetch(`${apiUrl}/api/holidays/${year}/${month}`)
+
+    if (response.ok) {
+      const result = await response.json()
+      if (result.success && result.data && result.data.holidays) {
+        monthHolidays = result.data.holidays
+        dataSource = '内閣府公式CSV (via Backend API)'
+      }
+    } else {
+      console.warn(`祝日API呼び出し失敗 (${response.status}): バックエンドから祝日データを取得できませんでした`)
+    }
+  } catch (error) {
+    console.error('祝日データ取得エラー:', error)
+    dataSource = 'None (API error)'
+  }
 
   return {
     source: '日本のイベント・祝日',
     usage: '繁忙日予測、必要人員の増員判断',
-    files: [], // ハードコードデータのためファイル参照なし
+    files: [], // APIから取得のためファイル参照なし
+    dataSource: dataSource,
     data: {
       holidays: monthHolidays.map(h => ({
         date: `${year}-${String(month).padStart(2, '0')}-${String(h.day).padStart(2, '0')}`,
@@ -909,7 +892,7 @@ export const formatInputsForPrompt = inputs => {
   // 6. カレンダーデータ
   if (inputs.inputs.japaneseEvents) {
     prompt += `## 6. カレンダーデータ（イベント・祝日）\n`
-    prompt += `データソース: プログラム内ハードコード（2024年祝日マスター）\n`
+    prompt += `データソース: ${inputs.inputs.japaneseEvents.dataSource || 'Backend API'}\n`
     prompt += `- 祝日数: ${inputs.inputs.japaneseEvents.summary.holidayCount}日\n`
     prompt += `- 季節イベント: ${inputs.inputs.japaneseEvents.summary.seasonalEventsCount}件\n`
     prompt += `- 高需要予想日数: ${inputs.inputs.japaneseEvents.summary.expectedHighDemandDays}日\n\n`

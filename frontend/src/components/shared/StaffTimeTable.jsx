@@ -1,12 +1,48 @@
+import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { isHoliday, getHolidayName } from '../../utils/holidays'
+import { Check, X, Trash2, Plus } from 'lucide-react'
 
 /**
- * スタッフ別タイムテーブル
+ * スタッフ別タイムテーブル（インライン編集対応）
  * 縦軸: 日付、横軸: スタッフ
- * 各セルに勤務時間を表示
+ * 各セルに勤務時間を表示、クリックで編集可能
  */
-const StaffTimeTable = ({ year, month, shiftData, staffMap, storeName, onCellClick }) => {
+const StaffTimeTable = ({
+  year,
+  month,
+  shiftData,
+  staffMap,
+  storeName,
+  onCellClick,
+  onAddShift,
+  onUpdateShift,
+  onDeleteShift,
+  readonly = false
+}) => {
+  const [editingCell, setEditingCell] = useState(null) // { date, staffId }
+  const [editForm, setEditForm] = useState({ start_time: '', end_time: '', break_minutes: 60 })
+  const headerScrollRef = useRef(null)
+  const bodyScrollRef = useRef(null)
+
+  // ヘッダーとボディのスクロールを同期
+  const handleHeaderScroll = (e) => {
+    if (bodyScrollRef.current) {
+      bodyScrollRef.current.scrollLeft = e.target.scrollLeft
+    }
+  }
+
+  const handleBodyScroll = (e) => {
+    if (headerScrollRef.current) {
+      headerScrollRef.current.scrollLeft = e.target.scrollLeft
+    }
+  }
+
+  // デバッグ: 受け取ったstaffMapの内容を確認
+  console.log('=== StaffTimeTable受け取ったstaffMap ===')
+  console.log('staffMap件数:', Object.keys(staffMap).length)
+  console.log('staffMapの最初の2件:', Object.entries(staffMap).slice(0, 2))
+
   // 月の日数を計算
   const daysInMonth = new Date(year, month, 0).getDate()
   const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1)
@@ -14,7 +50,6 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, storeName, onCellCli
   // 時刻をHH:MM形式にフォーマット
   const formatTime = (time) => {
     if (!time) return ''
-    // HH:MM:SS形式の場合、HH:MMだけを取得
     return time.substring(0, 5)
   }
 
@@ -50,24 +85,30 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, storeName, onCellCli
     return { totalDays, totalHours }
   }
 
-  // スタッフリストを取得（staff_idでソート）
-  // 該当月にシフトが1つもないスタッフは除外
-  const staffList = Object.entries(staffMap)
+  // スタッフリストを取得
+  const allStaff = Object.entries(staffMap)
     .map(([id, info]) => ({ staff_id: parseInt(id), ...info }))
+
+  console.log('StaffTimeTable - allStaff[0]:', allStaff[0])
+  console.log('StaffTimeTable - allStaff[0]のis_active:', allStaff[0]?.is_active, 'typeof:', typeof allStaff[0]?.is_active)
+
+  const staffList = allStaff
     .filter(staff => {
-      // このスタッフが該当月に1つ以上のシフトを持つかチェック
-      const { totalDays } = getStaffMonthlyTotal(staff.staff_id)
-      return totalDays > 0
+      console.log(`スタッフ ${staff.name || staff.staff_id}: is_active=${staff.is_active} (型: ${typeof staff.is_active})`)
+      // is_activeがundefinedの場合は一旦全員表示
+      return staff.is_active !== false
     })
     .sort((a, b) => a.staff_id - b.staff_id)
+
+  console.log('StaffTimeTable - フィルタ後のstaffList件数:', staffList.length)
 
   // 時間帯による色分け
   const getTimeSlotColor = startTime => {
     if (!startTime) return 'bg-gray-100'
     const hour = parseInt(startTime.split(':')[0])
-    if (hour < 9) return 'bg-blue-50 border-blue-200' // 早番
-    if (hour < 12) return 'bg-green-50 border-green-200' // 中番
-    return 'bg-orange-50 border-orange-200' // 遅番
+    if (hour < 9) return 'bg-blue-50 border-blue-200'
+    if (hour < 12) return 'bg-green-50 border-green-200'
+    return 'bg-orange-50 border-orange-200'
   }
 
   // 日付ごとの合計を計算
@@ -95,9 +136,93 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, storeName, onCellCli
   const getWeekdayColor = date => {
     const d = new Date(year, month - 1, date)
     const day = d.getDay()
-    if (day === 0) return 'text-red-600' // 日曜
-    if (day === 6) return 'text-blue-600' // 土曜
+    if (day === 0) return 'text-red-600'
+    if (day === 6) return 'text-blue-600'
     return 'text-gray-700'
+  }
+
+  // セルクリック処理
+  const handleCellClick = (date, staffId, shift) => {
+    // readonly モードの場合は編集せず、onCellClickのみ呼ぶ
+    if (readonly) {
+      if (onCellClick) {
+        onCellClick(date, staffId, shift)
+      }
+      return
+    }
+
+    // 既存のシフトがある場合はその値で、ない場合はデフォルト値で初期化
+    if (shift) {
+      setEditForm({
+        start_time: formatTime(shift.start_time),
+        end_time: formatTime(shift.end_time),
+        break_minutes: shift.break_minutes || 60
+      })
+    } else {
+      setEditForm({
+        start_time: '09:00',
+        end_time: '18:00',
+        break_minutes: 60
+      })
+    }
+    setEditingCell({ date, staffId, shift })
+  }
+
+  // 編集キャンセル
+  const handleCancel = () => {
+    setEditingCell(null)
+    setEditForm({ start_time: '', end_time: '', break_minutes: 60 })
+  }
+
+  // 保存処理
+  const handleSave = () => {
+    console.log('=== StaffTimeTable handleSave called ===')
+    console.log('editingCell:', editingCell)
+    console.log('editForm:', editForm)
+    console.log('onUpdateShift:', typeof onUpdateShift)
+    console.log('onAddShift:', typeof onAddShift)
+
+    if (!editForm.start_time || !editForm.end_time) {
+      alert('開始時間と終了時間を入力してください')
+      return
+    }
+
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(editingCell.date).padStart(2, '0')}`
+
+    if (editingCell.shift) {
+      // 既存シフトの更新
+      console.log('既存シフトを更新:', editingCell.shift.shift_id)
+      const updates = {
+        start_time: editForm.start_time + ':00',
+        end_time: editForm.end_time + ':00',
+        break_minutes: parseInt(editForm.break_minutes)
+      }
+      console.log('更新内容:', updates)
+      onUpdateShift && onUpdateShift(editingCell.shift.shift_id, updates)
+    } else {
+      // 新規シフトの追加
+      console.log('新規シフトを追加')
+      const newShift = {
+        staff_id: editingCell.staffId,
+        shift_date: dateStr,
+        start_time: editForm.start_time + ':00',
+        end_time: editForm.end_time + ':00',
+        break_minutes: parseInt(editForm.break_minutes)
+      }
+      console.log('新規シフト:', newShift)
+      onAddShift && onAddShift(newShift)
+    }
+
+    handleCancel()
+  }
+
+  // 削除処理
+  const handleDelete = () => {
+    if (!editingCell.shift) return
+    if (confirm('このシフトを削除しますか？')) {
+      onDeleteShift && onDeleteShift(editingCell.shift.shift_id)
+      handleCancel()
+    }
   }
 
   return (
@@ -108,13 +233,17 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, storeName, onCellCli
       </div>
 
       {/* テーブルヘッダー（固定） */}
-      <div className="overflow-x-auto flex-shrink-0 border-b-2 border-gray-300">
+      <div
+        ref={headerScrollRef}
+        onScroll={handleHeaderScroll}
+        className="overflow-x-auto flex-shrink-0 border-b-2 border-gray-300"
+      >
         <table className="w-full border-collapse text-[0.6rem]" style={{ tableLayout: 'fixed' }}>
           <colgroup>
-            <col style={{ width: '30px' }} />
-            <col style={{ width: '15px' }} />
+            <col style={{ width: '80px' }} />
+            <col style={{ width: '60px' }} />
             {staffList.map(staff => (
-              <col key={staff.staff_id} style={{ width: '38px' }} />
+              <col key={staff.staff_id} style={{ width: '70px' }} />
             ))}
           </colgroup>
           <thead className="bg-gray-50">
@@ -156,13 +285,17 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, storeName, onCellCli
       </div>
 
       {/* テーブルボディ（スクロール可能） */}
-      <div className="overflow-x-auto overflow-y-auto flex-1">
+      <div
+        ref={bodyScrollRef}
+        onScroll={handleBodyScroll}
+        className="overflow-x-auto overflow-y-auto flex-1"
+      >
         <table className="w-full border-collapse text-[0.6rem]" style={{ tableLayout: 'fixed' }}>
           <colgroup>
-            <col style={{ width: '30px' }} />
-            <col style={{ width: '15px' }} />
+            <col style={{ width: '80px' }} />
+            <col style={{ width: '60px' }} />
             {staffList.map(staff => (
-              <col key={staff.staff_id} style={{ width: '38px' }} />
+              <col key={staff.staff_id} style={{ width: '70px' }} />
             ))}
           </colgroup>
           <tbody>
@@ -172,8 +305,7 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, storeName, onCellCli
             const holidayName = getHolidayName(year, month, date)
             const weekday = getWeekday(date)
             const dailyTotal = getDailyTotal(date)
-            const isWeekend = weekday === '日' || weekday === '土'
-            const rowBgColor = holiday || isWeekend ? 'bg-red-50' : index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+            const rowBgColor = index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
 
             return (
               <tr key={date} className={rowBgColor}>
@@ -198,20 +330,67 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, storeName, onCellCli
                 {staffList.map(staff => {
                   const shift = getShiftForDateAndStaff(date, staff.staff_id)
                   const hours = shift ? calculateHours(shift.start_time, shift.end_time) : 0
+                  const isEditing = editingCell?.date === date && editingCell?.staffId === staff.staff_id
 
                   return (
                     <td
                       key={staff.staff_id}
-                      className="px-0.5 py-0.5 border-r border-b border-gray-200 text-center cursor-pointer hover:bg-gray-100 transition-colors"
-                      onClick={() => onCellClick && onCellClick(date, staff.staff_id, shift)}
+                      className="px-0.5 py-0.5 border-r border-b border-gray-200"
                     >
-                      {shift ? (
+                      {isEditing ? (
+                        // 編集モード
+                        <div className="p-1 bg-yellow-50 border border-yellow-300 rounded space-y-0.5">
+                          <input
+                            type="time"
+                            value={editForm.start_time}
+                            onChange={(e) => setEditForm({ ...editForm, start_time: e.target.value })}
+                            className="w-full text-[0.6rem] px-0.5 py-0.5 border rounded"
+                          />
+                          <input
+                            type="time"
+                            value={editForm.end_time}
+                            onChange={(e) => setEditForm({ ...editForm, end_time: e.target.value })}
+                            className="w-full text-[0.6rem] px-0.5 py-0.5 border rounded"
+                          />
+                          <input
+                            type="number"
+                            value={editForm.break_minutes}
+                            onChange={(e) => setEditForm({ ...editForm, break_minutes: e.target.value })}
+                            placeholder="休憩(分)"
+                            className="w-full text-[0.6rem] px-0.5 py-0.5 border rounded"
+                          />
+                          <div className="flex gap-0.5">
+                            <button
+                              onClick={handleSave}
+                              className="flex-1 bg-green-500 hover:bg-green-600 text-white text-[0.5rem] px-1 py-0.5 rounded flex items-center justify-center"
+                            >
+                              <Check className="w-2.5 h-2.5" />
+                            </button>
+                            {shift && (
+                              <button
+                                onClick={handleDelete}
+                                className="flex-1 bg-red-500 hover:bg-red-600 text-white text-[0.5rem] px-1 py-0.5 rounded flex items-center justify-center"
+                              >
+                                <Trash2 className="w-2.5 h-2.5" />
+                              </button>
+                            )}
+                            <button
+                              onClick={handleCancel}
+                              className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 text-[0.5rem] px-1 py-0.5 rounded flex items-center justify-center"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ) : shift ? (
+                        // 既存シフト表示
                         <motion.div
                           initial={{ opacity: 0, scale: 0.9 }}
                           animate={{ opacity: 1, scale: 1 }}
-                          className={`px-0.5 py-0.5 rounded border ${getTimeSlotColor(shift.start_time)} ${
+                          className={`px-0.5 py-0.5 rounded border cursor-pointer hover:ring-2 hover:ring-blue-400 transition-all ${getTimeSlotColor(shift.start_time)} ${
                             shift.modified_flag ? 'ring-1 ring-yellow-400' : ''
                           }`}
+                          onClick={() => handleCellClick(date, staff.staff_id, shift)}
                         >
                           <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
                             {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
@@ -219,7 +398,13 @@ const StaffTimeTable = ({ year, month, shiftData, staffMap, storeName, onCellCli
                           <div className="text-[0.45rem] text-gray-600 leading-tight">{hours.toFixed(1)}h</div>
                         </motion.div>
                       ) : (
-                        <div className="text-gray-400 text-[0.45rem] leading-tight">休</div>
+                        // 空セル（追加可能）
+                        <div
+                          className="text-center py-1 cursor-pointer hover:bg-blue-50 hover:border-blue-300 border border-transparent rounded transition-all group"
+                          onClick={() => handleCellClick(date, staff.staff_id, null)}
+                        >
+                          <Plus className="w-3 h-3 mx-auto text-gray-300 group-hover:text-blue-500" />
+                        </div>
                       )}
                     </td>
                   )

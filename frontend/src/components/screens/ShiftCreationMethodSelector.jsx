@@ -27,16 +27,9 @@ const ShiftCreationMethodSelector = ({ selectedShift, onBack, onSelectMethod }) 
 
   const methods = [
     {
-      id: 'manual',
-      title: '手動入力',
-      description: '空のカレンダーから手動でシフトを作成します',
-      icon: Edit,
-      color: 'blue',
-    },
-    {
-      id: 'ai',
-      title: 'AI自動生成',
-      description: 'スタッフ情報と制約条件から自動でシフトを生成します',
+      id: 'copy',
+      title: '新規作成',
+      description: '前月のシフトをコピーして作成します（同じ曜日・週にマッピング）',
       icon: Sparkles,
       color: 'purple',
     },
@@ -69,7 +62,7 @@ const ShiftCreationMethodSelector = ({ selectedShift, onBack, onSelectMethod }) 
         <p className="text-neutral-600 mt-2">シフトの作成方法を選択してください</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {methods.map((method, index) => {
           const Icon = method.icon
           return (

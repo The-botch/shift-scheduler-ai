@@ -174,6 +174,8 @@ const Monitoring = ({
           submitted: false,
           submittedAt: null,
           lastReminder: null,
+          is_active: staff.is_active,
+          store_id: staff.store_id,
         }
       })
 
@@ -268,6 +270,56 @@ const Monitoring = ({
   const submittedCount = staffStatus.filter(s => s.submitted).length
   const totalCount = staffStatus.length
   const submissionRate = totalCount > 0 ? Math.round((submittedCount / totalCount) * 100) : 0
+
+  // 募集状況を判定（締め切り前/締め切り済み/募集終了を区別）
+  const getRecruitmentStatus = () => {
+    if (!historyMonth) return { status: '確認中', color: 'gray', bgColor: 'from-gray-50 to-gray-100', borderColor: 'border-gray-300' }
+
+    const now = new Date()
+    now.setHours(0, 0, 0, 0) // 時刻をリセットして日付のみで比較
+
+    // 締め切り日を計算（対象月の前月20日）
+    const deadlineDate = new Date(historyYear, historyMonth - 2, 20) // 前月の20日
+
+    // 対象月の開始日
+    const targetMonthStart = new Date(historyYear, historyMonth - 1, 1)
+
+    // 対象月の翌月1日（対象月が完全に終わる日）
+    const nextMonthStart = new Date(historyYear, historyMonth, 1)
+
+    // 締め切り前（募集中）
+    if (now < deadlineDate) {
+      return {
+        status: '募集中',
+        color: 'green',
+        bgColor: 'from-green-50 to-green-100',
+        borderColor: 'border-green-200',
+        deadline: `締切: ${deadlineDate.getMonth() + 1}/${deadlineDate.getDate()}`
+      }
+    }
+
+    // 締め切り後だが対象月内または対象月前（変更可能）
+    if (now >= deadlineDate && now < nextMonthStart) {
+      return {
+        status: '締切済',
+        color: 'orange',
+        bgColor: 'from-orange-50 to-orange-100',
+        borderColor: 'border-orange-200',
+        deadline: '変更可能'
+      }
+    }
+
+    // 対象月が完全に過去（募集終了）
+    return {
+      status: '募集終了',
+      color: 'gray',
+      bgColor: 'from-gray-50 to-gray-100',
+      borderColor: 'border-gray-300',
+      deadline: '確定済み'
+    }
+  }
+
+  const recruitmentStatus = getRecruitmentStatus()
 
   const sendReminder = staffId => {
     setStaffStatus(prev =>
@@ -427,36 +479,38 @@ const Monitoring = ({
       style={{ top: '64px' }}
     >
       {/* ヘッダーエリア - 固定 */}
-      <div className="flex-shrink-0 px-8 pt-4 mb-2">
-        {/* 1行目: タイトル + 年月選択 */}
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">
-              シフト希望提出状況
-              <span className="text-sm font-normal text-gray-600 ml-3">
-                スタッフ希望提出状況を確認
-              </span>
-            </h1>
-          </div>
+      <div className="flex-shrink-0 px-8 pt-4 mb-4">
+        {/* 1行目: タイトル */}
+        <div className="mb-3">
+          <h1 className="text-3xl font-bold text-gray-900">
+            シフト希望提出状況
+          </h1>
+          <p className="text-base text-gray-600 mt-1">
+            スタッフのシフト希望提出状況を確認できます
+          </p>
+        </div>
+
+        {/* 2行目: 対象年月・店舗 */}
+        <div className="flex items-center gap-6 mb-2">
+          {/* 年月選択 */}
           <div className="flex items-center gap-3">
-            {/* 年選択 */}
+            <Calendar className="h-5 w-5 text-blue-600" />
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setHistoryYear(historyYear - 1)}>
-                <ChevronLeft className="h-3 w-3" />
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-              <div className="text-base font-bold">{historyYear}年</div>
+              <div className="text-2xl font-bold text-gray-900">{historyYear}年</div>
               <Button variant="outline" size="sm" onClick={() => setHistoryYear(historyYear + 1)}>
-                <ChevronRight className="h-3 w-3" />
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-            {/* 月選択 */}
-            <div className="flex gap-1">
+            <div className="flex gap-1.5">
               {Array.from({ length: 12 }, (_, i) => i + 1).map(month => (
                 <Button
                   key={month}
                   variant={historyMonth === month ? 'default' : 'outline'}
                   size="sm"
-                  className={historyMonth === month ? 'bg-blue-600 hover:bg-blue-700 text-xs px-2 py-1' : 'text-xs px-2 py-1'}
+                  className={historyMonth === month ? 'bg-blue-600 hover:bg-blue-700 text-sm px-3 py-1.5 font-semibold' : 'text-sm px-3 py-1.5'}
                   onClick={() => setHistoryMonth(month)}
                 >
                   {month}月
@@ -466,14 +520,15 @@ const Monitoring = ({
           </div>
         </div>
 
-        {/* 2行目: 店舗選択 */}
+        {/* 3行目: 店舗選択 */}
         {storeList.length > 0 && (
-          <div className="flex items-center gap-2">
-            <Store className="h-3 w-3 text-gray-600" />
+          <div className="flex items-center gap-3">
+            <Store className="h-5 w-5 text-purple-600" />
+            <label className="text-base font-semibold text-gray-700">対象店舗:</label>
             <select
               value={selectedStoreId || ''}
               onChange={(e) => setSelectedStoreId(e.target.value ? parseInt(e.target.value) : null)}
-              className="px-2 py-1 border border-gray-300 rounded-md text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="px-3 py-2 border-2 border-gray-300 rounded-lg text-base font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             >
               <option value="">すべての店舗</option>
               {storeList.map(store => (
@@ -487,31 +542,66 @@ const Monitoring = ({
       </div>
 
       {/* 提出状況サマリー - 固定 */}
-      <div className="flex-shrink-0 px-8 mb-2">
-        <div className="flex gap-3">
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+      <div className="flex-shrink-0 px-8 mb-4">
+        <div className="flex gap-4">
+          {/* 募集状況カード */}
+          <div className={`flex items-center gap-3 px-4 py-3 bg-gradient-to-br rounded-xl border-2 shadow-sm ${recruitmentStatus.bgColor} ${recruitmentStatus.borderColor}`}>
+            <Clock className={`h-6 w-6 ${
+              recruitmentStatus.color === 'green' ? 'text-green-600' :
+              recruitmentStatus.color === 'orange' ? 'text-orange-600' :
+              'text-gray-600'
+            }`} />
             <div>
-              <div className="text-[0.65rem] text-blue-700 font-medium">提出率</div>
-              <div className="text-lg font-bold text-blue-600">{submissionRate}%</div>
+              <div className={`text-xs font-semibold mb-0.5 ${
+                recruitmentStatus.color === 'green' ? 'text-green-700' :
+                recruitmentStatus.color === 'orange' ? 'text-orange-700' :
+                'text-gray-700'
+              }`}>
+                シフト募集状況
+              </div>
+              <div className={`text-xl font-bold ${
+                recruitmentStatus.color === 'green' ? 'text-green-600' :
+                recruitmentStatus.color === 'orange' ? 'text-orange-600' :
+                'text-gray-600'
+              }`}>
+                {recruitmentStatus.status}
+              </div>
+              <div className={`text-xs mt-0.5 ${
+                recruitmentStatus.color === 'green' ? 'text-green-600' :
+                recruitmentStatus.color === 'orange' ? 'text-orange-600' :
+                'text-gray-600'
+              }`}>
+                {historyMonth ? `${historyYear}年${historyMonth}月分 - ${recruitmentStatus.deadline}` : `${historyYear}年分`}
+              </div>
             </div>
-            <div className="text-[0.65rem] text-blue-600">
+          </div>
+
+          {/* 提出率カード */}
+          <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl border-2 border-blue-200 shadow-sm">
+            <div>
+              <div className="text-xs text-blue-700 font-semibold mb-0.5">提出率</div>
+              <div className="text-2xl font-bold text-blue-600">{submissionRate}%</div>
+            </div>
+            <div className="text-sm text-blue-600 font-medium">
               {submittedCount}/{totalCount}名
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
-            <CheckCircle className="h-4 w-4 text-green-600" />
+          {/* 提出済みカード */}
+          <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-br from-green-50 to-green-100 rounded-xl border-2 border-green-200 shadow-sm">
+            <CheckCircle className="h-6 w-6 text-green-600" />
             <div>
-              <div className="text-[0.65rem] text-green-700 font-medium">提出済み</div>
-              <div className="text-lg font-bold text-green-600">{submittedCount}名</div>
+              <div className="text-xs text-green-700 font-semibold mb-0.5">提出済み</div>
+              <div className="text-2xl font-bold text-green-600">{submittedCount}名</div>
             </div>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-1.5 bg-gradient-to-br from-red-50 to-red-100 rounded-lg border border-red-200">
-            <AlertCircle className="h-4 w-4 text-red-600" />
+          {/* 未提出カード */}
+          <div className="flex items-center gap-3 px-4 py-3 bg-gradient-to-br from-red-50 to-red-100 rounded-xl border-2 border-red-200 shadow-sm">
+            <AlertCircle className="h-6 w-6 text-red-600" />
             <div>
-              <div className="text-[0.65rem] text-red-700 font-medium">未提出</div>
-              <div className="text-lg font-bold text-red-600">{totalCount - submittedCount}名</div>
+              <div className="text-xs text-red-700 font-semibold mb-0.5">未提出</div>
+              <div className="text-2xl font-bold text-red-600">{totalCount - submittedCount}名</div>
             </div>
           </div>
         </div>

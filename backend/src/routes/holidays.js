@@ -89,34 +89,12 @@ async function getHolidays() {
 
 /**
  * フォールバックの祝日データ（政府APIが利用できない場合）
+ * 内閣府のCSVから取得失敗時のみ使用
  */
 function getFallbackHolidays() {
-  return {
-    2024: {
-      1: [{ day: 1, name: '元日' }, { day: 8, name: '成人の日' }],
-      2: [{ day: 11, name: '建国記念の日' }, { day: 12, name: '振替休日' }, { day: 23, name: '天皇誕生日' }],
-      3: [{ day: 20, name: '春分の日' }],
-      4: [{ day: 29, name: '昭和の日' }],
-      5: [{ day: 3, name: '憲法記念日' }, { day: 4, name: 'みどりの日' }, { day: 5, name: 'こどもの日' }, { day: 6, name: '振替休日' }],
-      7: [{ day: 15, name: '海の日' }],
-      8: [{ day: 11, name: '山の日' }, { day: 12, name: '振替休日' }],
-      9: [{ day: 16, name: '敬老の日' }, { day: 22, name: '秋分の日' }, { day: 23, name: '振替休日' }],
-      10: [{ day: 14, name: 'スポーツの日' }],
-      11: [{ day: 3, name: '文化の日' }, { day: 4, name: '振替休日' }, { day: 23, name: '勤労感謝の日' }]
-    },
-    2025: {
-      1: [{ day: 1, name: '元日' }, { day: 13, name: '成人の日' }],
-      2: [{ day: 11, name: '建国記念の日' }, { day: 23, name: '天皇誕生日' }, { day: 24, name: '振替休日' }],
-      3: [{ day: 20, name: '春分の日' }],
-      4: [{ day: 29, name: '昭和の日' }],
-      5: [{ day: 3, name: '憲法記念日' }, { day: 4, name: 'みどりの日' }, { day: 5, name: 'こどもの日' }, { day: 6, name: '振替休日' }],
-      7: [{ day: 21, name: '海の日' }],
-      8: [{ day: 11, name: '山の日' }],
-      9: [{ day: 15, name: '敬老の日' }, { day: 23, name: '秋分の日' }],
-      10: [{ day: 13, name: 'スポーツの日' }],
-      11: [{ day: 3, name: '文化の日' }, { day: 23, name: '勤労感謝の日' }, { day: 24, name: '振替休日' }]
-    }
-  }
+  console.error('祝日データ取得失敗: 内閣府の祝日CSVから取得できませんでした')
+  // 空のデータ構造を返す
+  return {}
 }
 
 /**

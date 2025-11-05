@@ -52,23 +52,12 @@ async function getHolidays() {
 }
 
 /**
- * フォールバックの祝日データ
+ * フォールバックの祝日データ（空のデータ構造）
+ * バックエンドAPIから取得失敗時に使用
  */
 function getFallbackHolidays() {
-  return {
-    2024: {
-      1: [{ day: 1, name: '元日' }, { day: 8, name: '成人の日' }],
-      2: [{ day: 11, name: '建国記念の日' }, { day: 12, name: '振替休日' }, { day: 23, name: '天皇誕生日' }],
-      5: [{ day: 3, name: '憲法記念日' }, { day: 4, name: 'みどりの日' }, { day: 5, name: 'こどもの日' }],
-      11: [{ day: 3, name: '文化の日' }, { day: 23, name: '勤労感謝の日' }]
-    },
-    2025: {
-      1: [{ day: 1, name: '元日' }, { day: 13, name: '成人の日' }],
-      2: [{ day: 11, name: '建国記念の日' }, { day: 23, name: '天皇誕生日' }],
-      5: [{ day: 3, name: '憲法記念日' }, { day: 4, name: 'みどりの日' }, { day: 5, name: 'こどもの日' }],
-      11: [{ day: 3, name: '文化の日' }, { day: 23, name: '勤労感謝の日' }]
-    }
-  }
+  console.warn('祝日データ取得失敗: バックエンドAPIから祝日データを取得できませんでした')
+  return {}
 }
 
 /**
@@ -80,7 +69,11 @@ function getFallbackHolidays() {
  * @returns {boolean} 祝日の場合true
  */
 export const isHoliday = (year, month, day, holidaysData = null) => {
-  const data = holidaysData || holidaysCache
+  // キャッシュが空の場合はフォールバックデータを使用
+  let data = holidaysData || holidaysCache
+  if (!data || Object.keys(data).length === 0) {
+    data = getFallbackHolidays()
+  }
 
   if (!data[year] || !data[year][month]) {
     return false
@@ -110,7 +103,11 @@ export const isHoliday = (year, month, day, holidaysData = null) => {
  * @returns {string|null} 祝日名、祝日でない場合はnull
  */
 export const getHolidayName = (year, month, day, holidaysData = null) => {
-  const data = holidaysData || holidaysCache
+  // キャッシュが空の場合はフォールバックデータを使用
+  let data = holidaysData || holidaysCache
+  if (!data || Object.keys(data).length === 0) {
+    data = getFallbackHolidays()
+  }
 
   if (!isHoliday(year, month, day, data)) {
     return null

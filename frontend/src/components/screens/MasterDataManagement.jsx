@@ -27,7 +27,7 @@ import {
   BookOpen,
 } from 'lucide-react'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
-import { getCurrentTenantId } from '../../config/tenant'
+import { useTenant } from '../../contexts/TenantContext'
 import DataImpactDocumentation from './DataImpactDocumentation'
 
 const masterRepository = new MasterRepository()
@@ -45,6 +45,7 @@ const pageTransition = {
 }
 
 const MasterDataManagement = ({ onPrev }) => {
+  const { tenantId } = useTenant()
   const [selectedMaster, setSelectedMaster] = useState('staff')
   const [masterData, setMasterData] = useState([])
   const [loading, setLoading] = useState(false)
@@ -58,8 +59,6 @@ const MasterDataManagement = ({ onPrev }) => {
   const [roles, setRoles] = useState([])
   const [divisions, setDivisions] = useState([])
   const [employmentTypes, setEmploymentTypes] = useState([])
-
-  const tenantId = getCurrentTenantId()
 
   const masterTypes = [
     { id: 'staff', label: 'スタッフ', icon: Users },

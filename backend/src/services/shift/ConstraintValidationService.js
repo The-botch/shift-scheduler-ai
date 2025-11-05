@@ -30,6 +30,18 @@ class ConstraintValidationService {
     const monthlyHoursViolations = this.checkMonthlyHours(shifts, masterData)
     violations.push(...monthlyHoursViolations)
 
+    // 5. 休憩時間チェック (LAW_003/004: 6時間超で45分、8時間超で60分)
+    const breakTimeViolations = this.checkBreakTime(shifts, masterData)
+    violations.push(...breakTimeViolations)
+
+    // 6. 勤務間インターバルチェック (LAW_006: 11時間)
+    const intervalViolations = this.checkShiftInterval(shifts, masterData)
+    violations.push(...intervalViolations)
+
+    // 7. 月の時間外労働上限チェック (LAW_011: 45時間)
+    const monthlyOvertimeViolations = this.checkMonthlyOvertime(shifts, masterData)
+    violations.push(...monthlyOvertimeViolations)
+
     // サマリー作成
     const summary = this.createSummary(violations)
 
@@ -358,6 +370,185 @@ class ConstraintValidationService {
     }
 
     return categories
+  }
+
+  /**
+   * 休憩時間チェック (LAW_003/004)
+   * 6時間超で45分、8時間超で60分
+   */
+  checkBreakTime(shifts, masterData) {
+    const violations = []
+    const { staff } = masterData
+
+    for (const shift of shifts) {
+      const staffInfo = staff.find(s => s.staff_id === shift.staff_id)
+      const workMinutes = this.timeToMinutes(shift.end_time) - this.timeToMinutes(shift.start_time)
+      const workHours = workMinutes / 60
+      const breakMinutes = shift.break_minutes || 0
+
+      // 8時間超の場合、60分の休憩が必要
+      if (workHours > 8) {
+        if (breakMinutes < 60) {
+          violations.push({
+            level: 'ERROR',
+            category: 'break_time',
+            staff_id: shift.staff_id,
+            staff_name: staffInfo?.name || '不明',
+            date: shift.shift_date,
+            work_hours: workHours.toFixed(1),
+            break_minutes: breakMinutes,
+            required_break: 60,
+            message: `${staffInfo?.name}の${shift.shift_date}のシフトは${workHours.toFixed(1)}時間勤務ですが、休憩時間が${breakMinutes}分しかありません（60分必要）`
+          })
+        }
+      }
+      // 6時間超8時間以下の場合、45分の休憩が必要
+      else if (workHours > 6) {
+        if (breakMinutes < 45) {
+          violations.push({
+            level: 'ERROR',
+            category: 'break_time',
+            staff_id: shift.staff_id,
+            staff_name: staffInfo?.name || '不明',
+            date: shift.shift_date,
+            work_hours: workHours.toFixed(1),
+            break_minutes: breakMinutes,
+            required_break: 45,
+            message: `${staffInfo?.name}の${shift.shift_date}のシフトは${workHours.toFixed(1)}時間勤務ですが、休憩時間が${breakMinutes}分しかありません（45分必要）`
+          })
+        }
+      }
+    }
+
+    return violations
+  }
+
+  /**
+   * 勤務間インターバルチェック (LAW_006)
+   * 前日終業〜翌日始業の間隔が11時間必要
+   */
+  checkShiftInterval(shifts, masterData) {
+    const violations = []
+    const { staff } = masterData
+
+    const staffShifts = this.groupByStaff(shifts)
+
+    for (const [staffId, staffShiftList] of Object.entries(staffShifts)) {
+      const staffInfo = staff.find(s => s.staff_id === Number(staffId))
+
+      // 日付でソート
+      const sortedShifts = staffShiftList.sort((a, b) =>
+        new Date(a.shift_date) - new Date(b.shift_date)
+      )
+
+      for (let i = 1; i < sortedShifts.length; i++) {
+        const prevShift = sortedShifts[i - 1]
+        const currShift = sortedShifts[i]
+
+        const prevDate = new Date(prevShift.shift_date)
+        const currDate = new Date(currShift.shift_date)
+        const diffDays = (currDate - prevDate) / (1000 * 60 * 60 * 24)
+
+        // 連続する日付の場合のみチェック
+        if (diffDays === 1) {
+          // 前日の終業時刻
+          const prevEndMinutes = this.timeToMinutes(prevShift.end_time)
+          // 翌日の始業時刻
+          const currStartMinutes = this.timeToMinutes(currShift.start_time)
+
+          // 24時間 = 1440分として、インターバルを計算
+          const intervalMinutes = (1440 - prevEndMinutes) + currStartMinutes
+          const intervalHours = intervalMinutes / 60
+
+          if (intervalHours < 11) {
+            violations.push({
+              level: 'ERROR',
+              category: 'shift_interval',
+              staff_id: Number(staffId),
+              staff_name: staffInfo?.name || '不明',
+              prev_date: prevShift.shift_date,
+              prev_end: prevShift.end_time,
+              curr_date: currShift.shift_date,
+              curr_start: currShift.start_time,
+              interval_hours: intervalHours.toFixed(1),
+              required_interval: 11,
+              message: `${staffInfo?.name}の${prevShift.shift_date} ${prevShift.end_time}終業〜${currShift.shift_date} ${currShift.start_time}始業の勤務間インターバルが${intervalHours.toFixed(1)}時間で、11時間未満です`
+            })
+          } else if (intervalHours < 12) {
+            violations.push({
+              level: 'WARNING',
+              category: 'shift_interval',
+              staff_id: Number(staffId),
+              staff_name: staffInfo?.name || '不明',
+              prev_date: prevShift.shift_date,
+              prev_end: prevShift.end_time,
+              curr_date: currShift.shift_date,
+              curr_start: currShift.start_time,
+              interval_hours: intervalHours.toFixed(1),
+              required_interval: 11,
+              message: `${staffInfo?.name}の${prevShift.shift_date} ${prevShift.end_time}終業〜${currShift.shift_date} ${currShift.start_time}始業の勤務間インターバルが${intervalHours.toFixed(1)}時間で、余裕がありません`
+            })
+          }
+        }
+      }
+    }
+
+    return violations
+  }
+
+  /**
+   * 月の時間外労働上限チェック (LAW_011)
+   * 正社員の場合、月の総労働時間から173時間を超えた分が時間外労働
+   * 時間外労働は月45時間まで
+   */
+  checkMonthlyOvertime(shifts, masterData) {
+    const violations = []
+    const { staff } = masterData
+
+    const staffShifts = this.groupByStaff(shifts)
+
+    for (const [staffId, staffShiftList] of Object.entries(staffShifts)) {
+      const staffInfo = staff.find(s => s.staff_id === Number(staffId))
+
+      // 正社員のみチェック
+      if (staffInfo?.employment_type !== '正社員') {
+        continue
+      }
+
+      const totalHours = staffShiftList.reduce((sum, shift) => {
+        const hours = this.calculateShiftHours(shift)
+        return sum + hours
+      }, 0)
+
+      // 月の基本労働時間173時間を超えた分が時間外
+      const overtimeHours = Math.max(0, totalHours - 173)
+
+      if (overtimeHours > 45) {
+        violations.push({
+          level: 'ERROR',
+          category: 'monthly_overtime',
+          staff_id: Number(staffId),
+          staff_name: staffInfo?.name || '不明',
+          total_hours: totalHours.toFixed(1),
+          overtime_hours: overtimeHours.toFixed(1),
+          limit: 45,
+          message: `${staffInfo?.name}の月の時間外労働が${overtimeHours.toFixed(1)}時間で、上限45時間を超えています（総労働時間${totalHours.toFixed(1)}時間）`
+        })
+      } else if (overtimeHours > 40) {
+        violations.push({
+          level: 'WARNING',
+          category: 'monthly_overtime',
+          staff_id: Number(staffId),
+          staff_name: staffInfo?.name || '不明',
+          total_hours: totalHours.toFixed(1),
+          overtime_hours: overtimeHours.toFixed(1),
+          limit: 45,
+          message: `${staffInfo?.name}の月の時間外労働が${overtimeHours.toFixed(1)}時間で、上限45時間に近づいています（総労働時間${totalHours.toFixed(1)}時間）`
+        })
+      }
+    }
+
+    return violations
   }
 }
 

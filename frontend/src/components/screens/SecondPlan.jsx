@@ -20,11 +20,10 @@ import {
   Minimize2,
   GripVertical,
   AlertTriangle,
-  LayoutGrid,
-  Table,
+  Trash2,
 } from 'lucide-react'
 import ShiftTimeline from '../shared/ShiftTimeline'
-import StaffTimeTable from '../shared/StaffTimeTable'
+import ShiftViewEditor from '../shared/ShiftViewEditor'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
@@ -68,7 +67,6 @@ const SecondPlan = ({
   const [selectedDate, setSelectedDate] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
   const [viewMode, setViewMode] = useState('second') // 'second', 'first', 'compare'
-  const [calendarViewMode, setCalendarViewMode] = useState('staff') // 'staff' | 'calendar'
   const [messages, setMessages] = useState([
     {
       id: 1,
@@ -198,12 +196,17 @@ const SecondPlan = ({
 
       // スタッフマスタを取得（先に取得してマッピング用に使用）
       const staffData = await masterRepository.getStaff()
+      console.log('SecondPlan - 取得したスタッフ数:', staffData.length)
+      console.log('SecondPlan - サンプル:', staffData.slice(0, 2))
+
       const staffMapping = {}
       const storeId = selectedShift?.storeId || selectedShift?.store_id
 
       staffData.forEach(s => {
         staffMapping[s.staff_id] = s
       })
+      console.log('SecondPlan - staffMapping作成:', Object.keys(staffMapping).length, '件')
+      console.log('SecondPlan - サンプルstaffMapping:', staffMapping[Object.keys(staffMapping)[0]])
       setStaffMap(staffMapping)
 
       // 第1案のシフトデータを取得
@@ -474,6 +477,8 @@ const SecondPlan = ({
 
       // staffDataは既に読み込み済み
       const staffData = staffResult
+      console.log('generateSecondPlan - staffData件数:', staffData.length)
+      console.log('generateSecondPlan - staffDataサンプル:', staffData.slice(0, 2))
 
       // スタッフマップとロールマップを作成
       const newRolesMap = {}
@@ -488,8 +493,12 @@ const SecondPlan = ({
           role_id: staff.role_id,
           role_name: newRolesMap[staff.role_id] || 'スタッフ',
           skill_level: staff.skill_level,
+          is_active: staff.is_active,
+          store_id: staff.store_id,
         }
       })
+      console.log('generateSecondPlan - newStaffMap件数:', Object.keys(newStaffMap).length)
+      console.log('generateSecondPlan - newStaffMapサンプル:', newStaffMap[Object.keys(newStaffMap)[0]])
 
       setRolesMap(newRolesMap)
       setStaffMap(newStaffMap)
@@ -1136,69 +1145,70 @@ const SecondPlan = ({
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="container mx-auto px-4 py-8"
+      className="fixed inset-0 flex flex-col"
+      style={{ top: '64px' }}
     >
-        {/* ナビゲーション */}
-        <div className="flex justify-between items-center mb-8">
-        <Button onClick={onPrev} variant="outline" size="sm">
-          <ChevronLeft className="mr-2 h-4 w-4" />
-          戻る
-        </Button>
-        <Button
-          onClick={handleApprove}
-          size="sm"
-          className="bg-gradient-to-r from-green-600 to-green-700"
-        >
-          <CheckCircle className="mr-2 h-4 w-4" />
-          第2案を承認
-        </Button>
-      </div>
-
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-            第2案希望反映版
-          </h1>
-          <p className="text-lg text-gray-600">
-            {selectedShift?.store_name ? `${selectedShift.store_name} · ` : ''}
-            第1案をベースにスタッフ希望を反映したシフト
-          </p>
-        </div>
-
-        {/* 表示切り替えボタン */}
-        {generated && (
-          <div className="flex gap-4">
-            <Button
-              variant={viewMode === 'second' ? 'default' : 'outline'}
-              onClick={() => setViewMode('second')}
-              className="flex items-center"
-            >
-              <CalendarIcon className="h-4 w-4 mr-2" />
-              第2案希望反映版
-            </Button>
-            <Button
-              variant={viewMode === 'first' ? 'default' : 'outline'}
-              onClick={() => setViewMode('first')}
-              className="flex items-center"
-            >
-              <Eye className="h-4 w-4 mr-2" />
-              第1案を見る
-            </Button>
-            <Button
-              variant={viewMode === 'compare' ? 'default' : 'outline'}
-              onClick={() => setViewMode('compare')}
-              className="flex items-center"
-            >
-              <GitCompare className="h-4 w-4 mr-2" />
-              第1案と比較
-            </Button>
+      {/* ヘッダー - 固定 */}
+      <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 pt-4">
+        <div className="flex items-center gap-4">
+          <Button onClick={onPrev} variant="outline" size="sm">
+            <ChevronLeft className="mr-1 h-4 w-4" />
+            戻る
+          </Button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">
+              希望取り込み後修正
+              <span className="text-sm font-normal text-gray-600 ml-3">
+                {selectedShift?.store_name ? `${selectedShift.store_name} · ` : ''}
+                スタッフ希望を反映したシフト
+              </span>
+            </h1>
           </div>
-        )}
+        </div>
+        <div className="flex gap-2">
+          {/* 表示切り替えボタン */}
+          {generated && (
+            <>
+              <Button
+                variant={viewMode === 'second' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('second')}
+              >
+                <CalendarIcon className="h-4 w-4 mr-1" />
+                希望反映版
+              </Button>
+              <Button
+                variant={viewMode === 'first' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('first')}
+              >
+                <Eye className="h-4 w-4 mr-1" />
+                元のシフト
+              </Button>
+              <Button
+                variant={viewMode === 'compare' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setViewMode('compare')}
+              >
+                <GitCompare className="h-4 w-4 mr-1" />
+                比較
+              </Button>
+            </>
+          )}
+          <Button
+            onClick={handleApprove}
+            size="sm"
+            className="bg-gradient-to-r from-green-600 to-green-700"
+          >
+            <CheckCircle className="mr-1 h-4 w-4" />
+            承認
+          </Button>
+        </div>
       </div>
 
       {!generated ? (
-        <Card className="shadow-lg border-0">
-          <CardContent className="p-12 text-center">
+        <Card className="shadow-lg border-0 flex-1 flex flex-col overflow-hidden mx-8 mb-4">
+          <CardContent className="flex-1 overflow-hidden p-12 text-center flex items-center justify-center">
             {(generating || loading) ? (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
                 <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
@@ -1244,203 +1254,37 @@ const SecondPlan = ({
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-8">
-          {/* カレンダーと問題一覧を横並び */}
+        <div className="flex-1 overflow-y-auto px-8 pb-4 space-y-4">
+          {/* カレンダー表示を横いっぱいに */}
           {viewMode === 'second' && (
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* 左側: カレンダー */}
-              <Card className="shadow-lg border-0 ring-2 ring-green-200">
-                <CardHeader>
-                  <CardTitle className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <CalendarIcon className="h-5 w-5 mr-2 text-green-600" />
-                      第2案（希望反映版）
-                      <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                        改善版
-                      </span>
-                    </div>
-                    {/* ビュー切り替えボタン */}
-                    <div className="flex gap-2">
-                      <Button
-                        variant={calendarViewMode === 'staff' ? 'default' : 'outline'}
-                        onClick={() => setCalendarViewMode('staff')}
-                        size="sm"
-                        className={calendarViewMode === 'staff' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-                      >
-                        <LayoutGrid className="h-4 w-4 mr-1" />
-                        スタッフ別
-                      </Button>
-                      <Button
-                        variant={calendarViewMode === 'calendar' ? 'default' : 'outline'}
-                        onClick={() => setCalendarViewMode('calendar')}
-                        size="sm"
-                        className={calendarViewMode === 'calendar' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-                      >
-                        <Table className="h-4 w-4 mr-1" />
-                        カレンダー
-                      </Button>
-                    </div>
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  {calendarViewMode === 'staff' ? (
-                    <StaffTimeTable
-                      year={selectedShift?.year || new Date().getFullYear()}
-                      month={selectedShift?.month || new Date().getMonth() + 1}
-                      shiftData={csvShifts}
-                      staffMap={Object.fromEntries(
-                        Object.entries(staffMap).filter(([id, info]) => {
-                          const storeId = selectedShift?.storeId || selectedShift?.store_id
-                          return !storeId || info.store_id === storeId
-                        })
-                      )}
-                      onCellClick={(date, staffId, shift) => {
-                        if (shift) {
-                          handleDayClick(date)
-                        }
-                      }}
-                    />
-                  ) : (
-                    <>
-                      <div className="grid grid-cols-7 gap-1 mb-4">
-                        {['日', '月', '火', '水', '木', '金', '土'].map(day => (
-                          <div
-                            key={day}
-                            className="p-2 text-center text-xs font-bold bg-green-50 rounded"
-                          >
-                            {day}
-                          </div>
-                        ))}
-                      </div>
-                      {renderCalendar(false)}
-
-                      {/* 凡例 */}
-                      <div className="mt-4 flex flex-wrap gap-4 text-xs">
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-green-100 border border-green-300 rounded mr-2"></div>
-                          <span>希望時間帯</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-red-100 border border-red-300 rounded mr-2"></div>
-                          <span>希望外時間帯</span>
-                        </div>
-                        <div className="flex items-center">
-                          <div className="w-3 h-3 bg-yellow-50 border border-yellow-300 rounded mr-2"></div>
-                          <span>問題のある日</span>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* 右側: 検出された問題一覧 */}
-              {generated && (
-                <Card className="shadow-lg border-0 border-l-4 border-l-yellow-500">
-                  <CardHeader>
-                    <CardTitle className="flex items-center text-yellow-700">
-                      <AlertTriangle className="h-5 w-5 mr-2" />
-                      検出された問題一覧
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="space-y-4 max-h-[600px] overflow-y-auto">
-                      {/* CSVから問題を動的に表示 */}
-                      {csvIssues
-                        .filter(issue => isProblematicDate(issue.date))
-                        .map((issue, index) => {
-                          const issueTypeLabels = {
-                            skill_shortage: 'スキル不足',
-                            understaffed: '人員不足',
-                            consecutive_days: '連続勤務問題',
-                            no_veteran: 'ベテラン不在',
-                            overwork: '過重労働',
-                          }
-
-                          return (
-                            <motion.div
-                              key={issue.issue_id}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
-                              transition={{ delay: index * 0.1 }}
-                              className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
-                            >
-                              <div className="flex items-start justify-between">
-                                <div className="flex-1">
-                                  <h4 className="font-medium text-yellow-800 mb-2">
-                                    📅 {issue.date}日（{issue.day_of_week}）-{' '}
-                                    {issueTypeLabels[issue.issue_type]}
-                                  </h4>
-                                  <p className="text-sm text-yellow-700 mb-3">
-                                    {issue.description}
-                                  </p>
-                                  <div className="text-xs text-yellow-600">
-                                    💡 改善案: {issue.recommendation}
-                                  </div>
-                                </div>
-                                <Button
-                                  size="sm"
-                                  onClick={() =>
-                                    sendMessage(`${issue.date}日の問題を解決してください`)
-                                  }
-                                  className="ml-4 bg-yellow-600 hover:bg-yellow-700 text-white"
-                                >
-                                  解決
-                                </Button>
-                              </div>
-                            </motion.div>
-                          )
-                        })}
-
-                      {/* 総合評価 */}
-                      <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <h4 className="font-medium text-blue-800 mb-2">📊 総合評価</h4>
-                        <div className="text-sm text-blue-700">
-                          {resolvedProblems.size === 0 && (
-                            <>
-                              <p>
-                                🔍 <strong>{csvIssues.length}つの問題</strong>が検出されました
-                              </p>
-                              <p>
-                                💡 AI修正アシスタントで問題を解決すると、満足度が
-                                <strong>17%向上</strong>し、充足率が<strong>7%改善</strong>
-                                される見込みです
-                              </p>
-                            </>
-                          )}
-                          {resolvedProblems.size > 0 &&
-                            resolvedProblems.size < csvIssues.length && (
-                              <>
-                                <p>
-                                  ✅ <strong>{resolvedProblems.size}つ解決済み</strong>、残り
-                                  <strong>{csvIssues.length - resolvedProblems.size}つ</strong>
-                                </p>
-                                <p>
-                                  📈 現在の改善効果: 満足度
-                                  <strong>+{Math.round(resolvedProblems.size * 3.4)}%</strong>
-                                  、充足率
-                                  <strong>+{Math.round(resolvedProblems.size * 1.4)}%</strong>
-                                </p>
-                              </>
-                            )}
-                          {resolvedProblems.size === csvIssues.length && csvIssues.length > 0 && (
-                            <>
-                              <p>
-                                🎉 <strong>すべての問題が解決されました！</strong>
-                              </p>
-                              <p>
-                                📈 最終改善効果: 満足度<strong>+17%</strong>、充足率
-                                <strong>+7%</strong>達成
-                              </p>
-                            </>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
+            <div style={{ height: 'calc(100vh - 160px)' }} className="flex flex-col">
+              <div className="mb-2 px-4">
+                <div className="flex items-center">
+                  <CalendarIcon className="h-5 w-5 mr-2 text-green-600" />
+                  <span className="font-semibold">第2案（希望反映版）</span>
+                  <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                    改善版
+                  </span>
+                </div>
+              </div>
+              <div className="flex-1 overflow-hidden px-4">
+                <ShiftViewEditor
+                  year={selectedShift?.year || new Date().getFullYear()}
+                  month={selectedShift?.month || new Date().getMonth() + 1}
+                  shiftData={csvShifts}
+                  staffMap={staffMap}
+                  calendarData={null}
+                  storeId={selectedShift?.storeId || selectedShift?.store_id}
+                  storeName={selectedShift?.store_name}
+                  readonly={false}
+                  onCellClick={(date, staffId, shift) => {
+                    if (shift) {
+                      handleDayClick(date)
+                    }
+                  }}
+                  onDayClick={handleDayClick}
+                />
+              </div>
             </div>
           )}
 
@@ -1712,6 +1556,7 @@ const SecondPlan = ({
                 editable={true}
                 onUpdate={handleUpdateShift}
                 onDelete={handleDeleteShift}
+                storeName={selectedShift?.store_name}
               />
             )}
           </AnimatePresence>

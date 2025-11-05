@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { X, Trash2 } from 'lucide-react'
 import { Button } from '../ui/button'
@@ -6,7 +7,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { ROLE_COLORS, getRoleColor } from '../../config/colors'
 import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
 
-const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, onUpdate, onDelete }) => {
+const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, onUpdate, onDelete, storeName }) => {
+  // 時刻をHH:MM形式にフォーマット
+  const formatTime = (time) => {
+    if (!time) return ''
+    return time.substring(0, 5)
+  }
+
   // 祝日データを事前に読み込む
   useEffect(() => {
     loadHolidays()
@@ -188,44 +195,45 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
     color: ROLE_COLORS[roleName].bg,
   }))
 
-  return (
+  const modalContent = (
     <div className="fixed inset-0 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <motion.div
         initial={{ scale: 0.9, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg shadow-2xl max-w-5xl w-full h-[90vh] flex flex-col"
+        className="bg-white rounded-lg shadow-2xl w-full max-w-4xl h-[90vh] flex flex-col mx-auto"
         onClick={e => e.stopPropagation()}
       >
         {/* ヘッダー */}
-        <div className="border-b bg-gray-50 px-6 py-4 flex-shrink-0">
+        <div className="border-b bg-gray-50 px-2 py-1 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold">
+              <h2 className="text-sm font-bold leading-tight">
+                {storeName && <span className="text-blue-900">店舗: {storeName} · </span>}
                 {year}年{month}月{date}日のシフト詳細
               </h2>
               {isDayHoliday && (
-                <div className="text-sm text-red-600 font-medium mt-1">
+                <div className="text-[0.5rem] text-red-600 font-medium mt-0.5 leading-tight">
                   {holidayName}
                 </div>
               )}
             </div>
             <Button variant="ghost" size="sm" onClick={onClose}>
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </Button>
           </div>
-          <div className="flex items-center justify-between mt-2">
-            <p className="text-sm text-gray-600">
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-[0.5rem] text-gray-600 leading-tight">
               {shifts.length}名のスタッフが勤務 ·{' '}
               {columns > 1 ? `最大${columns}名の重なり` : '重なりなし'}
             </p>
             {/* 凡例 */}
-            <div className="flex items-center gap-3">
-              <span className="text-xs text-gray-500 font-medium">役職:</span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[0.45rem] text-gray-500 font-medium leading-tight">役職:</span>
               {roleLegend.map(role => (
-                <div key={role.name} className="flex items-center gap-1">
-                  <div className={`w-3 h-3 rounded ${role.color}`}></div>
-                  <span className="text-xs text-gray-700">{role.name}</span>
+                <div key={role.name} className="flex items-center gap-0.5">
+                  <div className={`w-2 h-2 rounded ${role.color}`}></div>
+                  <span className="text-[0.45rem] text-gray-700 leading-tight">{role.name}</span>
                 </div>
               ))}
             </div>
@@ -234,17 +242,17 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
 
         {/* スクロール可能なコンテンツエリア */}
         <div className="flex-1 overflow-y-auto">
-          <div className="flex" style={{ height: '1260px', paddingTop: '8px' }}>
+          <div className="flex" style={{ height: '920px', paddingTop: '4px' }}>
             {/* 時間軸（左側） */}
-            <div className="w-20 flex-shrink-0 border-r bg-gray-50">
+            <div className="w-12 flex-shrink-0 border-r bg-gray-50">
               {hours.map((hour, index) => (
-                <div key={hour} className="relative h-[60px] border-b border-gray-200">
-                  <div className="absolute -top-2 left-2 text-xs font-bold text-gray-700">
+                <div key={hour} className="relative h-[40px] border-b border-gray-200">
+                  <div className="absolute -top-1.5 left-1 text-[0.45rem] leading-tight font-bold text-gray-700">
                     {getHourLabel(hour)}
                   </div>
                   {/* 30分の表示とライン */}
                   <div className="absolute top-1/2 left-0 right-0 border-t border-dashed border-gray-300">
-                    <div className="absolute -top-2 left-2 text-xs font-medium text-gray-500">
+                    <div className="absolute -top-1.5 left-1 text-[0.4rem] leading-tight font-medium text-gray-500">
                       {hour < 24 ? `${hour}:30` : `${hour - 24}:30`}
                     </div>
                   </div>
@@ -256,7 +264,7 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
             <div className="flex-1 relative">
               {/* 時間グリッド背景 */}
               {hours.map(hour => (
-                <div key={`grid-${hour}`} className="h-[60px] border-b border-gray-200 relative">
+                <div key={`grid-${hour}`} className="h-[40px] border-b border-gray-200 relative">
                   {/* 30分線 */}
                   <div className="absolute top-1/2 left-0 right-0 border-t border-dashed border-gray-300" />
                 </div>
@@ -290,22 +298,22 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
                         height: style.height,
                         left: `${left}px`,
                         width: `${columnWidth - 4}px`,
-                        minHeight: '40px',
+                        minHeight: '30px',
                       }}
                       whileHover={editable ? { scale: 1.02 } : {}}
                       whileDrag={{ scale: 1.05, zIndex: 50 }}
                     >
-                      <div className="p-2 h-full text-white relative">
-                        <div className="font-bold text-sm mb-0.5 truncate">{shift.staff_name}</div>
-                        <div className="text-xs opacity-90">{shift.role}</div>
-                        <div className="text-xs mt-1 font-medium">
-                          {shift.start_time} - {shift.end_time}
+                      <div className="px-1 py-0.5 h-full text-white relative">
+                        <div className="font-bold text-[0.5rem] leading-tight mb-0.5 truncate">{shift.staff_name}</div>
+                        <div className="text-[0.45rem] leading-tight opacity-90">{shift.role}</div>
+                        <div className="text-[0.45rem] leading-tight mt-0.5 font-medium">
+                          {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
                         </div>
-                        <div className="text-xs mt-0.5">
+                        <div className="text-[0.45rem] leading-tight mt-0.5">
                           {shift.actual_hours || shift.planned_hours}h
                         </div>
                         {shift.modified_flag && (
-                          <div className="text-xs mt-1 bg-yellow-400 text-yellow-900 px-1 py-0.5 rounded inline-block">
+                          <div className="text-[0.4rem] leading-tight mt-0.5 bg-yellow-400 text-yellow-900 px-0.5 py-0.5 rounded inline-block">
                             ⚠️ 変更
                           </div>
                         )}
@@ -315,10 +323,10 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
                               e.stopPropagation()
                               handleDelete(shift)
                             }}
-                            className="absolute top-1 right-1 p-1 bg-red-500 hover:bg-red-600 rounded opacity-0 hover:opacity-100 transition-opacity"
+                            className="absolute top-0.5 right-0.5 p-0.5 bg-red-500 hover:bg-red-600 rounded opacity-0 hover:opacity-100 transition-opacity"
                             title="削除"
                           >
-                            <Trash2 className="h-3 w-3" />
+                            <Trash2 className="h-2.5 w-2.5" />
                           </button>
                         )}
                       </div>
@@ -332,6 +340,8 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
       </motion.div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }
 
 export default ShiftTimeline

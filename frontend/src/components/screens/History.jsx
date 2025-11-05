@@ -17,11 +17,9 @@ import {
   Loader2,
   AlertTriangle,
   Store,
-  LayoutGrid,
-  Table,
 } from 'lucide-react'
 import ShiftTimeline from '../shared/ShiftTimeline'
-import StaffTimeTable from '../shared/StaffTimeTable'
+import ShiftViewEditor from '../shared/ShiftViewEditor'
 import { exportCSV, generateFilename } from '../../utils/csvHelper'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
@@ -204,7 +202,7 @@ const History = ({
   const [detailShifts, setDetailShifts] = useState([])
   const [selectedDay, setSelectedDay] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
-  const [viewMode, setViewMode] = useState('staff') // 'staff' | 'calendar'
+  const [viewMode, setViewMode] = useState('view') // 'view' | 'diff'
   const [staffMap, setStaffMap] = useState({}) // スタッフID -> スタッフ情報
   const [shiftData, setShiftData] = useState([]) // シフトデータ（StaffTimeTable用）
   const [rolesMap, setRolesMap] = useState({}) // 役職ID -> 役職名
@@ -293,6 +291,7 @@ const History = ({
           role_id: staff.role_id,
           role_name: rolesMapping[staff.role_id] || 'スタッフ',
           store_id: staff.store_id,
+          is_active: staff.is_active,
         }
       })
       setStaffMap(staffMapping)
@@ -374,6 +373,12 @@ const History = ({
         s.store_id === storeId
       )
 
+      console.log(`=== handleMonthClick: ${year}年${month}月, store_id=${storeId} ===`)
+      console.log('filtered総数:', filtered.length)
+      const day1Shifts = filtered.filter(s => s.date === 1)
+      console.log('1日のシフト数:', day1Shifts.length)
+      console.log('1日のシフト:', day1Shifts.map(s => `${s.shift_id}:${s.staff_name}`))
+
       // 履歴データを表示用にフォーマット
       const transformedHistory = filtered.map(shift => {
         const staff = staffMap[shift.staff_id]
@@ -400,17 +405,24 @@ const History = ({
         }
       })
 
-      // 店舗IDでスタッフをフィルタリング（DraftShiftEditorと同様）
+      // シフトに存在するスタッフIDを収集
+      const staffIdsInShifts = new Set(transformedHistory.map(s => s.staff_id))
+
+      // シフトに存在するスタッフのみをマップに含める
       const filteredStaffMap = {}
       Object.entries(staffMap).forEach(([staffId, staffInfo]) => {
-        if (staffInfo.store_id === storeId) {
+        const numericStaffId = parseInt(staffId)
+        if (staffIdsInShifts.has(numericStaffId)) {
           filteredStaffMap[staffId] = staffInfo
         }
       })
 
+      // 店舗名を取得
+      const storeName = monthlySummary.find(m => m.store_id === storeId)?.store_name
+
       setDetailShifts(transformedHistory)
       setShiftData(shiftDataForTable)
-      setSelectedMonth({ year, month, storeId })
+      setSelectedMonth({ year, month, storeId, storeName, staffMap: filteredStaffMap })
     } catch (err) {
       console.error('月別シフト読み込みエラー:', err)
     }
@@ -606,6 +618,39 @@ const History = ({
 
   const handleDayClick = day => {
     const shifts = detailShifts.filter(s => s.date === day)
+    console.log(`=== handleDayClick: ${day}日 ===`)
+    console.log('detailShifts総数:', detailShifts.length)
+    console.log(`${day}日のシフト数:`, shifts.length)
+    console.log(`${day}日のシフト詳細:`, shifts)
+    console.log('shiftData総数:', shiftData.length)
+    // shiftDataからも同じ日付のデータを確認
+    const shiftDataForDay = shiftData.filter(s => {
+      const shiftDate = new Date(s.shift_date)
+      return shiftDate.getDate() === day
+    })
+    console.log(`${day}日のshiftData:`, shiftDataForDay.length, shiftDataForDay)
+
+    // 差分があるか確認
+    if (shifts.length !== shiftDataForDay.length) {
+      console.warn('⚠️ データ不整合検出！')
+      console.log('detailShiftsのスタッフID:', shifts.map(s => `${s.staff_id}:${s.staff_name}`))
+      console.log('shiftDataのスタッフID:', shiftDataForDay.map(s => `${s.staff_id}:${s.staff_name}`))
+
+      // detailShiftsにあってshiftDataにないもの
+      const missingInShiftData = shifts.filter(ds =>
+        !shiftDataForDay.some(sd => sd.shift_id === ds.shift_id)
+      )
+      console.log('shiftDataに欠けているシフト:', missingInShiftData)
+
+      // shiftDataにあってdetailShiftsにないもの
+      const missingInDetailShifts = shiftDataForDay.filter(sd =>
+        !shifts.some(ds => ds.shift_id === sd.shift_id)
+      )
+      console.log('detailShiftsに欠けているシフト:', missingInDetailShifts)
+    }
+
+    // シフトがない場合は何もしない
+    if (shifts.length === 0) return
     setDayShifts(shifts)
     setSelectedDay(day)
   }
@@ -684,11 +729,11 @@ const History = ({
         exit="out"
         variants={pageVariants}
         transition={pageTransition}
-        className="app-container pt-8"
+        className="h-screen overflow-hidden flex flex-col pt-8 px-8"
       >
         <div className="flex flex-col items-center justify-center min-h-[400px]">
           <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
-          <p className="text-lg text-gray-600">履歴データを読み込んでいます...</p>
+          <p className="text-lg text-gray-600">シフト履歴データを読み込んでいます...</p>
         </div>
       </motion.div>
     )
@@ -800,82 +845,57 @@ const History = ({
         exit="out"
         variants={pageVariants}
         transition={pageTransition}
-        className="app-container pt-8"
+        className="fixed inset-0 flex flex-col"
+        style={{ top: '64px' }}
       >
-        <div className="mb-8">
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-            {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
-          </h1>
-          <p className="text-lg text-gray-600">
-            {(() => {
-              const store = availableStores.find(s => s.store_id === selectedMonth.storeId)
-              return store ? `${store.store_name} · ` : ''
-            })()}
-            確定済み · 全{detailShifts.length}件
-          </p>
+        <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 pt-4">
+          <div>
+            <h1 className="text-xl font-bold text-gray-900">
+              {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
+              <span className="text-sm font-normal text-gray-600 ml-3">
+                {(() => {
+                  const store = availableStores.find(s => s.store_id === selectedMonth.storeId)
+                  return store ? `${store.store_name} · ` : ''
+                })()}
+                確定済み · 全{detailShifts.length}件
+              </span>
+            </h1>
+          </div>
+
+          {/* ビュー切り替えボタン + アクションボタン */}
+          <div className="flex gap-2">
+            {showDiff && diffAnalysis && (
+              <>
+                <Button
+                  size="sm"
+                  variant={viewMode === 'view' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('view')}
+                  className={viewMode === 'view' ? 'bg-blue-600 hover:bg-blue-700' : ''}
+                >
+                  <Calendar className="h-3 w-3 mr-1" />
+                  シフト表示
+                </Button>
+                <Button
+                  size="sm"
+                  variant={viewMode === 'diff' ? 'default' : 'outline'}
+                  onClick={() => setViewMode('diff')}
+                  className={viewMode === 'diff' ? 'bg-orange-600 hover:bg-orange-700' : ''}
+                >
+                  <TrendingUp className="h-3 w-3 mr-1" />
+                  予実差分
+                </Button>
+              </>
+            )}
+            <Button size="sm" variant="outline" onClick={handleExportCSV}>
+              <Download className="h-3 w-3 mr-1" />
+              CSVエクスポート
+            </Button>
+          </div>
         </div>
 
-        {/* ビュー切り替えボタン */}
-        <div className="mb-4 flex gap-2">
-          <Button
-            variant={viewMode === 'staff' ? 'default' : 'outline'}
-            onClick={() => setViewMode('staff')}
-            className={viewMode === 'staff' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-          >
-            <LayoutGrid className="h-4 w-4 mr-2" />
-            スタッフ別表示
-          </Button>
-          <Button
-            variant={viewMode === 'calendar' ? 'default' : 'outline'}
-            onClick={() => setViewMode('calendar')}
-            className={viewMode === 'calendar' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-          >
-            <Table className="h-4 w-4 mr-2" />
-            カレンダー表示
-          </Button>
-        </div>
-
-          <Card className="shadow-lg border-0">
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <div className="flex items-center">
-                  <Calendar className="h-5 w-5 mr-2 text-purple-600" />
-                  シフト詳細
-                </div>
-                <div className="flex gap-2">
-                  {showDiff && diffAnalysis && (
-                    <Button
-                      size="sm"
-                      variant="default"
-                      onClick={() => setViewMode('diff')}
-                      className="text-sm bg-orange-600 hover:bg-orange-700"
-                    >
-                      <TrendingUp className="h-4 w-4 mr-1" />
-                      予実差分
-                    </Button>
-                  )}
-                  <Button size="sm" variant="outline" onClick={handleExportCSV} className="text-sm">
-                    <Download className="h-4 w-4 mr-1" />
-                    CSVエクスポート
-                  </Button>
-                </div>
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {viewMode === 'staff' ? (
-                <StaffTimeTable
-                  year={selectedMonth.year}
-                  month={selectedMonth.month}
-                  shiftData={shiftData}
-                  staffMap={Object.fromEntries(
-                    Object.entries(staffMap).filter(([id, info]) => info.store_id === selectedMonth.storeId)
-                  )}
-                  onCellClick={(date, staffId, shift) => {
-                    // 日付クリック時の処理
-                    handleDayClick(date)
-                  }}
-                />
-              ) : viewMode === 'diff' && diffAnalysis ? (
+          {viewMode === 'diff' && diffAnalysis ? (
+            <Card className="shadow-lg border-0 flex-1 flex flex-col overflow-hidden mx-8 mb-4">
+              <CardContent className="flex-1 overflow-hidden p-2">
                 <div className="space-y-6">
                   {/* サマリー */}
                   <Card className="border-2 border-orange-300 bg-orange-50">
@@ -1023,15 +1043,26 @@ const History = ({
                     </div>
                   </div>
                 </div>
-              ) : (
-                <CalendarView
-                  selectedMonth={selectedMonth}
-                  calendarData={getCalendarData()}
-                  onDayClick={handleDayClick}
-                />
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="flex-1 overflow-hidden mx-8 mb-4">
+              <ShiftViewEditor
+                year={selectedMonth.year}
+                month={selectedMonth.month}
+                shiftData={shiftData}
+                staffMap={selectedMonth.staffMap || staffMap}
+                calendarData={getCalendarData()}
+                storeId={selectedMonth.storeId}
+                storeName={selectedMonth.storeName}
+                readonly={true}
+                onCellClick={(date, staffId, shift) => {
+                  handleDayClick(date)
+                }}
+                onDayClick={handleDayClick}
+              />
+            </div>
+          )}
 
           {/* タイムライン表示 */}
           <AnimatePresence>
@@ -1042,6 +1073,7 @@ const History = ({
                 month={selectedMonth.month}
                 shifts={dayShifts}
                 onClose={closeDayView}
+                storeName={selectedMonth.storeName}
               />
             )}
           </AnimatePresence>
@@ -1057,7 +1089,7 @@ const History = ({
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="app-container pt-8"
+      className="h-screen overflow-hidden flex flex-col pt-8 px-8"
     >
         {/* 年・店舗選択 */}
         <div className="flex items-center justify-center gap-6 mb-8">

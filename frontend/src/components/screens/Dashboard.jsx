@@ -2,10 +2,11 @@ import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import { TrendingUp, DollarSign, Database, Clock, BarChart3 } from 'lucide-react'
+import { TrendingUp, DollarSign, Database, Clock, BarChart3, Calendar } from 'lucide-react'
 import { AnalyticsRepository } from '../../infrastructure/repositories/AnalyticsRepository'
 import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
 import { getCurrentYear } from '../../config/constants'
+import { useTenant } from '../../contexts/TenantContext'
 
 const analyticsRepository = new AnalyticsRepository()
 const shiftRepository = new ShiftRepository()
@@ -48,13 +49,16 @@ const Dashboard = ({
   onBudgetActualManagement,
   onDevTools,
 }) => {
+  const { tenantId } = useTenant()
   const [annualSummary, setAnnualSummary] = useState(null)
   const [loadingAnnualSummary, setLoadingAnnualSummary] = useState(true)
   const [monthlyData, setMonthlyData] = useState([])
 
   useEffect(() => {
-    loadAnnualSummary()
-  }, [])
+    if (tenantId) {
+      loadAnnualSummary()
+    }
+  }, [tenantId])
 
   const loadAnnualSummary = async () => {
     try {
@@ -64,10 +68,10 @@ const Dashboard = ({
       const currentYear = getCurrentYear()
       const [actualPayrollData, actualSalesData, salesForecastData, shiftSummaryData] =
         await Promise.all([
-          analyticsRepository.getAnnualPayroll(currentYear),
-          analyticsRepository.getAnnualSalesActual(currentYear),
-          analyticsRepository.getAnnualSalesForecast(currentYear),
-          shiftRepository.getSummary({ year: currentYear }),
+          analyticsRepository.getPayroll({ year: currentYear, tenantId }),
+          analyticsRepository.getSalesActual({ year: currentYear, tenantId }),
+          analyticsRepository.getSalesForecast({ year: currentYear, tenantId }),
+          shiftRepository.getSummary({ year: currentYear, tenantId }),
         ])
 
       // シフトデータをAPIから取得
@@ -261,6 +265,79 @@ const Dashboard = ({
     return months
   }
 
+  // 募集状況を判定（締め切り前/締め切り済み/募集終了を区別）
+  const getRecruitmentStatus = () => {
+    const now = new Date()
+    now.setHours(0, 0, 0, 0)
+
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1 // 0-indexed to 1-indexed
+    const currentDay = now.getDate()
+
+    // 募集対象月を決定
+    // 20日以前：来月のシフトを募集中
+    // 21日以降：再来月のシフトを募集中
+    let targetYear = currentYear
+    let targetMonth = currentMonth
+    if (currentDay <= 20) {
+      targetMonth = currentMonth + 1
+      if (targetMonth > 12) {
+        targetMonth = 1
+        targetYear += 1
+      }
+    } else {
+      targetMonth = currentMonth + 2
+      if (targetMonth > 12) {
+        targetMonth = targetMonth - 12
+        targetYear += 1
+      }
+    }
+
+    // 締め切り日を計算（対象月の前月20日）
+    const deadlineDate = new Date(targetYear, targetMonth - 2, 20)
+    // 対象月の翌月1日（対象月が完全に終わる日）
+    const nextMonthStart = new Date(targetYear, targetMonth, 1)
+
+    // 締め切り前（募集中）
+    if (now < deadlineDate) {
+      return {
+        status: '募集中',
+        color: 'green',
+        bgColor: 'from-green-50 to-green-100',
+        borderColor: 'border-green-200',
+        targetYear,
+        targetMonth,
+        deadline: `締切: ${deadlineDate.getMonth() + 1}/${deadlineDate.getDate()}`,
+      }
+    }
+
+    // 締め切り後だが対象月内または対象月前（変更可能）
+    if (now >= deadlineDate && now < nextMonthStart) {
+      return {
+        status: '締切済',
+        color: 'orange',
+        bgColor: 'from-orange-50 to-orange-100',
+        borderColor: 'border-orange-200',
+        targetYear,
+        targetMonth,
+        deadline: '変更可能',
+      }
+    }
+
+    // 対象月が完全に過去（募集終了）
+    return {
+      status: '募集終了',
+      color: 'gray',
+      bgColor: 'from-gray-50 to-gray-100',
+      borderColor: 'border-gray-300',
+      targetYear,
+      targetMonth,
+      deadline: '確定済み',
+    }
+  }
+
+  const recruitmentStatus = getRecruitmentStatus()
+
   return (
     <motion.div
       initial="initial"
@@ -272,6 +349,75 @@ const Dashboard = ({
     >
       {/* メインコンテンツ */}
       <div className="app-container py-8">
+        {/* シフト募集状況カード */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="mb-6"
+        >
+          <Card className={`border-2 shadow-sm ${recruitmentStatus.borderColor}`}>
+            <CardContent className="p-4">
+              <div className={`flex items-center gap-4 px-4 py-3 bg-gradient-to-br rounded-xl ${recruitmentStatus.bgColor}`}>
+                <Clock
+                  className={`h-8 w-8 ${
+                    recruitmentStatus.color === 'green'
+                      ? 'text-green-600'
+                      : recruitmentStatus.color === 'orange'
+                        ? 'text-orange-600'
+                        : 'text-gray-600'
+                  }`}
+                />
+                <div className="flex-1">
+                  <div
+                    className={`text-sm font-semibold mb-1 ${
+                      recruitmentStatus.color === 'green'
+                        ? 'text-green-700'
+                        : recruitmentStatus.color === 'orange'
+                          ? 'text-orange-700'
+                          : 'text-gray-700'
+                    }`}
+                  >
+                    シフト募集状況
+                  </div>
+                  <div
+                    className={`text-2xl font-bold ${
+                      recruitmentStatus.color === 'green'
+                        ? 'text-green-600'
+                        : recruitmentStatus.color === 'orange'
+                          ? 'text-orange-600'
+                          : 'text-gray-600'
+                    }`}
+                  >
+                    {recruitmentStatus.status}
+                  </div>
+                  <div
+                    className={`text-sm mt-1 ${
+                      recruitmentStatus.color === 'green'
+                        ? 'text-green-600'
+                        : recruitmentStatus.color === 'orange'
+                          ? 'text-orange-600'
+                          : 'text-gray-600'
+                    }`}
+                  >
+                    {recruitmentStatus.targetYear}年{recruitmentStatus.targetMonth}月分 -{' '}
+                    {recruitmentStatus.deadline}
+                  </div>
+                </div>
+                <Calendar
+                  className={`h-6 w-6 ${
+                    recruitmentStatus.color === 'green'
+                      ? 'text-green-600'
+                      : recruitmentStatus.color === 'orange'
+                        ? 'text-orange-600'
+                        : 'text-gray-600'
+                  }`}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+
         {/* 年次予実差分サマリー - コンパクト版 */}
         {!loadingAnnualSummary && (
           <motion.div
