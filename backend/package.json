@@ -2,6 +2,7 @@
   "name": "shift-scheduler-backend",
   "version": "1.0.0",
   "type": "module",
+  "main": "src/server.js",
   "description": "AIシフト管理システム バックエンドAPI",
   "scripts": {
     "start": "node src/server.js",

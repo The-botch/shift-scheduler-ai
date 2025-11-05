@@ -12,7 +12,7 @@ import liffRoutes from './routes/liff.js'
 import { appendLog } from './utils/logger.js'
 
 const app = express()
-const PORT = 3001
+const PORT = process.env.PORT || 3001
 
 // Middleware
 app.use(cors())
@@ -30,8 +30,8 @@ app.use('/api/holidays', holidaysRoutes)
 app.use('/api/liff', liffRoutes)
 
 // Server startup
-app.listen(PORT, () => {
-  const startupMsg = `🚀 Backend server running on http://localhost:${PORT}`
+app.listen(PORT, '0.0.0.0', () => {
+  const startupMsg = `🚀 Backend server running on port ${PORT}`
   const proxyMsg = `📡 OpenAI API Proxy enabled`
 
   console.log(startupMsg)
