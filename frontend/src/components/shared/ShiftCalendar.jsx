@@ -53,7 +53,7 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
       {/* 曜日ヘッダー */}
       <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2 flex-shrink-0">
         {weekDays.map(day => (
-          <div key={day} className="p-2 md:p-3 text-center text-sm md:text-base font-bold bg-blue-50 rounded w-20 md:w-24 lg:w-28">
+          <div key={day} className="p-2 md:p-3 text-center text-sm md:text-base font-bold bg-blue-50 rounded">
             {day}
           </div>
         ))}
@@ -77,14 +77,14 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
           return (
             <motion.div
               key={day}
-              className={`p-2 md:p-3 border rounded cursor-pointer hover:shadow-md transition-shadow w-20 md:w-24 lg:w-28 ${
+              className={`p-2 md:p-3 border rounded cursor-pointer hover:shadow-md transition-shadow ${
                 hasModified
                   ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
                   : isDayHoliday || isWeekend
                     ? 'bg-red-50 border-red-200 hover:bg-red-100'
                     : 'border-gray-200 hover:bg-gray-50'
               }`}
-              style={{ minHeight: '60px', maxHeight: '100px' }}
+              style={{ minHeight: '120px' }}
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ delay: index * 0.01 }}
