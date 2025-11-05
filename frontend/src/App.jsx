@@ -4,7 +4,7 @@ import { MESSAGES } from './constants/messages'
 import './App.css'
 
 // Context Providers
-import { TenantProvider } from './contexts/TenantContext'
+import { TenantProvider, useTenant } from './contexts/TenantContext'
 
 // Screen Components
 import Dashboard from './components/screens/Dashboard'
