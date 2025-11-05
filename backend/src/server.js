@@ -8,6 +8,7 @@ import analyticsRoutes from './routes/analytics.js'
 import tenantsRoutes from './routes/tenants.js'
 import vectorStoreRoutes from './routes/vector-store.js'
 import holidaysRoutes from './routes/holidays.js'
+import liffRoutes from './routes/liff.js'
 import { appendLog } from './utils/logger.js'
 
 const app = express()
@@ -26,6 +27,7 @@ app.use('/api/analytics', analyticsRoutes)
 app.use('/api/tenants', tenantsRoutes)
 app.use('/api/vector-store', vectorStoreRoutes)
 app.use('/api/holidays', holidaysRoutes)
+app.use('/api/liff', liffRoutes)
 
 // Server startup
 app.listen(PORT, () => {
