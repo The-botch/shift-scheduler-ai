@@ -34,6 +34,8 @@ const AppHeader = ({
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [backendEnv, setBackendEnv] = useState(null)
+  const [dbEnv, setDbEnv] = useState(null)
   const { tenantId, tenantName, changeTenant, availableTenants, loading } = useTenant()
 
   useEffect(() => {
@@ -42,6 +44,28 @@ const AppHeader = ({
     }, 1000)
 
     return () => clearInterval(timer)
+  }, [])
+
+  // バックエンドとDB環境情報を取得
+  useEffect(() => {
+    const fetchHealthInfo = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:3001'
+        const response = await fetch(`${apiUrl}/api/health`)
+        const data = await response.json()
+
+        if (data.success) {
+          setBackendEnv(data.backend.environment)
+          setDbEnv(data.database.environment)
+        }
+      } catch (error) {
+        console.error('Failed to fetch health info:', error)
+        setBackendEnv('UNKNOWN')
+        setDbEnv('UNKNOWN')
+      }
+    }
+
+    fetchHealthInfo()
   }, [])
 
   const handleTenantChange = (e) => {
@@ -142,15 +166,31 @@ const AppHeader = ({
                   ? 'bg-amber-500'
                   : 'bg-blue-500'
               }`} />
-              <span className="font-semibold">{environment.name}</span>
-              <span className="hidden sm:inline opacity-70">
-                ({environment.label})
-              </span>
-              {!loading && tenantId && (
-                <span className="text-[10px] opacity-70">
-                  ID:{tenantId}
-                </span>
-              )}
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="font-semibold">{environment.name}</span>
+                  {!loading && tenantId && (
+                    <span className="text-[10px] opacity-70">
+                      (ID:{tenantId})
+                    </span>
+                  )}
+                </div>
+                <div className="text-[10px] opacity-60 hidden md:block">
+                  <span title="Frontend">FE:{environment.name}</span>
+                  {backendEnv && (
+                    <>
+                      <span className="mx-1">→</span>
+                      <span title="Backend">BE:{backendEnv}</span>
+                    </>
+                  )}
+                  {dbEnv && (
+                    <>
+                      <span className="mx-1">→</span>
+                      <span title="Database">DB:{dbEnv}</span>
+                    </>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
