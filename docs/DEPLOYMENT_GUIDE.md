@@ -115,11 +115,15 @@ https://your-api.up.railway.app/health
 ```
 1. Vercel Dashboard → "Add New" → "Project"
 2. あなたのリポジトリを選択
-3. Framework Preset: Vite
-4. Root Directory: frontend
-5. Build Command: npm run build
-6. Output Directory: dist
+3. 設定:
+   - Framework Preset: Vite
+   - Root Directory: frontend (重要！)
+   - Build Command: npm run build (デフォルト)
+   - Output Directory: dist (デフォルト)
+   - Install Command: npm install (デフォルト)
 ```
+
+**重要**: Root Directoryを`frontend`に設定することを忘れないでください。
 
 ### 2.3 環境変数設定
 
