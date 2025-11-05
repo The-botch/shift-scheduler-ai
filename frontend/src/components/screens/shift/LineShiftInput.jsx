@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react'
-import { MESSAGES } from '../../constants/messages'
+import { MESSAGES } from '../../../constants/messages'
 import { motion } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { Button } from '../ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
+import { Button } from '../../ui/button'
 import {
   ChevronLeft,
   ArrowRight,
@@ -13,9 +13,9 @@ import {
   Copy,
   Edit3,
 } from 'lucide-react'
-import { DEMO_PARAMS, getCurrentYearMonth, getNextMonthYearMonth, DEFAULT_CONFIG } from '../../config/defaults'
-import { SHIFT_PREFERENCE_STATUS } from '../../config/constants'
-import { useTenant } from '../../contexts/TenantContext'
+import { DEMO_PARAMS, getCurrentYearMonth, getNextMonthYearMonth, DEFAULT_CONFIG } from '../../../config/defaults'
+import { SHIFT_PREFERENCE_STATUS } from '../../../config/constants'
+import { useTenant } from '../../../contexts/TenantContext'
 
 /**
  * 提出期限を計算する

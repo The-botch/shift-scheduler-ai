@@ -151,7 +151,9 @@ BEGIN
     (v_tenant_id, 'OUTSOURCE', '業務委託', 'contract', 5, TRUE)
     ON CONFLICT (tenant_id, employment_code) DO NOTHING;
 
-    -- STAND_BANH_MI tenant employment types
+    -- ──────────────────────────────────────────
+    -- Tenant 3: STAND_BANH_MI
+    -- ──────────────────────────────────────────
     INSERT INTO core.employment_types (tenant_id, employment_code, employment_name, payment_type, display_order, is_active) VALUES
     (v_tenant_id_3, 'FULL_TIME', '正社員', 'MONTHLY', 0, TRUE),
     (v_tenant_id_3, 'PART_TIME', 'アルバイト', 'HOURLY', 0, TRUE),
@@ -182,7 +184,7 @@ BEGIN
     RAISE NOTICE '   ✅ シフトパターン作成完了';
 
     -- ============================================
-    -- 8. 通勤手当マスター
+    -- 8. 通勤手当マスター（Tenant 1のみ）
     -- ============================================
     RAISE NOTICE '📋 8. Commute Allowance';
 
@@ -199,7 +201,7 @@ BEGIN
     RAISE NOTICE '   ✅ 通勤手当作成完了';
 
     -- ============================================
-    -- 9. 保険料率マスター
+    -- 9. 保険料率マスター（Tenant 1のみ）
     -- ============================================
     RAISE NOTICE '📋 9. Insurance Rates';
 
@@ -213,7 +215,7 @@ BEGIN
     RAISE NOTICE '   ✅ 保険料率作成完了';
 
     -- ============================================
-    -- 10. 税率ブラケットマスター
+    -- 10. 税率ブラケットマスター（Tenant 1のみ）
     -- ============================================
     RAISE NOTICE '📋 10. Tax Brackets';
 
@@ -230,7 +232,7 @@ BEGIN
     RAISE NOTICE '   ✅ 税率ブラケット作成完了';
 
     -- ============================================
-    -- 11. 労働法制約マスター
+    -- 11. 労働法制約マスター（Tenant 1のみ）
     -- ============================================
     RAISE NOTICE '📋 11. Labor Law Constraints';
 
@@ -248,7 +250,7 @@ BEGIN
     RAISE NOTICE '   ✅ 労働法制約作成完了';
 
     -- ============================================
-    -- 12. シフト検証ルールマスター
+    -- 12. シフト検証ルールマスター（Tenant 1のみ）
     -- ============================================
     RAISE NOTICE '📋 12. Shift Validation Rules';
 

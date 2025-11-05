@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
-import { MESSAGES } from '../../constants/messages'
+import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { Button } from '../ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
+import { Button } from '../../ui/button'
 import {
   ChevronLeft,
   ChevronRight,
@@ -18,13 +18,13 @@ import {
   AlertTriangle,
   Store,
 } from 'lucide-react'
-import ShiftTimeline from '../shared/ShiftTimeline'
-import ShiftViewEditor from '../shared/ShiftViewEditor'
-import ShiftCalendar from '../shared/ShiftCalendar'
-import { exportCSV, generateFilename } from '../../utils/csvHelper'
-import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
-import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
-import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
+import ShiftTimeline from '../../shared/ShiftTimeline'
+import ShiftViewEditor from '../../shared/ShiftViewEditor'
+import ShiftCalendar from '../../shared/ShiftCalendar'
+import { exportCSV, generateFilename } from '../../../utils/csvHelper'
+import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
+import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
+import { isHoliday, getHolidayName, loadHolidays } from '../../../utils/holidays'
 
 const shiftRepository = new ShiftRepository()
 const masterRepository = new MasterRepository()

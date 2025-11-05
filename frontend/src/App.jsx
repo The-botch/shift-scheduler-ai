@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { MESSAGES } from './constants/messages'
 import './App.css'
@@ -8,16 +9,16 @@ import { TenantProvider, useTenant } from './contexts/TenantContext'
 
 // Screen Components
 import Dashboard from './components/screens/Dashboard'
-import DraftShiftEditor from './components/screens/DraftShiftEditor'
-import ShiftCreationMethodSelector from './components/screens/ShiftCreationMethodSelector'
-import LineShiftInput from './components/screens/LineShiftInput'
-import Monitoring from './components/screens/Monitoring'
-import SecondPlan from './components/screens/SecondPlan'
+import DraftShiftEditor from './components/screens/shift/DraftShiftEditor'
+import ShiftCreationMethodSelector from './components/screens/shift/ShiftCreationMethodSelector'
+import LineShiftInput from './components/screens/shift/LineShiftInput'
+import Monitoring from './components/screens/shift/Monitoring'
+import SecondPlan from './components/screens/shift/SecondPlan'
 import StaffManagement from './components/screens/StaffManagement'
 import StoreManagement from './components/screens/StoreManagement'
 import ConstraintManagement from './components/screens/ConstraintManagement'
-import History from './components/screens/History'
-import ShiftManagement from './components/screens/ShiftManagement'
+import History from './components/screens/shift/History'
+import ShiftManagement from './components/screens/shift/ShiftManagement'
 import BudgetActualManagement from './components/screens/BudgetActualManagement'
 import MasterDataManagement from './components/screens/MasterDataManagement'
 import DevTools from './dev/DevTools'
@@ -28,6 +29,9 @@ import AppHeader from './components/shared/AppHeader'
 
 function AppContent() {
   const { tenantId } = useTenant()
+  const navigate = useNavigate()
+  const location = useLocation()
+
   const [currentStep, setCurrentStep] = useState(1)
   const [showStaffManagement, setShowStaffManagement] = useState(false)
   const [showStoreManagement, setShowStoreManagement] = useState(false)
@@ -56,6 +60,106 @@ function AppContent() {
   // 店舗フィルター（ShiftManagementとHistoryで共通）
   const [selectedStore, setSelectedStore] = useState('all')
   const [availableStores, setAvailableStores] = useState([])
+
+  // URLからステートを初期化
+  useEffect(() => {
+    const path = location.pathname
+    if (path === '/staff') {
+      setShowStaffManagement(true)
+    } else if (path === '/store') {
+      setShowStoreManagement(true)
+    } else if (path === '/shift' || path === '/shift/management') {
+      setShowShiftManagement(true)
+    } else if (path === '/master') {
+      setShowMasterDataManagement(true)
+    } else if (path === '/budget-actual') {
+      setShowBudgetActualManagement(true)
+    } else if (path === '/shift/line') {
+      setShowLineMessages(true)
+    } else if (path === '/shift/monitoring') {
+      setShowMonitoring(true)
+    } else if (path === '/constraint') {
+      setShowConstraintManagement(true)
+    } else if (path === '/shift/history') {
+      setShowHistory(true)
+    } else if (path === '/shift/draft-editor') {
+      setShowDraftShiftEditor(true)
+    } else if (path === '/shift/method') {
+      setShowShiftCreationMethodSelector(true)
+    } else if (path === '/shift/second-plan') {
+      setCurrentStep(2)
+    } else if (path === '/dev-tools') {
+      setShowDevTools(true)
+    } else if (path === '/tenant-settings') {
+      setShowTenantSettings(true)
+    }
+  }, [])
+
+  // ステートが変更されたらURLを更新
+  useEffect(() => {
+    if (showStaffManagement) {
+      navigate('/staff', { replace: true })
+    } else if (showStoreManagement) {
+      navigate('/store', { replace: true })
+    } else if (showShiftManagement) {
+      navigate('/shift', { replace: true })
+    } else if (showMasterDataManagement) {
+      navigate('/master', { replace: true })
+    } else if (showBudgetActualManagement) {
+      navigate('/budget-actual', { replace: true })
+    } else if (showLineMessages) {
+      navigate('/shift/line', { replace: true })
+    } else if (showMonitoring) {
+      navigate('/shift/monitoring', { replace: true })
+    } else if (showConstraintManagement) {
+      navigate('/constraint', { replace: true })
+    } else if (showHistory) {
+      navigate('/shift/history', { replace: true })
+    } else if (showDraftShiftEditor) {
+      navigate('/shift/draft-editor', { replace: true })
+    } else if (showShiftCreationMethodSelector) {
+      navigate('/shift/method', { replace: true })
+    } else if (showDevTools) {
+      navigate('/dev-tools', { replace: true })
+    } else if (showTenantSettings) {
+      navigate('/tenant-settings', { replace: true })
+    } else if (currentStep === 2) {
+      navigate('/shift/second-plan', { replace: true })
+    } else if (
+      !showStaffManagement &&
+      !showStoreManagement &&
+      !showShiftManagement &&
+      !showMasterDataManagement &&
+      !showBudgetActualManagement &&
+      !showLineMessages &&
+      !showMonitoring &&
+      !showConstraintManagement &&
+      !showHistory &&
+      !showDraftShiftEditor &&
+      !showShiftCreationMethodSelector &&
+      !showDevTools &&
+      !showTenantSettings &&
+      currentStep === 1
+    ) {
+      navigate('/', { replace: true })
+    }
+  }, [
+    showStaffManagement,
+    showStoreManagement,
+    showShiftManagement,
+    showMasterDataManagement,
+    showBudgetActualManagement,
+    showLineMessages,
+    showMonitoring,
+    showConstraintManagement,
+    showHistory,
+    showDraftShiftEditor,
+    showShiftCreationMethodSelector,
+    showDevTools,
+    showTenantSettings,
+    currentStep,
+    navigate
+  ])
 
   const nextStep = () => {
     if (currentStep < 3) {

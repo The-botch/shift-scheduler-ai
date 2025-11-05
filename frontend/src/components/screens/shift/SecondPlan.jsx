@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
-import { MESSAGES } from '../../constants/messages'
+import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { Button } from '../ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
+import { Button } from '../../ui/button'
 import {
   RefreshCw,
   Zap,
@@ -22,11 +22,11 @@ import {
   AlertTriangle,
   Trash2,
 } from 'lucide-react'
-import ShiftTimeline from '../shared/ShiftTimeline'
-import ShiftViewEditor from '../shared/ShiftViewEditor'
-import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
-import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
-import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
+import ShiftTimeline from '../../shared/ShiftTimeline'
+import ShiftViewEditor from '../../shared/ShiftViewEditor'
+import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
+import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
+import { isHoliday, getHolidayName, loadHolidays } from '../../../utils/holidays'
 
 const shiftRepository = new ShiftRepository()
 const masterRepository = new MasterRepository()
@@ -1226,7 +1226,7 @@ const SecondPlan = ({
                     month={selectedShift?.month || new Date().getMonth() + 1}
                     shiftData={firstPlanShifts}
                     staffMap={staffMap}
-                    calendarData={null}
+                    calendarData={firstPlanData}
                     storeId={selectedShift?.storeId || selectedShift?.store_id}
                     storeName={selectedShift?.store_name}
                     readonly={true}
@@ -1257,7 +1257,7 @@ const SecondPlan = ({
                     month={selectedShift?.month || new Date().getMonth() + 1}
                     shiftData={csvShifts}
                     staffMap={staffMap}
-                    calendarData={null}
+                    calendarData={firstPlanData}
                     storeId={selectedShift?.storeId || selectedShift?.store_id}
                     storeName={selectedShift?.store_name}
                     readonly={false}

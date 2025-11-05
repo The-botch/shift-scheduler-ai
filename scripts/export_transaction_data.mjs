@@ -60,9 +60,10 @@ BEGIN;
         formatValue(row.status), formatValue(row.generation_type),
         formatValue(row.ai_model_version), formatValue(row.total_labor_hours),
         formatValue(row.total_labor_cost), formatValue(row.coverage_score),
-        row.constraint_violations
+        row.constraint_violations,
+        formatValue(row.created_by), formatValue(row.approved_by)
       ].join(', ');
-      output += `INSERT INTO ops.shift_plans (tenant_id, store_id, plan_year, plan_month, plan_code, plan_name, period_start, period_end, status, generation_type, ai_model_version, total_labor_hours, total_labor_cost, coverage_score, constraint_violations) VALUES (${values});\n`;
+      output += `INSERT INTO ops.shift_plans (tenant_id, store_id, plan_year, plan_month, plan_code, plan_name, period_start, period_end, status, generation_type, ai_model_version, total_labor_hours, total_labor_cost, coverage_score, constraint_violations, created_by, approved_by) VALUES (${values});\n`;
     }
     output += '\n';
 
@@ -89,9 +90,11 @@ BEGIN;
       const values = [
         row.tenant_id, row.store_id, row.staff_id, row.year, row.month,
         formatValue(row.preferred_days), formatValue(row.ng_days),
-        formatValue(row.status), formatValue(row.submitted_at)
+        formatValue(row.status), formatValue(row.submitted_at),
+        formatValue(row.staff_name), formatValue(row.preferred_time_slots),
+        formatValue(row.max_hours_per_week), formatValue(row.notes)
       ].join(', ');
-      output += `INSERT INTO ops.shift_preferences (tenant_id, store_id, staff_id, year, month, preferred_days, ng_days, status, submitted_at) VALUES (${values});\n`;
+      output += `INSERT INTO ops.shift_preferences (tenant_id, store_id, staff_id, year, month, preferred_days, ng_days, status, submitted_at, staff_name, preferred_time_slots, max_hours_per_week, notes) VALUES (${values});\n`;
     }
     output += '\n';
 

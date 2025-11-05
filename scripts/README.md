@@ -1,218 +1,121 @@
 # スクリプトディレクトリ構成
 
-このディレクトリは、用途別に4つのサブディレクトリに分かれています。
+このディレクトリには、データベース管理用の各種スクリプトが格納されています。
 
-## 📁 ディレクトリ構造
+## 📁 ディレクトリ構成
 
-```
-scripts/
-├── setup/          # 🚀 イニシャルセットアップ用（必須・Gitコミット対象）
-├── verification/   # ✅ 検証・テスト用スクリプト（開発用）
-├── dev/            # 🔧 開発・デバッグ用ツール（Gitコミット対象）
-├── legacy/         # 📦 過去の資産・参考用（Gitコミット非推奨）
-└── README.md       # このファイル
-```
+### scripts/setup/ - データベースセットアップ（最重要）
 
----
+完全なデータベース再構築に必要なファイル：
 
-## 🚀 setup/ - イニシャルセットアップ（必須）
+- **schema.sql** (801行) - DDL: テーブル定義
+- **seed_data.sql** (265行) - DML: マスターデータ完全版
+  - Tenant 1: DEMO（デモ企業）
+  - Tenant 3: STAND_BANH_MI
+- **seed_transaction_data.sql** (7,676行, 2.7MB) - DML: トランザクションデータ
+  - 33件のシフト計画
+  - 5,885件のシフト実績
+  - 1,550件の勤怠実績
+  - 90件の給与データ
+  - その他分析データ
 
-新規開発者がリポジトリをクローンして最初に実行するスクリプト群です。
+**セットアップスクリプト：**
+- `import_all_17_masters.mjs` - CSVから全マスターデータを投入
+- `setup_fresh_db.mjs` - DB完全リセット＆再構築
+- `setup_tenant3_test_data.mjs` - Tenant 3テストデータ投入
+- `verify_setup.mjs` - セットアップ検証
 
-### DDL/DML
-- **`schema.sql`** - 全30テーブルのDDL定義（マスター17 + トランザクション13）
-- **`seed_data.sql`** - マスターデータシードデータ（テナント、Division、店舗、役職、スキル、雇用形態、シフトパターンなど）
-- **`seed_transaction_data.sql`** - トランザクションデータシードデータ（4,911件：シフト、需要予測、給与など）
+### scripts/ - ツール・検証スクリプト
 
-### セットアップスクリプト
-- **`setup_fresh_db.mjs`** - データベース完全セットアップ（drop → schema.sql → seed_data.sql）
-- **`import_all_17_masters.mjs`** - 全15個のマスターCSVファイルをDBに投入
-- **`verify_setup.mjs`** - データベースセットアップの検証
-- **`setup_tenant3_test_data.mjs`** - テナント3用テストデータ一括登録/削除スクリプト
+**マスターデータ確認：**
+- `check_master_data.mjs` - コアマスター確認（tenants, stores, roles, etc）
+- `check_all_masters.mjs` - HR/OPSマスター確認（commute, insurance, etc）
+- `check_transactions.mjs` - トランザクションデータ確認
+- `verify_seed_data.mjs` - seed_data.sql検証
 
-### 使い方
+**エクスポート：**
+- `export_transaction_data.mjs` - 現在のトランザクションデータをSQL形式でエクスポート
+
+**その他ツール：**
+- `check_current_status.mjs` - データベース状態確認
+- `verify_store_ids.mjs` - 店舗ID検証
+- `check_validation_rules_pk.mjs` - 検証ルールPK確認
+- `update_staff_status.mjs` - スタッフステータス更新
+
+### scripts/dev/ - 開発・デバッグ用
+
+データインポート、売上分析、給与チェックなどの開発用ツール（13個）
+
+### scripts/legacy/ - アーカイブ
+
+旧版スクリプト（非推奨）
+
+### scripts/migrations/ - マイグレーション
+
+データベーススキーマ変更用スクリプト
+
+## 🚀 使用方法
+
+### 完全な初期セットアップ
 
 ```bash
-# 環境変数設定
-export DATABASE_URL="postgresql://user:password@host:port/database"
-
-# 1. データベース完全セットアップ（DDL + マスターデータ）
-node scripts/setup/setup_fresh_db.mjs
-
-# 2. 詳細マスターデータ投入（CSVファイル）
-node scripts/setup/import_all_17_masters.mjs
-
-# 3. トランザクションデータ投入（オプション）
+# 方法1: SQLファイル直接実行（推奨）
+psql $DATABASE_URL -f scripts/setup/schema.sql
+psql $DATABASE_URL -f scripts/setup/seed_data.sql
 psql $DATABASE_URL -f scripts/setup/seed_transaction_data.sql
 
-# 4. セットアップ検証
+# 方法2: 自動セットアップスクリプト
+node scripts/setup/setup_fresh_db.mjs
+
+# 方法3: CSVからマスターデータ投入
+psql $DATABASE_URL -f scripts/setup/schema.sql
+node scripts/setup/import_all_17_masters.mjs
+psql $DATABASE_URL -f scripts/setup/seed_transaction_data.sql
+```
+
+### セットアップ検証
+
+```bash
+# マスターデータ検証
+node scripts/verify_seed_data.mjs
+
+# トランザクションデータ確認
+node scripts/check_transactions.mjs
+
+# セットアップ全体検証
 node scripts/setup/verify_setup.mjs
 ```
 
----
-
-## ✅ verification/ - 検証・テスト用スクリプト
-
-データ確認、変換、生成など、検証・テスト目的で使用するスクリプト群です。
-
-### データチェック系
-- **`check_all_tenant3_data.mjs`** - テナント3全データ確認
-- **`check_payroll.mjs`** / **`check_payroll_detail.mjs`** - 給与データ確認
-- **`check_staff_names.mjs`** - スタッフ名確認
-- **`check_staff_tenant2.mjs`** - テナント2スタッフ確認
-- **`check_tenant3_data.mjs`** - テナント3データ確認
-
-### データ変換・生成系
-- **`convert_shift_csv_for_import.mjs`** - シフトCSVをインポート形式に変換
-- **`generate_sales_data.mjs`** - 売上データ生成（実績・予測）
-- **`export_payroll_to_csv.mjs`** - 給与明細CSV出力
-- **`export_work_hours_from_shift_csv.mjs`** - シフトCSVから労働時間抽出
-- **`export_work_hours_to_csv.mjs`** - 労働時間CSV出力
-- **`generate_payroll_from_csv.mjs`** / **`generate_payroll_from_shift_csv.mjs`** - 給与データ生成
-- **`generate_work_hours_from_csv.mjs`** / **`generate_work_hours_from_shifts.mjs`** - 労働時間データ生成
-
-### データ操作系
-- **`delete_payroll.mjs`** - 給与データ削除
-- **`update_staff_salary.mjs`** - スタッフ給与更新
-- **`manage_tenant3_data.mjs`** - テナント3データ管理（旧版、setup_tenant3_test_data.mjsに統合）
-
-### 使い方
+### データエクスポート
 
 ```bash
-# シフトCSVをインポート形式に変換
-node scripts/verification/convert_shift_csv_for_import.mjs
+# トランザクションデータをSQLでエクスポート
+node scripts/export_transaction_data.mjs
 
-# 売上データを生成
-node scripts/verification/generate_sales_data.mjs
-
-# テナント3のデータを確認
-node scripts/verification/check_all_tenant3_data.mjs
+# 出力先: scripts/setup/seed_transaction_data.sql
 ```
 
----
+## 📝 ファイル更新履歴
 
-## 🔧 dev/ - 開発・デバッグ用ツール
+- **2025-11-06**: 
+  - seed_data.sqlをテナント別にコメント整理
+  - seed_transaction_data.sqlを現在のDBから再生成（1.3MB→2.7MB）
+  - 不要な修正系スクリプト24個を削除
+  - 検証・エクスポートスクリプトを追加
 
-開発中にデータ確認やデバッグで使用する便利ツール群です。
+## 🗑️ 削除されたスクリプト
 
-### データ確認
-- **`check_staff.mjs`** - スタッフマスター一覧表示
-- **`check_schema_match.mjs`** - 実際のDBスキーマとDDLの整合性チェック
-- **`test_db_connection.mjs`** - データベース接続テスト
+以下のスクリプトは過去の一時的な問題解決用で、現在は不要のため削除されました：
 
-### データ操作
-- **`drop_all.sql`** - データベース完全クリア用SQL
-- **`import_all_csv_to_db.mjs`** - 全CSVデータ（10テーブル）をDBに投入
-- **`cleanup_all_transaction_data.mjs`** - トランザクションデータ全削除
-- **`import_all_shifts.mjs`** - シフト.csvの全データをops.shiftsテーブルに投入
-- **`import_shift_sample.mjs`** - シフトサンプルデータ投入
-- **`import_shifts_100.mjs`** - シフト100件投入
-- **`test_transactions_setup.mjs`** - トランザクションテーブルセットアップテスト
+- スタッフ重複解消系（deduplicate, analyze, etc）
+- Tenant 3データコピー系（copy_*_to_tenant3）
+- 個別修正系（fix_hashimoto, check_kitamura, etc）
+- マスターデータ追加系（update_role_names, add_employment_types）
 
-### DML生成
-- **`export_transaction_dml_from_db.mjs`** - データベースからトランザクションDML生成
-- **`generate_transaction_dml_file.mjs`** - CSVファイルからトランザクションDML生成（参考用）
-
-### ユーティリティ
-- **`db_query.mjs`** - 汎用データベースクエリ実行ツール
-- **`db_cli.sh`** - データベースCLI接続スクリプト
-
-### PDF/CSV変換
-- **`pdf_to_csv.py`** - PDFからCSV変換
-- **`batch_pdf_to_csv.py`** - PDFバッチ変換
-
-### 使い方
-
-```bash
-# スタッフマスター確認
-DATABASE_URL="..." node scripts/dev/check_staff.mjs
-
-# スキーマ整合性チェック
-DATABASE_URL="..." node scripts/dev/check_schema_match.mjs
-
-# データベース接続テスト
-DATABASE_URL="..." node scripts/dev/test_db_connection.mjs
-```
-
----
-
-## 📦 legacy/ - 過去の資産・参考用
-
-古いスクリプトや使用しなくなったファイル群です。削除候補ですが、参考用に保持しています。
-
-### 内容
-- `setup_database.mjs` - 旧セットアップスクリプト
-- `schema_generated.sql` - 実際のDBから自動生成したスキーマ（制約なし）
-- `drop_transaction_tables.sql` - トランザクションテーブル削除SQL
-- `drop_extra_masters.mjs` - 不要マスター削除スクリプト
-- `transactions.sql` - トランザクションテーブルDDL（未使用）
-- `setup_all.sh` - 旧セットアップシェルスクリプト
-- `setup_multitenant.sh` - 旧マルチテナントセットアップ
-- その他
-
-**注意**: このディレクトリのファイルは今後削除される可能性があります。
-
----
-
-## 📊 データベース構成（17マスターテーブル）
-
-### core スキーマ (7テーブル)
-1. `tenants` - テナント
-2. `divisions` - 部門・エリア
-3. `stores` - 店舗
-4. `roles` - 役職
-5. `skills` - スキル
-6. `employment_types` - 雇用形態
-7. `shift_patterns` - シフトパターン
-
-### hr スキーマ (6テーブル)
-1. `staff` - スタッフ
-2. `staff_skills` - スタッフスキル
-3. `staff_certifications` - スタッフ資格
-4. `commute_allowance` - 通勤手当
-5. `insurance_rates` - 保険料率
-6. `tax_brackets` - 税率
-
-### ops スキーマ (4テーブル)
-1. `labor_law_constraints` - 労働基準法制約
-2. `labor_management_rules` - 労務管理ルール
-3. `shift_validation_rules` - シフト検証ルール
-4. `store_constraints` - 店舗制約
-
----
-
-## 🎯 スクリプト作成時のルール
-
-新しいスクリプトを作成する場合は、以下のルールに従ってください：
-
-### setup/ に入れるべきもの
-- 初回セットアップで**絶対に必要**なスクリプト
-- DDL/DML（schema.sql, seed_data.sql）
-- 新規開発者が最初に実行するスクリプト
-- テストデータ一括登録スクリプト（setup_tenant3_test_data.mjsなど）
-
-### verification/ に入れるべきもの
-- データ確認・検証スクリプト
-- CSV変換・データ生成スクリプト
-- テスト用のデータ操作スクリプト
-- 一時的な検証作業で使用するツール
-
-### dev/ に入れるべきもの
-- 開発中に**便利だが必須ではない**ツール
-- データ確認・デバッグスクリプト
-- マスターデータ抽出・投入スクリプト
-- PDF/CSV変換などのユーティリティ
-
-### legacy/ に入れるべきもの
-- **使用しなくなった**古いスクリプト
-- 参考用に残しておきたいファイル
-- 将来削除される可能性があるもの
-
----
+これらの機能は現在の seed_data.sql と seed_transaction_data.sql に統合されています。
 
 ## ⚠️ 注意事項
 
-1. **setup/** のスクリプトは本番環境でも使用されるため、慎重に変更してください
-2. **dev/** のスクリプトは自由に作成・変更可能ですが、setup/ のスクリプトに依存させないでください
-3. **legacy/** のファイルは新規開発では使用しないでください
-4. 新しいスクリプトを作成した際は、このREADME.mdも更新してください
+- **本番環境での実行前に必ずバックアップを取ってください**
+- seed_transaction_data.sqlはサイズが大きいため、実行に数分かかる場合があります
+- setup_fresh_db.mjsは既存データをすべて削除するため、開発環境以外では使用しないでください

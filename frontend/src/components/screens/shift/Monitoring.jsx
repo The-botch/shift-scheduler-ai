@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { Button } from '../ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
+import { Button } from '../../ui/button'
 import {
   Users,
   Clock,
@@ -19,10 +19,10 @@ import {
   LayoutGrid,
   Table,
 } from 'lucide-react'
-import ShiftTimeline from '../shared/ShiftTimeline'
-import StaffTimeTable from '../shared/StaffTimeTable'
+import ShiftTimeline from '../../shared/ShiftTimeline'
+import StaffTimeTable from '../../shared/StaffTimeTable'
 import { AnimatePresence } from 'framer-motion'
-import { useTenant } from '../../contexts/TenantContext'
+import { useTenant } from '../../../contexts/TenantContext'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },

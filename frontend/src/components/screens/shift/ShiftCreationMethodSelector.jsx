@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
-import { Card, CardContent } from '../ui/card'
-import { Button } from '../ui/button'
+import { Card, CardContent } from '../../ui/card'
+import { Button } from '../../ui/button'
 import { ArrowLeft, Sparkles, Upload, Edit } from 'lucide-react'
 
 const pageVariants = {

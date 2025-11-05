@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { Button } from '../ui/button'
+import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
+import { Button } from '../../ui/button'
 import {
   Calendar,
   Plus,
@@ -14,7 +14,7 @@ import {
   Copy,
   X,
 } from 'lucide-react'
-import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
+import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import History from './History'
 
 const shiftRepository = new ShiftRepository()

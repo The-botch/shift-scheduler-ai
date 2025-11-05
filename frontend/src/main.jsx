@@ -16,12 +16,12 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
-        {/* 管理者画面（既存） */}
-        <Route path="/*" element={<App />} />
-
         {/* LINE LIFF画面（スタッフ用） */}
         <Route path="/liff/login" element={<LiffLogin />} />
         <Route path="/staff/shift-input" element={<StaffShiftInput />} />
+
+        {/* 管理者画面（既存） - 最後に配置してすべてをキャッチ */}
+        <Route path="*" element={<App />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>
