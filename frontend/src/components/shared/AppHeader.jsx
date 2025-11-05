@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react'
 import { useTenant } from '../../contexts/TenantContext'
+import { BACKEND_API_URL } from '../../config/api'
 
 const AppHeader = ({
   onHome,
@@ -50,8 +51,7 @@ const AppHeader = ({
   useEffect(() => {
     const fetchHealthInfo = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_BACKEND_API_URL || 'http://localhost:3001'
-        const response = await fetch(`${apiUrl}/api/health`)
+        const response = await fetch(`${BACKEND_API_URL}/api/health`)
         const data = await response.json()
 
         if (data.success) {
@@ -60,8 +60,8 @@ const AppHeader = ({
         }
       } catch (error) {
         console.error('Failed to fetch health info:', error)
-        setBackendEnv('UNKNOWN')
-        setDbEnv('UNKNOWN')
+        setBackendEnv('ERROR')
+        setDbEnv('ERROR')
       }
     }
 
