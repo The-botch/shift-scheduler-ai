@@ -7,6 +7,18 @@ import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
  * History, DraftShiftEditor, SecondPlanEditorで使用
  */
 const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => {
+  // calendarDataがnullの場合は空の状態を表示
+  if (!calendarData) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center p-8">
+        <div className="text-gray-500 text-center">
+          <p className="text-lg mb-2">カレンダーデータがありません</p>
+          <p className="text-sm">スタッフ別表示をご利用ください</p>
+        </div>
+      </div>
+    )
+  }
+
   const { daysInMonth, firstDay, shiftsByDate } = calendarData
   const weekDays = ['日', '月', '火', '水', '木', '金', '土']
 
