@@ -1951,7 +1951,7 @@ const MasterDataManagement = ({ onPrev }) => {
   const selectedMasterType = masterTypes.find(t => t.id === selectedMaster)
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-8">
+    <div className="min-h-screen bg-slate-50 pt-20">
       <motion.div
         initial="initial"
         animate="in"

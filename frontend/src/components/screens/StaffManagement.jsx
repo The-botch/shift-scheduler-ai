@@ -1140,7 +1140,7 @@ const StaffManagement = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-8">
+    <div className="min-h-screen bg-slate-50 pt-20">
       <div className="app-container">
         <div className="h-[calc(100vh-180px)]">
           <motion.div

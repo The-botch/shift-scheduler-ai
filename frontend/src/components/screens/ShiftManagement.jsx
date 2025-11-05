@@ -393,7 +393,7 @@ const ShiftManagement = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-8">
+    <div className="min-h-screen bg-slate-50 pt-20">
       <motion.div
         initial="initial"
         animate="in"
