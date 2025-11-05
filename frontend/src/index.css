@@ -192,12 +192,63 @@ body {
    レスポンシブ対応
    =================================== */
 
-@media (max-width: 768px) {
+/* モバイル (〜640px) */
+@media (max-width: 640px) {
   .app-container {
-    @apply px-3 py-4;
+    @apply px-2 py-3;
   }
 
   .app-card-content {
-    @apply p-4;
+    @apply p-3;
+  }
+
+  .app-card-header {
+    @apply p-3;
+  }
+
+  /* テーブルをスクロール可能に */
+  .app-table-container {
+    @apply overflow-x-auto;
+  }
+
+  /* ボタンのサイズ調整 */
+  .app-button-primary,
+  .app-button-secondary {
+    @apply text-sm px-3 py-1.5;
+  }
+}
+
+/* タブレット (641px〜1024px) */
+@media (min-width: 641px) and (max-width: 1024px) {
+  .app-container {
+    @apply px-4 py-5;
+  }
+
+  .app-card-content {
+    @apply p-5;
+  }
+}
+
+/* グリッドレイアウトのレスポンシブ対応 */
+.app-grid-responsive {
+  @apply grid gap-4;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+@media (max-width: 640px) {
+  .app-grid-responsive {
+    @apply gap-3;
+    grid-template-columns: 1fr;
+  }
+}
+
+/* フレックスレイアウトのレスポンシブ対応 */
+.app-flex-responsive {
+  @apply flex flex-wrap gap-4;
+}
+
+@media (max-width: 640px) {
+  .app-flex-responsive {
+    @apply gap-3;
   }
 }

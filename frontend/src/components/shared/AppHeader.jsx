@@ -14,6 +14,8 @@ import {
   Building2,
   Database,
   BookOpen,
+  Menu,
+  X,
 } from 'lucide-react'
 import { useTenant } from '../../contexts/TenantContext'
 
@@ -31,6 +33,7 @@ const AppHeader = ({
   onTenantSettings,
 }) => {
   const [currentTime, setCurrentTime] = useState(new Date())
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const { tenantId, tenantName, changeTenant, availableTenants, loading } = useTenant()
 
   useEffect(() => {
@@ -60,26 +63,39 @@ const AppHeader = ({
     return `${year}年${month}月${day}日（${weekday}）`
   }
 
+  const menuItems = [
+    { label: 'LINE', icon: MessageSquare, onClick: onLineMessages, show: !!onLineMessages },
+    { label: 'スタッフ管理', icon: Users, onClick: onStaffManagement, show: !!onStaffManagement },
+    { label: '店舗管理', icon: Store, onClick: onStoreManagement, show: !!onStoreManagement },
+    { label: '予実管理', icon: TrendingUp, onClick: onBudgetActualManagement, show: !!onBudgetActualManagement },
+    { label: 'マスター管理', icon: Database, onClick: onMasterDataManagement, show: !!onMasterDataManagement },
+  ].filter(item => item.show)
+
+  const handleMenuItemClick = (onClick) => {
+    onClick()
+    setIsMobileMenuOpen(false)
+  }
+
   return (
     <header className="app-header">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-16">
           {/* 左側：ロゴ/ホームボタン */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4">
             <button
               onClick={onHome}
               className="app-logo"
             >
               <BarChart3 className="h-6 w-6 text-slate-700" />
-              <span className="font-bold text-lg text-slate-900">Shift Scheduler</span>
+              <span className="font-bold text-base md:text-lg text-slate-900 hidden sm:inline">Shift Scheduler</span>
             </button>
-            <div className="text-xs text-slate-500 flex items-center gap-1">
+            <div className="text-xs text-slate-500 items-center gap-1 hidden sm:flex">
               <CalendarIcon className="h-3 w-3" />
               {formatDate(currentTime)}
             </div>
             {/* テナント切り替え */}
             {!loading && availableTenants.length > 0 && (
-              <div className="flex items-center gap-2 ml-4 px-3 py-1.5 bg-slate-50 rounded-md border border-slate-200">
+              <div className="flex items-center gap-2 px-2 md:px-3 py-1.5 bg-slate-50 rounded-md border border-slate-200">
                 <Building2 className="h-4 w-4 text-slate-600" />
                 <select
                   value={tenantId}
@@ -96,60 +112,57 @@ const AppHeader = ({
             )}
           </div>
 
-          {/* 右側：ナビゲーションメニュー */}
-          <nav className="flex items-center gap-2">
-            {onLineMessages && (
-              <Button variant="ghost" size="sm" onClick={onLineMessages} className="text-slate-700">
-                <MessageSquare className="h-4 w-4 mr-1.5" />
-                LINE
-              </Button>
-            )}
-            {onStaffManagement && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onStaffManagement}
-                className="text-slate-700"
-              >
-                <Users className="h-4 w-4 mr-1.5" />
-                スタッフ管理
-              </Button>
-            )}
-            {onStoreManagement && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onStoreManagement}
-                className="text-slate-700"
-              >
-                <Store className="h-4 w-4 mr-1.5" />
-                店舗管理
-              </Button>
-            )}
-            {onBudgetActualManagement && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onBudgetActualManagement}
-                className="text-slate-700"
-              >
-                <TrendingUp className="h-4 w-4 mr-1.5" />
-                予実管理
-              </Button>
-            )}
-            {onMasterDataManagement && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={onMasterDataManagement}
-                className="text-slate-700"
-              >
-                <Database className="h-4 w-4 mr-1.5" />
-                マスター管理
-              </Button>
-            )}
+          {/* デスクトップナビゲーション */}
+          <nav className="hidden lg:flex items-center gap-2">
+            {menuItems.map((item, index) => {
+              const Icon = item.icon
+              return (
+                <Button
+                  key={index}
+                  variant="ghost"
+                  size="sm"
+                  onClick={item.onClick}
+                  className="text-slate-700"
+                >
+                  <Icon className="h-4 w-4 mr-1.5" />
+                  {item.label}
+                </Button>
+              )
+            })}
           </nav>
+
+          {/* モバイルハンバーガーメニュー */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className="lg:hidden p-2 rounded-lg hover:bg-slate-100 transition-colors"
+            aria-label="メニュー"
+          >
+            {isMobileMenuOpen ? (
+              <X className="h-6 w-6 text-slate-700" />
+            ) : (
+              <Menu className="h-6 w-6 text-slate-700" />
+            )}
+          </button>
         </div>
+
+        {/* モバイルメニュー */}
+        {isMobileMenuOpen && (
+          <div className="lg:hidden border-t border-slate-200 py-4 space-y-2">
+            {menuItems.map((item, index) => {
+              const Icon = item.icon
+              return (
+                <button
+                  key={index}
+                  onClick={() => handleMenuItemClick(item.onClick)}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
+                >
+                  <Icon className="h-5 w-5" />
+                  <span className="font-medium">{item.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </div>
     </header>
   )
