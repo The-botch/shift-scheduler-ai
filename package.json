@@ -4,7 +4,8 @@
   "description": "AI-powered shift scheduler with multi-tenant support",
   "type": "module",
   "scripts": {
-    "start": "node backend/src/server.js",
+    "start": "cd backend && node src/server.js",
+    "postinstall": "cd backend && npm install",
     "install:backend": "cd backend && npm install",
     "test:db": "node scripts/test_db_connection.mjs",
     "test:schema": "node scripts/test_schema_crud.mjs",
