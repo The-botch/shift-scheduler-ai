@@ -3,7 +3,8 @@
  * localStorage を使用してテナントIDを保存・取得
  */
 
-const TENANT_KEY = 'current_tenant_id'
+// TenantContextと統一するため、キー名を'tenantId'に変更
+const TENANT_KEY = 'tenantId'
 const DEFAULT_TENANT_ID = 3 // デフォルトはバインミー (tenant_id=3)
 
 /**
