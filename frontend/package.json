@@ -1,5 +1,5 @@
 {
-  "name": "shift-management-mvp",
+  "name": "shift-scheduler-ai",
   "private": false,
   "version": "1.0.0",
   "type": "module",
@@ -14,13 +14,13 @@
   ],
   "author": "Manus Team",
   "license": "MIT",
-  "homepage": "https://github.com/username/shift-management-mvp#readme",
+  "homepage": "https://github.com/The-botch/shift-scheduler-ai#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/username/shift-management-mvp.git"
+    "url": "git+https://github.com/The-botch/shift-scheduler-ai.git"
   },
   "bugs": {
-    "url": "https://github.com/username/shift-management-mvp/issues"
+    "url": "https://github.com/The-botch/shift-scheduler-ai/issues"
   },
   "scripts": {
     "dev": "vite",
