@@ -318,7 +318,7 @@ const StaffManagement = ({
                   <Users className="h-5 w-5 text-blue-600" />
                   基本情報
                 </h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                   <div>
                     <div className="text-gray-600">フリガナ</div>
                     <div className="font-medium">{selectedStaff.name_kana}</div>
@@ -416,8 +416,8 @@ const StaffManagement = ({
                   福利厚生・その他情報
                 </h3>
                 <Card className="border-2 border-indigo-200 bg-indigo-50">
-                  <CardContent className="p-4">
-                    <div className="grid grid-cols-3 gap-4">
+                  <CardContent className="p-4 md:p-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                       <div>
                         <div className="text-sm text-gray-600 mb-1">社会保険</div>
                         <div
@@ -492,9 +492,9 @@ const StaffManagement = ({
                     return (
                       <div>
                         {/* サマリー（実績） */}
-                        <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
                           <Card className="bg-blue-50 border-blue-200">
-                            <CardContent className="p-4 text-center">
+                            <CardContent className="p-4 md:p-3 text-center">
                               <div className="text-sm text-blue-700 mb-1">総勤務日数</div>
                               <div className="text-3xl font-bold text-blue-800">
                                 {staffPerformance[selectedStaff.name].totalDays}日
@@ -506,7 +506,7 @@ const StaffManagement = ({
                             </CardContent>
                           </Card>
                           <Card className="bg-purple-50 border-purple-200">
-                            <CardContent className="p-4 text-center">
+                            <CardContent className="p-4 md:p-3 text-center">
                               <div className="text-sm text-purple-700 mb-1">総労働時間</div>
                               <div className="text-3xl font-bold text-purple-800">
                                 {staffPerformance[selectedStaff.name].totalHours.toFixed(1)}h
@@ -522,7 +522,7 @@ const StaffManagement = ({
                             </CardContent>
                           </Card>
                           <Card className="bg-green-50 border-green-200">
-                            <CardContent className="p-4 text-center">
+                            <CardContent className="p-4 md:p-3 text-center">
                               <div className="text-sm text-green-700 mb-1">総給与</div>
                               <div className="text-2xl font-bold text-green-800">
                                 ¥{totalWage.toLocaleString()}
@@ -592,20 +592,21 @@ const StaffManagement = ({
                         {/* 月別実績サマリー */}
                         <div className="mb-4">
                           <h4 className="text-sm font-bold text-gray-700 mb-2">月別実績</h4>
-                          <div className="max-h-60 overflow-y-auto border rounded-lg">
-                            <table className="min-w-full text-sm">
-                              <thead className="bg-gray-50 sticky top-0">
-                                <tr>
-                                  <th className="px-3 py-2 text-left text-xs font-semibold text-gray-600">
+                          <div className="overflow-x-auto">
+                            <div className="max-h-60 overflow-y-auto border rounded-lg">
+                              <table className="min-w-full text-sm">
+                                <thead className="bg-gray-50 sticky top-0">
+                                  <tr>
+                                    <th className="px-3 py-2 text-left text-sm md:text-xs font-semibold text-gray-600">
                                     年月
                                   </th>
-                                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
+                                  <th className="px-3 py-2 text-right text-sm md:text-xs font-semibold text-gray-600">
                                     勤務日数
                                   </th>
-                                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
+                                  <th className="px-3 py-2 text-right text-sm md:text-xs font-semibold text-gray-600">
                                     総時間
                                   </th>
-                                  <th className="px-3 py-2 text-right text-xs font-semibold text-gray-600">
+                                  <th className="px-3 py-2 text-right text-sm md:text-xs font-semibold text-gray-600">
                                     給与
                                   </th>
                                 </tr>
@@ -642,6 +643,7 @@ const StaffManagement = ({
                                   })}
                               </tbody>
                             </table>
+                            </div>
                           </div>
                         </div>
 
@@ -702,8 +704,8 @@ const StaffManagement = ({
                                   年間予測労働
                                 </h3>
                                 <Card className="bg-gradient-to-br from-purple-50 to-pink-50 border-2 border-purple-200">
-                                  <CardContent className="p-4">
-                                    <div className="grid grid-cols-3 gap-4 mb-3">
+                                  <CardContent className="p-4 md:p-3">
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-3">
                                       <div className="text-center">
                                         <div className="text-xs text-purple-600 mb-1">月平均</div>
                                         <div className="text-sm font-bold text-purple-800">
@@ -945,7 +947,7 @@ const StaffManagement = ({
                               </h3>
                               <Card className="bg-gradient-to-br from-green-50 to-blue-50 border-2 border-green-200">
                                 <CardContent className="p-6">
-                                  <div className="grid grid-cols-2 gap-6">
+                                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                     {/* 支給 */}
                                     <div>
                                       <h4 className="font-bold text-green-800 mb-3 border-b-2 border-green-300 pb-2">
@@ -1074,7 +1076,7 @@ const StaffManagement = ({
                                   </div>
 
                                   {/* 勤務情報 */}
-                                  <div className="mt-4 pt-4 border-t border-gray-300 grid grid-cols-2 gap-4 text-sm text-gray-600">
+                                  <div className="mt-4 pt-4 border-t border-gray-300 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm text-gray-600">
                                     <div>
                                       予測勤務日数:{' '}
                                       <span className="font-bold">
@@ -1151,24 +1153,6 @@ const StaffManagement = ({
                 <div className="flex items-center gap-3">
                   <Users className="h-8 w-8" />
                   <CardTitle className="text-2xl">スタッフ管理</CardTitle>
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    onClick={() => setShowMasters(!showMasters)}
-                    className="bg-white text-blue-700 hover:bg-gray-100"
-                  >
-                    <Edit3 className="h-4 w-4 mr-2" />
-                    マスター編集
-                  </Button>
-                  <CSVActions
-                    data={staffList}
-                    filename="staff"
-                    onImport={setStaffList}
-                    validateFunction={validateStaffCSV}
-                    importConfirmMessage="既存のスタッフデータを上書きします。よろしいですか？"
-                  />
                 </div>
               </div>
             </CardHeader>
@@ -1303,41 +1287,41 @@ const StaffManagement = ({
                       </CardContent>
                     </Card>
                   ) : (
-                    <div className="overflow-x-auto w-full">
+                    <div className="overflow-x-auto">
                       <table className="min-w-full bg-white border border-gray-200 table-auto">
                         <thead className="bg-gray-50">
                           <tr>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                               スタッフコード
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                               氏名
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                               フリガナ
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                               役職
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                               雇用形態
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                               デフォルト店舗
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                               入社日
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                               スキルレベル
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                               週最大時間
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                               LINE連携
                             </th>
-                            <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b">
+                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                               状態
                             </th>
                           </tr>

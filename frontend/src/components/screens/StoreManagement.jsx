@@ -156,7 +156,7 @@ const StoreManagement = ({
                             className="border-2 border-green-200 hover:border-green-400 hover:shadow-lg transition-all cursor-pointer"
                             onClick={() => setSelectedStoreId(store.store_id)}
                           >
-                            <CardContent className="p-5">
+                            <CardContent className="p-4 md:p-5">
                               <div className="flex items-center justify-between">
                                 <div className="flex-1">
                                   <div className="flex items-center gap-3 mb-2">
@@ -164,7 +164,7 @@ const StoreManagement = ({
                                     <h3 className="text-xl font-bold text-gray-800">
                                       {store.store_name}
                                     </h3>
-                                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-xs font-mono rounded">
+                                    <span className="px-2 py-1 bg-gray-100 text-gray-700 text-sm md:text-xs font-mono rounded">
                                       {store.store_code}
                                     </span>
                                   </div>
@@ -185,7 +185,7 @@ const StoreManagement = ({
                                     </div>
                                   </div>
                                   <div className="flex gap-2 mt-2 ml-8">
-                                    <span className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded">
+                                    <span className="px-2 py-1 bg-green-100 text-green-700 text-sm md:text-xs rounded">
                                       制約条件: {storeConstraints.length}件
                                     </span>
                                   </div>
@@ -270,13 +270,13 @@ const StoreManagement = ({
                                 key={constraint.constraint_id}
                                 className="border hover:shadow-md transition-shadow"
                               >
-                                <CardContent className="p-4">
+                                <CardContent className="p-4 md:p-4">
                                   <div className="flex items-start justify-between mb-2">
                                     <div className="font-semibold text-gray-800">
                                       {constraint.constraint_type}
                                     </div>
                                     <span
-                                      className={`px-2 py-1 rounded-full text-xs ${getPriorityBadge(constraint.priority)}`}
+                                      className={`px-2 py-1 rounded-full text-sm md:text-xs ${getPriorityBadge(constraint.priority)}`}
                                     >
                                       {constraint.priority}
                                     </span>
@@ -284,7 +284,7 @@ const StoreManagement = ({
                                   <div className="text-sm text-gray-600 mb-2">
                                     {formatConstraintValue(constraint)}
                                   </div>
-                                  <div className="text-xs text-gray-500">
+                                  <div className="text-sm md:text-xs text-gray-500">
                                     {constraint.description}
                                   </div>
                                 </CardContent>
@@ -309,7 +309,7 @@ const StoreManagement = ({
                                 key={type.employment_type_id}
                                 className="border-2 border-purple-200 hover:shadow-md transition-shadow"
                               >
-                                <CardContent className="p-4">
+                                <CardContent className="p-4 md:p-4">
                                   <div className="font-bold text-gray-800 mb-2">
                                     {type.employment_name}
                                   </div>
@@ -318,7 +318,7 @@ const StoreManagement = ({
                                       <div className="text-2xl font-bold text-purple-600 mb-1">
                                         月{requirement.min_days}日以上
                                       </div>
-                                      <div className="text-xs text-gray-500">
+                                      <div className="text-sm md:text-xs text-gray-500">
                                         {requirement.description}
                                       </div>
                                     </>

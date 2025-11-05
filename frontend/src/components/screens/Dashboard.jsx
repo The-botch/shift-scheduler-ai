@@ -458,50 +458,50 @@ const Dashboard = ({
                     </span>
                   </div>
                   {annualSummary.salesMonthsCount > 0 ? (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                      <div className="bg-white border border-slate-200 rounded-lg p-3">
-                        <p className="text-xs font-medium text-slate-600 mb-1">売上</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      <div className="bg-white border border-slate-200 rounded-lg p-4">
+                        <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">売上</p>
                         <p
-                          className={`text-xl font-bold ${annualSummary.salesDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}
+                          className={`text-2xl md:text-xl font-bold ${annualSummary.salesDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}
                         >
                           {annualSummary.salesDiff > 0 ? '+' : ''}¥
                           {annualSummary.salesDiff.toLocaleString()}
                         </p>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-sm md:text-xs text-slate-500 mt-2">
                           ({annualSummary.salesDiffPercent > 0 ? '+' : ''}
                           {annualSummary.salesDiffPercent}%)
                         </p>
                       </div>
-                      <div className="bg-white border border-slate-200 rounded-lg p-3">
-                        <p className="text-xs font-medium text-slate-600 mb-1">人件費</p>
+                      <div className="bg-white border border-slate-200 rounded-lg p-4">
+                        <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">人件費</p>
                         <p
-                          className={`text-xl font-bold ${annualSummary.costDiff > 0 ? 'text-red-600' : 'text-blue-600'}`}
+                          className={`text-2xl md:text-xl font-bold ${annualSummary.costDiff > 0 ? 'text-red-600' : 'text-blue-600'}`}
                         >
                           {annualSummary.costDiff > 0 ? '+' : ''}¥
                           {annualSummary.costDiff.toLocaleString()}
                         </p>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-sm md:text-xs text-slate-500 mt-2">
                           ({annualSummary.costDiffPercent > 0 ? '+' : ''}
                           {annualSummary.costDiffPercent}%)
                         </p>
                       </div>
-                      <div className="bg-white border border-slate-200 rounded-lg p-3">
-                        <p className="text-xs font-medium text-slate-600 mb-1">営業利益</p>
+                      <div className="bg-white border border-slate-200 rounded-lg p-4">
+                        <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">営業利益</p>
                         <p
-                          className={`text-xl font-bold ${annualSummary.profitDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}
+                          className={`text-2xl md:text-xl font-bold ${annualSummary.profitDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}
                         >
                           {annualSummary.profitDiff > 0 ? '+' : ''}¥
                           {annualSummary.profitDiff.toLocaleString()}
                         </p>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-sm md:text-xs text-slate-500 mt-2">
                           ({annualSummary.profitDiffPercent > 0 ? '+' : ''}
                           {annualSummary.profitDiffPercent}%)
                         </p>
                       </div>
-                      <div className="bg-white border border-slate-200 rounded-lg p-3">
-                        <p className="text-xs font-medium text-slate-600 mb-1">人件費率</p>
+                      <div className="bg-white border border-slate-200 rounded-lg p-4">
+                        <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">人件費率</p>
                         <p
-                          className={`text-xl font-bold ${(() => {
+                          className={`text-2xl md:text-xl font-bold ${(() => {
                             const plannedRate =
                               (annualSummary.plannedCost /
                                 ((annualSummary.forecastSales / 12) * annualSummary.monthsCount)) *
@@ -522,7 +522,7 @@ const Dashboard = ({
                             return `${diff > 0 ? '+' : ''}${diff.toFixed(1)}pt`
                           })()}
                         </p>
-                        <p className="text-xs text-slate-500 mt-1">
+                        <p className="text-sm md:text-xs text-slate-500 mt-2">
                           実績{' '}
                           {(
                             (annualSummary.actualCost / annualSummary.actualSalesTotal) *
@@ -609,61 +609,61 @@ const Dashboard = ({
                           const laborRateDiff = forecastLaborRate - plannedLaborRate
 
                           return (
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                              <div className="bg-white border border-slate-200 rounded-lg p-3">
-                                <p className="text-xs font-medium text-slate-600 mb-1">
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                              <div className="bg-white border border-slate-200 rounded-lg p-4">
+                                <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">
                                   売上（年間）
                                 </p>
-                                <p className="text-xl font-bold text-slate-900">
+                                <p className="text-2xl md:text-xl font-bold text-slate-900">
                                   ¥{totalSales.toLocaleString()}
                                 </p>
                                 <p
-                                  className={`text-xs mt-1 ${salesDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}
+                                  className={`text-sm md:text-xs mt-2 ${salesDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}
                                 >
                                   予定比 {salesDiff > 0 ? '+' : ''}¥{salesDiff.toLocaleString()} (
                                   {salesDiffPercent > 0 ? '+' : ''}
                                   {salesDiffPercent}%)
                                 </p>
                               </div>
-                              <div className="bg-white border border-slate-200 rounded-lg p-3">
-                                <p className="text-xs font-medium text-slate-600 mb-1">
+                              <div className="bg-white border border-slate-200 rounded-lg p-4">
+                                <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">
                                   人件費（年間）
                                 </p>
-                                <p className="text-xl font-bold text-slate-900">
+                                <p className="text-2xl md:text-xl font-bold text-slate-900">
                                   ¥{totalCost.toLocaleString()}
                                 </p>
                                 <p
-                                  className={`text-xs mt-1 ${costDiff > 0 ? 'text-red-600' : 'text-blue-600'}`}
+                                  className={`text-sm md:text-xs mt-2 ${costDiff > 0 ? 'text-red-600' : 'text-blue-600'}`}
                                 >
                                   予定比 {costDiff > 0 ? '+' : ''}¥{costDiff.toLocaleString()} (
                                   {costDiffPercent > 0 ? '+' : ''}
                                   {costDiffPercent}%)
                                 </p>
                               </div>
-                              <div className="bg-white border border-slate-200 rounded-lg p-3">
-                                <p className="text-xs font-medium text-slate-600 mb-1">
+                              <div className="bg-white border border-slate-200 rounded-lg p-4">
+                                <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">
                                   営業利益（年間）
                                 </p>
-                                <p className="text-xl font-bold text-slate-900">
+                                <p className="text-2xl md:text-xl font-bold text-slate-900">
                                   ¥{totalProfit.toLocaleString()}
                                 </p>
                                 <p
-                                  className={`text-xs mt-1 ${profitDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}
+                                  className={`text-sm md:text-xs mt-2 ${profitDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}
                                 >
                                   予定比 {profitDiff > 0 ? '+' : ''}¥{profitDiff.toLocaleString()} (
                                   {profitDiffPercent > 0 ? '+' : ''}
                                   {profitDiffPercent}%)
                                 </p>
                               </div>
-                              <div className="bg-white border border-slate-200 rounded-lg p-3">
-                                <p className="text-xs font-medium text-slate-600 mb-1">
+                              <div className="bg-white border border-slate-200 rounded-lg p-4">
+                                <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">
                                   人件費率（見込）
                                 </p>
-                                <p className="text-xl font-bold text-slate-900">
+                                <p className="text-2xl md:text-xl font-bold text-slate-900">
                                   {forecastLaborRate.toFixed(1)}%
                                 </p>
                                 <p
-                                  className={`text-xs mt-1 ${laborRateDiff < 0 ? 'text-blue-600' : 'text-red-600'}`}
+                                  className={`text-sm md:text-xs mt-2 ${laborRateDiff < 0 ? 'text-blue-600' : 'text-red-600'}`}
                                 >
                                   予定比 {laborRateDiff > 0 ? '+' : ''}
                                   {laborRateDiff.toFixed(1)}pt
@@ -703,8 +703,8 @@ const Dashboard = ({
                   </CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="p-6">
-                <ResponsiveContainer width="100%" height={300}>
+              <CardContent className="p-4 md:p-6">
+                <ResponsiveContainer width="100%" height={350}>
                   <AreaChart data={monthlyData}>
                     <defs>
                       <linearGradient id="colorForecast" x1="0" y1="0" x2="0" y2="1">
@@ -764,8 +764,8 @@ const Dashboard = ({
                   </CardTitle>
                 </div>
               </CardHeader>
-              <CardContent className="p-6">
-                <ResponsiveContainer width="100%" height={300}>
+              <CardContent className="p-4 md:p-6">
+                <ResponsiveContainer width="100%" height={350}>
                   <BarChart data={monthlyData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                     <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '12px' }} />
@@ -801,7 +801,7 @@ const Dashboard = ({
             </Card>
 
             {/* 利益推移と人件費率の2段グラフ */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* 利益推移グラフ */}
               <Card className="border border-slate-200 shadow-sm">
                 <CardHeader className="bg-white border-b border-slate-200">
@@ -812,8 +812,8 @@ const Dashboard = ({
                     </CardTitle>
                   </div>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <ResponsiveContainer width="100%" height={280}>
+                <CardContent className="p-4 md:p-6">
+                  <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={monthlyData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '11px' }} />
@@ -865,8 +865,8 @@ const Dashboard = ({
                     </CardTitle>
                   </div>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <ResponsiveContainer width="100%" height={280}>
+                <CardContent className="p-4 md:p-6">
+                  <ResponsiveContainer width="100%" height={300}>
                     <LineChart data={monthlyData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="month" stroke="#64748b" style={{ fontSize: '11px' }} />

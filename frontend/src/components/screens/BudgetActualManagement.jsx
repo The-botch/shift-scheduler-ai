@@ -1110,9 +1110,9 @@ const BudgetActualManagement = ({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-                  <div className="bg-white p-4 rounded-lg">
-                    <p className="text-xs text-gray-600 mb-1">シフト数</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="bg-white p-4 md:p-4 rounded-lg">
+                    <p className="text-sm md:text-xs text-gray-600 mb-1">シフト数</p>
                     <p className="text-sm">
                       予定: <span className="font-bold">{diffAnalysis.summary.plannedShifts}</span>
                     </p>
@@ -1126,8 +1126,8 @@ const BudgetActualManagement = ({
                       {diffAnalysis.summary.shiftCountDiff}
                     </p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg">
-                    <p className="text-xs text-gray-600 mb-1">総労働時間</p>
+                  <div className="bg-white p-4 md:p-4 rounded-lg">
+                    <p className="text-sm md:text-xs text-gray-600 mb-1">総労働時間</p>
                     <p className="text-sm">
                       予定:{' '}
                       <span className="font-bold">
@@ -1147,8 +1147,8 @@ const BudgetActualManagement = ({
                       {diffAnalysis.summary.hoursDiff.toFixed(1)}h
                     </p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg">
-                    <p className="text-xs text-gray-600 mb-1">人件費</p>
+                  <div className="bg-white p-4 md:p-4 rounded-lg">
+                    <p className="text-sm md:text-xs text-gray-600 mb-1">人件費</p>
                     <p className="text-sm">
                       予定:{' '}
                       <span className="font-bold">
@@ -1168,8 +1168,8 @@ const BudgetActualManagement = ({
                       {diffAnalysis.summary.costDiff.toLocaleString()}
                     </p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg">
-                    <p className="text-xs text-gray-600 mb-1">売上</p>
+                  <div className="bg-white p-4 md:p-4 rounded-lg">
+                    <p className="text-sm md:text-xs text-gray-600 mb-1">売上</p>
                     <p className="text-sm">
                       予測:{' '}
                       <span className="font-bold">
@@ -1189,8 +1189,8 @@ const BudgetActualManagement = ({
                       {diffAnalysis.summary.salesDiff.toLocaleString()}
                     </p>
                   </div>
-                  <div className="bg-white p-4 rounded-lg">
-                    <p className="text-xs text-gray-600 mb-1">利益</p>
+                  <div className="bg-white p-4 md:p-4 rounded-lg">
+                    <p className="text-sm md:text-xs text-gray-600 mb-1">利益</p>
                     <p className="text-sm">
                       予定:{' '}
                       <span className="font-bold">
@@ -1223,7 +1223,7 @@ const BudgetActualManagement = ({
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                   {Object.values(diffAnalysis.staffAnalysis).map((staff, index) => (
                     <motion.div
                       key={staff.staff_name}
@@ -1234,7 +1234,7 @@ const BudgetActualManagement = ({
                       <Card
                         className={`border-2 ${Math.abs(staff.hoursDiff) > 3 ? 'border-orange-400 bg-orange-50' : 'border-gray-200'}`}
                       >
-                        <CardContent className="p-4">
+                        <CardContent className="p-4 md:p-4">
                           <h4 className="font-bold text-md mb-3">{staff.staff_name}</h4>
                           <div className="space-y-2 text-sm">
                             <div className="flex justify-between">
@@ -1407,7 +1407,7 @@ const BudgetActualManagement = ({
           </div>
 
           {/* インポートセクション */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
             {/* 労働時間実績 */}
             <Card>
               <CardHeader>
@@ -1435,19 +1435,19 @@ const BudgetActualManagement = ({
                 </div>
 
                 {workHoursFile && (
-                  <div className="bg-blue-50 p-3 rounded-lg">
+                  <div className="bg-blue-50 p-4 md:p-3 rounded-lg">
                     <p className="text-sm font-medium text-blue-900">{workHoursFile.name}</p>
-                    <p className="text-xs text-blue-700 mt-1">{workHoursData.length}件のレコード</p>
+                    <p className="text-sm md:text-xs text-blue-700 mt-1">{workHoursData.length}件のレコード</p>
                   </div>
                 )}
 
                 {workHoursPreview.length > 0 && (
                   <div className="border rounded-lg overflow-hidden">
                     <div className="bg-gray-50 px-3 py-2 border-b">
-                      <p className="text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
+                      <p className="text-sm md:text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
                     </div>
                     <div className="overflow-x-auto max-h-48">
-                      <table className="w-full text-xs">
+                      <table className="w-full text-sm md:text-xs">
                         <thead className="bg-gray-100">
                           <tr>
                             <th className="px-2 py-1 text-left">スタッフ名</th>
@@ -1516,19 +1516,19 @@ const BudgetActualManagement = ({
                 </div>
 
                 {payrollFile && (
-                  <div className="bg-green-50 p-3 rounded-lg">
+                  <div className="bg-green-50 p-4 md:p-3 rounded-lg">
                     <p className="text-sm font-medium text-green-900">{payrollFile.name}</p>
-                    <p className="text-xs text-green-700 mt-1">{payrollData.length}件のレコード</p>
+                    <p className="text-sm md:text-xs text-green-700 mt-1">{payrollData.length}件のレコード</p>
                   </div>
                 )}
 
                 {payrollPreview.length > 0 && (
                   <div className="border rounded-lg overflow-hidden">
                     <div className="bg-gray-50 px-3 py-2 border-b">
-                      <p className="text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
+                      <p className="text-sm md:text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
                     </div>
                     <div className="overflow-x-auto max-h-48">
-                      <table className="w-full text-xs">
+                      <table className="w-full text-sm md:text-xs">
                         <thead className="bg-gray-100">
                           <tr>
                             <th className="px-2 py-1 text-left">スタッフ名</th>
@@ -1599,9 +1599,9 @@ const BudgetActualManagement = ({
                 </div>
 
                 {salesActualFile && (
-                  <div className="bg-purple-50 p-3 rounded-lg">
+                  <div className="bg-purple-50 p-4 md:p-3 rounded-lg">
                     <p className="text-sm font-medium text-purple-900">{salesActualFile.name}</p>
-                    <p className="text-xs text-purple-700 mt-1">
+                    <p className="text-sm md:text-xs text-purple-700 mt-1">
                       {salesActualData.length}件のレコード
                     </p>
                   </div>
@@ -1610,10 +1610,10 @@ const BudgetActualManagement = ({
                 {salesActualPreview.length > 0 && (
                   <div className="border rounded-lg overflow-hidden">
                     <div className="bg-gray-50 px-3 py-2 border-b">
-                      <p className="text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
+                      <p className="text-sm md:text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
                     </div>
                     <div className="overflow-x-auto max-h-48">
-                      <table className="w-full text-xs">
+                      <table className="w-full text-sm md:text-xs">
                         <thead className="bg-gray-100">
                           <tr>
                             <th className="px-2 py-1 text-left">年月</th>
@@ -1684,9 +1684,9 @@ const BudgetActualManagement = ({
                 </div>
 
                 {forecastFile && (
-                  <div className="bg-orange-50 p-3 rounded-lg">
+                  <div className="bg-orange-50 p-4 md:p-3 rounded-lg">
                     <p className="text-sm font-medium text-orange-900">{forecastFile.name}</p>
-                    <p className="text-xs text-orange-700 mt-1">
+                    <p className="text-sm md:text-xs text-orange-700 mt-1">
                       {forecastData.length}件のレコード
                     </p>
                   </div>
@@ -1695,10 +1695,10 @@ const BudgetActualManagement = ({
                 {forecastPreview.length > 0 && (
                   <div className="border rounded-lg overflow-hidden">
                     <div className="bg-gray-50 px-3 py-2 border-b">
-                      <p className="text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
+                      <p className="text-sm md:text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
                     </div>
                     <div className="overflow-x-auto max-h-48">
-                      <table className="w-full text-xs">
+                      <table className="w-full text-sm md:text-xs">
                         <thead className="bg-gray-100">
                           <tr>
                             <th className="px-2 py-1 text-left">年月</th>
@@ -2220,12 +2220,12 @@ const BudgetActualManagement = ({
               </p>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 {monthlyStatus.map(month => (
                   <div
                     key={month.month}
                     onClick={() => handleMonthClick(month)}
-                    className={`border rounded-lg p-3 text-center transition-all ${
+                    className={`border rounded-lg p-4 md:p-3 text-center transition-all ${
                       month.hasForecast &&
                       month.hasWorkHours &&
                       month.hasPayroll &&
@@ -2236,7 +2236,7 @@ const BudgetActualManagement = ({
                   >
                     <p className="font-bold text-lg mb-2">{month.month}月</p>
                     <div className="space-y-1">
-                      <div className="flex items-center justify-center gap-1 text-xs">
+                      <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
                         {month.hasForecast ? (
                           <CheckCircle className="h-3 w-3 text-green-500" />
                         ) : (
@@ -2246,7 +2246,7 @@ const BudgetActualManagement = ({
                           予測 {month.forecastCount}件
                         </span>
                       </div>
-                      <div className="flex items-center justify-center gap-1 text-xs">
+                      <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
                         {month.hasWorkHours ? (
                           <CheckCircle className="h-3 w-3 text-green-500" />
                         ) : (
@@ -2256,7 +2256,7 @@ const BudgetActualManagement = ({
                           実績 {month.workHoursCount}件
                         </span>
                       </div>
-                      <div className="flex items-center justify-center gap-1 text-xs">
+                      <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
                         {month.hasPayroll ? (
                           <CheckCircle className="h-3 w-3 text-green-500" />
                         ) : (
@@ -2266,7 +2266,7 @@ const BudgetActualManagement = ({
                           給与 {month.payrollCount}件
                         </span>
                       </div>
-                      <div className="flex items-center justify-center gap-1 text-xs">
+                      <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
                         {month.hasSalesActual ? (
                           <CheckCircle className="h-3 w-3 text-green-500" />
                         ) : (
@@ -2282,7 +2282,7 @@ const BudgetActualManagement = ({
                       month.hasPayroll &&
                       month.hasSalesActual && (
                         <div className="mt-2 pt-2 border-t border-blue-200">
-                          <span className="text-xs text-blue-700 font-medium flex items-center justify-center gap-1">
+                          <span className="text-sm md:text-xs text-blue-700 font-medium flex items-center justify-center gap-1">
                             <TrendingUp className="h-3 w-3" />
                             差分を見る
                           </span>

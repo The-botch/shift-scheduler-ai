@@ -63,7 +63,7 @@ const ConstraintManagement = ({
     }
     const badge = badges[penalty] || badges.medium
     return (
-      <span className={`px-2 py-1 rounded-full text-xs ${badge.bg} ${badge.text}`}>
+      <span className={`px-2 py-1 rounded-full text-sm md:text-xs ${badge.bg} ${badge.text}`}>
         {badge.label}
       </span>
     )
@@ -207,7 +207,7 @@ const ConstraintManagement = ({
                         animate={{ opacity: 1, x: 0 }}
                       >
                         <Card className="border-2 hover:shadow-md transition-shadow">
-                          <CardContent className="p-5">
+                          <CardContent className="p-4 md:p-5">
                             <div className="flex items-start justify-between mb-3">
                               <div className="flex-1">
                                 <div className="flex items-center gap-2 mb-2">
@@ -216,7 +216,7 @@ const ConstraintManagement = ({
                                   </h4>
                                   {getPenaltyBadge(law.penalty_level)}
                                 </div>
-                                <div className="flex items-center gap-2 text-xs text-gray-500 mb-2">
+                                <div className="flex items-center gap-2 text-sm md:text-xs text-gray-500 mb-2">
                                   <BookOpen className="h-3 w-3" />
                                   <span>{law.legal_reference}</span>
                                   <span className="font-mono text-gray-400">({law.law_code})</span>
@@ -224,23 +224,23 @@ const ConstraintManagement = ({
                               </div>
                             </div>
 
-                            <div className="mb-3 p-3 bg-gray-50 rounded-lg">
-                              <div className="text-xs text-gray-500 mb-1">法的根拠</div>
+                            <div className="mb-3 p-4 md:p-3 bg-gray-50 rounded-lg">
+                              <div className="text-sm md:text-xs text-gray-500 mb-1">法的根拠</div>
                               <div className="text-sm text-gray-700">{law.description}</div>
                             </div>
 
                             <div className="mb-3">
-                              <div className="text-xs text-gray-500 mb-2">制約ルール</div>
+                              <div className="text-sm md:text-xs text-gray-500 mb-2">制約ルール</div>
                               {formatConstraintRule(law.constraint_rule)}
                             </div>
 
                             {law.is_active === 'TRUE' ? (
-                              <div className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-xs text-green-700">
+                              <div className="inline-flex items-center gap-1 px-2 py-1 bg-green-50 border border-green-200 rounded text-sm md:text-xs text-green-700">
                                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
                                 <span>有効</span>
                               </div>
                             ) : (
-                              <div className="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700">
+                              <div className="inline-flex items-center gap-1 px-2 py-1 bg-gray-50 border border-gray-200 rounded text-sm md:text-xs text-gray-700">
                                 <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                                 <span>無効</span>
                               </div>
@@ -260,7 +260,7 @@ const ConstraintManagement = ({
                     <AlertTriangle className="h-5 w-5 text-purple-600" />
                     <h4 className="font-bold text-purple-800">制約情報サマリー</h4>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm md:text-sm">
                     <div>
                       <div className="text-purple-600">総制約数</div>
                       <div className="text-2xl font-bold text-purple-800">{laborLaws.length}</div>
