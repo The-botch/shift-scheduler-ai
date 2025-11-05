@@ -58,6 +58,7 @@ const StaffTimeTable = ({
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
     return shiftData.find(
       shift =>
+        shift.shift_date &&
         shift.shift_date.startsWith(dateStr) &&
         parseInt(shift.staff_id) === parseInt(staffId)
     )

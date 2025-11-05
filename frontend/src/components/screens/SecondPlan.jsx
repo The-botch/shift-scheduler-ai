@@ -91,6 +91,7 @@ const SecondPlan = ({
   const [staffMap, setStaffMap] = useState({})
   const [rolesMap, setRolesMap] = useState({})
   const [firstPlanData, setFirstPlanData] = useState([])
+  const [firstPlanShifts, setFirstPlanShifts] = useState([]) // 第1案の生データ
 
   // 問題のある日付を定義
   const problematicDates = new Set([]) // 問題のある日付
@@ -210,16 +211,17 @@ const SecondPlan = ({
       setStaffMap(staffMapping)
 
       // 第1案のシフトデータを取得
-      const firstPlanShifts = await shiftRepository.getShifts({ planId })
-      console.log(`第1案シフト取得: ${firstPlanShifts.length}件`, firstPlanShifts.slice(0, 3))
+      const firstPlanShiftsData = await shiftRepository.getShifts({ planId })
+      console.log(`第1案シフト取得: ${firstPlanShiftsData.length}件`, firstPlanShiftsData.slice(0, 3))
 
       // バックエンドのデータをカレンダー表示用にフォーマット
-      const formattedData = formatShiftsForCalendar(firstPlanShifts, staffMapping, year, month)
+      const formattedData = formatShiftsForCalendar(firstPlanShiftsData, staffMapping, year, month)
       console.log(`フォーマット後のデータ: ${formattedData.length}日分`, formattedData.slice(0, 3))
 
       setFirstPlanData(formattedData)
+      setFirstPlanShifts(firstPlanShiftsData) // 第1案の生データを保存
       setShiftData(formattedData) // 初期表示は第1案（希望反映版として表示）
-      setCsvShifts(firstPlanShifts) // 元データも保存（詳細表示用）
+      setCsvShifts(firstPlanShiftsData) // 元データも保存（詳細表示用）
 
       // 希望シフトを取得
       const preferencesData = await shiftRepository.getPreferences({
@@ -1205,7 +1207,7 @@ const SecondPlan = ({
                 <ShiftViewEditor
                   year={selectedShift?.year || new Date().getFullYear()}
                   month={selectedShift?.month || new Date().getMonth() + 1}
-                  shiftData={firstPlanData}
+                  shiftData={firstPlanShifts}
                   staffMap={staffMap}
                   calendarData={null}
                   storeId={selectedShift?.storeId || selectedShift?.store_id}
@@ -1236,7 +1238,7 @@ const SecondPlan = ({
                   <ShiftViewEditor
                     year={selectedShift?.year || new Date().getFullYear()}
                     month={selectedShift?.month || new Date().getMonth() + 1}
-                    shiftData={firstPlanData}
+                    shiftData={firstPlanShifts}
                     staffMap={staffMap}
                     calendarData={null}
                     storeId={selectedShift?.storeId || selectedShift?.store_id}
