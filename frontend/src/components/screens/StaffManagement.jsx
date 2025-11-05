@@ -1142,24 +1142,26 @@ const StaffManagement = ({
   return (
     <div className="min-h-screen bg-slate-50 pt-8">
       <div className="app-container">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-        >
-          <Card className="shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Users className="h-8 w-8" />
-                  <CardTitle className="text-2xl">スタッフ管理</CardTitle>
+        <div className="h-[calc(100vh-180px)]">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="h-full"
+          >
+            <Card className="shadow-lg flex flex-col overflow-hidden h-full">
+              <CardHeader className="bg-gradient-to-r from-blue-600 to-blue-700 text-white flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Users className="h-8 w-8" />
+                    <CardTitle className="text-2xl">スタッフ管理</CardTitle>
+                  </div>
                 </div>
-              </div>
-            </CardHeader>
+              </CardHeader>
 
-            <CardContent className="p-0">
-              <div className="p-6">
-              {showMasters ? (
+              <CardContent className="p-0 flex-1 overflow-auto">
+                <div className="p-6">
+                {showMasters ? (
                 /* マスター編集セクション */
                 <>
                   {/* 役職一覧 */}
