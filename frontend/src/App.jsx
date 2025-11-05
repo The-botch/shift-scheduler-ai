@@ -27,6 +27,7 @@ import { Button } from './components/ui/button'
 import AppHeader from './components/shared/AppHeader'
 
 function AppContent() {
+  const { tenantId } = useTenant()
   const [currentStep, setCurrentStep] = useState(1)
   const [showStaffManagement, setShowStaffManagement] = useState(false)
   const [showStoreManagement, setShowStoreManagement] = useState(false)
@@ -429,7 +430,7 @@ function AppContent() {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            tenant_id: 1,
+            tenant_id: tenantId,
             store_id: storeId,
             target_year: year,
             target_month: month,
