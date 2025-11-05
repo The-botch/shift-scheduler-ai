@@ -2,12 +2,25 @@ import express from 'express'
 import fs from 'fs'
 import os from 'os'
 import path from 'path'
-import { openai, getOpenAIHeaders, OPENAI_API_BASE } from '../services/openaiService.js'
+import { openai, getOpenAIHeaders, OPENAI_API_BASE, isOpenAIAvailable } from '../services/openaiService.js'
 import { convertCSVToJSON, deleteTempFile } from '../services/fileService.js'
 import { appendLog } from '../utils/logger.js'
 import { query } from '../config/database.js'
 
 const router = express.Router()
+
+// OpenAI機能が無効の場合のミドルウェア
+const checkOpenAI = (req, res, next) => {
+  if (!isOpenAIAvailable()) {
+    return res.status(503).json({
+      error: 'OpenAI機能は現在利用できません。OPENAI_API_KEYを設定してください。'
+    })
+  }
+  next()
+}
+
+// 全ルートにOpenAIチェックを適用
+router.use(checkOpenAI)
 
 // 1. ChatGPT API (Chat Completions)
 router.post('/chat/completions', async (req, res) => {

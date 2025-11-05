@@ -10,10 +10,13 @@ const OPENAI_API_KEY = process.env.OPENAI_API_KEY
 const OPENAI_API_BASE = 'https://api.openai.com/v1'
 const ASSISTANTS_BETA_HEADER = 'assistants=v2'
 
-// OpenAI SDK初期化
-export const openai = new OpenAI({
+// OpenAI SDK初期化（API keyがある場合のみ）
+export const openai = OPENAI_API_KEY ? new OpenAI({
   apiKey: OPENAI_API_KEY
-})
+}) : null
+
+// OpenAI機能が利用可能かチェック
+export const isOpenAIAvailable = () => !!OPENAI_API_KEY
 
 // OpenAI APIヘッダー
 export function getOpenAIHeaders(includeContentType = true) {
