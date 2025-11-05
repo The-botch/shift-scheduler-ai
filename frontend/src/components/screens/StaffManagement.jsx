@@ -1226,37 +1226,43 @@ const StaffManagement = ({
                 </>
               ) : (
                 /* スタッフ一覧テーブル */
-                <>
-                  <div className="px-6 pb-4 flex items-center justify-between">
-                    <h3 className="text-lg font-bold flex items-center gap-2">
-                      <div className="w-1 h-6 bg-orange-600 rounded"></div>
-                      スタッフ一覧 ({filteredStaffList.length}名)
-                    </h3>
-                    <div className="flex items-center gap-3">
-                      <Filter className="h-4 w-4 text-gray-600" />
-                      <select
-                        value={statusFilter}
-                        onChange={(e) => setStatusFilter(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      >
-                        <option value="all">全ての状態</option>
-                        <option value="active">在籍のみ</option>
-                        <option value="inactive">退職のみ</option>
-                      </select>
-                      <select
-                        value={selectedStore}
-                        onChange={(e) => setSelectedStore(e.target.value)}
-                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                      >
-                        <option value="all">全ての店舗</option>
-                        {stores.map(store => (
-                          <option key={store.store_id} value={store.store_id}>
-                            {store.store_name}
-                          </option>
-                        ))}
-                      </select>
+                <div className="flex flex-col h-full">
+                  {/* 固定ヘッダー部分 */}
+                  <div className="px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-bold flex items-center gap-2">
+                        <div className="w-1 h-6 bg-orange-600 rounded"></div>
+                        スタッフ一覧 ({filteredStaffList.length}名)
+                      </h3>
+                      <div className="flex items-center gap-3">
+                        <Filter className="h-4 w-4 text-gray-600" />
+                        <select
+                          value={statusFilter}
+                          onChange={(e) => setStatusFilter(e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                          <option value="all">全ての状態</option>
+                          <option value="active">在籍のみ</option>
+                          <option value="inactive">退職のみ</option>
+                        </select>
+                        <select
+                          value={selectedStore}
+                          onChange={(e) => setSelectedStore(e.target.value)}
+                          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                        >
+                          <option value="all">全ての店舗</option>
+                          {stores.map(store => (
+                            <option key={store.store_id} value={store.store_id}>
+                              {store.store_name}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
                     </div>
                   </div>
+
+                  {/* スクロール可能なコンテンツ部分 */}
+                  <div className="flex-1 overflow-auto">
                   {filteredStaffList.length === 0 ? (
                     <Card className="bg-gray-50 border-2 border-gray-300">
                       <CardContent className="p-8 text-center">
@@ -1392,7 +1398,8 @@ const StaffManagement = ({
                       </table>
                     </div>
                   )}
-                </>
+                  </div>
+                </div>
               )}
                 </div>
               </div>

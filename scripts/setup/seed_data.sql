@@ -2,6 +2,10 @@
 -- マスターデータシードスクリプト（完全版）
 -- schema.sql実行後にこのスクリプトを実行してデモデータを投入
 -- 最終更新: 2025-11-06
+--
+-- テナント構成:
+--   - Tenant 1: DEMO (デモ企業)
+--   - Tenant 3: STAND_BANH_MI (Stand Banh Mi)
 -- ============================================
 
 DO $$
@@ -57,12 +61,16 @@ BEGIN
     -- ============================================
     RAISE NOTICE '📋 3. Stores';
 
-    -- DEMO tenant stores
+    -- ──────────────────────────────────────────
+    -- Tenant 1: DEMO
+    -- ──────────────────────────────────────────
     INSERT INTO core.stores (tenant_id, division_id, store_code, store_name, address, phone_number, business_hours_start, business_hours_end, is_active)
     VALUES (v_tenant_id, v_division_id, 'STORE001', '渋谷店', '東京都渋谷区道玄坂1-2-3', '03-1234-5678', '09:00', '22:00', TRUE)
     ON CONFLICT (tenant_id, division_id, store_code) DO NOTHING;
 
-    -- STAND_BANH_MI tenant stores
+    -- ──────────────────────────────────────────
+    -- Tenant 3: STAND_BANH_MI
+    -- ──────────────────────────────────────────
     INSERT INTO core.stores (tenant_id, division_id, store_code, store_name, address, phone_number, business_hours_start, business_hours_end, is_active)
     VALUES (v_tenant_id_3, v_division_id_3, 'COME', 'CO''ME by stand Bánh Mi(麻布台)', '東京都港区麻布台1-3-1 ガーデンプラザC 麻布台ヒルズマーケット B1F', '03-6277-6887', '11:00', '20:00', TRUE)
     ON CONFLICT (tenant_id, division_id, store_code) DO NOTHING;
@@ -91,7 +99,9 @@ BEGIN
     -- ============================================
     RAISE NOTICE '📋 4. Roles';
 
-    -- DEMO tenant roles
+    -- ──────────────────────────────────────────
+    -- Tenant 1: DEMO
+    -- ──────────────────────────────────────────
     INSERT INTO core.roles (tenant_id, role_code, role_name, display_order, is_active) VALUES
     (v_tenant_id, 'MANAGER', '店長', 1, TRUE),
     (v_tenant_id, 'SUB_MANAGER', '副店長', 2, TRUE),
@@ -100,7 +110,9 @@ BEGIN
     (v_tenant_id, 'STAFF', 'スタッフ', 4, TRUE)
     ON CONFLICT (tenant_id, role_code) DO NOTHING;
 
-    -- STAND_BANH_MI tenant roles
+    -- ──────────────────────────────────────────
+    -- Tenant 3: STAND_BANH_MI
+    -- ──────────────────────────────────────────
     INSERT INTO core.roles (tenant_id, role_code, role_name, display_order, is_active) VALUES
     (v_tenant_id_3, 'TRIAL', 'トライアル', 0, TRUE),
     (v_tenant_id_3, 'STAFF', '一般スタッフ', 1, TRUE),
@@ -128,7 +140,9 @@ BEGIN
     -- ============================================
     RAISE NOTICE '📋 6. Employment Types';
 
-    -- DEMO tenant employment types
+    -- ──────────────────────────────────────────
+    -- Tenant 1: DEMO
+    -- ──────────────────────────────────────────
     INSERT INTO core.employment_types (tenant_id, employment_code, employment_name, payment_type, display_order, is_active) VALUES
     (v_tenant_id, 'FULL_TIME', '正社員', 'monthly', 1, TRUE),
     (v_tenant_id, 'CONTRACT', '契約社員', 'monthly', 2, TRUE),
