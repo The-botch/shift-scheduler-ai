@@ -100,6 +100,7 @@ const ShiftViewEditor = ({
               month={month}
               calendarData={calendarData}
               onDayClick={readonly ? undefined : onDayClick}
+              storeName={storeName}
             />
           )}
         </CardContent>
