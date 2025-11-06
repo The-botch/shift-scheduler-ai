@@ -92,6 +92,7 @@ const SecondPlan = ({
   const [rolesMap, setRolesMap] = useState({})
   const [firstPlanData, setFirstPlanData] = useState([])
   const [firstPlanShifts, setFirstPlanShifts] = useState([]) // 第1案の生データ
+  const [storeName, setStoreName] = useState('') // 店舗名
 
   // 問題のある日付を定義
   const problematicDates = new Set([]) // 問題のある日付
@@ -195,6 +196,16 @@ const SecondPlan = ({
       console.log('SecondPlan - staffMapping作成:', Object.keys(staffMapping).length, '件')
       console.log('SecondPlan - サンプルstaffMapping:', staffMapping[Object.keys(staffMapping)[0]])
       setStaffMap(staffMapping)
+
+      // 店舗名を設定
+      if (selectedShift?.store_name) {
+        setStoreName(selectedShift.store_name)
+      } else if (storeId) {
+        // storeIdから店舗名を取得
+        const stores = await masterRepository.getStores()
+        const store = stores.find(s => s.store_id === storeId)
+        setStoreName(store?.store_name || '')
+      }
 
       // 第1案のシフトデータを取得
       const firstPlanShiftsData = await shiftRepository.getShifts({ planId })
@@ -1159,7 +1170,7 @@ const SecondPlan = ({
                   staffMap={staffMap}
                   calendarData={firstPlanData}
                   storeId={selectedShift?.storeId || selectedShift?.store_id}
-                  storeName={selectedShift?.store_name}
+                  storeName={storeName}
                   readonly={false}
                   onCellClick={(date, staffId, shift) => {
                     if (shift) {
@@ -1196,7 +1207,7 @@ const SecondPlan = ({
                   staffMap={staffMap}
                   calendarData={firstPlanData}
                   storeId={selectedShift?.storeId || selectedShift?.store_id}
-                  storeName={selectedShift?.store_name}
+                  storeName={storeName}
                   readonly={true}
                   onCellClick={(date, staffId, shift) => {
                     if (shift) {
@@ -1227,7 +1238,7 @@ const SecondPlan = ({
                     staffMap={staffMap}
                     calendarData={firstPlanData}
                     storeId={selectedShift?.storeId || selectedShift?.store_id}
-                    storeName={selectedShift?.store_name}
+                    storeName={storeName}
                     readonly={true}
                     onCellClick={(date, staffId, shift) => {
                       if (shift) {
@@ -1258,7 +1269,7 @@ const SecondPlan = ({
                     staffMap={staffMap}
                     calendarData={firstPlanData}
                     storeId={selectedShift?.storeId || selectedShift?.store_id}
-                    storeName={selectedShift?.store_name}
+                    storeName={storeName}
                     readonly={false}
                     onCellClick={(date, staffId, shift) => {
                       if (shift) {
