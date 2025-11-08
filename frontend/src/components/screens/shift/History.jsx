@@ -19,8 +19,7 @@ import {
   Store,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'
-import ShiftViewEditor from '../../shared/ShiftViewEditor'
-import ShiftCalendar from '../../shared/ShiftCalendar'
+import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import { exportCSV, generateFilename } from '../../../utils/csvHelper'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
@@ -61,28 +60,18 @@ const History = ({
 }) => {
   const [loading, setLoading] = useState(true)
   const [monthlySummary, setMonthlySummary] = useState([])
-  const [shiftHistory, setShiftHistory] = useState([])
-  const [octoberShifts, setOctoberShifts] = useState([])
   const [selectedMonth, setSelectedMonth] = useState(initialMonth || null)
   const [detailShifts, setDetailShifts] = useState([])
   const [selectedDay, setSelectedDay] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
-  const [viewMode, setViewMode] = useState('view') // 'view' | 'diff'
   const [staffMap, setStaffMap] = useState({}) // スタッフID -> スタッフ情報
-  const [shiftData, setShiftData] = useState([]) // シフトデータ（StaffTimeTable用）
+  const [shiftData, setShiftData] = useState([]) // シフトデータ
   const [rolesMap, setRolesMap] = useState({}) // 役職ID -> 役職名
-  const [actualData, setActualData] = useState(null) // インポートした実績データ
-  const [showDiff, setShowDiff] = useState(false) // 差分表示モード
-  const [diffAnalysis, setDiffAnalysis] = useState(null) // 差分分析結果
+  const [storesMap, setStoresMap] = useState({}) // 店舗ID -> 店舗情報（store_code, store_name等）
   const [monthStatus, setMonthStatus] = useState({}) // 月別ステータス管理
   const [selectedYear, setSelectedYear] = useState(2025) // 選択中の年（実データは2025年）
-  const [internalSelectedStore, setInternalSelectedStore] = useState('all') // 選択中の店舗（'all'は全店舗）
-  const [internalAvailableStores, setInternalAvailableStores] = useState([]) // 利用可能な店舗リスト
-
-  // Use external props if provided, otherwise use internal state
-  const selectedStore = externalSelectedStore !== undefined ? externalSelectedStore : internalSelectedStore
-  const setSelectedStore = externalSetSelectedStore || externalOnStoreChange || setInternalSelectedStore
-  const availableStores = externalAvailableStores || internalAvailableStores
+  const [availableStores, setAvailableStores] = useState([]) // 利用可能な店舗リスト
+  const [selectedStores, setSelectedStores] = useState(new Set()) // チェックボックスで選択された店舗IDのSet
 
   useEffect(() => {
     loadHistoryData()
@@ -135,9 +124,10 @@ const History = ({
       setLoading(true)
 
       // APIを使用してマスターデータとシフトサマリーを読み込み
-      const [staffData, rolesData, summaryData] = await Promise.all([
+      const [staffData, rolesData, storesData, summaryData] = await Promise.all([
         masterRepository.getStaff(),
         masterRepository.getRoles(),
+        masterRepository.getStores(),
         shiftRepository.getSummary({ year: 2025 }) // 実データは2025年
       ])
 
@@ -147,6 +137,17 @@ const History = ({
         rolesMapping[role.role_id] = role.role_name
       })
       setRolesMap(rolesMapping)
+
+      // 店舗IDから店舗情報へのマッピング
+      const storesMapping = {}
+      storesData.forEach(store => {
+        storesMapping[store.store_id] = {
+          store_code: store.store_code,
+          store_name: store.store_name,
+          address: store.address,
+        }
+      })
+      setStoresMap(storesMapping)
 
       // スタッフマップを作成（StaffTimeTable用のフォーマット）
       const staffMapping = {}
@@ -194,7 +195,10 @@ const History = ({
             .map(s => [s.store_id, { store_id: s.store_id, store_name: s.store_name }])
         ).values()
       ).sort((a, b) => a.store_name.localeCompare(b.store_name))
-      setInternalAvailableStores(stores)
+      setAvailableStores(stores)
+
+      // 初期状態で全店舗を選択（数値型に統一）
+      setSelectedStores(new Set(stores.map(s => parseInt(s.store_id))))
 
       // 過去のシフト履歴をAPIから読み込み
       const allShifts = await shiftRepository.getShifts({ year: 2025 })
@@ -220,8 +224,7 @@ const History = ({
         }
       })
 
-      setShiftHistory(formattedShifts)
-      setOctoberShifts(formattedShifts) // 同じデータを使用
+      // formattedShiftsは使用しないので削除
     } catch (err) {
       console.error('履歴データ読み込みエラー:', err)
     } finally {
@@ -231,12 +234,31 @@ const History = ({
 
   const handleMonthClick = async (year, month, storeId) => {
     try {
-      // 履歴データから該当月と店舗を抽出
-      const filtered = shiftHistory.filter(s =>
-        s.year === year &&
-        s.month === month &&
-        s.store_id === storeId
-      )
+      // 最新のシフトデータをAPIから取得（全店舗のシフトを取得）
+      const allShifts = await shiftRepository.getShifts({ year, month })
+
+      // データをフォーマット
+      const formattedShifts = allShifts.map(shift => {
+        const shiftDate = new Date(shift.shift_date)
+        return {
+          shift_id: shift.shift_id,
+          year: shiftDate.getFullYear(),
+          month: shiftDate.getMonth() + 1,
+          date: shiftDate.getDate(),
+          day_of_week: ['日', '月', '火', '水', '木', '金', '土'][shiftDate.getDay()],
+          staff_id: parseInt(shift.staff_id),
+          staff_name: shift.staff_name,
+          start_time: shift.start_time,
+          end_time: shift.end_time,
+          break_minutes: parseInt(shift.break_minutes || 60),
+          planned_hours: parseFloat(shift.total_hours || shift.planned_hours || 0),
+          role: shift.role_name,
+          modified_flag: shift.is_modified || false,
+          store_id: shift.store_id,
+        }
+      })
+
+      const filtered = formattedShifts
 
       console.log(`=== handleMonthClick: ${year}年${month}月, store_id=${storeId} ===`)
       console.log('filtered総数:', filtered.length)
@@ -267,6 +289,7 @@ const History = ({
           break_minutes: shift.break_minutes || 60,
           role: shift.role,
           modified_flag: shift.modified_flag || false,
+          store_id: shift.store_id,
         }
       })
 
@@ -288,6 +311,16 @@ const History = ({
       setDetailShifts(transformedHistory)
       setShiftData(shiftDataForTable)
       setSelectedMonth({ year, month, storeId, storeName, staffMap: filteredStaffMap })
+
+      // デフォルトの選択状態を設定（数値型に統一）
+      if (storeId) {
+        // 特定の店舗から来た場合は、その店舗のみを選択
+        setSelectedStores(new Set([parseInt(storeId)]))
+      } else {
+        // 店舗指定なしの場合は全店舗を選択
+        setSelectedStores(new Set(availableStores.map(s => parseInt(s.store_id))))
+      }
+      console.log('handleMonthClick - selectedStores set to:', storeId ? [parseInt(storeId)] : availableStores.map(s => parseInt(s.store_id)))
     } catch (err) {
       console.error('月別シフト読み込みエラー:', err)
     }
@@ -713,221 +746,69 @@ const History = ({
         className="fixed inset-0 flex flex-col"
         style={{ top: '64px' }}
       >
-        <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 pt-4">
+        <div className="mb-4 flex items-center justify-between flex-shrink-0 px-8 pt-4">
           <div>
             <h1 className="text-xl font-bold text-gray-900">
               {selectedMonth.year}年{selectedMonth.month}月のシフト詳細
               <span className="text-sm font-normal text-gray-600 ml-3">
-                {(() => {
-                  const store = availableStores.find(s => s.store_id === selectedMonth.storeId)
-                  return store ? `${store.store_name} · ` : ''
-                })()}
-                確定済み · 全{detailShifts.length}件
+                全{detailShifts.length}件
               </span>
             </h1>
           </div>
 
-          {/* ビュー切り替えボタン + アクションボタン */}
           <div className="flex gap-2">
-            {showDiff && diffAnalysis && (
-              <>
-                <Button
-                  size="sm"
-                  variant={viewMode === 'view' ? 'default' : 'outline'}
-                  onClick={() => setViewMode('view')}
-                  className={viewMode === 'view' ? 'bg-blue-600 hover:bg-blue-700' : ''}
-                >
-                  <Calendar className="h-3 w-3 mr-1" />
-                  シフト表示
-                </Button>
-                <Button
-                  size="sm"
-                  variant={viewMode === 'diff' ? 'default' : 'outline'}
-                  onClick={() => setViewMode('diff')}
-                  className={viewMode === 'diff' ? 'bg-orange-600 hover:bg-orange-700' : ''}
-                >
-                  <TrendingUp className="h-3 w-3 mr-1" />
-                  予実差分
-                </Button>
-              </>
-            )}
             <Button size="sm" variant="outline" onClick={handleExportCSV}>
               <Download className="h-3 w-3 mr-1" />
               CSVエクスポート
             </Button>
+            <Button size="sm" variant="outline" onClick={backToSummary}>
+              <ArrowLeft className="h-3 w-3 mr-1" />
+              戻る
+            </Button>
           </div>
         </div>
 
-          {viewMode === 'diff' && diffAnalysis ? (
-            <Card className="shadow-lg border-0 flex-1 flex flex-col overflow-hidden mx-8 mb-4">
-              <CardContent className="flex-1 overflow-hidden p-2">
-                <div className="space-y-6">
-                  {/* サマリー */}
-                  <Card className="border-2 border-orange-300 bg-orange-50">
-                    <CardContent className="p-4">
-                      <h3 className="font-bold text-lg mb-3 flex items-center">
-                        <TrendingUp className="h-5 w-5 mr-2 text-orange-600" />
-                        予実差分サマリー
-                      </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <p className="text-xs text-gray-600">シフト数</p>
-                          <p className="text-sm">
-                            予定:{' '}
-                            <span className="font-bold">
-                              {diffAnalysis.totalDiff.plannedShifts}
-                            </span>
-                          </p>
-                          <p className="text-sm">
-                            実績:{' '}
-                            <span className="font-bold">{diffAnalysis.totalDiff.actualShifts}</span>
-                          </p>
-                          <p
-                            className={`text-sm font-bold ${diffAnalysis.totalDiff.shiftCountDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}
-                          >
-                            差分: {diffAnalysis.totalDiff.shiftCountDiff > 0 ? '+' : ''}
-                            {diffAnalysis.totalDiff.shiftCountDiff}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600">総労働時間</p>
-                          <p className="text-sm">
-                            予定:{' '}
-                            <span className="font-bold">
-                              {diffAnalysis.totalDiff.plannedHours.toFixed(1)}h
-                            </span>
-                          </p>
-                          <p className="text-sm">
-                            実績:{' '}
-                            <span className="font-bold">
-                              {diffAnalysis.totalDiff.actualHours.toFixed(1)}h
-                            </span>
-                          </p>
-                          <p
-                            className={`text-sm font-bold ${diffAnalysis.totalDiff.hoursDiff >= 0 ? 'text-green-600' : 'text-red-600'}`}
-                          >
-                            差分: {diffAnalysis.totalDiff.hoursDiff > 0 ? '+' : ''}
-                            {diffAnalysis.totalDiff.hoursDiff.toFixed(1)}h
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs text-gray-600">人件費</p>
-                          <p className="text-sm">
-                            予定:{' '}
-                            <span className="font-bold">
-                              ¥{diffAnalysis.totalDiff.plannedCost.toLocaleString()}
-                            </span>
-                          </p>
-                          <p className="text-sm">
-                            実績:{' '}
-                            <span className="font-bold">
-                              ¥{diffAnalysis.totalDiff.actualCost.toLocaleString()}
-                            </span>
-                          </p>
-                          <p
-                            className={`text-sm font-bold ${diffAnalysis.totalDiff.costDiff >= 0 ? 'text-red-600' : 'text-green-600'}`}
-                          >
-                            差分: {diffAnalysis.totalDiff.costDiff > 0 ? '+' : ''}¥
-                            {diffAnalysis.totalDiff.costDiff.toLocaleString()}
-                          </p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
+        {/* 店舗チェックボックス */}
+        <div className="px-8 mb-4">
+          <div className="flex flex-wrap gap-3">
+            {availableStores.map(store => {
+              const storeIdNum = parseInt(store.store_id)
+              return (
+                <label key={store.store_id} className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={selectedStores.has(storeIdNum)}
+                    onChange={(e) => {
+                      const newSelected = new Set(selectedStores)
+                      if (e.target.checked) {
+                        newSelected.add(storeIdNum)
+                      } else {
+                        newSelected.delete(storeIdNum)
+                      }
+                      setSelectedStores(newSelected)
+                      console.log('Store checkbox changed:', store.store_name, e.target.checked, 'selectedStores:', Array.from(newSelected))
+                    }}
+                    className="w-4 h-4 text-blue-600 rounded"
+                  />
+                  <span className="text-sm font-medium text-gray-700">{store.store_name}</span>
+                </label>
+              )
+            })}
+          </div>
+        </div>
 
-                  {/* スタッフ別差分 */}
-                  <div>
-                    <h3 className="font-bold text-lg mb-3">スタッフ別差分</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {Object.values(diffAnalysis.staffDiff).map((staff, index) => (
-                        <motion.div
-                          key={staff.staff_name}
-                          initial={{ opacity: 0, y: 20 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.05 }}
-                        >
-                          <Card
-                            className={`border-2 ${Math.abs(staff.hoursDiff) > 3 ? 'border-orange-400 bg-orange-50' : 'border-gray-200'}`}
-                          >
-                            <CardContent className="p-4">
-                              <h4 className="font-bold text-md mb-2">{staff.staff_name}</h4>
-                              <div className="space-y-1 text-sm">
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">予定勤務:</span>
-                                  <span className="font-medium">
-                                    {staff.plannedDays}日 / {staff.plannedHours.toFixed(1)}h
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">実績勤務:</span>
-                                  <span className="font-medium">
-                                    {staff.actualDays}日 / {staff.actualHours.toFixed(1)}h
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">時間差分:</span>
-                                  <span
-                                    className={`font-bold ${staff.hoursDiff > 0 ? 'text-green-600' : staff.hoursDiff < 0 ? 'text-red-600' : 'text-gray-600'}`}
-                                  >
-                                    {staff.hoursDiff > 0 ? '+' : ''}
-                                    {staff.hoursDiff.toFixed(1)}h
-                                  </span>
-                                </div>
-                                {staff.differences.length > 0 && (
-                                  <div className="mt-2 pt-2 border-t">
-                                    <p className="text-xs text-gray-500 mb-1">差分詳細:</p>
-                                    <div className="space-y-0.5 max-h-32 overflow-y-auto">
-                                      {staff.differences.map((diff, idx) => (
-                                        <div key={idx} className="text-xs flex justify-between">
-                                          <span>{diff.date}日:</span>
-                                          <span
-                                            className={
-                                              diff.type === 'added'
-                                                ? 'text-green-600'
-                                                : diff.type === 'removed'
-                                                  ? 'text-red-600'
-                                                  : 'text-orange-600'
-                                            }
-                                          >
-                                            {diff.type === 'added'
-                                              ? '追加'
-                                              : diff.type === 'removed'
-                                                ? '削除'
-                                                : `${diff.plannedHours}h → ${diff.actualHours}h`}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            </CardContent>
-                          </Card>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="flex-1 overflow-hidden mx-8 mb-4">
-              <ShiftViewEditor
-                year={selectedMonth.year}
-                month={selectedMonth.month}
-                shiftData={shiftData}
-                staffMap={selectedMonth.staffMap || staffMap}
-                calendarData={getCalendarData()}
-                storeId={selectedMonth.storeId}
-                storeName={selectedMonth.storeName}
-                readonly={true}
-                onCellClick={(date, staffId, shift) => {
-                  handleDayClick(date)
-                }}
-                onDayClick={handleDayClick}
-              />
-            </div>
-          )}
+        {/* マルチストアシフトテーブル */}
+        <div className="flex-1 overflow-hidden px-8 mb-4">
+          <MultiStoreShiftTable
+            year={selectedMonth.year}
+            month={selectedMonth.month}
+            shiftData={shiftData}
+            staffMap={staffMap}
+            storesMap={storesMap}
+            selectedStores={selectedStores}
+            onDayClick={handleDayClick}
+          />
+        </div>
 
           {/* タイムライン表示 */}
           <AnimatePresence>
@@ -992,6 +873,57 @@ const History = ({
               </select>
             </div>
           )}
+        </div>
+
+        {/* 月別カード表示 */}
+        <div className="flex-1 overflow-y-auto px-4 pb-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+            {Array.from({ length: 12 }, (_, i) => i + 1).map(month => {
+              // 選択された店舗のサマリーを取得（複数店舗の場合は合算）
+              const summaries = selectedStore === 'all'
+                ? monthlySummary.filter(m => parseInt(m.month) === month)
+                : monthlySummary.filter(m =>
+                    parseInt(m.month) === month &&
+                    parseInt(m.store_id) === parseInt(selectedStore)
+                  )
+
+              const hasSummary = summaries.length > 0
+              const totalShiftCount = summaries.reduce((sum, s) => sum + (s.shift_count || 0), 0)
+              const totalHours = summaries.reduce((sum, s) => sum + (s.total_hours || 0), 0)
+              const totalStaffCount = summaries.reduce((sum, s) => sum + (s.staff_count || 0), 0)
+
+              return (
+                <Card key={month} className="hover:shadow-lg transition-shadow">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-lg flex items-center justify-between">
+                      <span>{month}月</span>
+                      <Calendar className="h-5 w-5 text-gray-400" />
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    {hasSummary ? (
+                      <div className="space-y-2">
+                        <div className="text-sm text-gray-600 space-y-1">
+                          <div>勤務スタッフ: {totalStaffCount}名</div>
+                          <div>シフト数: {totalShiftCount}件</div>
+                          <div>総労働時間: {totalHours.toFixed(1)}h</div>
+                        </div>
+                        <Button
+                          size="sm"
+                          className="w-full"
+                          onClick={() => handleMonthClick(selectedYear, month, null)}
+                        >
+                          閲覧
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="text-sm text-gray-400">データなし</div>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
         </div>
     </motion.div>
   )
