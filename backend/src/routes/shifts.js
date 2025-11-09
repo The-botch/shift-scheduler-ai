@@ -17,7 +17,7 @@ const router = express.Router();
  * - store_id: 店舗ID (optional)
  * - year: 年 (optional)
  * - month: 月 (optional)
- * - status: ステータス (optional) DRAFT/SUBMITTED/APPROVED/PUBLISHED/ARCHIVED
+ * - status: ステータス (optional) DRAFT/APPROVED
  */
 router.get('/plans', async (req, res) => {
   try {
@@ -36,6 +36,7 @@ router.get('/plans', async (req, res) => {
         sp.period_start,
         sp.period_end,
         sp.status,
+        sp.plan_type,
         sp.generation_type,
         sp.ai_model_version,
         sp.total_labor_hours,
@@ -110,7 +111,7 @@ router.get('/plans', async (req, res) => {
  */
 router.get('/summary', async (req, res) => {
   try {
-    const { tenant_id = 1, store_id, year, month } = req.query;
+    const { tenant_id = 1, store_id, year, month, plan_type } = req.query;
 
     if (!year) {
       return res.status(400).json({
@@ -123,6 +124,7 @@ router.get('/summary', async (req, res) => {
       SELECT
         sp.plan_year as year,
         sp.plan_month as month,
+        sp.plan_type,
         LOWER(sp.status) as status,
         sp.plan_id,
         sp.store_id,
@@ -142,7 +144,7 @@ router.get('/summary', async (req, res) => {
 
 
       FROM ops.shift_plans sp
-      LEFT JOIN ops.shifts sh ON sp.plan_id = sh.plan_id
+      LEFT JOIN ops.shifts sh ON sp.plan_id = sh.plan_id AND sp.tenant_id = sh.tenant_id
       LEFT JOIN core.stores st ON sp.store_id = st.store_id
       WHERE sp.tenant_id = $1
         AND sp.plan_year = $2
@@ -163,7 +165,13 @@ router.get('/summary', async (req, res) => {
       paramIndex++;
     }
 
-    sql += ` GROUP BY sp.plan_year, sp.plan_month, sp.status, sp.plan_id, sp.store_id, st.store_name`;
+    if (plan_type) {
+      sql += ` AND sp.plan_type = $${paramIndex}`;
+      params.push(plan_type);
+      paramIndex++;
+    }
+
+    sql += ` GROUP BY sp.plan_year, sp.plan_month, sp.plan_type, sp.status, sp.plan_id, sp.store_id, st.store_name`;
     sql += ` ORDER BY year DESC, month DESC, sp.store_id`;
 
     const result = await query(sql, params);
@@ -207,7 +215,8 @@ router.get('/', async (req, res) => {
       month,
       date_from,
       date_to,
-      is_modified
+      is_modified,
+      plan_type
     } = req.query;
 
     let sql = `
@@ -218,6 +227,7 @@ router.get('/', async (req, res) => {
         st.store_name,
         sh.plan_id,
         sp.plan_name,
+        sp.plan_type,
         sp.status as plan_status,
         sh.staff_id,
         staff.name as staff_name,
@@ -297,6 +307,12 @@ router.get('/', async (req, res) => {
     if (is_modified !== undefined) {
       sql += ` AND sh.is_modified = $${paramIndex}`;
       params.push(is_modified === 'true');
+      paramIndex++;
+    }
+
+    if (plan_type) {
+      sql += ` AND sp.plan_type = $${paramIndex}`;
+      params.push(plan_type);
       paramIndex++;
     }
 
@@ -447,18 +463,31 @@ router.post('/plans/generate', async (req, res) => {
       const planCode = `PLAN-${year}${String(month).padStart(2, '0')}-001`;
       const planName = `${year}年${month}月シフト（第1案）`;
 
+      console.log('📝 Creating new plan with params:', {
+        tenant_id,
+        store_id,
+        year,
+        month,
+        planCode,
+        planName,
+        plan_type: 'FIRST',
+        status: 'DRAFT'
+      });
+
       const planResult = await query(`
         INSERT INTO ops.shift_plans (
           tenant_id, store_id, plan_year, plan_month,
           plan_code, plan_name, period_start, period_end,
-          status, generation_type, created_by
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'FIRST_PLAN_APPROVED', 'COPY_PREVIOUS', $9)
-        RETURNING plan_id
+          plan_type, status, generation_type, created_by
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'FIRST', 'DRAFT', 'COPY_PREVIOUS', $9)
+        RETURNING plan_id, store_id, plan_year, plan_month, plan_type, status
       `, [
         tenant_id, store_id, year, month,
         planCode, planName, periodStart, periodEnd,
         created_by || null
       ]);
+
+      console.log('✅ Plan created:', planResult.rows[0]);
 
       newPlanId = planResult.rows[0].plan_id;
     }
@@ -883,10 +912,10 @@ router.post('/plans/approve-first', async (req, res) => {
       });
     }
 
-    // ステータスをFIRST_PLAN_APPROVEDに更新
+    // ステータスをAPPROVEDに更新
     await query(
       `UPDATE ops.shift_plans
-       SET status = 'FIRST_PLAN_APPROVED', updated_at = CURRENT_TIMESTAMP
+       SET status = 'APPROVED', updated_at = CURRENT_TIMESTAMP
        WHERE plan_id = $1`,
       [plan_id]
     );
@@ -896,7 +925,7 @@ router.post('/plans/approve-first', async (req, res) => {
       message: '第1案を承認しました',
       data: {
         plan_id: plan_id,
-        status: 'FIRST_PLAN_APPROVED'
+        status: 'APPROVED'
       }
     });
 
@@ -2118,7 +2147,7 @@ router.delete('/:id', async (req, res) => {
  * Query Parameters:
  * - tenant_id: テナントID (required)
  *
- * 注意: 第2承認完了前（DRAFT, FIRST_PLAN_APPROVED）のみ削除可能
+ * 注意: DRAFTのみ削除可能
  */
 router.delete('/plans/:plan_id', async (req, res) => {
   try {
@@ -2154,14 +2183,14 @@ router.delete('/plans/:plan_id', async (req, res) => {
 
       const plan = planCheck.rows[0];
 
-      // ステータスチェック：第2承認完了後は削除不可
-      const deletableStatuses = ['DRAFT', 'FIRST_PLAN_APPROVED'];
+      // ステータスチェック：承認済みは削除不可
+      const deletableStatuses = ['DRAFT'];
       if (!deletableStatuses.includes(plan.status)) {
         await query('ROLLBACK');
         return res.status(403).json({
           success: false,
           error: 'Cannot delete approved plan',
-          message: `ステータスが${plan.status}のシフトは削除できません。削除可能なのはDRAFTまたはFIRST_PLAN_APPROVEDのみです。`
+          message: `ステータスが${plan.status}のシフトは削除できません。削除可能なのはDRAFTのみです。`
         });
       }
 
@@ -2233,7 +2262,7 @@ router.put('/plans/:plan_id/status', async (req, res) => {
     }
 
     // 有効なステータスかチェック
-    const validStatuses = ['DRAFT', 'FIRST_PLAN_APPROVED', 'SECOND_PLAN_APPROVED', 'PUBLISHED', 'ARCHIVED'];
+    const validStatuses = ['DRAFT', 'APPROVED'];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
         success: false,
@@ -2255,13 +2284,22 @@ router.put('/plans/:plan_id/status', async (req, res) => {
       });
     }
 
+    console.log('📝 Updating plan status:', {
+      plan_id,
+      new_status: status,
+      old_status: planCheck.rows[0].status
+    });
+
     // ステータスを更新
-    await query(
+    const updateResult = await query(
       `UPDATE ops.shift_plans
        SET status = $1, updated_at = CURRENT_TIMESTAMP
-       WHERE plan_id = $2`,
+       WHERE plan_id = $2
+       RETURNING plan_id, store_id, plan_year, plan_month, plan_type, status`,
       [status, plan_id]
     );
+
+    console.log('✅ Plan status updated:', updateResult.rows[0]);
 
     res.json({
       success: true,
@@ -2586,6 +2624,250 @@ router.post('/plans/copy-from-previous', async (req, res) => {
 
   } catch (error) {
     console.error('Error copying shifts from previous month:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 全店舗一括で最新プランからシフトをコピーして新規プラン作成
+ * POST /api/shifts/plans/copy-from-previous-all-stores
+ *
+ * Body Parameters:
+ * - tenant_id: テナントID (required)
+ * - target_year: コピー先の年 (required)
+ * - target_month: コピー先の月 (required)
+ * - created_by: 作成者ID (optional)
+ *
+ * ロジック:
+ * - テナントの全店舗を取得
+ * - 各店舗ごとに最新のプランを検索（前月、前々月...と遡る）
+ * - 最新プランが見つかればコピー、なければ空プラン作成
+ */
+router.post('/plans/copy-from-previous-all-stores', async (req, res) => {
+  try {
+    const { tenant_id = 1, target_year, target_month, created_by } = req.body;
+
+    // バリデーション
+    if (!target_year || !target_month) {
+      return res.status(400).json({
+        success: false,
+        error: 'target_year, target_month は必須です'
+      });
+    }
+
+    console.log(`[CopyFromPreviousAllStores] ${target_year}年${target_month}月を全店舗で作成`);
+
+    // テナントの全店舗を取得
+    const storesResult = await query(`
+      SELECT store_id, store_name
+      FROM core.stores
+      WHERE tenant_id = $1 AND is_active = TRUE
+      ORDER BY store_id
+    `, [tenant_id]);
+
+    if (storesResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'アクティブな店舗が見つかりません'
+      });
+    }
+
+    const createdPlans = [];
+    const errors = [];
+
+    // 各店舗ごとにプラン作成
+    for (const store of storesResult.rows) {
+      try {
+        console.log(`  店舗 ${store.store_name} (ID: ${store.store_id}) の処理開始`);
+
+        // この店舗の最新プランを検索（最大12ヶ月遡る）
+        let sourceYear = target_year;
+        let sourceMonth = target_month - 1;
+        let sourcePlan = null;
+
+        for (let i = 0; i < 12; i++) {
+          if (sourceMonth === 0) {
+            sourceMonth = 12;
+            sourceYear--;
+          }
+
+          const planCheck = await query(`
+            SELECT plan_id, plan_year, plan_month
+            FROM ops.shift_plans
+            WHERE tenant_id = $1 AND store_id = $2
+              AND plan_year = $3 AND plan_month = $4
+            ORDER BY plan_id DESC
+            LIMIT 1
+          `, [tenant_id, store.store_id, sourceYear, sourceMonth]);
+
+          if (planCheck.rows.length > 0) {
+            sourcePlan = planCheck.rows[0];
+            console.log(`    最新プラン発見: ${sourcePlan.plan_year}年${sourcePlan.plan_month}月 (plan_id: ${sourcePlan.plan_id})`);
+            break;
+          }
+
+          sourceMonth--;
+        }
+
+        // トランザクション開始
+        await query('BEGIN');
+
+        try {
+          // 新規プラン作成
+          const periodStart = new Date(target_year, target_month - 1, 1);
+          const periodEnd = new Date(target_year, target_month, 0);
+          const planCode = `PLAN-${target_year}${String(target_month).padStart(2, '0')}-${String(store.store_id).padStart(3, '0')}`;
+          const planName = `${target_year}年${target_month}月シフト（第1案）`;
+
+          const planResult = await query(`
+            INSERT INTO ops.shift_plans (
+              tenant_id, store_id, plan_year, plan_month,
+              plan_code, plan_name, period_start, period_end,
+              plan_type, status, generation_type, created_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'FIRST', 'DRAFT', 'COPY_ALL_STORES', $9)
+            RETURNING plan_id, store_id, plan_year, plan_month, plan_type, status
+          `, [
+            tenant_id, store.store_id, target_year, target_month,
+            planCode, planName, periodStart, periodEnd,
+            created_by || null
+          ]);
+
+          const newPlanId = planResult.rows[0].plan_id;
+          console.log(`    新規プラン作成: plan_id=${newPlanId}`);
+
+          let copiedShiftsCount = 0;
+          const shiftsToInsert = []; // バルクINSERT用の配列
+
+          // 最新プランが見つかった場合はシフトをコピー
+          if (sourcePlan) {
+            const sourceShifts = await query(`
+              SELECT *
+              FROM ops.shifts
+              WHERE plan_id = $1
+              ORDER BY shift_date, staff_id
+            `, [sourcePlan.plan_id]);
+
+            console.log(`    コピー元シフト数: ${sourceShifts.rows.length}`);
+
+            // 曜日ベースでコピー（既存ロジックと同じ）
+            const getWeekInfo = (date) => {
+              const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+              const dayOfWeek = date.getDay();
+              const dayOfMonth = date.getDate();
+              const weekNumber = Math.ceil((dayOfMonth + firstDay.getDay()) / 7);
+              return { weekNumber, dayOfWeek };
+            };
+
+            const shiftsByWeekAndDay = {};
+            for (const shift of sourceShifts.rows) {
+              const shiftDate = new Date(shift.shift_date);
+              const { weekNumber, dayOfWeek } = getWeekInfo(shiftDate);
+              const key = `w${weekNumber}_d${dayOfWeek}`;
+              if (!shiftsByWeekAndDay[key]) {
+                shiftsByWeekAndDay[key] = [];
+              }
+              shiftsByWeekAndDay[key].push(shift);
+            }
+
+            const daysInTargetMonth = new Date(target_year, target_month, 0).getDate();
+            for (let day = 1; day <= daysInTargetMonth; day++) {
+              const newShiftDate = new Date(target_year, target_month - 1, day);
+              const { weekNumber, dayOfWeek } = getWeekInfo(newShiftDate);
+
+              let key = `w${weekNumber}_d${dayOfWeek}`;
+              let shiftsForDay = shiftsByWeekAndDay[key];
+
+              if (!shiftsForDay || shiftsForDay.length === 0) {
+                key = `w1_d${dayOfWeek}`;
+                shiftsForDay = shiftsByWeekAndDay[key];
+              }
+
+              if (!shiftsForDay || shiftsForDay.length === 0) {
+                continue;
+              }
+
+              for (const sourceShift of shiftsForDay) {
+                shiftsToInsert.push({
+                  tenant_id,
+                  store_id: store.store_id,
+                  plan_id: newPlanId,
+                  staff_id: sourceShift.staff_id,
+                  shift_date: newShiftDate.toISOString().split('T')[0],
+                  pattern_id: sourceShift.pattern_id,
+                  start_time: sourceShift.start_time,
+                  end_time: sourceShift.end_time,
+                  break_minutes: sourceShift.break_minutes
+                });
+              }
+            }
+
+            // バルクINSERT: 全シフトを一度に挿入
+            if (shiftsToInsert.length > 0) {
+              const values = shiftsToInsert.map((s, idx) => {
+                const base = idx * 9;
+                return `($${base+1}, $${base+2}, $${base+3}, $${base+4}, $${base+5}, $${base+6}, $${base+7}, $${base+8}, $${base+9})`;
+              }).join(',');
+
+              const params = shiftsToInsert.flatMap(s => [
+                s.tenant_id, s.store_id, s.plan_id, s.staff_id, s.shift_date,
+                s.pattern_id, s.start_time, s.end_time, s.break_minutes
+              ]);
+
+              await query(`
+                INSERT INTO ops.shifts (
+                  tenant_id, store_id, plan_id, staff_id, shift_date,
+                  pattern_id, start_time, end_time, break_minutes
+                ) VALUES ${values}
+              `, params);
+
+              copiedShiftsCount = shiftsToInsert.length;
+            }
+          }
+
+          await query('COMMIT');
+
+          createdPlans.push({
+            plan_id: newPlanId,
+            store_id: store.store_id,
+            store_name: store.store_name,
+            year: target_year,
+            month: target_month,
+            source_plan: sourcePlan ? `${sourcePlan.plan_year}年${sourcePlan.plan_month}月` : 'なし',
+            copied_shifts_count: copiedShiftsCount
+          });
+
+          console.log(`    完了: ${copiedShiftsCount}件のシフトをコピー`);
+
+        } catch (error) {
+          await query('ROLLBACK');
+          throw error;
+        }
+
+      } catch (storeError) {
+        console.error(`  店舗 ${store.store_name} でエラー:`, storeError);
+        errors.push({
+          store_id: store.store_id,
+          store_name: store.store_name,
+          error: storeError.message
+        });
+      }
+    }
+
+    // 結果を返す
+    res.json({
+      success: true,
+      message: `${createdPlans.length}店舗のプランを作成しました`,
+      data: {
+        created_plans: createdPlans,
+        errors: errors.length > 0 ? errors : undefined
+      }
+    });
+
+  } catch (error) {
+    console.error('Error copying shifts for all stores:', error);
     res.status(500).json({
       success: false,
       error: error.message
