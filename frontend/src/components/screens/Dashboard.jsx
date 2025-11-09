@@ -345,7 +345,7 @@ const Dashboard = ({
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="min-h-screen bg-slate-50 pt-20"
+      className="min-h-screen bg-slate-50 pt-16"
     >
       {/* メインコンテンツ */}
       <div className="app-container py-8">

@@ -204,15 +204,25 @@ const History = ({
       const allShifts = await shiftRepository.getShifts({ year: 2025 })
 
       // APIデータをCSV互換フォーマットに変換（年月を数値に変換）
+      // タイムゾーンの影響を避けるため、日付文字列を直接パース
       const formattedShifts = allShifts.map(shift => {
-        const shiftDate = new Date(shift.shift_date)
+        const dateStr = shift.shift_date.split('T')[0] // "2025-07-03"
+        const [yearStr, monthStr, dateStr2] = dateStr.split('-')
+        const year = parseInt(yearStr)
+        const month = parseInt(monthStr)
+        const date = parseInt(dateStr2)
+
+        // 曜日計算（タイムゾーン非依存）
+        const shiftDate = new Date(year, month - 1, date)
+        const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][shiftDate.getDay()]
+
         return {
           shift_id: shift.shift_id,
           store_id: shift.store_id,
-          year: parseInt(shiftDate.getFullYear()),
-          month: parseInt(shiftDate.getMonth() + 1),
-          date: parseInt(shiftDate.getDate()),
-          day_of_week: ['日', '月', '火', '水', '木', '金', '土'][shiftDate.getDay()],
+          year,
+          month,
+          date,
+          day_of_week: dayOfWeek,
           staff_id: parseInt(shift.staff_id),
           staff_name: shift.staff_name,
           start_time: shift.start_time,
@@ -237,15 +247,24 @@ const History = ({
       // 最新のシフトデータをAPIから取得（全店舗のシフトを取得）
       const allShifts = await shiftRepository.getShifts({ year, month })
 
-      // データをフォーマット
+      // データをフォーマット（タイムゾーンの影響を避けるため日付文字列を直接パース）
       const formattedShifts = allShifts.map(shift => {
-        const shiftDate = new Date(shift.shift_date)
+        const dateStr = shift.shift_date.split('T')[0] // "2025-07-03"
+        const [yearStr, monthStr, dateStr2] = dateStr.split('-')
+        const yearNum = parseInt(yearStr)
+        const monthNum = parseInt(monthStr)
+        const dateNum = parseInt(dateStr2)
+
+        // 曜日計算（タイムゾーン非依存）
+        const shiftDate = new Date(yearNum, monthNum - 1, dateNum)
+        const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][shiftDate.getDay()]
+
         return {
           shift_id: shift.shift_id,
-          year: shiftDate.getFullYear(),
-          month: shiftDate.getMonth() + 1,
-          date: shiftDate.getDate(),
-          day_of_week: ['日', '月', '火', '水', '木', '金', '土'][shiftDate.getDay()],
+          year: yearNum,
+          month: monthNum,
+          date: dateNum,
+          day_of_week: dayOfWeek,
           staff_id: parseInt(shift.staff_id),
           staff_name: shift.staff_name,
           start_time: shift.start_time,

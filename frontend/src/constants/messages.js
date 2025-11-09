@@ -119,8 +119,7 @@ export const MESSAGES = {
     STATUS: {
       NOT_STARTED: '未作成',
       DRAFT: '下書き',
-      FIRST_PLAN_APPROVED: '第1案承認済み',
-      SECOND_PLAN_APPROVED: '第2案承認済み',
+      APPROVED: '承認済み',
       COMPLETED: '確定済み',
     },
   },

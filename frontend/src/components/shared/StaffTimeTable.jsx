@@ -13,6 +13,7 @@ const StaffTimeTable = ({
   month,
   shiftData,
   staffMap,
+  storesMap,
   storeName,
   onCellClick,
   onAddShift,
@@ -51,6 +52,13 @@ const StaffTimeTable = ({
   const formatTime = (time) => {
     if (!time) return ''
     return time.substring(0, 5)
+  }
+
+  // 店舗IDから店舗コードを取得
+  const getStoreCode = (storeId) => {
+    if (!storesMap || !storeId) return ''
+    const store = storesMap[storeId]
+    return store ? store.store_code : ''
   }
 
   // 日付とスタッフIDからシフトを検索
@@ -394,6 +402,9 @@ const StaffTimeTable = ({
                           onClick={() => handleCellClick(date, staff.staff_id, shift)}
                         >
                           <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
+                            {staff.store_id && shift.store_id && parseInt(staff.store_id) !== parseInt(shift.store_id)
+                              ? `${getStoreCode(shift.store_id)} `
+                              : ''}
                             {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
                           </div>
                           <div className="text-[0.45rem] text-gray-600 leading-tight">{hours.toFixed(1)}h</div>

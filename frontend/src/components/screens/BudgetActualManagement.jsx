@@ -1079,7 +1079,7 @@ const BudgetActualManagement = ({
   // 差分分析画面
   if (selectedMonth && diffAnalysis) {
     return (
-      <div className="min-h-screen bg-slate-50 pt-20">
+      <div className="min-h-screen bg-slate-50 pt-16">
         <motion.div
           variants={PAGE_VARIANTS}
           initial="initial"
@@ -1332,7 +1332,7 @@ const BudgetActualManagement = ({
 
   // インポート画面
   return (
-    <div className="min-h-screen bg-slate-50 pt-20">
+    <div className="min-h-screen bg-slate-50 pt-16">
       <motion.div
         variants={PAGE_VARIANTS}
         initial="initial"

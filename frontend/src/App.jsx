@@ -472,10 +472,10 @@ function AppContent() {
       // 確定済みの場合は閲覧のみ
       alert(MESSAGES.INFO.VIEW_ONLY)
       return
-    } else if (status === 'second_plan_approved') {
+    } else if (status === 'APPROVED' && shift.planType === 'SECOND') {
       // 第2案承認済みの場合は第2案画面で編集可能
       goToCreateSecondPlan(shift)
-    } else if (status === 'first_plan_approved' || status === 'draft') {
+    } else if ((status === 'APPROVED' && shift.planType === 'FIRST') || status === 'DRAFT') {
       // 第1案承認済みまたは下書きの場合はカレンダー表示・編集画面へ
       setSelectedShiftForEdit(shift)
       setShowDraftShiftEditor(true)

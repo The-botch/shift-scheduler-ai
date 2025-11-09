@@ -145,7 +145,7 @@ const ConstraintManagement = ({
   const groupedLaws = groupByCategory()
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-20">
+    <div className="min-h-screen bg-slate-50 pt-16">
       <div className="app-container">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

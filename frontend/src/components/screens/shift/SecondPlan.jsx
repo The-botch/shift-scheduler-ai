@@ -23,7 +23,7 @@ import {
   Trash2,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'
-import ShiftViewEditor from '../../shared/ShiftViewEditor'
+import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
 import { isHoliday, getHolidayName, loadHolidays } from '../../../utils/holidays'
@@ -90,9 +90,11 @@ const SecondPlan = ({
   const [csvSolutions, setCsvSolutions] = useState([])
   const [staffMap, setStaffMap] = useState({})
   const [rolesMap, setRolesMap] = useState({})
-  const [firstPlanData, setFirstPlanData] = useState([])
   const [firstPlanShifts, setFirstPlanShifts] = useState([]) // 第1案の生データ
   const [storeName, setStoreName] = useState('') // 店舗名
+  const [storesMap, setStoresMap] = useState({}) // 店舗ID -> 店舗情報
+  const [selectedStores, setSelectedStores] = useState(new Set()) // 選択された店舗IDのSet
+  const [availableStores, setAvailableStores] = useState([]) // 利用可能な店舗リスト
 
   // 問題のある日付を定義
   const problematicDates = new Set([]) // 問題のある日付
@@ -120,46 +122,6 @@ const SecondPlan = ({
     return problematicDates.has(date) && !resolvedProblems.has(date)
   }
 
-  // バックエンドAPIから取得したシフトデータをカレンダー表示用にフォーマット
-  // History.jsxと同じ形式でShiftCalendarが期待するデータを返す
-  const formatShiftsForCalendar = (shifts, staffMapping, year, month) => {
-    const daysInMonth = new Date(year, month, 0).getDate()
-    const firstDay = new Date(year, month - 1, 1).getDay()
-
-    // 日付ごとにグループ化
-    const shiftsByDate = {}
-
-    shifts.forEach(shift => {
-      // shift_dateから日付を抽出（例: "2025-11-15" → 15）
-      const shiftDate = shift.shift_date || shift.date
-      if (!shiftDate) return
-
-      const dateObj = new Date(shiftDate)
-      const day = dateObj.getDate()
-
-      if (!shiftsByDate[day]) {
-        shiftsByDate[day] = []
-      }
-
-      // スタッフ情報を取得
-      const staffInfo = staffMapping[shift.staff_id] || {
-        name: `スタッフ${shift.staff_id}`,
-        role_name: 'スタッフ'
-      }
-
-      shiftsByDate[day].push({
-        shift_id: shift.shift_id || shift.id,
-        staff_id: shift.staff_id,
-        staff_name: staffInfo.name,
-        start_time: shift.start_time,
-        end_time: shift.end_time,
-        modified_flag: shift.is_modified || false
-      })
-    })
-
-    return { daysInMonth, firstDay, shiftsByDate }
-  }
-
   // マウント時に第1案と希望シフトを読み込み
   useEffect(() => {
     loadInitialData()
@@ -182,13 +144,19 @@ const SecondPlan = ({
 
       console.log(`第1案と希望シフトを読み込み中: ${year}年${month}月, plan_id=${planId}`)
 
-      // スタッフマスタを取得（先に取得してマッピング用に使用）
-      const staffData = await masterRepository.getStaff()
+      // スタッフマスタと店舗マスタを取得
+      const [staffData, storesData] = await Promise.all([
+        masterRepository.getStaff(),
+        masterRepository.getStores(),
+      ])
       console.log('SecondPlan - 取得したスタッフ数:', staffData.length)
       console.log('SecondPlan - サンプル:', staffData.slice(0, 2))
 
       const staffMapping = {}
       const storeId = selectedShift?.storeId || selectedShift?.store_id
+
+      console.log('SecondPlan - selectedShift:', selectedShift)
+      console.log('SecondPlan - storeId:', storeId)
 
       staffData.forEach(s => {
         staffMapping[s.staff_id] = s
@@ -196,6 +164,33 @@ const SecondPlan = ({
       console.log('SecondPlan - staffMapping作成:', Object.keys(staffMapping).length, '件')
       console.log('SecondPlan - サンプルstaffMapping:', staffMapping[Object.keys(staffMapping)[0]])
       setStaffMap(staffMapping)
+
+      // 店舗IDから店舗情報へのマッピング
+      const storesMapping = {}
+      storesData.forEach(store => {
+        storesMapping[store.store_id] = {
+          store_code: store.store_code,
+          store_name: store.store_name,
+          address: store.address,
+        }
+      })
+      setStoresMap(storesMapping)
+
+      // 利用可能な店舗リストを設定
+      const stores = storesData.map(store => ({
+        store_id: store.store_id,
+        store_name: store.store_name,
+      })).sort((a, b) => a.store_name.localeCompare(b.store_name))
+      setAvailableStores(stores)
+
+      // デフォルトの選択状態を設定（数値型に統一）
+      if (storeId) {
+        // 特定の店舗から来た場合は、その店舗のみを選択
+        setSelectedStores(new Set([parseInt(storeId)]))
+      } else {
+        // 店舗指定なしの場合は全店舗を選択
+        setSelectedStores(new Set(stores.map(s => parseInt(s.store_id))))
+      }
 
       // 店舗名を設定
       if (selectedShift?.store_name) {
@@ -211,11 +206,6 @@ const SecondPlan = ({
       const firstPlanShiftsData = await shiftRepository.getShifts({ planId })
       console.log(`第1案シフト取得: ${firstPlanShiftsData.length}件`, firstPlanShiftsData.slice(0, 3))
 
-      // バックエンドのデータをカレンダー表示用にフォーマット
-      const formattedData = formatShiftsForCalendar(firstPlanShiftsData, staffMapping, year, month)
-      console.log(`フォーマット後のデータ:`, formattedData)
-
-      setFirstPlanData(formattedData)
       setFirstPlanShifts(firstPlanShiftsData) // 第1案の生データを保存
       setCsvShifts(firstPlanShiftsData) // 元データも保存（詳細表示用）
 
@@ -1017,8 +1007,8 @@ const SecondPlan = ({
         return
       }
 
-      // ステータスをSECOND_PLAN_APPROVEDに更新
-      await shiftRepository.updatePlanStatus(planId, 'SECOND_PLAN_APPROVED')
+      // ステータスをAPPROVEDに更新
+      await shiftRepository.updatePlanStatus(planId, 'APPROVED')
 
       console.log('第2案を承認しました。plan_id:', planId)
       alert(MESSAGES.SUCCESS.APPROVE_SECOND_PLAN)
@@ -1150,6 +1140,34 @@ const SecondPlan = ({
         </Card>
       ) : (
         <div className="flex-1 overflow-y-auto px-8 pb-4 space-y-4">
+          {/* 店舗チェックボックス */}
+          <div className="px-4 mb-4">
+            <div className="flex flex-wrap gap-3">
+              {availableStores.map(store => {
+                const storeIdNum = parseInt(store.store_id)
+                return (
+                  <label key={store.store_id} className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={selectedStores.has(storeIdNum)}
+                      onChange={(e) => {
+                        const newSelected = new Set(selectedStores)
+                        if (e.target.checked) {
+                          newSelected.add(storeIdNum)
+                        } else {
+                          newSelected.delete(storeIdNum)
+                        }
+                        setSelectedStores(newSelected)
+                      }}
+                      className="w-4 h-4 text-blue-600 rounded"
+                    />
+                    <span className="text-sm font-medium text-gray-700">{store.store_name}</span>
+                  </label>
+                )
+              })}
+            </div>
+          </div>
+
           {/* カレンダー表示を横いっぱいに */}
           {viewMode === 'second' && (
             <div style={{ height: 'calc(100vh - 160px)' }} className="flex flex-col">
@@ -1163,20 +1181,16 @@ const SecondPlan = ({
                 </div>
               </div>
               <div className="flex-1 overflow-hidden px-4">
-                <ShiftViewEditor
+                <MultiStoreShiftTable
                   year={selectedShift?.year || new Date().getFullYear()}
                   month={selectedShift?.month || new Date().getMonth() + 1}
                   shiftData={csvShifts}
                   staffMap={staffMap}
-                  calendarData={firstPlanData}
-                  storeId={selectedShift?.storeId || selectedShift?.store_id}
-                  storeName={storeName}
+                  storesMap={storesMap}
+                  selectedStores={selectedStores}
                   readonly={false}
-                  onCellClick={(date, staffId, shift) => {
-                    if (shift) {
-                      handleDayClick(date)
-                    }
-                  }}
+                  onUpdateShift={handleUpdateShift}
+                  onDeleteShift={handleDeleteShift}
                   onDayClick={handleDayClick}
                 />
               </div>
@@ -1200,20 +1214,14 @@ const SecondPlan = ({
                 </Button>
               </div>
               <div className="flex-1 overflow-hidden px-4">
-                <ShiftViewEditor
+                <MultiStoreShiftTable
                   year={selectedShift?.year || new Date().getFullYear()}
                   month={selectedShift?.month || new Date().getMonth() + 1}
                   shiftData={firstPlanShifts}
                   staffMap={staffMap}
-                  calendarData={firstPlanData}
-                  storeId={selectedShift?.storeId || selectedShift?.store_id}
-                  storeName={storeName}
+                  storesMap={storesMap}
+                  selectedStores={selectedStores}
                   readonly={true}
-                  onCellClick={(date, staffId, shift) => {
-                    if (shift) {
-                      handleDayClick(date)
-                    }
-                  }}
                   onDayClick={handleDayClick}
                 />
               </div>
@@ -1231,20 +1239,14 @@ const SecondPlan = ({
                   </div>
                 </div>
                 <div className="flex-1 overflow-hidden px-4">
-                  <ShiftViewEditor
+                  <MultiStoreShiftTable
                     year={selectedShift?.year || new Date().getFullYear()}
                     month={selectedShift?.month || new Date().getMonth() + 1}
                     shiftData={firstPlanShifts}
                     staffMap={staffMap}
-                    calendarData={firstPlanData}
-                    storeId={selectedShift?.storeId || selectedShift?.store_id}
-                    storeName={storeName}
+                    storesMap={storesMap}
+                    selectedStores={selectedStores}
                     readonly={true}
-                    onCellClick={(date, staffId, shift) => {
-                      if (shift) {
-                        handleDayClick(date)
-                      }
-                    }}
                     onDayClick={handleDayClick}
                   />
                 </div>
@@ -1262,20 +1264,16 @@ const SecondPlan = ({
                   </div>
                 </div>
                 <div className="flex-1 overflow-hidden px-4">
-                  <ShiftViewEditor
+                  <MultiStoreShiftTable
                     year={selectedShift?.year || new Date().getFullYear()}
                     month={selectedShift?.month || new Date().getMonth() + 1}
                     shiftData={csvShifts}
                     staffMap={staffMap}
-                    calendarData={firstPlanData}
-                    storeId={selectedShift?.storeId || selectedShift?.store_id}
-                    storeName={storeName}
+                    storesMap={storesMap}
+                    selectedStores={selectedStores}
                     readonly={false}
-                    onCellClick={(date, staffId, shift) => {
-                      if (shift) {
-                        handleDayClick(date)
-                      }
-                    }}
+                    onUpdateShift={handleUpdateShift}
+                    onDeleteShift={handleDeleteShift}
                     onDayClick={handleDayClick}
                   />
                 </div>

@@ -38,6 +38,7 @@ export class ShiftRepository {
         dateFrom,
         dateTo,
         isModified,
+        plan_type,
       } = filters
 
       const actualTenantId = tenantId ?? getCurrentTenantId()
@@ -51,6 +52,7 @@ export class ShiftRepository {
       if (dateFrom) params.append('date_from', dateFrom)
       if (dateTo) params.append('date_to', dateTo)
       if (isModified !== undefined) params.append('is_modified', isModified)
+      if (plan_type) params.append('plan_type', plan_type)
 
       const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS}?${params}`
       const response = await fetch(url)
@@ -109,7 +111,7 @@ export class ShiftRepository {
    * @param {number} filters.storeId - 店舗ID
    * @param {number} filters.year - 年
    * @param {number} filters.month - 月
-   * @param {string} filters.status - ステータス (DRAFT/SUBMITTED/APPROVED/PUBLISHED/ARCHIVED)
+   * @param {string} filters.status - ステータス (DRAFT/APPROVED)
    * @returns {Promise<Array>} シフト計画データ配列
    */
   async getPlans(filters = {}) {
@@ -196,6 +198,7 @@ export class ShiftRepository {
         storeId,
         year,
         month,
+        plan_type,
       } = filters
 
       const actualTenantId = tenantId ?? getCurrentTenantId()
@@ -207,6 +210,7 @@ export class ShiftRepository {
       const params = new URLSearchParams({ tenant_id: actualTenantId, year })
       if (storeId) params.append('store_id', storeId)
       if (month) params.append('month', month)
+      if (plan_type) params.append('plan_type', plan_type)
 
       const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS_SUMMARY}?${params}`
       const response = await fetch(url)
@@ -384,7 +388,7 @@ export class ShiftRepository {
   /**
    * シフト計画のステータスを更新
    * @param {number} planId - プランID
-   * @param {string} status - 新しいステータス (DRAFT/SUBMITTED/APPROVED/PUBLISHED/ARCHIVED)
+   * @param {string} status - 新しいステータス (DRAFT/APPROVED)
    * @param {number} tenantId - テナントID
    * @returns {Promise<Object>} 更新後のプランデータ
    */
@@ -470,6 +474,58 @@ export class ShiftRepository {
     } catch (error) {
       console.error('前月からのコピーエラー:', error)
       throw new Error(`前月からのコピーエラー: ${error.message}`)
+    }
+  }
+
+  /**
+   * 全店舗一括で最新プランからシフトをコピーして新しいシフト計画を作成
+   * @param {Object} data - リクエストデータ
+   * @param {number} data.target_year - ターゲット年
+   * @param {number} data.target_month - ターゲット月
+   * @param {number} data.created_by - 作成者ID
+   * @param {number} data.tenantId - テナントID (オプション)
+   * @returns {Promise<Object>} 作成されたシフト計画データ
+   */
+  async copyFromPreviousAllStores(data) {
+    try {
+      const {
+        target_year,
+        target_month,
+        created_by,
+        tenantId = null,
+      } = data
+
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const url = `${BACKEND_API_URL}/api/shifts/plans/copy-from-previous-all-stores`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenant_id: actualTenantId,
+          target_year,
+          target_month,
+          created_by,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '全店舗一括コピーに失敗しました')
+      }
+
+      return result
+    } catch (error) {
+      console.error('全店舗一括コピーエラー:', error)
+      throw new Error(`全店舗一括コピーエラー: ${error.message}`)
     }
   }
 }

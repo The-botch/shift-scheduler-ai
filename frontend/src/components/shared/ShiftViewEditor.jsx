@@ -14,7 +14,7 @@ import ShiftCalendar from './ShiftCalendar'
  * @param {number} props.month - 月
  * @param {Array} props.shiftData - シフトデータ
  * @param {Object} props.staffMap - スタッフマップ（全スタッフ）
- * @param {Object} props.calendarData - カレンダー用データ
+ * @param {Object} props.storesMap - 店舗マップ（店舗ID -> 店舗情報）
  * @param {number|string} props.storeId - 店舗ID（フィルタ用）
  * @param {string} props.storeName - 店舗名
  * @param {boolean} props.readonly - 読み取り専用モード（編集・削除不可）
@@ -29,7 +29,7 @@ const ShiftViewEditor = ({
   month,
   shiftData,
   staffMap,
-  calendarData,
+  storesMap,
   storeId,
   storeName,
   readonly = false,
@@ -41,20 +41,43 @@ const ShiftViewEditor = ({
 }) => {
   const [viewMode, setViewMode] = useState('staff') // 'staff' | 'calendar'
 
-  // スタッフマップをフィルタリング: 在籍中 かつ 選択された店舗のスタッフのみ
+  // スタッフマップをフィルタリング: 在籍中 かつ (選択された店舗のスタッフ または その店舗でシフトがあるスタッフ)
   const filteredStaffMap = useMemo(() => {
+    // 選択された店舗でシフトがあるスタッフIDを取得
+    const staffIdsWithShiftsInStore = new Set()
+    if (storeId && shiftData) {
+      shiftData.forEach(shift => {
+        if (parseInt(shift.store_id) === parseInt(storeId)) {
+          staffIdsWithShiftsInStore.add(parseInt(shift.staff_id))
+        }
+      })
+    }
+
     return Object.fromEntries(
       Object.entries(staffMap).filter(([id, info]) => {
         // 在籍中のスタッフのみ
         const isActive = info.is_active !== false
 
-        // 店舗IDが指定されている場合は、その店舗のスタッフのみ
-        const matchesStore = !storeId || parseInt(info.store_id) === parseInt(storeId)
+        // 店舗IDが指定されていない場合は全員表示
+        if (!storeId) return isActive
 
-        return isActive && matchesStore
+        // その店舗に所属している、または、その店舗でシフトがある
+        const belongsToStore = parseInt(info.store_id) === parseInt(storeId)
+        const hasShiftInStore = staffIdsWithShiftsInStore.has(parseInt(id))
+
+        return isActive && (belongsToStore || hasShiftInStore)
       })
     )
-  }, [staffMap, storeId])
+  }, [staffMap, storeId, shiftData])
+
+  // シフトデータをフィルタリング: 選択された店舗のシフトのみ
+  const filteredShiftData = useMemo(() => {
+    if (!storeId || !shiftData) return shiftData
+
+    return shiftData.filter(shift => {
+      return parseInt(shift.store_id) === parseInt(storeId)
+    })
+  }, [shiftData, storeId])
 
   return (
     <div className="flex flex-col h-full">
@@ -85,8 +108,9 @@ const ShiftViewEditor = ({
             <StaffTimeTable
               year={year}
               month={month}
-              shiftData={shiftData}
+              shiftData={filteredShiftData}
               staffMap={filteredStaffMap}
+              storesMap={storesMap}
               storeName={storeName}
               readonly={readonly}
               onAddShift={readonly ? undefined : onAddShift}
@@ -98,8 +122,9 @@ const ShiftViewEditor = ({
             <ShiftCalendar
               year={year}
               month={month}
-              calendarData={calendarData}
-              onDayClick={readonly ? undefined : onDayClick}
+              shiftData={filteredShiftData}
+              staffMap={filteredStaffMap}
+              onDayClick={onDayClick}
               storeName={storeName}
             />
           )}

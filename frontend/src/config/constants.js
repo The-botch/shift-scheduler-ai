@@ -52,8 +52,8 @@ export const SKILL_LEVELS = {
 
 // ステータス
 export const SHIFT_STATUS = {
-  DRAFT: 'draft',
-  FIRST_PLAN_APPROVED: 'first_plan_approved',
+  DRAFT: 'DRAFT',
+  APPROVED: 'APPROVED',
   COMPLETED: 'completed',
 }
 
@@ -67,10 +67,7 @@ export const SHIFT_PREFERENCE_STATUS = {
 // シフト計画のステータス
 export const PLAN_STATUS = {
   DRAFT: 'DRAFT',
-  SUBMITTED: 'SUBMITTED',
   APPROVED: 'APPROVED',
-  PUBLISHED: 'PUBLISHED',
-  ARCHIVED: 'ARCHIVED',
 }
 
 // 優先度マッピング
