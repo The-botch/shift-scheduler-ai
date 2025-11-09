@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+
+# コミットメッセージのフォーマットは一旦決めないけど土台だけ用意しておく
+# echo "🧾 Checking commit message format..."
+# npx commitlint --edit "$1"
