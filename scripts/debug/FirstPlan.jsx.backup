@@ -1,0 +1,1289 @@
+import { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Button } from '../ui/button'
+import {
+  Sparkles,
+  CheckCircle,
+  Loader2,
+  Calendar as CalendarIcon,
+  MessageSquare,
+  Send,
+  Minimize2,
+  GripVertical,
+  Upload,
+  Settings,
+} from 'lucide-react'
+import ShiftTimeline from '../shared/ShiftTimeline'
+import { ShiftRepository } from '../../infrastructure/repositories/ShiftRepository'
+import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
+
+const shiftRepository = new ShiftRepository()
+const masterRepository = new MasterRepository()
+
+const pageVariants = {
+  initial: { opacity: 0, y: 20 },
+  in: { opacity: 1, y: 0 },
+  out: { opacity: 0, y: -20 },
+}
+
+const pageTransition = {
+  type: 'tween',
+  ease: 'anticipate',
+  duration: 0.5,
+}
+
+// カレンダービューコンポーネント
+const CalendarView = ({ calendarData, onDayClick }) => {
+  if (!calendarData) return null
+
+  const { daysInMonth, firstDay, shiftsByDate } = calendarData
+  const weekDays = ['日', '月', '火', '水', '木', '金', '土']
+
+  // カレンダーグリッド用の配列を作成
+  const calendarDays = []
+  // 月初の空セル
+  for (let i = 0; i < firstDay; i++) {
+    calendarDays.push(null)
+  }
+  // 日付セル
+  for (let day = 1; day <= daysInMonth; day++) {
+    calendarDays.push(day)
+  }
+
+  return (
+    <div>
+      {/* 曜日ヘッダー */}
+      <div className="grid grid-cols-7 gap-1 mb-2">
+        {weekDays.map(day => (
+          <div key={day} className="p-1 text-center text-xs font-bold bg-blue-50 rounded">
+            {day}
+          </div>
+        ))}
+      </div>
+
+      {/* カレンダーグリッド */}
+      <div className="grid grid-cols-7 gap-1">
+        {calendarDays.map((day, index) => {
+          if (!day) {
+            // 空セル
+            return <div key={`empty-${index}`} className="min-h-[60px]" />
+          }
+
+          const dayShifts = shiftsByDate[day] || []
+          const dayOfWeek = (firstDay + day - 1) % 7
+          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+          const hasModified = dayShifts.some(s => s.modified_flag)
+
+          return (
+            <motion.div
+              key={day}
+              className={`p-1 border rounded min-h-[60px] cursor-pointer hover:shadow-md transition-shadow ${
+                hasModified
+                  ? 'bg-yellow-50 border-yellow-300 hover:bg-yellow-100'
+                  : isWeekend
+                    ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                    : 'border-gray-200 hover:bg-gray-50'
+              }`}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: index * 0.01 }}
+              onClick={() => dayShifts.length > 0 && onDayClick(day, dayShifts)}
+            >
+              <div
+                className={`text-xs font-bold mb-0.5 ${
+                  hasModified ? 'text-yellow-700' : 'text-gray-700'
+                }`}
+              >
+                {day}
+              </div>
+              {dayShifts.slice(0, 2).map((shift, idx) => (
+                <div
+                  key={idx}
+                  className="text-xs p-0.5 rounded mb-0.5 bg-green-100 border border-green-300"
+                >
+                  <div className="font-medium text-green-800 text-xs leading-tight truncate">
+                    {shift.staff_name}
+                  </div>
+                </div>
+              ))}
+              {dayShifts.length > 2 && (
+                <div className="text-xs text-gray-500">+{dayShifts.length - 2}</div>
+              )}
+            </motion.div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+const FirstPlan = ({ onNext: _onNext, onPrev, onApprove, onMarkUnsaved, onMarkSaved, selectedShift, onGoToGenerationSettings }) => {
+  const [generating, setGenerating] = useState(false)
+  const [generated, setGenerated] = useState(false)
+  const [shiftData, setShiftData] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [stats, setStats] = useState({
+    totalShifts: 0,
+    totalHours: 0,
+    staffCount: 0,
+  })
+
+  // カレンダービュー用の状態
+  const [showCalendarView, setShowCalendarView] = useState(false)
+  const [calendarData, setCalendarData] = useState(null)
+
+  // selectedShiftから情報を取得
+  const planId = selectedShift?.planId || selectedShift?.plan_id || null
+  const currentYear = selectedShift?.year || new Date().getFullYear()
+  const currentMonth = selectedShift?.month || new Date().getMonth() + 1
+  const isDraft = selectedShift?.status === 'draft'
+
+  console.log('FirstPlan mounted with:', {
+    selectedShift,
+    planId,
+    currentYear,
+    currentMonth,
+    isDraft
+  })
+
+  // チャット機能関連の状態変数
+  const [messages, setMessages] = useState([
+    {
+      id: 1,
+      type: 'system',
+      content:
+        '第1案が生成されました。この案で問題なければ次のステップへ進んでください。修正が必要な場合は、自然言語で指示をお願いします。',
+      time: '14:30',
+    },
+  ])
+  const [inputValue, setInputValue] = useState('')
+  const [isTyping, setIsTyping] = useState(false)
+  const [pendingChange, setPendingChange] = useState(null)
+  const [isChatMinimized, setIsChatMinimized] = useState(false)
+  const [chatPosition, setChatPosition] = useState({
+    x: window.innerWidth - 336,
+    y: window.innerHeight - 520,
+  })
+  const [chatSize, setChatSize] = useState({ width: 320, height: 500 })
+  const [isDragging, setIsDragging] = useState(false)
+  const [isResizing, setIsResizing] = useState(false)
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+  const chatEndRef = useRef(null)
+  const [changedDates, setChangedDates] = useState(new Set())
+
+  // タイムライン表示用
+  const [selectedDay, setSelectedDay] = useState(null)
+  const [dayShifts, setDayShifts] = useState([])
+
+  // シフトデータを読み込む
+  useEffect(() => {
+    if (planId) {
+      loadShiftData()
+    } else {
+      // 新規作成の場合はローディングを終了
+      console.log('FirstPlan: 新規作成モード（planIdなし）')
+      setLoading(false)
+      setGenerated(false)
+    }
+  }, [planId])
+
+  const loadShiftData = async () => {
+    try {
+      setLoading(true)
+
+      // planIdが指定されていない場合はエラー
+      if (!planId) {
+        console.error('planIdが指定されていません')
+        setLoading(false)
+        return
+      }
+
+      console.log('FirstPlan: Loading shift data for planId:', planId)
+
+      // APIから並行読み込み
+      const [shiftsResult, staffResult, rolesResult] = await Promise.all([
+        shiftRepository.getShifts({ planId: planId }),
+        masterRepository.getStaff(),
+        masterRepository.getRoles(),
+      ])
+
+      // 役職IDから役職名へのマッピング
+      const rolesMap = {}
+      rolesResult.forEach(role => {
+        rolesMap[role.role_id] = role.role_name
+      })
+
+      // スタッフIDから名前・役職へのマッピング
+      const staffMap = {}
+      staffResult.forEach(staff => {
+        staffMap[staff.staff_id] = {
+          name: staff.name,
+          role_id: staff.role_id,
+          role_name: rolesMap[staff.role_id] || 'スタッフ',
+        }
+      })
+
+      // 日付別にグループ化
+      const groupedByDate = {}
+      shiftsResult.forEach(shift => {
+        const date = shift.shift_date.split('T')[0] // ISO形式から日付部分を取得
+        if (!groupedByDate[date]) {
+          groupedByDate[date] = []
+        }
+        const staffInfo = staffMap[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
+        groupedByDate[date].push({
+          name: staffInfo.name,
+          role: staffInfo.role_name,
+          time: `${shift.start_time?.substring(0, 5)}-${shift.end_time?.substring(0, 5)}`,
+          skill: shift.assigned_skills?.length || 3,
+          hours: parseFloat(shift.total_hours) || 0,
+        })
+      })
+
+      // 日付順にソート
+      const sortedDates = Object.keys(groupedByDate).sort()
+
+      // 1日から連番で格納
+      const formattedData = sortedDates.map((date, index) => ({
+        date: index + 1,
+        fullDate: date,
+        shifts: groupedByDate[date],
+      }))
+
+      console.log('CSVから読み込んだデータ:', formattedData.length, '日分')
+      console.log('スタッフ数:', Object.keys(staffMap).length)
+
+      // CSVデータを使用
+      console.log(`CSVデータを使用します (${formattedData.length}日分)`)
+      setShiftData(formattedData)
+
+      // 統計情報を計算
+      const totalShifts = shiftsResult.length
+      const totalHours = shiftsResult.reduce((sum, s) => sum + (s.total_hours || 0), 0)
+      const staffCount = Object.keys(staffMap).length
+
+      setStats({ totalShifts, totalHours, staffCount })
+
+      // 下書きの場合はカレンダービューも準備
+      console.log('Shift status check:', {
+        status: selectedShift?.status,
+        planId: selectedShift?.plan_id,
+        isDraft: selectedShift?.status === 'draft'
+      })
+
+      if (selectedShift?.status === 'draft') {
+        console.log('下書きモード: カレンダービューを準備します')
+        console.log('Shifts count:', shiftsResult.length)
+        console.log('Staff map size:', Object.keys(staffMap).length)
+        prepareCalendarView(shiftsResult, staffMap)
+        setShowCalendarView(true)
+        setGenerated(true)
+        console.log('Calendar view setup complete')
+      }
+
+      setLoading(false)
+    } catch (err) {
+      console.error('データ読み込みエラー:', err)
+      setShiftData([])
+      setStats({ totalShifts: 0, totalHours: 0, staffCount: 0 })
+      setLoading(false)
+      alert('シフトデータの読み込みに失敗しました。CSVファイルを確認してください。')
+    }
+  }
+
+  // カレンダービュー用のデータを準備
+  const prepareCalendarView = (shifts, staffMap) => {
+    console.log('prepareCalendarView called with:', {
+      shiftsCount: shifts.length,
+      staffCount: Object.keys(staffMap).length,
+      currentYear,
+      currentMonth
+    })
+
+    // 日付別にグループ化
+    const shiftsByDate = {}
+    shifts.forEach(shift => {
+      const date = new Date(shift.shift_date)
+      const day = date.getDate()
+
+      if (!shiftsByDate[day]) {
+        shiftsByDate[day] = []
+      }
+
+      const staffInfo = staffMap[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
+      shiftsByDate[day].push({
+        ...shift,
+        staff_name: staffInfo.name,
+        role: staffInfo.role_name,
+        modified_flag: false
+      })
+    })
+
+    // 月の情報を計算
+    const date = new Date(currentYear, currentMonth - 1, 1)
+    const daysInMonth = new Date(currentYear, currentMonth, 0).getDate()
+    const firstDay = date.getDay()
+
+    const calData = {
+      daysInMonth,
+      firstDay,
+      shiftsByDate,
+      year: currentYear,
+      month: currentMonth
+    }
+
+    console.log('Setting calendar data:', calData)
+    console.log('Days with shifts:', Object.keys(shiftsByDate))
+
+    setCalendarData(calData)
+  }
+
+  const generateFirstPlan = () => {
+    setGenerating(true)
+    setTimeout(() => {
+      setGenerating(false)
+      setGenerated(true)
+    }, 3000)
+  }
+
+  // CSVインポート処理
+  const handleCSVImport = event => {
+    const file = event.target.files[0]
+    if (!file) return
+
+    setGenerating(true)
+
+    const reader = new FileReader()
+    reader.onload = e => {
+      const csvContent = e.target.result
+
+      // CSVをパース
+      Papa.parse(csvContent, {
+        header: true,
+        dynamicTyping: true,
+        skipEmptyLines: true,
+        complete: result => {
+          console.log('✅ CSVファイルをインポートしました:', file.name, result.data.length, '件')
+
+          // インポートしたデータを既存のshiftData形式に変換
+          // shift.csvの形式を想定: date, staff_name, start_time, end_time, role, etc.
+          const groupedByDate = {}
+
+          result.data.forEach(row => {
+            const date = row.date || row.shift_date?.split('-')[2] || row.day
+            if (!date) return
+
+            if (!groupedByDate[date]) {
+              groupedByDate[date] = {
+                date: parseInt(date),
+                shifts: [],
+                totalStaff: 0,
+                totalHours: 0,
+              }
+            }
+
+            // 時間計算
+            const startHour = parseInt((row.start_time || '09:00').split(':')[0])
+            const endHour = parseInt((row.end_time || '18:00').split(':')[0])
+            const hours = endHour - startHour
+
+            groupedByDate[date].shifts.push({
+              name: row.staff_name || row.name || 'スタッフ',
+              time: `${row.start_time || '09:00'}-${row.end_time || '18:00'}`,
+              role: row.role || 'スタッフ',
+              hours: hours,
+            })
+
+            groupedByDate[date].totalStaff++
+            groupedByDate[date].totalHours += hours
+          })
+
+          // 配列に変換してソート
+          const importedShiftData = Object.values(groupedByDate).sort((a, b) => a.date - b.date)
+
+          // 統計を計算
+          const totalShifts = result.data.length
+          const totalHours = importedShiftData.reduce((sum, day) => sum + day.totalHours, 0)
+          const staffSet = new Set(result.data.map(row => row.staff_name || row.name))
+          const staffCount = staffSet.size
+
+          setShiftData(importedShiftData)
+          setStats({
+            totalShifts,
+            totalHours,
+            staffCount,
+          })
+
+          setGenerating(false)
+          setGenerated(true)
+
+          console.log('✅ インポート完了:', {
+            日数: importedShiftData.length,
+            シフト数: totalShifts,
+            スタッフ数: staffCount,
+            総労働時間: totalHours,
+          })
+        },
+        error: error => {
+          console.error('CSVパースエラー:', error)
+          setGenerating(false)
+          alert('CSVファイルの読み込みに失敗しました')
+        },
+      })
+    }
+
+    reader.onerror = () => {
+      console.error('ファイル読み込みエラー')
+      setGenerating(false)
+      alert('ファイルの読み込みに失敗しました')
+    }
+
+    reader.readAsText(file)
+  }
+
+  const handleApprove = () => {
+    // 承認時に履歴データとして保存
+    const approvedData = {
+      month: 7,
+      year: 2025,
+      status: 'first_plan_approved',
+      approvedAt: new Date().toISOString(),
+      shifts: shiftData,
+      stats: stats,
+    }
+
+    // LocalStorageに保存
+    localStorage.setItem('approved_first_plan_2025_07', JSON.stringify(approvedData))
+    console.log('第1案を仮承認しました。履歴に保存されました。')
+
+    // 親コンポーネントの承認処理を呼び出し
+    if (onApprove) {
+      onApprove()
+    }
+  }
+
+  // タイムライン表示用の関数（カレンダービューから呼ばれる版）
+  const handleDayClickFromCalendar = (day, dayShifts) => {
+    // カレンダーデータ形式をShiftTimeline用に変換
+    const formattedShifts = dayShifts.map(shift => ({
+      shift_id: shift.shift_id,
+      staff_name: shift.staff_name,
+      start_time: shift.start_time?.substring(0, 5) || '09:00',
+      end_time: shift.end_time?.substring(0, 5) || '18:00',
+      role: shift.role || 'スタッフ',
+      planned_hours: shift.total_hours || 0,
+      modified_flag: shift.modified_flag || false,
+    }))
+    setDayShifts(formattedShifts)
+    setSelectedDay(day)
+  }
+
+  // タイムライン表示用の関数（既存のカレンダーから呼ばれる版）
+  const handleDayClick = dayData => {
+    // FirstPlanのデータ形式をShiftTimeline用に変換
+    const formattedShifts = dayData.shifts.map((shift, index) => {
+      const [startTime, endTime] = shift.time.split('-')
+      return {
+        shift_id: `shift-${dayData.date}-${index}`,
+        staff_name: shift.name,
+        start_time: startTime,
+        end_time: endTime,
+        role: shift.role || 'スタッフ',
+        planned_hours: shift.hours,
+        modified_flag: shift.changed || false,
+      }
+    })
+    setDayShifts(formattedShifts)
+    setSelectedDay(dayData.date)
+  }
+
+  const closeDayView = () => {
+    setSelectedDay(null)
+    setDayShifts([])
+  }
+
+  // チャット自動スクロール関数
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      if (chatEndRef.current) {
+        chatEndRef.current.scrollIntoView({ behavior: 'smooth' })
+      }
+    }, 100)
+  }
+
+  // ドラッグハンドラー
+  const handleDragStart = e => {
+    setIsDragging(true)
+    setDragStart({
+      x: e.clientX - chatPosition.x,
+      y: e.clientY - chatPosition.y,
+    })
+  }
+
+  const handleDrag = e => {
+    if (isDragging) {
+      setChatPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y,
+      })
+    }
+  }
+
+  const handleDragEnd = () => {
+    setIsDragging(false)
+  }
+
+  // リサイズハンドラー
+  const handleResizeStart = e => {
+    e.stopPropagation()
+    setIsResizing(true)
+    setDragStart({ x: e.clientX, y: e.clientY })
+  }
+
+  const handleResize = e => {
+    if (isResizing) {
+      const deltaX = e.clientX - dragStart.x
+      const deltaY = e.clientY - dragStart.y
+      setChatSize({
+        width: Math.max(280, chatSize.width + deltaX),
+        height: Math.max(300, chatSize.height + deltaY),
+      })
+      setDragStart({ x: e.clientX, y: e.clientY })
+    }
+  }
+
+  const handleResizeEnd = () => {
+    setIsResizing(false)
+  }
+
+  // マウスイベントリスナー
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleDrag)
+      window.addEventListener('mouseup', handleDragEnd)
+      return () => {
+        window.removeEventListener('mousemove', handleDrag)
+        window.removeEventListener('mouseup', handleDragEnd)
+      }
+    }
+  }, [isDragging, dragStart, chatPosition])
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleResize)
+      window.addEventListener('mouseup', handleResizeEnd)
+      return () => {
+        window.removeEventListener('mousemove', handleResize)
+        window.removeEventListener('mouseup', handleResizeEnd)
+      }
+    }
+  }, [isResizing, dragStart, chatSize])
+
+  // デモパターン（第1案用に調整）
+  const demoPatterns = {
+    '5日の田中さんを佐藤さんに変更してください': {
+      analysis: {
+        changes: '5日: 田中さん → 佐藤さんに変更',
+        impacts: [
+          'スキルレベル: ★★★★ → ★★★★★に向上',
+          '田中さんの週間勤務: 32時間 → 28時間',
+          '佐藤さんの週間勤務: 32時間 → 36時間',
+          'サービス品質が向上',
+        ],
+        question: 'この変更を実行しますか？「OK」と入力してください。',
+      },
+      changes: [
+        { date: 5, action: 'modify', staff: '田中', newStaff: '佐藤', time: '9-17', skill: 5 },
+      ],
+      response:
+        '✅ 変更を実行しました\n• 5日の田中さんを佐藤さんに変更\n• スキルレベルが★★★★★に向上\n• サービス品質が改善',
+    },
+    '10日に山田さんを追加してください': {
+      analysis: {
+        changes: '10日: 山田さんを追加配置',
+        impacts: [
+          '10日の人員不足が解消されます',
+          '山田さんの週間勤務: 30時間 → 34時間',
+          '充足率: 85% → 88%に向上',
+          '業務の安定性が向上',
+        ],
+        question: 'この変更を実行しますか？「OK」と入力してください。',
+      },
+      changes: [{ date: 10, action: 'add', staff: '山田', time: '13-17', skill: 3 }],
+      response:
+        '✅ 変更を実行しました\n• 10日に山田さんを追加配置\n• 人員不足を解消\n• 充足率88%に向上',
+    },
+    '15日の鈴木さんを削除してください': {
+      analysis: {
+        changes: '15日: 鈴木さんを削除',
+        impacts: [
+          '15日の人員過多(3名→2名)が解消',
+          '鈴木さんの週間勤務: 34時間 → 30時間',
+          '人件費削減: ¥4,000',
+          '適正人員配置に調整',
+        ],
+        question: 'この変更を実行しますか？「OK」と入力してください。',
+      },
+      changes: [{ date: 15, action: 'remove', staff: '鈴木' }],
+      response:
+        '✅ 変更を実行しました\n• 15日の鈴木さんを削除\n• 人員過多を解消(3名→2名)\n• 人件費¥4,000削減',
+    },
+    '20日の高橋さんを午前シフトに変更してください': {
+      analysis: {
+        changes: '20日: 高橋さんの時間帯を9-13時に変更',
+        impacts: [
+          '午前の人員不足が解消',
+          '高橋さんの希望適合度: 65% → 82%に向上',
+          '午後は佐藤さんを自動配置',
+          '全体満足度が向上',
+        ],
+        question: 'この変更を実行しますか？「OK」と入力してください。',
+      },
+      changes: [{ date: 20, action: 'modify', staff: '高橋', time: '9-13', skill: 4 }],
+      response:
+        '✅ 変更を実行しました\n• 20日の高橋さんを午前シフトに変更\n• 希望適合度82%に向上\n• 午前の人員不足を解消',
+    },
+    '25日の午後スタッフを1名減らしてください': {
+      analysis: {
+        changes: '25日午後: 伊藤さんを削除',
+        impacts: [
+          '25日午後の人員過多が解消',
+          '伊藤さんの週間勤務: 33時間 → 29時間',
+          '人件費削減: ¥3,200',
+          '適正人員に調整',
+        ],
+        question: 'この変更を実行しますか？「OK」と入力してください。',
+      },
+      changes: [{ date: 25, action: 'remove', staff: '伊藤' }],
+      response:
+        '✅ 変更を実行しました\n• 25日午後の伊藤さんを削除\n• 人員過多を解消\n• 人件費¥3,200削減',
+    },
+  }
+
+  const applyShiftChanges = changes => {
+    // 変更があったことをマーク
+    if (onMarkUnsaved) {
+      onMarkUnsaved()
+    }
+
+    setShiftData(prevData => {
+      const newData = [...prevData]
+      const newChangedDates = new Set(changedDates)
+
+      changes.forEach(change => {
+        const dayIndex = newData.findIndex(d => d.date === change.date)
+        if (dayIndex !== -1) {
+          newChangedDates.add(change.date)
+
+          if (change.action === 'remove') {
+            newData[dayIndex].shifts = newData[dayIndex].shifts.filter(s => s.name !== change.staff)
+          } else if (change.action === 'add') {
+            newData[dayIndex].shifts.push({
+              name: change.staff,
+              time: change.time,
+              skill: change.skill,
+              hours: 4,
+              changed: true,
+            })
+          } else if (change.action === 'modify') {
+            const shiftIndex = newData[dayIndex].shifts.findIndex(s => s.name === change.staff)
+            if (shiftIndex !== -1) {
+              if (change.newStaff) {
+                // スタッフ変更
+                newData[dayIndex].shifts[shiftIndex] = {
+                  name: change.newStaff,
+                  time: change.time,
+                  skill: change.skill,
+                  hours: 4,
+                  changed: true,
+                }
+              } else {
+                // 時間変更
+                newData[dayIndex].shifts[shiftIndex] = {
+                  ...newData[dayIndex].shifts[shiftIndex],
+                  time: change.time,
+                  changed: true,
+                }
+              }
+            }
+          }
+        }
+      })
+
+      setChangedDates(newChangedDates)
+      return newData
+    })
+  }
+
+  const sendMessage = (messageText = null) => {
+    const textToSend = messageText || inputValue
+    if (!textToSend.trim()) return
+
+    const newMessage = {
+      id: messages.length + 1,
+      type: 'user',
+      content: textToSend,
+      time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+    }
+
+    setMessages(prev => [...prev, newMessage])
+    const currentInput = textToSend
+    setInputValue('')
+    setIsTyping(true)
+    scrollToBottom()
+
+    // 承認待ち状態の処理
+    if (
+      pendingChange &&
+      (currentInput.toLowerCase().includes('ok') ||
+        currentInput.includes('はい') ||
+        currentInput.includes('実行'))
+    ) {
+      setTimeout(() => {
+        applyShiftChanges(pendingChange.changes)
+        const aiResponse = {
+          id: messages.length + 2,
+          type: 'assistant',
+          content: pendingChange.response,
+          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+        }
+        setMessages(prev => [...prev, aiResponse])
+        setIsTyping(false)
+        setPendingChange(null)
+        scrollToBottom()
+      }, 1500)
+      return
+    }
+
+    // デモパターンをチェック
+    const pattern = demoPatterns[currentInput]
+
+    setTimeout(() => {
+      if (pattern) {
+        // 影響分析を表示
+        const analysisContent = `📋 変更予定:\n• ${pattern.analysis.changes}\n\n⚠️ 影響分析:\n${pattern.analysis.impacts.map(impact => `• ${impact}`).join('\n')}\n\n${pattern.analysis.question}`
+
+        const aiResponse = {
+          id: messages.length + 2,
+          type: 'assistant',
+          content: analysisContent,
+          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+        }
+        setMessages(prev => [...prev, aiResponse])
+        setPendingChange(pattern)
+        scrollToBottom()
+      } else {
+        const aiResponse = {
+          id: messages.length + 2,
+          type: 'assistant',
+          content:
+            '申し訳ございませんが、その指示は認識できませんでした。以下の例を参考にしてください：\n\n• 5日の田中さんを佐藤さんに変更してください\n• 10日に山田さんを追加してください\n• 15日の鈴木さんを削除してください\n• 20日の高橋さんを午前シフトに変更してください',
+          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
+        }
+        setMessages(prev => [...prev, aiResponse])
+        scrollToBottom()
+      }
+      setIsTyping(false)
+    }, 2000)
+  }
+
+  if (loading) {
+    return (
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="container mx-auto px-4 py-8"
+      >
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+          <p className="text-lg text-gray-600">データを準備しています...</p>
+        </div>
+      </motion.div>
+    )
+  }
+
+  // 下書き閲覧モードの場合（カレンダーデータがある場合は必ず表示）
+  console.log('Render check:', {
+    showCalendarView,
+    hasCalendarData: !!calendarData,
+    isDraft,
+    generated,
+    hasShiftData: shiftData.length
+  })
+
+  // 下書きでカレンダーデータがあれば表示（generatedは不要）
+  if (isDraft && calendarData) {
+    console.log('カレンダービューを表示します', calendarData)
+    return (
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="container mx-auto px-4 py-8"
+      >
+        <Card className="shadow-lg border-0">
+          <CardContent className="p-6">
+            <CalendarView calendarData={calendarData} onDayClick={handleDayClickFromCalendar} />
+          </CardContent>
+        </Card>
+
+        {/* タイムライン表示 */}
+        <AnimatePresence>
+          {selectedDay && (
+            <ShiftTimeline
+              date={selectedDay}
+              year={currentYear}
+              month={currentMonth}
+              shifts={dayShifts}
+              onClose={closeDayView}
+            />
+          )}
+        </AnimatePresence>
+      </motion.div>
+    )
+  }
+
+  return (
+    <motion.div
+      initial="initial"
+      animate="in"
+      exit="out"
+      variants={pageVariants}
+      transition={pageTransition}
+      className="container mx-auto px-4 py-8"
+    >
+
+      {!generated ? (
+        <Card className="shadow-lg border-0">
+          <CardContent className="p-12 text-center">
+            {generating ? (
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+                <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+                  >
+                    <Sparkles className="h-12 w-12 text-purple-600" />
+                  </motion.div>
+                </div>
+                <h3 className="text-2xl font-bold mb-4">AIがシフトを生成中...</h3>
+                <div className="max-w-md mx-auto">
+                  <div className="bg-gray-200 rounded-full h-2 mb-4">
+                    <motion.div
+                      className="bg-gradient-to-r from-purple-600 to-blue-600 h-2 rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: '100%' }}
+                      transition={{ duration: 3 }}
+                    />
+                  </div>
+                  <p className="text-gray-600">制約条件を考慮し、最適なシフトを計算中...</p>
+                </div>
+              </motion.div>
+            ) : (
+              <>
+                <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                  <Sparkles className="h-12 w-12 text-purple-600" />
+                </div>
+                <h3 className="text-2xl font-bold mb-4">AI自動シフト生成</h3>
+                <p className="text-gray-600 mb-8">
+                  スタッフ情報と制約条件から、最適なシフトを自動生成します
+                  <br />
+                  読み込み完了: {shiftData.length}日分、{stats.staffCount}名のスタッフ
+                </p>
+                <div className="flex flex-col gap-3">
+                  <Button
+                    onClick={generateFirstPlan}
+                    size="lg"
+                    className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                  >
+                    <Sparkles className="mr-2 h-5 w-5" />
+                    自動生成を開始
+                  </Button>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">または</span>
+                    </div>
+                  </div>
+
+                  <Button
+                    onClick={onGoToGenerationSettings}
+                    className="w-full bg-blue-600 hover:bg-blue-700 h-11"
+                    size="lg"
+                  >
+                    <Settings className="mr-2 h-5 w-5" />
+                    生成設定
+                  </Button>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {/* 2カラムレイアウト */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* 左側：カレンダー */}
+            <Card className="shadow-lg border-0">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center text-lg">
+                  <CalendarIcon className="h-5 w-5 mr-2 text-blue-600" />
+                  10月のシフト（{shiftData.length}日分）
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-7 gap-1 mb-2">
+                  {['日', '月', '火', '水', '木', '金', '土'].map(day => (
+                    <div key={day} className="p-1 text-center text-xs font-bold bg-blue-50 rounded">
+                      {day}
+                    </div>
+                  ))}
+                </div>
+
+                <div className="grid grid-cols-7 gap-1">
+                  {/* 2025年7月1日は火曜日なので、空白セルを2つ追加（日曜・月曜） */}
+                  {[0, 1].map(i => (
+                    <div key={`empty-${i}`} className="p-1"></div>
+                  ))}
+                  {shiftData.map((dayData, index) => {
+                    // 2025年7月1日は火曜日、日曜始まりのカレンダーなので+2
+                    const dayOfWeekIndex = (dayData.date - 1 + 2) % 7
+                    const isWeekend = dayOfWeekIndex === 0 || dayOfWeekIndex === 6 // 日曜(0)と土曜(6)
+                    const isChanged = changedDates.has(dayData.date)
+
+                    return (
+                      <motion.div
+                        key={index}
+                        className={`p-1 border rounded min-h-[60px] cursor-pointer hover:shadow-md transition-shadow ${
+                          isChanged
+                            ? 'bg-green-50 border-green-400 hover:bg-green-100'
+                            : isWeekend
+                              ? 'bg-blue-50 border-blue-200 hover:bg-blue-100'
+                              : 'border-gray-200 hover:bg-gray-50'
+                        }`}
+                        initial={{ opacity: 0, scale: 0.9 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: index * 0.01 }}
+                        onClick={() => handleDayClick(dayData)}
+                      >
+                        <div
+                          className={`text-xs font-bold mb-0.5 ${
+                            isChanged ? 'text-green-700' : 'text-gray-700'
+                          }`}
+                        >
+                          {dayData.date}
+                          {isChanged && (
+                            <CheckCircle className="h-2.5 w-2.5 inline ml-1 text-green-600" />
+                          )}
+                        </div>
+                        {dayData.shifts.slice(0, 2).map((shift, idx) => (
+                          <motion.div
+                            key={idx}
+                            className={`text-xs p-0.5 rounded mb-0.5 ${
+                              shift.changed
+                                ? 'bg-green-200 border border-green-400'
+                                : 'bg-green-100 border border-green-300'
+                            }`}
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: index * 0.01 + idx * 0.05 }}
+                          >
+                            <div className="font-medium text-green-800 text-xs leading-tight">
+                              {shift.name}
+                            </div>
+                          </motion.div>
+                        ))}
+                        {dayData.shifts.length > 2 && (
+                          <div className="text-xs text-gray-500">+{dayData.shifts.length - 2}</div>
+                        )}
+                      </motion.div>
+                    )
+                  })}
+                </div>
+
+                <div className="mt-3 flex items-center gap-3 text-xs">
+                  <div className="flex items-center">
+                    <div className="w-2.5 h-2.5 bg-green-100 border border-green-300 rounded mr-1.5"></div>
+                    <span>配置済み</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2.5 h-2.5 bg-green-200 border border-green-400 rounded mr-1.5"></div>
+                    <span>修正済み</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-2.5 h-2.5 bg-blue-50 border border-blue-200 rounded mr-1.5"></div>
+                    <span>土日</span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 右側：統計情報 */}
+            <div className="space-y-6">
+              <Card className="shadow-lg border-0">
+                <CardHeader>
+                  <CardTitle>生成結果サマリー</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">総シフト数</span>
+                    <span className="text-2xl font-bold text-blue-600">{stats.totalShifts}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">総労働時間</span>
+                    <span className="text-2xl font-bold text-green-600">
+                      {stats.totalHours.toFixed(1)}h
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">カバレッジ</span>
+                    <span className="text-2xl font-bold text-purple-600">94.8%</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-600">制約違反</span>
+                    <span className="text-2xl font-bold text-green-600">0件</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="shadow-lg border-0 bg-green-50 border-green-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-green-800">
+                    <CheckCircle className="h-5 w-5 mr-2" />
+                    法令遵守チェック
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex items-center text-green-700">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      労働基準法第32条（法定労働時間）
+                    </div>
+                    <div className="flex items-center text-green-700">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      労働基準法第34条（休憩時間）
+                    </div>
+                    <div className="flex items-center text-green-700">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      労働基準法第35条（法定休日）
+                    </div>
+                    <div className="flex items-center text-green-700">
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      労働基準法第61条（年少者保護）
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* 修正例のカード */}
+              <Card className="shadow-lg border-0 bg-blue-50 border-blue-200">
+                <CardHeader>
+                  <CardTitle className="flex items-center text-blue-800">
+                    <MessageSquare className="h-5 w-5 mr-2" />
+                    AI修正アシスタント
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-blue-700 mb-3">
+                    右下のチャットボットで自然言語による修正が可能です
+                  </p>
+                  <div className="text-xs text-blue-600 space-y-1">
+                    <div>• 5日の田中さんを佐藤さんに変更してください</div>
+                    <div>• 10日に山田さんを追加してください</div>
+                    <div>• 15日の鈴木さんを削除してください</div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* ドラッグ可能なチャットウィンドウ */}
+          {isChatMinimized ? (
+            // 最小化状態
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="fixed bottom-4 right-4 z-50"
+            >
+              <Button
+                onClick={() => setIsChatMinimized(false)}
+                size="lg"
+                className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-16 h-16 shadow-2xl flex items-center justify-center"
+              >
+                <MessageSquare className="h-6 w-6" />
+              </Button>
+            </motion.div>
+          ) : (
+            // 展開状態
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className="fixed z-50 bg-white rounded-lg shadow-2xl border border-gray-200"
+              style={{
+                left: `${chatPosition.x}px`,
+                top: `${chatPosition.y}px`,
+                width: `${chatSize.width}px`,
+                height: `${chatSize.height}px`,
+                cursor: isDragging ? 'move' : 'default',
+              }}
+            >
+              <div
+                className="flex items-center justify-between p-4 border-b border-gray-200 bg-blue-600 text-white rounded-t-lg cursor-move"
+                onMouseDown={handleDragStart}
+              >
+                <div className="flex items-center">
+                  <GripVertical className="h-4 w-4 mr-2 opacity-70" />
+                  <MessageSquare className="h-5 w-5 mr-2" />
+                  <span className="font-medium">AI修正アシスタント</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setIsChatMinimized(true)}
+                  className="text-white hover:bg-blue-700 h-8 w-8 p-0"
+                >
+                  <Minimize2 className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex flex-col" style={{ height: `${chatSize.height - 60}px` }}>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {messages.map(message => (
+                    <motion.div
+                      key={message.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
+                    >
+                      <div
+                        className={`max-w-xs px-3 py-2 rounded-lg text-sm whitespace-pre-line ${
+                          message.type === 'user'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-800'
+                        }`}
+                      >
+                        <div>{message.content}</div>
+                        <div
+                          className={`text-xs mt-1 ${
+                            message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                          }`}
+                        >
+                          {message.time}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                  {isTyping && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex justify-start"
+                    >
+                      <div className="bg-gray-100 px-3 py-2 rounded-lg">
+                        <div className="flex space-x-1">
+                          <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                          <div
+                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                            style={{ animationDelay: '0.1s' }}
+                          ></div>
+                          <div
+                            className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                            style={{ animationDelay: '0.2s' }}
+                          ></div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                  <div ref={chatEndRef} />
+                </div>
+                <div className="p-4 border-t border-gray-200">
+                  {pendingChange ? (
+                    // 承認待ち状態の時はOKボタンを表示
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={() => sendMessage('OK')}
+                        className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                      >
+                        ✓ OK（変更を実行）
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setPendingChange(null)
+                          const cancelMessage = {
+                            id: messages.length + 1,
+                            type: 'assistant',
+                            content: '変更をキャンセルしました。',
+                            time: new Date().toLocaleTimeString('ja-JP', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                            }),
+                          }
+                          setMessages(prev => [...prev, cancelMessage])
+                        }}
+                        variant="outline"
+                        className="border-gray-300"
+                      >
+                        キャンセル
+                      </Button>
+                    </div>
+                  ) : (
+                    // 通常状態
+                    <div className="flex space-x-2">
+                      <input
+                        type="text"
+                        value={inputValue}
+                        onChange={e => setInputValue(e.target.value)}
+                        placeholder="修正指示を入力..."
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        onKeyPress={e => e.key === 'Enter' && sendMessage()}
+                      />
+                      <Button
+                        onClick={sendMessage}
+                        size="sm"
+                        className="bg-blue-600 hover:bg-blue-700"
+                      >
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* リサイズハンドル */}
+              <div
+                className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize"
+                onMouseDown={handleResizeStart}
+                style={{
+                  background: 'linear-gradient(135deg, transparent 50%, #cbd5e1 50%)',
+                  borderBottomRightRadius: '0.5rem',
+                }}
+              />
+            </motion.div>
+          )}
+        </div>
+      )}
+
+      {/* タイムライン表示 */}
+      <AnimatePresence>
+        {selectedDay && (
+          <ShiftTimeline
+            date={selectedDay}
+            year={2025}
+            month={7}
+            shifts={dayShifts}
+            onClose={closeDayView}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
+export default FirstPlan
