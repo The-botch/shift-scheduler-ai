@@ -15,9 +15,13 @@ import {
   X,
 } from 'lucide-react'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
+import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
 import History from './History'
+import MultiStoreHistory from './MultiStoreHistory'
+import DraftShiftEditor from './DraftShiftEditor'
 
 const shiftRepository = new ShiftRepository()
+const masterRepository = new MasterRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -80,6 +84,10 @@ const ShiftManagement = ({
       setLoading(true)
       const summary = await shiftRepository.getSummary({ year: selectedYear })
 
+      // デバッグ: 11月のデータを確認
+      const novemberData = summary.filter(s => parseInt(s.month) === 11)
+      console.log('11月のサマリーデータ:', novemberData)
+
       // 店舗リストを抽出してグローバル状態に保存
       const stores = Array.from(
         new Map(
@@ -110,19 +118,25 @@ const ShiftManagement = ({
       // マトリックスデータ構造を生成: 店舗×月
       const matrixData = filteredStores.map(store => {
         const months = monthsToShow.map(month => {
-          const monthData = summary.find(
+          // その月のすべてのプランを取得
+          const monthPlans = summary.filter(
             s => parseInt(s.store_id) === store.store_id && parseInt(s.month) === month
           )
+
+          // 第2案を優先、なければ第1案、なければnull
+          const monthData = monthPlans.find(p => p.plan_type === 'SECOND')
+            || monthPlans.find(p => p.plan_type === 'FIRST')
+            || null
 
           // ステータス判定
           let status = 'not_started'
           if (monthData) {
-            // データが存在する場合、APIから返されたstatusを使用
+            // データが存在する場合、APIから返されたstatusを使用（大文字で統一）
             if (monthData.status) {
-              status = monthData.status.toLowerCase()
+              status = monthData.status.toUpperCase()
             } else {
               // statusがない場合はcompletedとする
-              status = 'completed'
+              status = 'COMPLETED'
             }
           }
 
@@ -132,6 +146,7 @@ const ShiftManagement = ({
             storeId: store.store_id,
             store_name: store.store_name,
             planId: monthData ? monthData.plan_id : null,
+            planType: monthData && monthData.plan_type ? monthData.plan_type.toUpperCase() : null,
             status,
             createdAt: monthData ? new Date().toISOString().split('T')[0] : null,
             staff: monthData ? parseInt(monthData.staff_count) : 0,
@@ -155,14 +170,35 @@ const ShiftManagement = ({
     }
   }
 
-  const getStatusInfo = status => {
-    const statusMap = {
-      second_plan_approved: { label: '確定', color: 'green' },
-      first_plan_approved: { label: '第1案承認', color: 'cyan' },
-      draft: { label: '下書き', color: 'yellow' },
-      not_started: { label: '未作成', color: 'gray' },
+  const getStatusInfo = (planType, status) => {
+    // 未作成の場合
+    if (!status || status === 'not_started') {
+      return { label: '未作成', color: 'gray' }
     }
-    return statusMap[status] || statusMap.not_started
+
+    // ステータスを大文字に正規化
+    const normalizedStatus = status?.toUpperCase()
+
+    // plan_typeがnullまたは空の場合、statusから推測（デフォルトで第1案として扱う）
+    if (!planType) {
+      if (normalizedStatus === 'DRAFT') return { label: '第1案作成中', color: 'yellow' }
+      if (normalizedStatus === 'APPROVED') return { label: '第1案承認済み', color: 'cyan' }
+    }
+
+    // 第1案
+    if (planType === 'FIRST') {
+      if (normalizedStatus === 'DRAFT') return { label: '第1案作成中', color: 'yellow' }
+      if (normalizedStatus === 'APPROVED') return { label: '第1案承認済み', color: 'cyan' }
+    }
+
+    // 第2案
+    if (planType === 'SECOND') {
+      if (normalizedStatus === 'DRAFT') return { label: '第2案作成中', color: 'yellow' }
+      if (normalizedStatus === 'APPROVED') return { label: '第2案承認済み', color: 'green' }
+    }
+
+    console.warn('不明なステータス:', 'planType=', planType, 'status=', status, 'normalizedStatus=', normalizedStatus)
+    return { label: '不明', color: 'gray' }
   }
 
   const handleViewShift = shift => {
@@ -180,9 +216,20 @@ const ShiftManagement = ({
     setViewMode('matrix')
   }
 
-  const handleViewHistory = (shift) => {
-    setViewingShift(shift)
-    setViewMode('detail')
+  const handleViewHistory = (shift, planType = 'SECOND') => {
+    setViewingShift({ ...shift, planType })
+    setViewMode('multistore')
+  }
+
+  const handleViewDraft = (shift, planType = 'FIRST') => {
+    setViewingShift({ ...shift, planType })
+    setViewMode('draft')
+  }
+
+  const handleDraftApprove = async () => {
+    // 承認後にシフトサマリーを再読み込みしてマトリックス画面に戻る
+    await loadShiftSummary()
+    handleBackToMatrix()
   }
 
   const handleViewRecruitmentStatus = (shift) => {
@@ -219,8 +266,8 @@ const ShiftManagement = ({
   }
 
   // 新規作成ボタンクリック時にモーダルを開く
-  const handleOpenCreateModal = (shift) => {
-    setModalShift(shift)
+  const handleOpenCreateModal = (shift, isBatchCreate = false) => {
+    setModalShift({ ...shift, isBatchCreate })
     setShowCreateModal(true)
   }
 
@@ -238,30 +285,52 @@ const ShiftManagement = ({
       // ローディング開始
       setIsCopying(true)
 
-      // API呼び出し
-      const result = await shiftRepository.copyFromPreviousMonth({
-        store_id: modalShift.storeId,
-        target_year: modalShift.year,
-        target_month: modalShift.month,
-        created_by: 1 // TODO: 実際のユーザーIDに置き換え
-      })
-
-      // 成功したらシフト編集画面に直接遷移
-      if (result.success && onFirstPlan) {
-        // データ再読み込み後に遷移
-        await loadShiftSummary()
-
-        // モーダルを閉じる
-        setShowCreateModal(false)
-        setIsCopying(false)
-        setModalShift(null)
-
-        // plan_idを設定し、status='draft'で遷移（直接編集画面へ）
-        onFirstPlan({
-          ...modalShift,
-          planId: result.data.plan_id,
-          status: 'draft'  // コピー後は下書き状態なので、直接編集画面に遷移
+      // 全店舗一括作成の場合
+      if (modalShift.isBatchCreate) {
+        const result = await shiftRepository.copyFromPreviousAllStores({
+          target_year: modalShift.year,
+          target_month: modalShift.month,
+          created_by: 1 // TODO: 実際のユーザーIDに置き換え
         })
+
+        if (result.success) {
+          // データを再読み込み
+          await loadShiftSummary()
+
+          // モーダルを閉じる
+          setShowCreateModal(false)
+          setIsCopying(false)
+          setModalShift(null)
+
+          // 全店舗の編集画面（DraftShiftEditor）に遷移
+          handleViewDraft({ year: modalShift.year, month: modalShift.month }, 'FIRST')
+        }
+      } else {
+        // 個別店舗の場合
+        const result = await shiftRepository.copyFromPreviousMonth({
+          store_id: modalShift.storeId,
+          target_year: modalShift.year,
+          target_month: modalShift.month,
+          created_by: 1 // TODO: 実際のユーザーIDに置き換え
+        })
+
+        // 成功したらシフト編集画面に直接遷移
+        if (result.success && onFirstPlan) {
+          // データ再読み込み後に遷移
+          await loadShiftSummary()
+
+          // モーダルを閉じる
+          setShowCreateModal(false)
+          setIsCopying(false)
+          setModalShift(null)
+
+          // plan_idを設定し、status='draft'で遷移（直接編集画面へ）
+          onFirstPlan({
+            ...modalShift,
+            planId: result.data.plan_id,
+            status: 'draft'  // コピー後は下書き状態なので、直接編集画面に遷移
+          })
+        }
       }
     } catch (error) {
       console.error('前月からのコピーエラー:', error)
@@ -305,7 +374,7 @@ const ShiftManagement = ({
   const getActionButton = shift => {
     const isCreating = creatingShift === shift.month
 
-    // 該当月(現在の月)より前の月はアクションボタンを表示しない
+    // 該当月(現在の月)より前の月は「閲覧」ボタンを表示
     const now = new Date()
     const currentYear = now.getFullYear()
     const currentMonth = now.getMonth() + 1
@@ -313,58 +382,88 @@ const ShiftManagement = ({
     const currentDate = new Date(currentYear, currentMonth - 1, 1)
 
     if (targetDate < currentDate) {
-      return null
+      // 過去月：第2案閲覧のみ
+      return (
+        <button
+          className="text-xs text-gray-600 hover:text-gray-800 hover:underline"
+          onClick={() => handleViewHistory(shift, 'SECOND')}
+        >
+          第2案閲覧
+        </button>
+      )
     }
 
-    // ステータスに応じてアクションを表示
-    switch (shift.status) {
-      case 'second_plan_approved':
-        return (
-          <button
-            className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
-            onClick={() => handleEditShift(shift)}
-          >
-            編集
-          </button>
-        )
-      case 'first_plan_approved':
-        return (
-          <div className="flex gap-2 text-xs">
-            <button
-              className="text-indigo-600 hover:text-indigo-800 hover:underline"
-              onClick={() => handleEditShift(shift)}
-            >
-              編集
-            </button>
-            <span className="text-gray-300">|</span>
-            <button
-              className="text-purple-600 hover:text-purple-800 hover:underline"
-              onClick={() => onCreateSecondPlan && onCreateSecondPlan(shift)}
-            >
-              第2案作成
-            </button>
-          </div>
-        )
-      case 'draft':
-        return (
-          <button
-            className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
-            onClick={() => handleEditShift(shift)}
-          >
-            編集
-          </button>
-        )
-      default:
-        return (
-          <button
-            className="text-xs text-blue-600 hover:text-blue-800 hover:underline disabled:text-gray-400 disabled:cursor-not-allowed"
-            onClick={() => handleOpenCreateModal(shift)}
-            disabled={isCreating}
-          >
-            {isCreating ? '作成中...' : '新規作成'}
-          </button>
-        )
+    // ステータスとplan_typeに応じてアクションを表示
+    // 第2案が存在する場合（下書きまたは承認済み）
+    if (shift.planType === 'SECOND' && (shift.status === 'DRAFT' || shift.status === 'APPROVED')) {
+      return (
+        <button
+          className="text-xs text-indigo-600 hover:text-indigo-800 hover:underline"
+          onClick={() => handleEditShift(shift)}
+        >
+          第2案編集
+        </button>
+      )
     }
+
+    // 第1案承認済み → 第2案作成のみ表示
+    if (shift.status === 'APPROVED' && shift.planType === 'FIRST') {
+      return (
+        <button
+          className="text-xs text-purple-600 hover:text-purple-800 hover:underline"
+          onClick={() => onCreateSecondPlan && onCreateSecondPlan(shift)}
+        >
+          第2案作成
+        </button>
+      )
+    }
+
+    // その他の場合（第1案の新規作成、第1案の編集）は非表示
+    return null
+  }
+
+  // DraftShiftEditor表示モード（一括編集・一括作成）
+  if (viewMode === 'draft' && viewingShift) {
+    return (
+      <DraftShiftEditor
+        selectedShift={viewingShift}
+        onBack={handleBackToMatrix}
+        onApprove={handleDraftApprove}
+        {...{
+          onHome,
+          onShiftManagement,
+          onLineMessages,
+          onMonitoring,
+          onStaffManagement,
+          onStoreManagement,
+          onConstraintManagement,
+          onBudgetActualManagement,
+          onFirstPlan,
+        }}
+      />
+    )
+  }
+
+  // MultiStoreHistory表示モード
+  if (viewMode === 'multistore' && viewingShift) {
+    return (
+      <MultiStoreHistory
+        initialMonth={viewingShift}
+        planType={viewingShift.planType}
+        onPrev={handleBackToMatrix}
+        {...{
+          onHome,
+          onShiftManagement,
+          onLineMessages,
+          onMonitoring,
+          onStaffManagement,
+          onStoreManagement,
+          onConstraintManagement,
+          onBudgetActualManagement,
+          onFirstPlan,
+        }}
+      />
+    )
   }
 
   // 詳細表示モードの場合はHistoryコンポーネントを表示
@@ -372,6 +471,7 @@ const ShiftManagement = ({
     return (
       <History
         initialMonth={viewingShift}
+        planType={viewingShift.planType}
         onPrev={handleBackToMatrix}
         selectedStore={selectedStore}
         setSelectedStore={setSelectedStore}
@@ -393,7 +493,7 @@ const ShiftManagement = ({
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pt-20">
+    <div className="min-h-screen bg-slate-50 pt-16">
       <motion.div
         initial="initial"
         animate="in"
@@ -456,17 +556,72 @@ const ShiftManagement = ({
                   </colgroup>
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-2 py-2 text-left font-semibold text-gray-700 border-b-2 border-r border-gray-200 whitespace-nowrap">
+                      <th className="px-2 py-2 text-left font-semibold text-gray-700 border-b border-r border-gray-200 whitespace-nowrap">
                         店舗
                       </th>
-                      <th className="px-2 py-2 text-left font-semibold text-gray-700 border-b-2 border-r border-gray-200 bg-gray-100 whitespace-nowrap">
+                      <th className="px-2 py-2 text-left font-semibold text-gray-700 border-b border-r border-gray-200 bg-gray-100 whitespace-nowrap">
 
                       </th>
                       {shifts[0]?.months.map(monthData => (
-                        <th key={monthData.month} className="px-3 py-2 text-center font-semibold text-gray-700 border-b-2 border-gray-200">
+                        <th key={monthData.month} className="px-3 py-2 text-center font-semibold text-gray-700 border-b border-gray-200">
                           {monthData.month}月
                         </th>
                       ))}
+                    </tr>
+                    {/* 全店舗一括作成ボタン行 */}
+                    <tr className="bg-blue-50">
+                      <th colSpan="2" className="px-2 py-2 text-left font-semibold text-gray-700 border-b-2 border-r border-gray-200 text-xs">
+                        全店舗
+                      </th>
+                      {shifts[0]?.months.map(monthData => {
+                        // 過去月かどうかを判定
+                        const now = new Date()
+                        const currentYear = now.getFullYear()
+                        const currentMonth = now.getMonth() + 1
+                        const targetDate = new Date(monthData.year, monthData.month - 1, 1)
+                        const currentDate = new Date(currentYear, currentMonth - 1, 1)
+                        const isPastMonth = targetDate < currentDate
+
+                        // その月の全店舗の作成状況を確認（planIdの有無で判定）
+                        const storesInMonth = shifts.map(store =>
+                          store.months.find(m => m.month === monthData.month)
+                        )
+                        const allCreated = storesInMonth.every(m => m && m.planId && m.planType === 'FIRST')
+                        const someCreated = storesInMonth.some(m => m && m.planId && m.planType === 'FIRST')
+
+                        return (
+                          <th key={`batch-${monthData.month}`} className="px-2 py-2 text-center border-b-2 border-gray-200">
+                            {isPastMonth ? (
+                              // 過去月：第1案閲覧ボタン
+                              <button
+                                onClick={() => handleViewDraft({ year: monthData.year, month: monthData.month }, 'FIRST')}
+                                className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 hover:underline"
+                              >
+                                第1案閲覧
+                              </button>
+                            ) : allCreated ? (
+                              // 全店舗作成済み：一括編集ボタン
+                              <button
+                                onClick={() => {
+                                  // 全店舗のシフトを開く（DraftShiftEditor画面へ）
+                                  handleViewDraft({ year: monthData.year, month: monthData.month }, 'FIRST')
+                                }}
+                                className="px-2 py-1 text-xs bg-indigo-600 text-white rounded hover:bg-indigo-700 transition-colors whitespace-nowrap"
+                              >
+                                一括編集
+                              </button>
+                            ) : (
+                              // 未来月かつ未作成または一部作成済み：モーダルを開く
+                              <button
+                                onClick={() => handleOpenCreateModal({ year: monthData.year, month: monthData.month }, true)}
+                                className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors whitespace-nowrap"
+                              >
+                                {someCreated ? '残り一括作成' : '全店舗一括作成'}
+                              </button>
+                            )}
+                          </th>
+                        )
+                      })}
                     </tr>
                   </thead>
                   <tbody>
@@ -485,12 +640,11 @@ const ShiftManagement = ({
                               作成状況
                             </td>
                             {storeData.months.map(monthData => {
-                              const statusInfo = getStatusInfo(monthData.status)
+                              const statusInfo = getStatusInfo(monthData.planType, monthData.status)
                               return (
                                 <td key={`${storeData.storeId}-${monthData.month}-status`} className="px-2 py-2">
-                                  <button
-                                    onClick={() => handleViewHistory(monthData)}
-                                    className={`w-full px-2 py-1 rounded text-center font-medium text-[10px] whitespace-nowrap cursor-pointer hover:opacity-80 transition-opacity ${
+                                  <div
+                                    className={`w-full px-2 py-1 rounded text-center font-medium text-[10px] whitespace-nowrap ${
                                       statusInfo.color === 'green' ? 'bg-green-100 text-green-800' :
                                       statusInfo.color === 'blue' ? 'bg-blue-100 text-blue-800' :
                                       statusInfo.color === 'cyan' ? 'bg-cyan-100 text-cyan-800' :
@@ -499,7 +653,7 @@ const ShiftManagement = ({
                                     }`}
                                   >
                                     {statusInfo.label}
-                                  </button>
+                                  </div>
                                 </td>
                               )
                             })}
@@ -533,7 +687,7 @@ const ShiftManagement = ({
                             {storeData.months.map(monthData => (
                               <td key={`${storeData.storeId}-${monthData.month}-action`} className="px-2 py-2">
                                 <div className="flex justify-center items-center min-h-[24px]">
-                                  {getActionButton(monthData)}
+                                  {getActionButton({ ...monthData, storeId: storeData.storeId, storeName: storeData.storeName })}
                                 </div>
                               </td>
                             ))}
@@ -564,7 +718,7 @@ const ShiftManagement = ({
             {/* ヘッダー */}
             <div className="border-b px-6 py-4 flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-800">
-                {modalShift.year}年{modalShift.month}月のシフト作成
+                {modalShift.year}年{modalShift.month}月の{modalShift.isBatchCreate ? '全店舗一括' : ''}シフト作成
               </h2>
               <button
                 onClick={handleCloseCreateModal}
