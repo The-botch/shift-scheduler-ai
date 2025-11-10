@@ -528,4 +528,108 @@ export class ShiftRepository {
       throw new Error(`全店舗一括コピーエラー: ${error.message}`)
     }
   }
+
+  /**
+   * 全店舗の前月データを取得（DB書き込みなし）
+   * @param {Object} data - リクエストデータ
+   * @param {number} data.target_year - ターゲット年
+   * @param {number} data.target_month - ターゲット月
+   * @param {number} data.tenantId - テナントID (オプション)
+   * @returns {Promise<Object>} 各店舗のシフトデータ
+   */
+  async fetchPreviousDataAllStores(data) {
+    try {
+      const {
+        target_year,
+        target_month,
+        tenantId = null,
+      } = data
+
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const url = `${BACKEND_API_URL}/api/shifts/plans/fetch-previous-data-all-stores`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenant_id: actualTenantId,
+          target_year,
+          target_month,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '前月データ取得に失敗しました')
+      }
+
+      return result
+    } catch (error) {
+      console.error('前月データ取得エラー:', error)
+      throw new Error(`前月データ取得エラー: ${error.message}`)
+    }
+  }
+
+  /**
+   * プランとシフトを一括作成（メモリ上のデータをDBに保存）
+   * @param {Object} data - リクエストデータ
+   * @param {number} data.target_year - ターゲット年
+   * @param {number} data.target_month - ターゲット月
+   * @param {number} data.created_by - 作成者ID
+   * @param {Array} data.stores - 各店舗のシフトデータ
+   * @param {number} data.tenantId - テナントID (オプション)
+   * @returns {Promise<Object>} 作成結果
+   */
+  async createPlansWithShifts(data) {
+    try {
+      const {
+        target_year,
+        target_month,
+        created_by,
+        stores,
+        tenantId = null,
+      } = data
+
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const url = `${BACKEND_API_URL}/api/shifts/plans/create-with-shifts`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tenant_id: actualTenantId,
+          target_year,
+          target_month,
+          created_by,
+          stores,
+        }),
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'プラン作成に失敗しました')
+      }
+
+      return result
+    } catch (error) {
+      console.error('プラン作成エラー:', error)
+      throw new Error(`プラン作成エラー: ${error.message}`)
+    }
+  }
 }

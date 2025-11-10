@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { AnimatePresence } from 'framer-motion'
 import { MESSAGES } from './constants/messages'
+import { getCurrentYear, getCurrentMonth } from './utils/dateUtils'
 import './App.css'
 
 // Context Providers
@@ -9,11 +10,11 @@ import { TenantProvider, useTenant } from './contexts/TenantContext'
 
 // Screen Components
 import Dashboard from './components/screens/Dashboard'
-import DraftShiftEditor from './components/screens/shift/DraftShiftEditor'
+import FirstPlanEditor from './components/screens/shift/FirstPlanEditor'
 import ShiftCreationMethodSelector from './components/screens/shift/ShiftCreationMethodSelector'
 import LineShiftInput from './components/screens/shift/LineShiftInput'
 import Monitoring from './components/screens/shift/Monitoring'
-import SecondPlan from './components/screens/shift/SecondPlan'
+import SecondPlanEditor from './components/screens/shift/SecondPlanEditor'
 import StaffManagement from './components/screens/StaffManagement'
 import StoreManagement from './components/screens/StoreManagement'
 import ConstraintManagement from './components/screens/ConstraintManagement'
@@ -465,8 +466,8 @@ function AppContent() {
   const goToFirstPlanFromShiftMgmt = async (shift) => {
     // shiftオブジェクトから情報を取得
     const status = shift?.status || 'not_started'
-    const year = shift?.year || new Date().getFullYear()
-    const month = shift?.month || new Date().getMonth() + 1
+    const year = shift?.year || getCurrentYear()
+    const month = shift?.month || getCurrentMonth()
 
     if (status === 'completed') {
       // 確定済みの場合は閲覧のみ
@@ -522,8 +523,8 @@ function AppContent() {
     if (methodId === 'copy') {
       // 前月コピー（曜日ベース）を実行
       try {
-        const year = selectedShiftForEdit?.year || new Date().getFullYear()
-        const month = selectedShiftForEdit?.month || new Date().getMonth() + 1
+        const year = selectedShiftForEdit?.year || getCurrentYear()
+        const month = selectedShiftForEdit?.month || getCurrentMonth()
         const storeId = selectedShiftForEdit?.storeId || selectedShiftForEdit?.store_id || 1
 
         console.log('[前月コピー] 開始:', { year, month, storeId })
@@ -789,8 +790,8 @@ function AppContent() {
     if (showDevTools) {
       return (
         <DevTools
-          targetYear={selectedShiftForSecondPlan?.year || new Date().getFullYear()}
-          targetMonth={selectedShiftForSecondPlan?.month || new Date().getMonth() + 1}
+          targetYear={selectedShiftForSecondPlan?.year || getCurrentYear()}
+          targetMonth={selectedShiftForSecondPlan?.month || getCurrentMonth()}
           onHome={goToShiftManagement}
           onShiftManagement={goToShiftManagement}
           onLineMessages={goToLineMessages}
@@ -815,7 +816,7 @@ function AppContent() {
 
     if (showDraftShiftEditor) {
       return (
-        <DraftShiftEditor
+        <FirstPlanEditor
           selectedShift={selectedShiftForEdit}
           onBack={backToShiftManagementFromDraft}
           onApprove={approveFirstPlan}
@@ -859,7 +860,7 @@ function AppContent() {
     switch (currentStep) {
       case 2:
         return (
-          <SecondPlan
+          <SecondPlanEditor
             onNext={approveSecondPlan}
             onPrev={prevStep}
             onMarkUnsaved={() => setHasUnsavedChanges(true)}

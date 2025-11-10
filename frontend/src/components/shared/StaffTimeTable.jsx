@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react'
 import { motion } from 'framer-motion'
 import { isHoliday, getHolidayName } from '../../utils/holidays'
+import { getDaysInMonth, getDayOfWeek } from '../../utils/dateUtils'
 import { Check, X, Trash2, Plus } from 'lucide-react'
 
 /**
@@ -44,8 +45,8 @@ const StaffTimeTable = ({
   console.log('staffMap件数:', Object.keys(staffMap).length)
   console.log('staffMapの最初の2件:', Object.entries(staffMap).slice(0, 2))
 
-  // 月の日数を計算
-  const daysInMonth = new Date(year, month, 0).getDate()
+  // 月の日数を計算（JST対応）
+  const daysInMonth = getDaysInMonth(year, month)
   const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
   // 時刻をHH:MM形式にフォーマット
@@ -134,19 +135,18 @@ const StaffTimeTable = ({
     return { staffCount, totalHours }
   }
 
-  // 曜日を取得
+  // 曜日を取得（JST対応）
   const getWeekday = date => {
     const weekdays = ['日', '月', '火', '水', '木', '金', '土']
-    const d = new Date(year, month - 1, date)
-    return weekdays[d.getDay()]
+    const dayOfWeek = getDayOfWeek(year, month, date)
+    return weekdays[dayOfWeek]
   }
 
-  // 曜日の色
+  // 曜日の色（JST対応）
   const getWeekdayColor = date => {
-    const d = new Date(year, month - 1, date)
-    const day = d.getDay()
-    if (day === 0) return 'text-red-600'
-    if (day === 6) return 'text-blue-600'
+    const dayOfWeek = getDayOfWeek(year, month, date)
+    if (dayOfWeek === 0) return 'text-red-600'
+    if (dayOfWeek === 6) return 'text-blue-600'
     return 'text-gray-700'
   }
 

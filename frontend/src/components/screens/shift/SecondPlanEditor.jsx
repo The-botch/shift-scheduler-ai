@@ -27,6 +27,7 @@ import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
 import { isHoliday, getHolidayName, loadHolidays } from '../../../utils/holidays'
+import { useShiftEditorBase } from '../../../hooks/useShiftEditorBase'
 
 const shiftRepository = new ShiftRepository()
 const masterRepository = new MasterRepository()
@@ -46,7 +47,7 @@ const pageTransition = {
   duration: 0.5,
 }
 
-const SecondPlan = ({
+const SecondPlanEditor = ({
   onNext,
   onPrev,
   onMarkUnsaved,
@@ -61,6 +62,21 @@ const SecondPlan = ({
   onConstraintManagement,
   onBudgetActualManagement,
 }) => {
+  // 共通ロジック（マスタデータ取得・店舗選択管理）
+  const {
+    staffMap,
+    rolesMap,
+    storesMap,
+    availableStores,
+    selectedStores,
+    loading: masterLoading,
+    loadMasterData,
+    toggleStoreSelection,
+    selectAllStores,
+    deselectAllStores,
+    setSelectedStores,
+  } = useShiftEditorBase(selectedShift)
+
   const [generating, setGenerating] = useState(false)
   const [generated, setGenerated] = useState(false)
   const [comparison, setComparison] = useState(null)
@@ -88,13 +104,8 @@ const SecondPlan = ({
   const [csvShifts, setCsvShifts] = useState([])
   const [csvIssues, setCsvIssues] = useState([])
   const [csvSolutions, setCsvSolutions] = useState([])
-  const [staffMap, setStaffMap] = useState({})
-  const [rolesMap, setRolesMap] = useState({})
   const [firstPlanShifts, setFirstPlanShifts] = useState([]) // 第1案の生データ
   const [storeName, setStoreName] = useState('') // 店舗名
-  const [storesMap, setStoresMap] = useState({}) // 店舗ID -> 店舗情報
-  const [selectedStores, setSelectedStores] = useState(new Set()) // 選択された店舗IDのSet
-  const [availableStores, setAvailableStores] = useState([]) // 利用可能な店舗リスト
 
   // 問題のある日付を定義
   const problematicDates = new Set([]) // 問題のある日付
@@ -144,70 +155,59 @@ const SecondPlan = ({
 
       console.log(`第1案と希望シフトを読み込み中: ${year}年${month}月, plan_id=${planId}`)
 
-      // スタッフマスタと店舗マスタを取得
-      const [staffData, storesData] = await Promise.all([
-        masterRepository.getStaff(),
-        masterRepository.getStores(),
-      ])
-      console.log('SecondPlan - 取得したスタッフ数:', staffData.length)
-      console.log('SecondPlan - サンプル:', staffData.slice(0, 2))
-
-      const staffMapping = {}
-      const storeId = selectedShift?.storeId || selectedShift?.store_id
-
-      console.log('SecondPlan - selectedShift:', selectedShift)
-      console.log('SecondPlan - storeId:', storeId)
-
-      staffData.forEach(s => {
-        staffMapping[s.staff_id] = s
-      })
-      console.log('SecondPlan - staffMapping作成:', Object.keys(staffMapping).length, '件')
-      console.log('SecondPlan - サンプルstaffMapping:', staffMapping[Object.keys(staffMapping)[0]])
-      setStaffMap(staffMapping)
-
-      // 店舗IDから店舗情報へのマッピング
-      const storesMapping = {}
-      storesData.forEach(store => {
-        storesMapping[store.store_id] = {
-          store_code: store.store_code,
-          store_name: store.store_name,
-          address: store.address,
-        }
-      })
-      setStoresMap(storesMapping)
-
-      // 利用可能な店舗リストを設定
-      const stores = storesData.map(store => ({
-        store_id: store.store_id,
-        store_name: store.store_name,
-      })).sort((a, b) => a.store_name.localeCompare(b.store_name))
-      setAvailableStores(stores)
-
-      // デフォルトの選択状態を設定（数値型に統一）
-      if (storeId) {
-        // 特定の店舗から来た場合は、その店舗のみを選択
-        setSelectedStores(new Set([parseInt(storeId)]))
-      } else {
-        // 店舗指定なしの場合は全店舗を選択
-        setSelectedStores(new Set(stores.map(s => parseInt(s.store_id))))
-      }
+      // マスタデータを取得（カスタムhook経由）
+      const { staffMapping } = await loadMasterData()
+      console.log('SecondPlanEditor - マスタデータ取得完了')
 
       // 店舗名を設定
+      const storeId = selectedShift?.storeId || selectedShift?.store_id
       if (selectedShift?.store_name) {
         setStoreName(selectedShift.store_name)
-      } else if (storeId) {
-        // storeIdから店舗名を取得
-        const stores = await masterRepository.getStores()
-        const store = stores.find(s => s.store_id === storeId)
-        setStoreName(store?.store_name || '')
+      } else if (storeId && storesMap[storeId]) {
+        setStoreName(storesMap[storeId].store_name)
       }
 
-      // 第1案のシフトデータを取得
-      const firstPlanShiftsData = await shiftRepository.getShifts({ planId })
+      // 第1案のシフトデータを取得（全店舗分）
+      const firstPlanShiftsData = await shiftRepository.getShifts({
+        year,
+        month,
+        plan_type: 'FIRST'
+      })
       console.log(`第1案シフト取得: ${firstPlanShiftsData.length}件`, firstPlanShiftsData.slice(0, 3))
 
-      setFirstPlanShifts(firstPlanShiftsData) // 第1案の生データを保存
-      setCsvShifts(firstPlanShiftsData) // 元データも保存（詳細表示用）
+      // 第1案にスタッフ情報をマージ
+      const firstPlanWithStaffInfo = firstPlanShiftsData.map(shift => ({
+        ...shift,
+        staff_name: staffMapping[shift.staff_id]?.name || '不明',
+        role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
+      }))
+
+      setFirstPlanShifts(firstPlanWithStaffInfo) // 第1案の生データを保存
+
+      // 第2案のシフトデータを取得（全店舗分）
+      const secondPlanShiftsData = await shiftRepository.getShifts({
+        year,
+        month,
+        plan_type: 'SECOND'
+      })
+      console.log(`第2案シフト取得: ${secondPlanShiftsData.length}件`, secondPlanShiftsData.slice(0, 3))
+
+      // 第2案にスタッフ情報をマージ
+      // 第2案が空の場合（新規作成）は、第1案のデータを使用
+      let secondPlanWithStaffInfo
+      if (secondPlanShiftsData.length === 0) {
+        console.log('第2案が存在しないため、第1案のデータを使用します')
+        secondPlanWithStaffInfo = firstPlanWithStaffInfo
+      } else {
+        secondPlanWithStaffInfo = secondPlanShiftsData.map(shift => ({
+          ...shift,
+          staff_name: staffMapping[shift.staff_id]?.name || '不明',
+          role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
+        }))
+      }
+
+      setCsvShifts(secondPlanWithStaffInfo) // 第2案の元データを保存（詳細表示用）
+      setShiftData(secondPlanWithStaffInfo) // 第2案のシフトデータとして設定
 
       // 希望シフトを取得
       const preferencesData = await shiftRepository.getPreferences({
@@ -219,7 +219,7 @@ const SecondPlan = ({
       setPreferences(preferencesData)
 
       // 第1案と希望シフトを突合してアラートを判定
-      checkPreferenceConflicts(firstPlanShiftsData, preferencesData, staffMapping, year, month)
+      checkPreferenceConflicts(firstPlanWithStaffInfo, preferencesData, staffMapping, year, month)
 
       setLoading(false)
       setGenerated(true)
@@ -1476,4 +1476,4 @@ const SecondPlan = ({
   )
 }
 
-export default SecondPlan
+export default SecondPlanEditor

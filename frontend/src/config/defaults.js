@@ -5,6 +5,8 @@
  * 環境変数で上書き可能です。
  */
 
+import { getCurrentYear, getCurrentMonth, getCurrentYearMonth as getJSTYearMonth } from '../utils/dateUtils'
+
 export const DEFAULT_CONFIG = {
   // テナント・店舗設定
   TENANT_ID: parseInt(import.meta.env.VITE_DEFAULT_TENANT_ID) || 1,
@@ -18,27 +20,21 @@ export const DEFAULT_CONFIG = {
 };
 
 /**
- * 現在の年月を取得
+ * 現在の年月を取得（JST）
  * デモ用の固定値の代わりに、現在の年月を使用したい場合に利用
  */
 export const getCurrentYearMonth = () => {
-  const now = new Date();
-  return {
-    year: now.getFullYear(),
-    month: now.getMonth() + 1,
-  };
+  return getJSTYearMonth()
 };
 
 /**
- * 次月の年月を取得
+ * 次月の年月を取得（JST）
  */
 export const getNextMonthYearMonth = () => {
-  const now = new Date();
-  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  return {
-    year: nextMonth.getFullYear(),
-    month: nextMonth.getMonth() + 1,
-  };
+  const current = getJSTYearMonth()
+  const year = current.month === 12 ? current.year + 1 : current.year
+  const month = current.month === 12 ? 1 : current.month + 1
+  return { year, month }
 };
 
 /**

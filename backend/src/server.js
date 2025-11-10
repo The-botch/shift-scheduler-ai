@@ -38,7 +38,7 @@ app.get('/api/health', (req, res) => {
     }
   }
 
-  // DB環境判定: バックエンドと同じRailway環境変数で判定
+  // DB環境判定: 実際のDATABASE_URLの接続先で判定
   const getDbEnvironment = () => {
     const dbUrl = process.env.DATABASE_URL || ''
 
@@ -47,12 +47,35 @@ app.get('/api/health', (req, res) => {
       return 'LOCAL'
     }
 
-    // Railwayの環境変数がない場合はLOCAL
+    // Railway本番DBの場合（実際の接続先で判定）
+    // 本番DBのホスト名やデータベース名に基づいて判定
+    if (dbUrl.includes('railway.app') || dbUrl.includes('railway')) {
+      // DATABASE_URLからデータベース名またはホスト名を抽出して判定
+      // 本番DBは通常 "postgresql://..." の形式
+      // ここでは、RAILWAY_ENVIRONMENT_NAMEよりも実際のURLを優先
+
+      // 明示的に本番DB用の識別子がある場合
+      if (dbUrl.includes('-production-') || dbUrl.includes('production.')) {
+        return 'PRD'
+      }
+
+      // RAILWAY_ENVIRONMENT_NAMEで判定（環境変数が設定されている場合）
+      if (railwayEnv === 'production') {
+        return 'PRD'
+      } else if (railwayEnv) {
+        return 'DEV'
+      }
+
+      // Railwayだが環境変数がない場合は、URLベースで推測
+      // デフォルトでは本番DBとして扱う（安全側に倒す）
+      return 'PRD'
+    }
+
+    // フォールバック: RAILWAY_ENVIRONMENT_NAMEで判定
     if (!railwayEnv) {
       return 'LOCAL'
     }
 
-    // Railwayの環境名で判定（バックエンドと同じ環境のDBを使用）
     if (railwayEnv === 'production') {
       return 'PRD'
     } else {

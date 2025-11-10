@@ -11,22 +11,34 @@ export const SYSTEM = {
 }
 
 /**
- * 現在の年を取得
+ * 現在の年を取得 (JST)
+ * @deprecated dateUtils.getCurrentYear() を使用してください
  */
-export const getCurrentYear = () => new Date().getFullYear()
+export const getCurrentYear = () => {
+  // 互換性のため残していますが、dateUtils.getCurrentYear() の使用を推奨
+  const { getCurrentYear: getYear } = require('../utils/dateUtils')
+  return getYear()
+}
 
 /**
- * 現在の月を取得 (1-12)
+ * 現在の月を取得 (1-12) (JST)
+ * @deprecated dateUtils.getCurrentMonth() を使用してください
  */
-export const getCurrentMonth = () => new Date().getMonth() + 1
+export const getCurrentMonth = () => {
+  // 互換性のため残していますが、dateUtils.getCurrentMonth() の使用を推奨
+  const { getCurrentMonth: getMonth } = require('../utils/dateUtils')
+  return getMonth()
+}
 
 /**
- * 現在の年月を取得
+ * 現在の年月を取得 (JST)
+ * @deprecated dateUtils.getCurrentYearMonth() を使用してください
  */
-export const getCurrentYearMonth = () => ({
-  year: getCurrentYear(),
-  month: getCurrentMonth(),
-})
+export const getCurrentYearMonth = () => {
+  // 互換性のため残していますが、dateUtils.getCurrentYearMonth() の使用を推奨
+  const { getCurrentYearMonth: getYearMonth } = require('../utils/dateUtils')
+  return getYearMonth()
+}
 
 // 曜日
 export const WEEKDAYS = ['日', '月', '火', '水', '木', '金', '土']

@@ -3,13 +3,15 @@ import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent } from '../../ui/card'
 import { Button } from '../../ui/button'
-import { ArrowLeft, CheckCircle, Loader2, Save, Trash2 } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Loader2, Save, Trash2, Download } from 'lucide-react'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import ShiftTimeline from '../../shared/ShiftTimeline'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
 import { BACKEND_API_URL } from '../../../config/api'
 import { getCurrentTenantId } from '../../../config/tenant'
+import { useShiftEditorBase } from '../../../hooks/useShiftEditorBase'
+import { exportCSV } from '../../../utils/csvHelper'
 
 const shiftRepository = new ShiftRepository()
 const masterRepository = new MasterRepository()
@@ -27,14 +29,42 @@ const pageTransition = {
 }
 
 /**
- * 下書きシフト編集画面
- * - 既存の下書きシフトをカレンダー表示
- * - 日付クリックで詳細表示・編集
- * - 第1案承認ボタン
- * - 第2案作成ボタン（第1案承認済みの場合のみ）
- * - 削除ボタン（第2承認前のみ）
+ * シフト編集・閲覧画面（統合版）
+ * - 既存のシフトをカレンダー表示
+ * - 日付クリックで詳細表示・編集（editモード時のみ）
+ * - 第1案/第2案の承認ボタン（editモード時のみ）
+ * - 削除ボタン（editモード時のみ）
+ *
+ * @param {string} mode - 'view' (閲覧) または 'edit' (編集) デフォルト: 'edit'
+ * @param {string} planType - 'FIRST' または 'SECOND'
+ * @param {number|null} storeId - 店舗ID（nullの場合は全店舗表示）
  */
-const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan, onDelete }) => {
+const FirstPlanEditor = ({
+  selectedShift,
+  onBack,
+  onApprove,
+  onCreateSecondPlan,
+  onDelete,
+  mode = 'edit' // 'view' or 'edit'
+}) => {
+  const isViewMode = mode === 'view'
+  const isEditMode = mode === 'edit'
+
+  // 共通ロジック（マスタデータ取得・店舗選択管理）
+  const {
+    staffMap,
+    rolesMap,
+    storesMap,
+    availableStores,
+    selectedStores,
+    loading: masterLoading,
+    loadMasterData,
+    toggleStoreSelection,
+    selectAllStores,
+    deselectAllStores,
+    setSelectedStores,
+  } = useShiftEditorBase(selectedShift)
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [calendarData, setCalendarData] = useState(null)
@@ -48,14 +78,10 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
   const [deletedShiftIds, setDeletedShiftIds] = useState(new Set())
   const [addedShifts, setAddedShifts] = useState([]) // 新規追加されたシフト
 
-  // スタッフ情報とシフトデータ
-  const [staffMap, setStaffMap] = useState({})
+  // シフトデータ
   const [shiftData, setShiftData] = useState([])
   const [storeId, setStoreId] = useState(null)
   const [defaultPatternId, setDefaultPatternId] = useState(null)
-  const [storesMap, setStoresMap] = useState({}) // 店舗ID -> 店舗情報
-  const [selectedStores, setSelectedStores] = useState(new Set()) // 選択された店舗IDのSet
-  const [availableStores, setAvailableStores] = useState([]) // 利用可能な店舗リスト
 
   const year = selectedShift?.year || new Date().getFullYear()
   const month = selectedShift?.month || new Date().getMonth() + 1
@@ -70,19 +96,79 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
   }, [selectedShift, planId, planType])
 
   useEffect(() => {
-    // planId がある場合、または year/month/planType がある場合にデータをロード
-    if (planId || (year && month && planType)) {
+    // initialDataがある場合はそれを使用、ない場合はDBからロード
+    if (selectedShift?.initialData) {
+      loadInitialData(selectedShift.initialData)
+    } else if (planId || (year && month && planType)) {
       loadShiftData()
     }
-  }, [planId, year, month, planType])
+  }, [planId, year, month, planType, selectedShift?.initialData])
+
+  const loadInitialData = async (initialData) => {
+    try {
+      setLoading(true)
+
+      // マスタデータを取得
+      const { staffMapping } = await loadMasterData()
+
+      console.log('FirstPlanEditor - initialDataから読み込み:', initialData)
+
+      // initialDataからシフトデータを抽出（全店舗分）
+      const allShifts = []
+      initialData.stores.forEach(store => {
+        store.shifts.forEach(shift => {
+          const staffInfo = staffMapping[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
+          allShifts.push({
+            ...shift,
+            staff_name: staffInfo.name,
+            role: staffInfo.role_name,
+            modified_flag: false,
+          })
+        })
+      })
+
+      // 日付別にグループ化
+      const shiftsByDate = {}
+      allShifts.forEach(shift => {
+        const date = new Date(shift.shift_date)
+        const day = date.getDate()
+
+        if (!shiftsByDate[day]) {
+          shiftsByDate[day] = []
+        }
+
+        shiftsByDate[day].push(shift)
+      })
+
+      // 月の情報を計算
+      const date = new Date(year, month - 1, 1)
+      const daysInMonth = new Date(year, month, 0).getDate()
+      const firstDay = date.getDay()
+
+      setCalendarData({
+        daysInMonth,
+        firstDay,
+        shiftsByDate,
+        year,
+        month,
+      })
+
+      setShiftData(allShifts)
+      setLoading(false)
+    } catch (err) {
+      console.error('initialData読み込みエラー:', err)
+      setLoading(false)
+      alert('初期データの読み込みに失敗しました')
+    }
+  }
 
   const loadShiftData = async () => {
     try {
       setLoading(true)
 
       // まずシフトデータを取得
-      // planId がある場合はそれを使用、ない場合は year/month/planType を使用
-      const shiftsResult = planId
+      // 閲覧モードの場合は全店舗分を取得、編集モードの場合はplanIdで取得
+      const shiftsResult = (planId && isEditMode)
         ? await shiftRepository.getShifts({ planId })
         : await shiftRepository.getShifts({ year, month, plan_type: planType })
 
@@ -94,66 +180,11 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
       setStoreId(fetchedStoreId)
       setDefaultPatternId(fetchedPatternId)
 
-      // APIから並行読み込み（全店舗のスタッフを取得）
-      const [staffResult, rolesResult, storesResult] = await Promise.all([
-        masterRepository.getStaff(),
-        masterRepository.getRoles(),
-        masterRepository.getStores(),
-      ])
+      // マスタデータを取得（カスタムhook経由）
+      const { staffMapping } = await loadMasterData()
 
-      // 役職IDから役職名へのマッピング
-      const rolesMap = {}
-      rolesResult.forEach(role => {
-        rolesMap[role.role_id] = role.role_name
-      })
-
-      // 店舗IDから店舗情報へのマッピング
-      const storesMapping = {}
-      storesResult.forEach(store => {
-        storesMapping[store.store_id] = {
-          store_code: store.store_code,
-          store_name: store.store_name,
-          address: store.address,
-        }
-      })
-      setStoresMap(storesMapping)
-
-      // 利用可能な店舗リストを設定
-      const stores = storesResult.map(store => ({
-        store_id: store.store_id,
-        store_name: store.store_name,
-      })).sort((a, b) => a.store_name.localeCompare(b.store_name))
-      setAvailableStores(stores)
-
-      // 初期状態で選択された店舗を設定
-      // selectedShiftにstoreIdが明示的に指定されている場合のみ、その店舗だけを選択
-      // それ以外（一括作成など）は全店舗を選択
-      const initialStoreId = selectedShift?.storeId || selectedShift?.store_id
-      if (initialStoreId) {
-        // 個別店舗指定の場合
-        setSelectedStores(new Set([parseInt(initialStoreId)]))
-      } else {
-        // 一括作成などで店舗指定がない場合は全店舗を選択
-        setSelectedStores(new Set(stores.map(s => parseInt(s.store_id))))
-      }
-
-      // スタッフIDから名前・役職へのマッピング
-      console.log('DraftShiftEditor - staffResult件数:', staffResult.length)
-      console.log('DraftShiftEditor - staffResultサンプル:', staffResult.slice(0, 2))
-
-      const staffMap = {}
-      staffResult.forEach(staff => {
-        staffMap[staff.staff_id] = {
-          name: staff.name,
-          role_id: staff.role_id,
-          role_name: rolesMap[staff.role_id] || 'スタッフ',
-          is_active: staff.is_active,
-          store_id: staff.store_id,
-        }
-      })
-
-      console.log('DraftShiftEditor - staffMap作成完了:', Object.keys(staffMap).length, '件')
-      console.log('DraftShiftEditor - staffMapサンプル:', staffMap[Object.keys(staffMap)[0]])
+      console.log('FirstPlanEditor - staffMap作成完了:', Object.keys(staffMapping).length, '件')
+      console.log('FirstPlanEditor - staffMapサンプル:', staffMapping[Object.keys(staffMapping)[0]])
 
       // 日付別にグループ化
       const shiftsByDate = {}
@@ -165,7 +196,7 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
           shiftsByDate[day] = []
         }
 
-        const staffInfo = staffMap[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
+        const staffInfo = staffMapping[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
         shiftsByDate[day].push({
           ...shift,
           staff_name: staffInfo.name,
@@ -187,12 +218,11 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
         month,
       })
 
-      // スタッフマップとシフトデータを保存（StaffTimeTable用）
-      setStaffMap(staffMap)
+      // シフトデータを保存（StaffTimeTable用）
       setShiftData(shiftsResult.map(shift => ({
         ...shift,
-        staff_name: staffMap[shift.staff_id]?.name || '不明',
-        role: staffMap[shift.staff_id]?.role_name || 'スタッフ',
+        staff_name: staffMapping[shift.staff_id]?.name || '不明',
+        role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
       })))
 
       setLoading(false)
@@ -215,11 +245,6 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
 
   // 下書き保存ハンドラー（ステータスを変更せずに保存）
   const handleSaveDraft = async () => {
-    if (!hasUnsavedChanges) {
-      alert(MESSAGES.SUCCESS.NO_CHANGES)
-      return
-    }
-
     if (!confirm('下書きを保存しますか？')) {
       return
     }
@@ -227,51 +252,82 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
     try {
       setSaving(true)
       console.log('下書き保存処理開始')
-      console.log('新規追加:', addedShifts.length, '件')
-      console.log('修正:', Object.keys(modifiedShifts).length, '件')
-      console.log('削除:', deletedShiftIds.size, '件')
 
-      // すべての変更をバックエンドに送信
-      const updatePromises = []
+      // initialDataから作成された未保存データの場合
+      if (selectedShift?.status === 'unsaved' && selectedShift?.initialData) {
+        console.log('メモリ上のデータをDBに保存')
 
-      // 新規追加されたシフトを作成
-      for (const newShift of addedShifts) {
-        const { shift_id, modified_flag, staff_name, role, ...shiftData } = newShift
-        console.log('新規シフト作成:', shiftData)
-        updatePromises.push(shiftRepository.createShift(shiftData))
+        // メモリ上のデータをそのままDBに保存
+        const result = await shiftRepository.createPlansWithShifts({
+          target_year: year,
+          target_month: month,
+          created_by: 1, // TODO: 実際のユーザーIDに置き換え
+          stores: selectedShift.initialData.stores
+        })
+
+        if (result.success) {
+          console.log('DBへの保存完了')
+          setHasSavedDraft(true)
+          alert(MESSAGES.SUCCESS.SAVED)
+
+          // データをリロードして最新の状態を表示
+          await loadShiftData()
+        }
+      } else {
+        // 既存のプラン編集の場合
+        if (!hasUnsavedChanges) {
+          alert(MESSAGES.SUCCESS.NO_CHANGES)
+          setSaving(false)
+          return
+        }
+
+        console.log('新規追加:', addedShifts.length, '件')
+        console.log('修正:', Object.keys(modifiedShifts).length, '件')
+        console.log('削除:', deletedShiftIds.size, '件')
+
+        // すべての変更をバックエンドに送信
+        const updatePromises = []
+
+        // 新規追加されたシフトを作成
+        for (const newShift of addedShifts) {
+          const { shift_id, modified_flag, staff_name, role, ...shiftData } = newShift
+          console.log('新規シフト作成:', shiftData)
+          updatePromises.push(shiftRepository.createShift(shiftData))
+        }
+
+        // 修正されたシフトを更新
+        for (const [shiftId, updates] of Object.entries(modifiedShifts)) {
+          console.log('シフト更新:', shiftId, updates)
+          updatePromises.push(shiftRepository.updateShift(Number(shiftId), updates))
+        }
+
+        // 削除されたシフトを削除
+        for (const shiftId of deletedShiftIds) {
+          console.log('シフト削除:', shiftId)
+          updatePromises.push(shiftRepository.deleteShift(shiftId))
+        }
+
+        // すべての変更を並行実行
+        if (updatePromises.length > 0) {
+          console.log('変更をバックエンドに送信中...')
+          const results = await Promise.all(updatePromises)
+          console.log('保存完了:', results)
+        }
+
+        // ローカルステートをリセット
+        setModifiedShifts({})
+        setDeletedShiftIds(new Set())
+        setAddedShifts([])
+        setHasUnsavedChanges(false)
+
+        console.log('下書き保存処理完了')
+
+        setHasSavedDraft(true) // 下書き保存済みフラグを立てる
+        alert(MESSAGES.SUCCESS.SAVED)
+        // データをリロードして最新の状態を表示
+        await loadShiftData()
       }
 
-      // 修正されたシフトを更新
-      for (const [shiftId, updates] of Object.entries(modifiedShifts)) {
-        console.log('シフト更新:', shiftId, updates)
-        updatePromises.push(shiftRepository.updateShift(Number(shiftId), updates))
-      }
-
-      // 削除されたシフトを削除
-      for (const shiftId of deletedShiftIds) {
-        console.log('シフト削除:', shiftId)
-        updatePromises.push(shiftRepository.deleteShift(shiftId))
-      }
-
-      // すべての変更を並行実行
-      if (updatePromises.length > 0) {
-        console.log('変更をバックエンドに送信中...')
-        const results = await Promise.all(updatePromises)
-        console.log('保存完了:', results)
-      }
-
-      // ローカルステートをリセット
-      setModifiedShifts({})
-      setDeletedShiftIds(new Set())
-      setAddedShifts([])
-      setHasUnsavedChanges(false)
-
-      console.log('下書き保存処理完了')
-
-      setHasSavedDraft(true) // 下書き保存済みフラグを立てる
-      alert(MESSAGES.SUCCESS.SAVED)
-      // データをリロードして最新の状態を表示
-      await loadShiftData()
       setSaving(false)
     } catch (error) {
       setSaving(false)
@@ -282,6 +338,48 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
   }
 
   const handleApprove = async () => {
+    // initialDataから作成された未保存データの場合
+    if (selectedShift?.status === 'unsaved' && selectedShift?.initialData) {
+      if (!confirm('第1案を承認しますか？承認後は第2案の作成に進めます。')) {
+        return
+      }
+
+      try {
+        setSaving(true)
+        console.log('メモリ上のデータをDBに保存して承認')
+
+        // メモリ上のデータをDBに保存（DRAFT状態で）
+        const createResult = await shiftRepository.createPlansWithShifts({
+          target_year: year,
+          target_month: month,
+          created_by: 1, // TODO: 実際のユーザーIDに置き換え
+          stores: selectedShift.initialData.stores
+        })
+
+        if (createResult.success) {
+          console.log('DB保存完了、ステータスをAPPROVEDに更新')
+
+          // 作成されたプランIDを取得してAPPROVEDに更新
+          const planIds = createResult.data.created_plans.map(p => p.plan_id)
+          for (const id of planIds) {
+            await shiftRepository.updatePlanStatus(id, 'APPROVED')
+          }
+
+          console.log('承認処理完了')
+          setHasSavedDraft(true)
+          setSaving(false)
+          alert(MESSAGES.SUCCESS.APPROVE_FIRST_PLAN)
+          onApprove()
+        }
+      } catch (error) {
+        setSaving(false)
+        console.error('承認処理エラー:', error)
+        alert(`承認処理に失敗しました\n\nエラー: ${error.message}`)
+      }
+      return
+    }
+
+    // 既存のプラン編集の場合
     const isAlreadyApproved = selectedShift?.status === 'APPROVED' && selectedShift?.plan_type === 'FIRST'
 
     if (hasUnsavedChanges) {
@@ -549,7 +647,7 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
         '下書きを保存せずに戻ると、このプランとシフトデータが削除されます。\n本当に戻りますか？'
       )
       if (shouldDelete) {
-        await handleDelete()
+        await handleDelete(true)  // 確認済みフラグを渡す
       }
       return
     }
@@ -566,24 +664,32 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
     onBack()
   }
 
-  const handleDelete = async () => {
+  const handleDelete = async (skipConfirm = false) => {
     // planId がある場合はそれを使用、ない場合は shiftData から plan_id を抽出
     const planIdsToDelete = planId
       ? [planId]
       : [...new Set(shiftData.map(shift => shift.plan_id).filter(Boolean))]
 
     if (planIdsToDelete.length === 0) {
-      alert('削除するシフト計画が見つかりません')
+      // 削除するプランがない場合（何も保存していない場合）
+      // シフト管理画面に戻る
+      if (onDelete) {
+        onDelete()
+      } else {
+        onBack()
+      }
       return
     }
 
-    // 確認ダイアログ
-    const confirmMessage = planIdsToDelete.length === 1
-      ? 'このシフト計画を削除してもよろしいですか？'
-      : `${planIdsToDelete.length}件のシフト計画を削除してもよろしいですか？`
+    // 確認ダイアログ（skipConfirmがtrueの場合はスキップ）
+    if (!skipConfirm) {
+      const confirmMessage = planIdsToDelete.length === 1
+        ? 'このシフト計画を削除してもよろしいですか？'
+        : `${planIdsToDelete.length}件のシフト計画を削除してもよろしいですか？`
 
-    if (!confirm(confirmMessage)) {
-      return
+      if (!confirm(confirmMessage)) {
+        return
+      }
     }
 
     try {
@@ -620,6 +726,41 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
     } catch (error) {
       console.error('削除処理エラー:', error)
       alert(`シフト計画の削除中にエラーが発生しました: ${error.message}`)
+    }
+  }
+
+  // CSVエクスポートハンドラー
+  const handleExportCSV = () => {
+    if (!shiftData || shiftData.length === 0) {
+      alert(MESSAGES.ERROR.NO_EXPORT_DATA)
+      return
+    }
+
+    // エクスポート用データを整形（日付順にソート）
+    const exportData = shiftData.map(shift => {
+      const date = new Date(shift.shift_date)
+      const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()]
+
+      return {
+        日付: shift.shift_date,
+        曜日: dayOfWeek,
+        店舗名: storesMap[shift.store_id]?.store_name || '',
+        スタッフ名: shift.staff_name || '',
+        役職: shift.role || '',
+        開始時刻: shift.start_time || '',
+        終了時刻: shift.end_time || '',
+        休憩時間: shift.break_minutes || 0,
+        勤務時間: shift.total_hours || 0,
+      }
+    }).sort((a, b) => a.日付.localeCompare(b.日付))
+
+    const filename = `shift_${planType.toLowerCase()}_${year}_${String(month).padStart(2, '0')}.csv`
+    const result = exportCSV(exportData, filename)
+
+    if (result.success) {
+      alert(MESSAGES.SUCCESS.CSV_EXPORT_SUCCESS(year, month))
+    } else {
+      alert(MESSAGES.ERROR.EXPORT_ERROR(result.error))
     }
   }
 
@@ -660,12 +801,12 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
           </Button>
           <div>
             <h1 className="text-xl font-bold text-gray-900">
-              {year}年{month}月のシフト（{selectedShift?.status === 'APPROVED' && selectedShift?.plan_type === 'FIRST' ? '承認済み' : 'シフト下書き'}）
+              {year}年{month}月のシフト（{planType === 'SECOND' ? '第2案' : '第1案'}）
               <span className="text-sm font-normal text-gray-600 ml-3">
                 {selectedShift?.store_name ? `${selectedShift.store_name} · ` : ''}
-                編集可能
+                {isViewMode ? '閲覧モード' : '編集可能'}
               </span>
-              {hasUnsavedChanges && (
+              {isEditMode && hasUnsavedChanges && (
                 <span className="text-sm font-semibold text-orange-600 ml-3 animate-pulse">
                   ● 未保存の変更があります
                 </span>
@@ -674,56 +815,66 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
           </div>
         </div>
         <div className="flex gap-2">
+          {/* CSVエクスポートボタン（常に表示） */}
+          <Button size="sm" variant="outline" onClick={handleExportCSV}>
+            <Download className="h-3 w-3 mr-1" />
+            CSVエクスポート
+          </Button>
+
           {/* アクションボタン */}
-          {selectedShift?.status === 'APPROVED' && selectedShift?.plan_type === 'FIRST' ? (
+          {isEditMode && (
             <>
-              <Button size="sm" onClick={handleApprove} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
-                {saving ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-1" />
-                )}
-                {saving ? '保存中...' : '保存'}
-              </Button>
-              {onCreateSecondPlan && (
-                <Button size="sm" onClick={() => onCreateSecondPlan({ ...selectedShift, storeId, store_id: storeId })} className="bg-green-600 hover:bg-green-700">
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                  第2案作成
-                </Button>
+              {selectedShift?.status === 'APPROVED' && selectedShift?.plan_type === 'FIRST' ? (
+                <>
+                  <Button size="sm" onClick={handleApprove} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-1" />
+                    )}
+                    {saving ? '保存中...' : '保存'}
+                  </Button>
+                  {onCreateSecondPlan && (
+                    <Button size="sm" onClick={() => onCreateSecondPlan({ ...selectedShift, storeId, store_id: storeId })} className="bg-green-600 hover:bg-green-700">
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      第2案作成
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={handleDelete} className="border-red-300 text-red-600 hover:bg-red-50">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    削除
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button size="sm" onClick={handleSaveDraft} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-1" />
+                    )}
+                    {saving ? '保存中...' : '下書き保存'}
+                  </Button>
+                  <Button size="sm" onClick={handleApprove} disabled={saving} className="bg-green-600 hover:bg-green-700">
+                    {saving ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                    )}
+                    {saving ? '処理中...' : `${planType === 'SECOND' ? '第2案' : '第1案'}承認`}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={handleDelete} className="border-red-300 text-red-600 hover:bg-red-50">
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    削除
+                  </Button>
+                </>
               )}
-              <Button size="sm" variant="outline" onClick={handleDelete} className="border-red-300 text-red-600 hover:bg-red-50">
-                <Trash2 className="h-4 w-4 mr-1" />
-                削除
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button size="sm" onClick={handleSaveDraft} disabled={saving} className="bg-blue-600 hover:bg-blue-700">
-                {saving ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4 mr-1" />
-                )}
-                {saving ? '保存中...' : '下書き保存'}
-              </Button>
-              <Button size="sm" onClick={handleApprove} disabled={saving} className="bg-green-600 hover:bg-green-700">
-                {saving ? (
-                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-                ) : (
-                  <CheckCircle className="h-4 w-4 mr-1" />
-                )}
-                {saving ? '処理中...' : '第1案承認'}
-              </Button>
-              <Button size="sm" variant="outline" onClick={handleDelete} className="border-red-300 text-red-600 hover:bg-red-50">
-                <Trash2 className="h-4 w-4 mr-1" />
-                削除
-              </Button>
             </>
           )}
         </div>
       </div>
 
-      {/* 店舗チェックボックス */}
+      {/* 店舗チェックボックス（表示フィルター） */}
       <div className="px-8 mb-4">
         <div className="flex flex-wrap gap-3">
           {availableStores.map(store => {
@@ -759,11 +910,11 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
           staffMap={staffMap}
           storesMap={storesMap}
           selectedStores={selectedStores}
-          readonly={false}
-          onAddShift={handleAddShift}
-          onUpdateShift={handleUpdateShift}
-          onDeleteShift={handleDeleteShift}
-          onDayClick={handleDayClick}
+          readonly={isViewMode}
+          onAddShift={isEditMode ? handleAddShift : undefined}
+          onUpdateShift={isEditMode ? handleUpdateShift : undefined}
+          onDeleteShift={isEditMode ? handleDeleteShift : undefined}
+          onDayClick={isEditMode ? handleDayClick : undefined}
         />
       </div>
 
@@ -787,4 +938,4 @@ const DraftShiftEditor = ({ selectedShift, onBack, onApprove, onCreateSecondPlan
   )
 }
 
-export default DraftShiftEditor
+export default FirstPlanEditor

@@ -2147,7 +2147,7 @@ router.delete('/:id', async (req, res) => {
  * Query Parameters:
  * - tenant_id: テナントID (required)
  *
- * 注意: DRAFTのみ削除可能
+ * 注意: 過去月以外のプランは削除可能（ステータスに関わらず）
  */
 router.delete('/plans/:plan_id', async (req, res) => {
   try {
@@ -2183,14 +2183,20 @@ router.delete('/plans/:plan_id', async (req, res) => {
 
       const plan = planCheck.rows[0];
 
-      // ステータスチェック：承認済みは削除不可
-      const deletableStatuses = ['DRAFT'];
-      if (!deletableStatuses.includes(plan.status)) {
+      // 過去月チェック：過去月のシフトは削除不可
+      const now = new Date();
+      const currentYear = now.getFullYear();
+      const currentMonth = now.getMonth() + 1;
+
+      const isPastMonth = (plan.plan_year < currentYear) ||
+                          (plan.plan_year === currentYear && plan.plan_month < currentMonth);
+
+      if (isPastMonth) {
         await query('ROLLBACK');
         return res.status(403).json({
           success: false,
-          error: 'Cannot delete approved plan',
-          message: `ステータスが${plan.status}のシフトは削除できません。削除可能なのはDRAFTのみです。`
+          error: 'Cannot delete past month plan',
+          message: `${plan.plan_year}年${plan.plan_month}月は過去月のため削除できません`
         });
       }
 
@@ -2361,12 +2367,13 @@ router.post('/plans/copy-from-previous', async (req, res) => {
     await query('BEGIN');
 
     try {
-      // 先月のシフトプランを検索
+      // 先月のシフトプランを検索（第2案＝確定版を取得）
       const sourcePlanResult = await query(`
         SELECT plan_id
         FROM ops.shift_plans
         WHERE tenant_id = $1 AND store_id = $2
           AND plan_year = $3 AND plan_month = $4
+          AND plan_type = 'SECOND'
         ORDER BY created_at DESC
         LIMIT 1
       `, [tenant_id, store_id, source_year, source_month]);
@@ -2375,7 +2382,7 @@ router.post('/plans/copy-from-previous', async (req, res) => {
         await query('ROLLBACK');
         return res.status(404).json({
           success: false,
-          error: `${source_year}年${source_month}月のシフトが見つかりません`
+          error: `${source_year}年${source_month}月の第2案（確定版）が見つかりません`
         });
       }
 
@@ -2868,6 +2875,334 @@ router.post('/plans/copy-from-previous-all-stores', async (req, res) => {
 
   } catch (error) {
     console.error('Error copying shifts for all stores:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * 全店舗の前月データを取得（DB書き込みなし）
+ * POST /api/shifts/plans/fetch-previous-data-all-stores
+ *
+ * Body Parameters:
+ * - tenant_id: テナントID (required)
+ * - target_year: 対象年 (required)
+ * - target_month: 対象月 (required)
+ *
+ * Returns:
+ * - stores: 各店舗のシフトデータ配列
+ */
+router.post('/plans/fetch-previous-data-all-stores', async (req, res) => {
+  try {
+    const { tenant_id = 1, target_year, target_month } = req.body;
+
+    // バリデーション
+    if (!target_year || !target_month) {
+      return res.status(400).json({
+        success: false,
+        error: 'target_year, target_month は必須です'
+      });
+    }
+
+    console.log(`[FetchPreviousDataAllStores] ${target_year}年${target_month}月の前月データを全店舗で取得`);
+
+    // テナントの全店舗を取得
+    const storesResult = await query(`
+      SELECT store_id, store_name
+      FROM core.stores
+      WHERE tenant_id = $1 AND is_active = TRUE
+      ORDER BY store_id
+    `, [tenant_id]);
+
+    if (storesResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'アクティブな店舗が見つかりません'
+      });
+    }
+
+    const storesData = [];
+
+    // 各店舗ごとにデータ取得
+    for (const store of storesResult.rows) {
+      try {
+        console.log(`  店舗 ${store.store_name} (ID: ${store.store_id}) の処理開始`);
+
+        // この店舗の最新プランを検索（最大12ヶ月遡る）
+        let sourceYear = target_year;
+        let sourceMonth = target_month - 1;
+        let sourcePlan = null;
+
+        for (let i = 0; i < 12; i++) {
+          if (sourceMonth === 0) {
+            sourceMonth = 12;
+            sourceYear--;
+          }
+
+          const planCheck = await query(`
+            SELECT plan_id, plan_year, plan_month
+            FROM ops.shift_plans
+            WHERE tenant_id = $1 AND store_id = $2
+              AND plan_year = $3 AND plan_month = $4
+            ORDER BY plan_id DESC
+            LIMIT 1
+          `, [tenant_id, store.store_id, sourceYear, sourceMonth]);
+
+          if (planCheck.rows.length > 0) {
+            sourcePlan = planCheck.rows[0];
+            console.log(`    最新プラン発見: ${sourcePlan.plan_year}年${sourcePlan.plan_month}月 (plan_id: ${sourcePlan.plan_id})`);
+            break;
+          }
+
+          sourceMonth--;
+        }
+
+        const shifts = [];
+
+        // 最新プランが見つかった場合はシフトデータを取得して変換
+        if (sourcePlan) {
+          const sourceShifts = await query(`
+            SELECT *
+            FROM ops.shifts
+            WHERE plan_id = $1
+            ORDER BY shift_date, staff_id
+          `, [sourcePlan.plan_id]);
+
+          console.log(`    取得元シフト数: ${sourceShifts.rows.length}`);
+
+          // 曜日ベースで対象月に変換（特定の曜日が何回目に出現するかをカウント）
+          const getWeekInfo = (date) => {
+            const year = date.getFullYear();
+            const month = date.getMonth();
+            const dayOfWeek = date.getDay();
+            const dayOfMonth = date.getDate();
+
+            // この曜日が月内で何回目の出現かをカウント
+            let weekCount = 0;
+            for (let d = 1; d <= dayOfMonth; d++) {
+              const checkDate = new Date(year, month, d);
+              if (checkDate.getDay() === dayOfWeek) {
+                weekCount++;
+              }
+            }
+
+            return { weekNumber: weekCount, dayOfWeek };
+          };
+
+          const shiftsByWeekAndDay = {};
+          for (const shift of sourceShifts.rows) {
+            const shiftDate = new Date(shift.shift_date);
+            const { weekNumber, dayOfWeek } = getWeekInfo(shiftDate);
+            const key = `w${weekNumber}_d${dayOfWeek}`;
+            if (!shiftsByWeekAndDay[key]) {
+              shiftsByWeekAndDay[key] = [];
+            }
+            shiftsByWeekAndDay[key].push(shift);
+          }
+
+          const daysInTargetMonth = new Date(target_year, target_month, 0).getDate();
+          for (let day = 1; day <= daysInTargetMonth; day++) {
+            const newShiftDate = new Date(target_year, target_month - 1, day);
+            const { weekNumber, dayOfWeek } = getWeekInfo(newShiftDate);
+
+            let key = `w${weekNumber}_d${dayOfWeek}`;
+            let shiftsForDay = shiftsByWeekAndDay[key];
+
+            if (!shiftsForDay || shiftsForDay.length === 0) {
+              key = `w1_d${dayOfWeek}`;
+              shiftsForDay = shiftsByWeekAndDay[key];
+            }
+
+            if (!shiftsForDay || shiftsForDay.length === 0) {
+              continue;
+            }
+
+            for (const sourceShift of shiftsForDay) {
+              shifts.push({
+                store_id: store.store_id,
+                staff_id: sourceShift.staff_id,
+                shift_date: newShiftDate.toISOString().split('T')[0],
+                pattern_id: sourceShift.pattern_id,
+                start_time: sourceShift.start_time,
+                end_time: sourceShift.end_time,
+                break_minutes: sourceShift.break_minutes
+              });
+            }
+          }
+        }
+
+        storesData.push({
+          store_id: store.store_id,
+          store_name: store.store_name,
+          source_plan: sourcePlan ? `${sourcePlan.plan_year}年${sourcePlan.plan_month}月` : null,
+          shifts: shifts
+        });
+
+        console.log(`    完了: ${shifts.length}件のシフトデータを生成`);
+
+      } catch (storeError) {
+        console.error(`  店舗 ${store.store_name} でエラー:`, storeError);
+        storesData.push({
+          store_id: store.store_id,
+          store_name: store.store_name,
+          error: storeError.message,
+          shifts: []
+        });
+      }
+    }
+
+    // データを返す（DB書き込みなし）
+    res.json({
+      success: true,
+      message: `${storesData.length}店舗のデータを取得しました`,
+      data: {
+        target_year,
+        target_month,
+        stores: storesData
+      }
+    });
+
+  } catch (error) {
+    console.error('Error fetching previous data for all stores:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * プランとシフトを一括作成（メモリ上のデータをDBに保存）
+ * POST /api/shifts/plans/create-with-shifts
+ *
+ * Body Parameters:
+ * - tenant_id: テナントID (required)
+ * - target_year: 対象年 (required)
+ * - target_month: 対象月 (required)
+ * - created_by: 作成者ID (required)
+ * - stores: 各店舗のシフトデータ配列 (required)
+ *   - store_id: 店舗ID
+ *   - shifts: シフトデータ配列
+ */
+router.post('/plans/create-with-shifts', async (req, res) => {
+  try {
+    const { tenant_id = 1, target_year, target_month, created_by, stores } = req.body;
+
+    // バリデーション
+    if (!target_year || !target_month || !stores || !Array.isArray(stores)) {
+      return res.status(400).json({
+        success: false,
+        error: 'target_year, target_month, stores は必須です'
+      });
+    }
+
+    console.log(`[CreateWithShifts] ${target_year}年${target_month}月のプランとシフトを一括作成`);
+
+    const createdPlans = [];
+    const errors = [];
+
+    // 各店舗ごとにプラン+シフト作成
+    for (const storeData of stores) {
+      try {
+        const { store_id, shifts } = storeData;
+
+        if (!store_id) {
+          errors.push({ error: 'store_idが必要です', storeData });
+          continue;
+        }
+
+        console.log(`  店舗ID ${store_id} の処理開始`);
+
+        await query('BEGIN');
+
+        try {
+          // 新規プラン作成
+          const periodStart = new Date(target_year, target_month - 1, 1);
+          const periodEnd = new Date(target_year, target_month, 0);
+          const planCode = `PLAN-${target_year}${String(target_month).padStart(2, '0')}-${String(store_id).padStart(3, '0')}`;
+          const planName = `${target_year}年${target_month}月シフト（第1案）`;
+
+          const planResult = await query(`
+            INSERT INTO ops.shift_plans (
+              tenant_id, store_id, plan_year, plan_month,
+              plan_code, plan_name, period_start, period_end,
+              plan_type, status, generation_type, created_by
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'FIRST', 'DRAFT', 'MANUAL', $9)
+            RETURNING plan_id, store_id, plan_year, plan_month, plan_type, status
+          `, [
+            tenant_id, store_id, target_year, target_month,
+            planCode, planName, periodStart, periodEnd,
+            created_by || null
+          ]);
+
+          const newPlanId = planResult.rows[0].plan_id;
+          console.log(`    新規プラン作成: plan_id=${newPlanId}`);
+
+          // シフトデータを挿入
+          if (shifts && shifts.length > 0) {
+            const values = shifts.map((s, idx) => {
+              const base = idx * 9;
+              return `($${base+1}, $${base+2}, $${base+3}, $${base+4}, $${base+5}, $${base+6}, $${base+7}, $${base+8}, $${base+9})`;
+            }).join(',');
+
+            const params = shifts.flatMap(s => [
+              tenant_id,
+              store_id,
+              newPlanId,
+              s.staff_id,
+              s.shift_date,
+              s.pattern_id || null,
+              s.start_time,
+              s.end_time,
+              s.break_minutes || 0
+            ]);
+
+            await query(`
+              INSERT INTO ops.shifts (
+                tenant_id, store_id, plan_id, staff_id, shift_date,
+                pattern_id, start_time, end_time, break_minutes
+              ) VALUES ${values}
+            `, params);
+
+            console.log(`    ${shifts.length}件のシフトを作成`);
+          }
+
+          await query('COMMIT');
+
+          createdPlans.push({
+            plan_id: newPlanId,
+            store_id: store_id,
+            shifts_count: shifts ? shifts.length : 0
+          });
+
+        } catch (error) {
+          await query('ROLLBACK');
+          throw error;
+        }
+
+      } catch (storeError) {
+        console.error(`  店舗ID ${storeData.store_id} でエラー:`, storeError);
+        errors.push({
+          store_id: storeData.store_id,
+          error: storeError.message
+        });
+      }
+    }
+
+    // 結果を返す
+    res.json({
+      success: true,
+      message: `${createdPlans.length}店舗のプランとシフトを作成しました`,
+      data: {
+        created_plans: createdPlans,
+        errors: errors.length > 0 ? errors : undefined
+      }
+    });
+
+  } catch (error) {
+    console.error('Error creating plans with shifts:', error);
     res.status(500).json({
       success: false,
       error: error.message

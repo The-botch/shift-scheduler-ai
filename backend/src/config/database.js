@@ -11,8 +11,10 @@ const pool = new Pool({
 });
 
 // 接続テスト
-pool.on('connect', () => {
-  console.log('✅ Database connected successfully');
+pool.on('connect', async (client) => {
+  // タイムゾーンをJST（日本標準時）に設定
+  await client.query("SET timezone = 'Asia/Tokyo'");
+  console.log('✅ Database connected successfully (timezone: Asia/Tokyo)');
 });
 
 pool.on('error', (err) => {

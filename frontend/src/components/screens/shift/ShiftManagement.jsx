@@ -16,9 +16,7 @@ import {
 } from 'lucide-react'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
-import History from './History'
-import MultiStoreHistory from './MultiStoreHistory'
-import DraftShiftEditor from './DraftShiftEditor'
+import FirstPlanEditor from './FirstPlanEditor'
 
 const shiftRepository = new ShiftRepository()
 const masterRepository = new MasterRepository()
@@ -56,6 +54,7 @@ const ShiftManagement = ({
   setAvailableStores,
 }) => {
   const [shifts, setShifts] = useState([]) // マトリックスデータ: { storeId, storeName, months: [{month, status, ...}] }
+  const [summary, setSummary] = useState([]) // サマリーデータ
   const [loading, setLoading] = useState(true)
   const [creatingShift, setCreatingShift] = useState(null) // 作成中の月を追跡
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()) // 年度選択
@@ -82,16 +81,17 @@ const ShiftManagement = ({
   const loadShiftSummary = async () => {
     try {
       setLoading(true)
-      const summary = await shiftRepository.getSummary({ year: selectedYear })
+      const summaryData = await shiftRepository.getSummary({ year: selectedYear })
+      setSummary(summaryData)
 
       // デバッグ: 11月のデータを確認
-      const novemberData = summary.filter(s => parseInt(s.month) === 11)
+      const novemberData = summaryData.filter(s => parseInt(s.month) === 11)
       console.log('11月のサマリーデータ:', novemberData)
 
       // 店舗リストを抽出してグローバル状態に保存
       const stores = Array.from(
         new Map(
-          summary
+          summaryData
             .filter(s => s.store_id && s.store_name)
             .map(s => [s.store_id, { store_id: s.store_id, store_name: s.store_name }])
         ).values()
@@ -119,7 +119,7 @@ const ShiftManagement = ({
       const matrixData = filteredStores.map(store => {
         const months = monthsToShow.map(month => {
           // その月のすべてのプランを取得
-          const monthPlans = summary.filter(
+          const monthPlans = summaryData.filter(
             s => parseInt(s.store_id) === store.store_id && parseInt(s.month) === month
           )
 
@@ -287,23 +287,27 @@ const ShiftManagement = ({
 
       // 全店舗一括作成の場合
       if (modalShift.isBatchCreate) {
-        const result = await shiftRepository.copyFromPreviousAllStores({
+        // 新しいAPI: DB書き込みなしでデータ取得のみ
+        const result = await shiftRepository.fetchPreviousDataAllStores({
           target_year: modalShift.year,
-          target_month: modalShift.month,
-          created_by: 1 // TODO: 実際のユーザーIDに置き換え
+          target_month: modalShift.month
         })
 
         if (result.success) {
-          // データを再読み込み
-          await loadShiftSummary()
-
           // モーダルを閉じる
           setShowCreateModal(false)
           setIsCopying(false)
           setModalShift(null)
 
-          // 全店舗の編集画面（DraftShiftEditor）に遷移
-          handleViewDraft({ year: modalShift.year, month: modalShift.month }, 'FIRST')
+          // FirstPlanEditorにデータを渡して遷移
+          setViewMode('draft')
+          setViewingShift({
+            year: modalShift.year,
+            month: modalShift.month,
+            planType: 'FIRST',
+            status: 'unsaved', // DBに未保存
+            initialData: result.data // 取得したシフトデータ
+          })
         }
       } else {
         // 個別店舗の場合
@@ -422,11 +426,31 @@ const ShiftManagement = ({
     return null
   }
 
-  // DraftShiftEditor表示モード（一括編集・一括作成）
+  // FirstPlanEditor表示モード（一括編集・一括作成・閲覧）
   if (viewMode === 'draft' && viewingShift) {
+    // 月の判定
+    const now = new Date()
+    const currentYear = now.getFullYear()
+    const currentMonth = now.getMonth() + 1
+    const targetDate = new Date(viewingShift.year, viewingShift.month - 1, 1)
+    const currentDate = new Date(currentYear, currentMonth - 1, 1)
+    const isCurrentOrPastMonth = targetDate <= currentDate
+
+    // その月の第1案が承認済みかチェック
+    const firstPlansInMonth = summary.filter(
+      s => parseInt(s.month) === viewingShift.month && s.plan_type === 'FIRST'
+    )
+    const allApproved = firstPlansInMonth.length > 0 && firstPlansInMonth.every(
+      p => p.status && p.status.toUpperCase() === 'APPROVED'
+    )
+
+    // (過去月 OR 当月) かつ 承認済み → 閲覧モード
+    const isViewMode = isCurrentOrPastMonth && allApproved
+
     return (
-      <DraftShiftEditor
+      <FirstPlanEditor
         selectedShift={viewingShift}
+        mode={isViewMode ? 'view' : 'edit'}
         onBack={handleBackToMatrix}
         onApprove={handleDraftApprove}
         {...{
@@ -444,39 +468,14 @@ const ShiftManagement = ({
     )
   }
 
-  // MultiStoreHistory表示モード
-  if (viewMode === 'multistore' && viewingShift) {
+  // 閲覧モード（detail/multistore統合）→ FirstPlanEditor（閲覧モード）
+  // 常に全店舗のデータを取得・表示。storeIdがあればそのstoreIdだけチェック、なければ全店舗チェック
+  if ((viewMode === 'detail' || viewMode === 'multistore') && viewingShift) {
     return (
-      <MultiStoreHistory
-        initialMonth={viewingShift}
-        planType={viewingShift.planType}
-        onPrev={handleBackToMatrix}
-        {...{
-          onHome,
-          onShiftManagement,
-          onLineMessages,
-          onMonitoring,
-          onStaffManagement,
-          onStoreManagement,
-          onConstraintManagement,
-          onBudgetActualManagement,
-          onFirstPlan,
-        }}
-      />
-    )
-  }
-
-  // 詳細表示モードの場合はHistoryコンポーネントを表示
-  if (viewMode === 'detail' && viewingShift) {
-    return (
-      <History
-        initialMonth={viewingShift}
-        planType={viewingShift.planType}
-        onPrev={handleBackToMatrix}
-        selectedStore={selectedStore}
-        setSelectedStore={setSelectedStore}
-        availableStores={availableStores}
-        hideStoreSelector={true}
+      <FirstPlanEditor
+        selectedShift={viewingShift}
+        mode="view"
+        onBack={handleBackToMatrix}
         {...{
           onHome,
           onShiftManagement,
@@ -574,25 +573,34 @@ const ShiftManagement = ({
                         全店舗
                       </th>
                       {shifts[0]?.months.map(monthData => {
-                        // 過去月かどうかを判定
+                        // 月の判定
                         const now = new Date()
                         const currentYear = now.getFullYear()
                         const currentMonth = now.getMonth() + 1
                         const targetDate = new Date(monthData.year, monthData.month - 1, 1)
                         const currentDate = new Date(currentYear, currentMonth - 1, 1)
-                        const isPastMonth = targetDate < currentDate
+                        const isCurrentOrPastMonth = targetDate <= currentDate
 
-                        // その月の全店舗の作成状況を確認（planIdの有無で判定）
-                        const storesInMonth = shifts.map(store =>
-                          store.months.find(m => m.month === monthData.month)
+                        // その月の全店舗の作成状況を確認（第1案の存在をサマリーから直接確認）
+                        const firstPlansInMonth = summary.filter(
+                          s => parseInt(s.month) === monthData.month && s.plan_type === 'FIRST'
                         )
-                        const allCreated = storesInMonth.every(m => m && m.planId && m.planType === 'FIRST')
-                        const someCreated = storesInMonth.some(m => m && m.planId && m.planType === 'FIRST')
+                        // 全店舗（shifts配列の長さ）で第1案が作成済みかチェック
+                        const allCreated = firstPlansInMonth.length === shifts.length
+                        const someCreated = firstPlansInMonth.length > 0
+
+                        // 承認済みかどうかをチェック（全ての第1案がAPPROVED状態）
+                        const allApproved = allCreated && firstPlansInMonth.every(
+                          p => p.status && p.status.toUpperCase() === 'APPROVED'
+                        )
+
+                        // (過去月 OR 当月) AND 承認済み → 閲覧モード
+                        const isViewOnly = isCurrentOrPastMonth && allApproved
 
                         return (
                           <th key={`batch-${monthData.month}`} className="px-2 py-2 text-center border-b-2 border-gray-200">
-                            {isPastMonth ? (
-                              // 過去月：第1案閲覧ボタン
+                            {isViewOnly ? (
+                              // (過去月 OR 当月) かつ 承認済み：第1案閲覧ボタン
                               <button
                                 onClick={() => handleViewDraft({ year: monthData.year, month: monthData.month }, 'FIRST')}
                                 className="px-2 py-1 text-xs text-gray-600 hover:text-gray-800 hover:underline"
@@ -600,7 +608,7 @@ const ShiftManagement = ({
                                 第1案閲覧
                               </button>
                             ) : allCreated ? (
-                              // 全店舗作成済み：一括編集ボタン
+                              // 全店舗作成済み（未承認 OR 未来月）：一括編集ボタン
                               <button
                                 onClick={() => {
                                   // 全店舗のシフトを開く（DraftShiftEditor画面へ）
@@ -611,7 +619,7 @@ const ShiftManagement = ({
                                 一括編集
                               </button>
                             ) : (
-                              // 未来月かつ未作成または一部作成済み：モーダルを開く
+                              // 未作成または一部作成済み：モーダルを開く
                               <button
                                 onClick={() => handleOpenCreateModal({ year: monthData.year, month: monthData.month }, true)}
                                 className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors whitespace-nowrap"
@@ -630,7 +638,7 @@ const ShiftManagement = ({
                       const bgClass = isEven ? 'bg-white' : 'bg-gray-25'
 
                       return (
-                        <>
+                        <React.Fragment key={`store-${storeData.storeId}`}>
                           {/* 1行目: 作成状況 */}
                           <tr key={`${storeData.storeId}-status`} className={`${bgClass} border-b border-gray-100`}>
                             <td rowSpan="3" className="px-2 py-3 font-medium text-gray-900 border-r border-gray-200 text-xs align-middle">
@@ -692,7 +700,7 @@ const ShiftManagement = ({
                               </td>
                             ))}
                           </tr>
-                        </>
+                        </React.Fragment>
                       )
                     })}
                   </tbody>
