@@ -256,7 +256,15 @@ const ShiftManagement = () => {
       return
     }
 
-    // それ以外の場合は第2案作成画面に遷移
+    // 第2案の編集の場合
+    if (shift.planType === 'SECOND') {
+      if (onCreateSecondPlan) {
+        onCreateSecondPlan(shift)
+      }
+      return
+    }
+
+    // それ以外の場合（第1案）は第2案作成画面に遷移
     try {
       if (onCreateShift) {
         await onCreateShift(shift)

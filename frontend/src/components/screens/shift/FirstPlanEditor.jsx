@@ -380,7 +380,7 @@ const FirstPlanEditor = ({
     }
 
     // 既存のプラン編集の場合
-    const isAlreadyApproved = selectedShift?.status === 'APPROVED' && selectedShift?.plan_type === 'FIRST'
+    const isAlreadyApproved = selectedShift?.status === 'APPROVED' && selectedShift?.planType === 'FIRST'
 
     if (hasUnsavedChanges) {
       if (!confirm(isAlreadyApproved ? '変更を保存しますか？' : '未保存の変更をバックエンドに保存して承認します。よろしいですか？')) {
@@ -792,7 +792,7 @@ const FirstPlanEditor = ({
       className="min-h-screen flex flex-col pt-16"
     >
       {/* ヘッダー */}
-      <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 pt-4 bg-white border-b border-gray-200">
+      <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 py-4 bg-white border-b border-gray-200">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-1" />

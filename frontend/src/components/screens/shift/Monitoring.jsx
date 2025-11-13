@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
@@ -49,7 +49,9 @@ const Monitoring = () => {
     year: parseInt(shift.year),
     month: parseInt(shift.month)
   } : null
-  const initialStoreId = shift?.store_id ? parseInt(shift.store_id) : null
+  // store_id と storeId の両方に対応
+  const initialStoreId = shift?.store_id ? parseInt(shift.store_id) :
+                        shift?.storeId ? parseInt(shift.storeId) : null
 
   // デバッグログ
   console.log('Monitoring - 受け取ったshift:', shift)
@@ -77,18 +79,29 @@ const Monitoring = () => {
   const [historyYear, setHistoryYear] = useState(initialMonth?.year || currentYear)
   const [historyMonth, setHistoryMonth] = useState(initialMonth?.month || null) // null = 全月表示
 
-  // initialMonthが渡された場合は年月を設定
+  // initialMonthを適用したかどうかを追跡
+  const isInitializedRef = useRef(false)
+
+  // initialMonthが渡された場合は年月を設定（一度だけ）
   useEffect(() => {
-    if (initialMonth) {
+    if (initialMonth && !isInitializedRef.current) {
+      console.log('Monitoring - initialMonthを適用:', initialMonth)
       setHistoryYear(initialMonth.year)
       setHistoryMonth(initialMonth.month)
+      isInitializedRef.current = true
     }
   }, [initialMonth])
 
-  // initialStoreIdが渡された場合は店舗を設定
+  // initialStoreIdを適用したかどうかを追跡
+  const isStoreInitializedRef = useRef(false)
+
+  // initialStoreIdが渡された場合は店舗を設定（一度だけ）
   useEffect(() => {
-    if (initialStoreId) {
+    console.log('Monitoring - initialStoreId useEffect:', initialStoreId)
+    if (initialStoreId && !isStoreInitializedRef.current) {
+      console.log('Monitoring - selectedStoreIdを設定:', initialStoreId)
       setSelectedStoreId(initialStoreId)
+      isStoreInitializedRef.current = true
     }
   }, [initialStoreId])
 
@@ -97,6 +110,7 @@ const Monitoring = () => {
   }, [tenantId])
 
   useEffect(() => {
+    console.log('Monitoring - loadAvailabilityData実行 historyYear:', historyYear, 'historyMonth:', historyMonth, 'selectedStoreId:', selectedStoreId)
     loadAvailabilityData()
   }, [historyYear, historyMonth, selectedStoreId, tenantId])
 
@@ -523,7 +537,10 @@ const Monitoring = () => {
                   variant={historyMonth === month ? 'default' : 'outline'}
                   size="sm"
                   className={historyMonth === month ? 'bg-blue-600 hover:bg-blue-700 text-sm px-3 py-1.5 font-semibold' : 'text-sm px-3 py-1.5'}
-                  onClick={() => setHistoryMonth(month)}
+                  onClick={() => {
+                    console.log('Monitoring - 月ボタンクリック:', month, '現在の月:', historyMonth)
+                    setHistoryMonth(month)
+                  }}
                 >
                   {month}月
                 </Button>
@@ -539,7 +556,11 @@ const Monitoring = () => {
             <label className="text-base font-semibold text-gray-700">対象店舗:</label>
             <select
               value={selectedStoreId || ''}
-              onChange={(e) => setSelectedStoreId(e.target.value ? parseInt(e.target.value) : null)}
+              onChange={(e) => {
+                const newStoreId = e.target.value ? parseInt(e.target.value) : null
+                console.log('Monitoring - 店舗選択変更:', newStoreId, '元の値:', selectedStoreId)
+                setSelectedStoreId(newStoreId)
+              }}
               className="px-3 py-2 border-2 border-gray-300 rounded-lg text-base font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
             >
               <option value="">すべての店舗</option>

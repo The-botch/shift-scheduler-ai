@@ -1081,7 +1081,7 @@ const SecondPlanEditor = ({
       className="min-h-screen flex flex-col pt-16"
     >
       {/* ヘッダー */}
-      <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 pt-4 bg-white border-b border-gray-200">
+      <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 py-4 bg-white border-b border-gray-200">
         <div className="flex items-center gap-4">
           <Button onClick={onPrev} variant="outline" size="sm">
             <ChevronLeft className="mr-1 h-4 w-4" />

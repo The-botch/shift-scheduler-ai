@@ -1291,6 +1291,8 @@ const BudgetActualManagement = () => {
     <>
       {/* ダッシュボード表示 */}
       <Dashboard
+        onNext={onNext}
+        onHistory={onHistory}
         onHome={onHome}
         onShiftManagement={onShiftManagement}
         onMonitoring={onMonitoring}
@@ -1299,6 +1301,7 @@ const BudgetActualManagement = () => {
         onConstraintManagement={onConstraintManagement}
         onLineMessages={onLineMessages}
         onBudgetActualManagement={onBudgetActualManagement}
+        onDevTools={onDevTools}
       />
 
       {/* データインポート機能 */}
