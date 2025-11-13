@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { MESSAGES } from '../../constants/messages'
 import { motion } from 'framer-motion'
 import Papa from 'papaparse'
@@ -37,17 +38,9 @@ import Dashboard from './Dashboard'
 
 const csvRepository = new CSVRepository()
 
-const BudgetActualManagement = ({
-  onHome,
-  onShiftManagement,
-  onLineMessages,
-  onMonitoring,
-  onStaffManagement,
-  onStoreManagement,
-  onConstraintManagement,
-  onBudgetActualManagement,
-}) => {
+const BudgetActualManagement = () => {
   const { tenantId } = useTenant()
+  const navigate = useNavigate()
   const [workHoursFile, setWorkHoursFile] = useState(null)
   const [payrollFile, setPayrollFile] = useState(null)
   const [salesActualFile, setSalesActualFile] = useState(null)
@@ -143,6 +136,19 @@ const BudgetActualManagement = ({
     window.addEventListener('beforeunload', handleBeforeUnload)
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [])
+
+  // ナビゲーション関数
+  const onHome = () => navigate('/')
+  const onNext = () => navigate('/shift/method')
+  const onHistory = () => navigate('/shift/history')
+  const onShiftManagement = () => navigate('/')
+  const onMonitoring = () => navigate('/shift/monitoring')
+  const onStaffManagement = () => navigate('/staff')
+  const onStoreManagement = () => navigate('/store')
+  const onConstraintManagement = () => navigate('/constraint')
+  const onLineMessages = () => navigate('/shift/line')
+  const onBudgetActualManagement = () => navigate('/budget-actual')
+  const onDevTools = () => navigate('/dev-tools')
 
   const loadImportStatus = async () => {
     try {

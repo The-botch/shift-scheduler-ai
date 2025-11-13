@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useLocation } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
 import { Button } from '../../ui/button'
@@ -36,21 +37,25 @@ const pageTransition = {
   duration: 0.5,
 }
 
-const Monitoring = ({
-  onNext,
-  onPrev,
-  onHome,
-  onShiftManagement,
-  onLineMessages,
-  onMonitoring,
-  onStaffManagement,
-  onStoreManagement,
-  onConstraintManagement,
-  onBudgetActualManagement,
-  initialMonth, // ShiftManagementから渡される月情報 { year, month }
-  initialStoreId, // 店舗IDを受け取る
-}) => {
+const Monitoring = () => {
+  const location = useLocation()
   const { tenantId } = useTenant()
+
+  // React Routerから渡されたstateを取得
+  const shift = location.state?.shift
+
+  // shiftオブジェクトから年月と店舗IDを抽出
+  const initialMonth = shift?.year && shift?.month ? {
+    year: parseInt(shift.year),
+    month: parseInt(shift.month)
+  } : null
+  const initialStoreId = shift?.store_id ? parseInt(shift.store_id) : null
+
+  // デバッグログ
+  console.log('Monitoring - 受け取ったshift:', shift)
+  console.log('Monitoring - initialMonth:', initialMonth)
+  console.log('Monitoring - initialStoreId:', initialStoreId, '(type:', typeof initialStoreId, ')')
+
   const [staffStatus, setStaffStatus] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedStaff, setSelectedStaff] = useState(null)
@@ -161,9 +166,17 @@ const Monitoring = ({
       setShiftPatternsMap(patternsMapping)
 
       // スタッフを店舗でフィルタリング
+      console.log('Monitoring - フィルタリング前のスタッフ数:', staffData.length, 'selectedStoreId:', selectedStoreId)
       const filteredStaffData = selectedStoreId
-        ? staffData.filter(staff => parseInt(staff.store_id) === parseInt(selectedStoreId))
+        ? staffData.filter(staff => {
+            const match = parseInt(staff.store_id) === parseInt(selectedStoreId)
+            if (!match) {
+              console.log(`  除外: ${staff.name} (store_id: ${staff.store_id})`)
+            }
+            return match
+          })
         : staffData
+      console.log('Monitoring - フィルタリング後のスタッフ数:', filteredStaffData.length)
 
       // スタッフごとに集計
       const staffMap = {}
@@ -475,11 +488,10 @@ const Monitoring = ({
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="fixed inset-0 flex flex-col"
-      style={{ top: '64px' }}
+      className="min-h-screen flex flex-col pt-16"
     >
-      {/* ヘッダーエリア - 固定 */}
-      <div className="flex-shrink-0 px-8 pt-4 mb-4">
+      {/* ヘッダーエリア */}
+      <div className="flex-shrink-0 px-8 pt-4 mb-4 bg-white border-b border-gray-200">
         {/* 1行目: タイトル */}
         <div className="mb-3">
           <h1 className="text-3xl font-bold text-gray-900">

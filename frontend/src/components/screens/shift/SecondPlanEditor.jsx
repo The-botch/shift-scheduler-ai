@@ -53,14 +53,6 @@ const SecondPlanEditor = ({
   onMarkUnsaved,
   onMarkSaved,
   selectedShift,
-  onHome,
-  onShiftManagement,
-  onLineMessages,
-  onMonitoring,
-  onStaffManagement,
-  onStoreManagement,
-  onConstraintManagement,
-  onBudgetActualManagement,
 }) => {
   // 共通ロジック（マスタデータ取得・店舗選択管理）
   const {
@@ -110,6 +102,8 @@ const SecondPlanEditor = ({
   // 問題のある日付を定義
   const problematicDates = new Set([]) // 問題のある日付
   const [problemDates, setProblemDates] = useState(new Set([]))
+  const [conflicts, setConflicts] = useState([]) // 希望シフトとの不一致情報
+  const [selectedConflict, setSelectedConflict] = useState(null) // 選択されたconflict（モーダル表示用）
 
   // 解決済み問題を管理
   const [resolvedProblems, setResolvedProblems] = useState(new Set())
@@ -307,7 +301,16 @@ const SecondPlanEditor = ({
         const staffPref = staffPreferencesMap[shift.staff_id]
         const staffName = staffMapping[shift.staff_id]?.name || `スタッフID: ${shift.staff_id}`
 
-        if (staffPref) {
+        if (!staffPref) {
+          // 希望シフトが未登録 → 第1案を実現できない
+          conflicts.push({
+            date: day,
+            staffId: shift.staff_id,
+            staffName: staffName,
+            type: 'NO_PREFERENCE',
+            message: '希望シフト未登録'
+          })
+        } else {
           // NGの日に配置されている場合
           if (staffPref.ngDays.has(dateStr)) {
             conflicts.push({
@@ -341,12 +344,14 @@ const SecondPlanEditor = ({
     if (conflicts.length > 0) {
       const problemDatesSet = new Set(conflicts.map(c => c.date))
       setProblemDates(problemDatesSet)
+      setConflicts(conflicts) // conflictsをstateに保存
 
       const ngCount = conflicts.filter(c => c.type === 'NG_DAY').length
       const notPreferredCount = conflicts.filter(c => c.type === 'NOT_PREFERRED').length
+      const noPreferenceCount = conflicts.filter(c => c.type === 'NO_PREFERENCE').length
 
       // メッセージに追加（Strict Mode対策：重複チェック）
-      const warningContent = `⚠️ 希望との不一致が${conflicts.length}件あります\n・NG日に配置: ${ngCount}件\n・希望日以外に配置: ${notPreferredCount}件\n問題のある日付: ${Array.from(problemDatesSet).sort((a,b) => a-b).join('日, ')}日`
+      const warningContent = `⚠️ 希望との不一致が${conflicts.length}件あります\n・NG日に配置: ${ngCount}件\n・希望日以外に配置: ${notPreferredCount}件\n・希望シフト未登録: ${noPreferenceCount}件\n問題のある日付: ${Array.from(problemDatesSet).sort((a,b) => a-b).join('日, ')}日`
       setMessages(prev => {
         // 同じ内容のメッセージが既に存在するかチェック
         const isDuplicate = prev.some(msg => msg.content === warningContent)
@@ -364,6 +369,7 @@ const SecondPlanEditor = ({
       })
     } else {
       console.log('全てのシフトが希望通りに配置されています')
+      setConflicts([]) // conflictsをクリア
       // メッセージに追加（Strict Mode対策：重複チェック）
       const successContent = '✅ 全てのシフトが希望通りに配置されています。'
       setMessages(prev => {
@@ -1072,11 +1078,10 @@ const SecondPlanEditor = ({
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="fixed inset-0 flex flex-col"
-      style={{ top: '64px' }}
+      className="min-h-screen flex flex-col pt-16"
     >
-      {/* ヘッダー - 固定 */}
-      <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 pt-4">
+      {/* ヘッダー */}
+      <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 pt-4 bg-white border-b border-gray-200">
         <div className="flex items-center gap-4">
           <Button onClick={onPrev} variant="outline" size="sm">
             <ChevronLeft className="mr-1 h-4 w-4" />
@@ -1234,6 +1239,8 @@ const SecondPlanEditor = ({
                   onUpdateShift={handleUpdateShift}
                   onDeleteShift={handleDeleteShift}
                   onDayClick={handleDayClick}
+                  conflicts={conflicts}
+                  onConflictClick={setSelectedConflict}
                 />
               </div>
             </div>
@@ -1265,6 +1272,8 @@ const SecondPlanEditor = ({
                   selectedStores={selectedStores}
                   readonly={true}
                   onDayClick={handleDayClick}
+                  conflicts={conflicts}
+                  onConflictClick={setSelectedConflict}
                 />
               </div>
             </div>
@@ -1290,6 +1299,8 @@ const SecondPlanEditor = ({
                     selectedStores={selectedStores}
                     readonly={true}
                     onDayClick={handleDayClick}
+                    conflicts={conflicts}
+                    onConflictClick={setSelectedConflict}
                   />
                 </div>
               </div>
@@ -1317,6 +1328,8 @@ const SecondPlanEditor = ({
                     onUpdateShift={handleUpdateShift}
                     onDeleteShift={handleDeleteShift}
                     onDayClick={handleDayClick}
+                    conflicts={conflicts}
+                    onConflictClick={setSelectedConflict}
                   />
                 </div>
               </div>
@@ -1510,6 +1523,121 @@ const SecondPlanEditor = ({
                 onDelete={handleDeleteShift}
                 storeName={selectedShift?.store_name}
               />
+            )}
+          </AnimatePresence>
+
+          {/* Conflict解消モーダル */}
+          <AnimatePresence>
+            {selectedConflict && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+                onClick={() => setSelectedConflict(null)}
+              >
+                <motion.div
+                  initial={{ scale: 0.9, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  exit={{ scale: 0.9, opacity: 0 }}
+                  className="bg-white rounded-lg shadow-2xl p-6 max-w-lg w-full mx-4"
+                  onClick={e => e.stopPropagation()}
+                >
+                  {/* ヘッダー */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div>
+                      <h3 className="text-lg font-bold text-gray-900">
+                        {selectedConflict.date}日 {selectedConflict.staffName}
+                      </h3>
+                      <p className="text-sm text-gray-600 mt-1">配置の問題</p>
+                    </div>
+                    <button
+                      onClick={() => setSelectedConflict(null)}
+                      className="text-gray-400 hover:text-gray-600"
+                    >
+                      ×
+                    </button>
+                  </div>
+
+                  {/* 問題の詳細 */}
+                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <div className="flex items-start gap-2">
+                      <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                      <div>
+                        <p className="font-semibold text-red-900">
+                          {selectedConflict.type === 'NG_DAY' && 'NG日に配置'}
+                          {selectedConflict.type === 'NOT_PREFERRED' && '希望日以外に配置'}
+                          {selectedConflict.type === 'NO_PREFERENCE' && '希望シフト未登録'}
+                        </p>
+                        <p className="text-sm text-red-800 mt-1">
+                          {selectedConflict.message}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 解決策 */}
+                  <div className="space-y-3">
+                    <h4 className="font-semibold text-gray-900 mb-3">解決策を選択</h4>
+
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left"
+                      onClick={() => {
+                        alert('別のスタッフに変更（実装予定）')
+                      }}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      別のスタッフに変更
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left"
+                      onClick={() => {
+                        alert('LINEで確認（実装予定）')
+                      }}
+                    >
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      スタッフに確認
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300"
+                      onClick={() => {
+                        alert('AIで解消（実装予定）')
+                      }}
+                    >
+                      <Zap className="h-4 w-4 mr-2 text-blue-600" />
+                      <span className="font-semibold text-blue-900">AIで解消</span>
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start text-left"
+                      onClick={() => {
+                        alert('問題を承認（実装予定）')
+                        setSelectedConflict(null)
+                      }}
+                    >
+                      <CheckCircle className="h-4 w-4 mr-2" />
+                      承知の上で配置
+                    </Button>
+                  </div>
+
+                  {/* キャンセルボタン */}
+                  <div className="mt-6 pt-4 border-t">
+                    <Button
+                      variant="ghost"
+                      className="w-full"
+                      onClick={() => setSelectedConflict(null)}
+                    >
+                      キャンセル
+                    </Button>
+                  </div>
+                </motion.div>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>

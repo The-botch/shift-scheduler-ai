@@ -455,17 +455,6 @@ const ShiftManagement = () => {
         mode={isViewMode ? 'view' : 'edit'}
         onBack={handleBackToMatrix}
         onApprove={handleDraftApprove}
-        {...{
-          onHome,
-          onShiftManagement,
-          onLineMessages,
-          onMonitoring,
-          onStaffManagement,
-          onStoreManagement,
-          onConstraintManagement,
-          onBudgetActualManagement,
-          onFirstPlan,
-        }}
       />
     )
   }
@@ -478,17 +467,6 @@ const ShiftManagement = () => {
         selectedShift={viewingShift}
         mode="view"
         onBack={handleBackToMatrix}
-        {...{
-          onHome,
-          onShiftManagement,
-          onLineMessages,
-          onMonitoring,
-          onStaffManagement,
-          onStoreManagement,
-          onConstraintManagement,
-          onBudgetActualManagement,
-          onFirstPlan,
-        }}
       />
     )
   }

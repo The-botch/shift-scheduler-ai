@@ -28,16 +28,7 @@ import { useTenant } from '../../contexts/TenantContext'
 const csvRepository = new CSVRepository()
 const masterRepository = new MasterRepository()
 
-const StaffManagement = ({
-  onHome,
-  onShiftManagement,
-  onLineMessages,
-  onMonitoring,
-  onStaffManagement,
-  onStoreManagement,
-  onConstraintManagement,
-  onBudgetActualManagement,
-}) => {
+const StaffManagement = () => {
   const { tenantId } = useTenant()
   const [staffList, setStaffList] = useState([])
   const [roles, setRoles] = useState([])

@@ -789,11 +789,10 @@ const FirstPlanEditor = ({
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="fixed inset-0 flex flex-col"
-      style={{ top: '64px' }}
+      className="min-h-screen flex flex-col pt-16"
     >
-      {/* ヘッダー - 固定 */}
-      <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 pt-4">
+      {/* ヘッダー */}
+      <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 pt-4 bg-white border-b border-gray-200">
         <div className="flex items-center gap-4">
           <Button variant="outline" size="sm" onClick={handleBack}>
             <ArrowLeft className="h-4 w-4 mr-1" />

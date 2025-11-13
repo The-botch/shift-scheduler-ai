@@ -188,14 +188,6 @@ const LineShiftInput = ({
   onNext,
   onPrev,
   shiftStatus,
-  onHome,
-  onShiftManagement,
-  onLineMessages,
-  onMonitoring,
-  onStaffManagement,
-  onStoreManagement,
-  onConstraintManagement,
-  onBudgetActualManagement,
 }) => {
   const { tenantId } = useTenant()
   const [datePreferences, setDatePreferences] = useState({}) // { date: { patterns: ['EARLY', 'MID'], comment: '' } }

@@ -14,16 +14,7 @@ import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
 
 const csvRepository = new CSVRepository()
 
-const ConstraintManagement = ({
-  onHome,
-  onShiftManagement,
-  onLineMessages,
-  onMonitoring,
-  onStaffManagement,
-  onStoreManagement,
-  onConstraintManagement,
-  onBudgetActualManagement,
-}) => {
+const ConstraintManagement = () => {
   const [laborLaws, setLaborLaws] = useState([])
   const [loading, setLoading] = useState(true)
 

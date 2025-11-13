@@ -15,6 +15,8 @@ const MultiStoreShiftTable = ({
   storesMap,
   selectedStores, // 選択された店舗IDのSet
   onDayClick,
+  conflicts = [], // 希望シフトとの不一致情報
+  onConflictClick, // conflictセルがクリックされたときのコールバック
 }) => {
   const headerScrollRef = useRef(null)
   const bodyScrollRef = useRef(null)
@@ -197,8 +199,27 @@ const MultiStoreShiftTable = ({
     return { totalDays, totalHours }
   }
 
-  // 時間帯による色分け
-  const getTimeSlotColor = startTime => {
+  // 特定の日付とスタッフに対してconflictを取得
+  const getConflict = (date, staffId) => {
+    const conflict = conflicts.find(c => {
+      const dateMatch = c.date === date
+      const staffMatch = parseInt(c.staffId) === parseInt(staffId)
+      if (dateMatch && !staffMatch && date === 29) {
+        console.log('29日のconflict staffId不一致:', { conflictStaffId: c.staffId, tableStaffId: staffId, conflict: c })
+      }
+      return dateMatch && staffMatch
+    })
+    if (date === 29 && conflict) {
+      console.log('29日のconflict見つかった:', { date, staffId, conflict })
+    }
+    return conflict
+  }
+
+  // 時間帯による色分け（conflictがある場合は赤色を優先）
+  const getTimeSlotColor = (startTime, date, staffId) => {
+    if (getConflict(date, staffId)) {
+      return 'bg-red-100 border-red-400'
+    }
     if (!startTime) return 'bg-gray-100'
     const hour = parseInt(startTime.split(':')[0])
     if (hour < 9) return 'bg-blue-50 border-blue-200'
@@ -384,6 +405,7 @@ const MultiStoreShiftTable = ({
                       {group.staff.map(staff => {
                         const shift = getShiftForDateAndStaff(date, staff.staff_id)
                         const hours = shift ? calculateHours(shift.start_time, shift.end_time) : 0
+                        const conflict = getConflict(date, staff.staff_id)
 
                         // シフトがあり、かつそのシフトの店舗が選択されている場合のみ表示
                         const shouldShowShift = shift &&
@@ -398,9 +420,16 @@ const MultiStoreShiftTable = ({
                           >
                             {shouldShowShift ? (
                               // シフト表示（読み取り専用）
-                              <div className={`px-0.5 py-0.5 rounded border ${getTimeSlotColor(shift.start_time)} ${
-                                shift.modified_flag ? 'ring-1 ring-yellow-400' : ''
-                              }`}>
+                              <div
+                                className={`px-0.5 py-0.5 rounded border ${getTimeSlotColor(shift.start_time, date, staff.staff_id)} ${
+                                  shift.modified_flag ? 'ring-1 ring-yellow-400' : ''
+                                } ${conflict ? 'cursor-pointer hover:opacity-80' : ''}`}
+                                onClick={() => {
+                                  if (conflict && onConflictClick) {
+                                    onConflictClick({ ...conflict, shift, staff })
+                                  }
+                                }}
+                              >
                                 <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
                                   {staff.store_id && shift.store_id && parseInt(staff.store_id) !== parseInt(shift.store_id)
                                     ? `${getStoreCode(shift.store_id)} `
