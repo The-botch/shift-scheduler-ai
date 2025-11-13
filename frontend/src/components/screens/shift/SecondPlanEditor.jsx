@@ -153,7 +153,7 @@ const SecondPlanEditor = ({
         return
       }
 
-      console.log(`第1案と希望シフトを読み込み中: ${year}年${month}月, plan_id=${planId}`)
+      console.log(`第2案データ読み込み開始: ${year}年${month}月, plan_id=${planId}`)
 
       // マスタデータを取得（カスタムhook経由）
       const { staffMapping } = await loadMasterData()
@@ -167,24 +167,9 @@ const SecondPlanEditor = ({
         setStoreName(storesMap[storeId].store_name)
       }
 
-      // 第1案のシフトデータを取得（全店舗分）
-      const firstPlanShiftsData = await shiftRepository.getShifts({
-        year,
-        month,
-        plan_type: 'FIRST'
-      })
-      console.log(`第1案シフト取得: ${firstPlanShiftsData.length}件`, firstPlanShiftsData.slice(0, 3))
-
-      // 第1案にスタッフ情報をマージ
-      const firstPlanWithStaffInfo = firstPlanShiftsData.map(shift => ({
-        ...shift,
-        staff_name: staffMapping[shift.staff_id]?.name || '不明',
-        role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
-      }))
-
-      setFirstPlanShifts(firstPlanWithStaffInfo) // 第1案の生データを保存
-
-      // 第2案のシフトデータを取得（全店舗分）
+      // ========================================
+      // ステップ1: まず第2案の存在確認（優先）
+      // ========================================
       const secondPlanShiftsData = await shiftRepository.getShifts({
         year,
         month,
@@ -192,22 +177,65 @@ const SecondPlanEditor = ({
       })
       console.log(`第2案シフト取得: ${secondPlanShiftsData.length}件`, secondPlanShiftsData.slice(0, 3))
 
-      // 第2案にスタッフ情報をマージ
-      // 第2案が空の場合（新規作成）は、第1案のデータを使用
       let secondPlanWithStaffInfo
-      if (secondPlanShiftsData.length === 0) {
-        console.log('第2案が存在しないため、第1案のデータを使用します')
-        secondPlanWithStaffInfo = firstPlanWithStaffInfo
-      } else {
+      let firstPlanWithStaffInfo
+
+      if (secondPlanShiftsData.length > 0) {
+        // ========================================
+        // 第2案が存在する → 編集モード
+        // ========================================
+        console.log('✅ 既存の第2案を復元します（編集モード）')
+
         secondPlanWithStaffInfo = secondPlanShiftsData.map(shift => ({
           ...shift,
           staff_name: staffMapping[shift.staff_id]?.name || '不明',
           role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
         }))
+
+        // 第1案は左側表示用に取得
+        const firstPlanShiftsData = await shiftRepository.getShifts({
+          year,
+          month,
+          plan_type: 'FIRST'
+        })
+        console.log(`第1案シフト取得（参照用）: ${firstPlanShiftsData.length}件`)
+
+        firstPlanWithStaffInfo = firstPlanShiftsData.map(shift => ({
+          ...shift,
+          staff_name: staffMapping[shift.staff_id]?.name || '不明',
+          role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
+        }))
+
+      } else {
+        // ========================================
+        // 第2案が存在しない → 新規作成モード
+        // ========================================
+        console.log('📝 第2案が存在しないため、第1案をベースに新規作成します')
+
+        // 第1案を取得してベースデータとして使用
+        const firstPlanShiftsData = await shiftRepository.getShifts({
+          year,
+          month,
+          plan_type: 'FIRST'
+        })
+        console.log(`第1案シフト取得: ${firstPlanShiftsData.length}件`, firstPlanShiftsData.slice(0, 3))
+
+        firstPlanWithStaffInfo = firstPlanShiftsData.map(shift => ({
+          ...shift,
+          staff_name: staffMapping[shift.staff_id]?.name || '不明',
+          role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
+        }))
+
+        // 第1案をコピーして第2案の初期データとする
+        secondPlanWithStaffInfo = firstPlanWithStaffInfo
       }
 
-      setCsvShifts(secondPlanWithStaffInfo) // 第2案の元データを保存（詳細表示用）
-      setShiftData(secondPlanWithStaffInfo) // 第2案のシフトデータとして設定
+      // ========================================
+      // データをstateに保存
+      // ========================================
+      setFirstPlanShifts(firstPlanWithStaffInfo)  // 第1案（左側表示用）
+      setCsvShifts(secondPlanWithStaffInfo)       // 第2案の元データ（詳細表示用）
+      setShiftData(secondPlanWithStaffInfo)       // 第2案の編集データ
 
       // 希望シフトを取得
       const preferencesData = await shiftRepository.getPreferences({
@@ -1044,7 +1072,7 @@ const SecondPlanEditor = ({
             <h1 className="text-xl font-bold text-gray-900">
               希望取り込み後修正
               <span className="text-sm font-normal text-gray-600 ml-3">
-                {selectedShift?.store_name ? `${selectedShift.store_name} · ` : ''}
+                {selectedShift?.store_name ? `${selectedShift.store_name} · ` : '全店舗 · '}
                 スタッフ希望を反映したシフト
               </span>
             </h1>

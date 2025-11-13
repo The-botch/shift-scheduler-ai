@@ -65,12 +65,13 @@ function AppContent() {
   // URLからステートを初期化
   useEffect(() => {
     const path = location.pathname
-    if (path === '/staff') {
+    if (path === '/') {
+      // トップページ → ShiftManagement
+      setShowShiftManagement(true)
+    } else if (path === '/staff') {
       setShowStaffManagement(true)
     } else if (path === '/store') {
       setShowStoreManagement(true)
-    } else if (path === '/shift' || path === '/shift/management') {
-      setShowShiftManagement(true)
     } else if (path === '/master') {
       setShowMasterDataManagement(true)
     } else if (path === '/budget-actual') {
@@ -103,7 +104,7 @@ function AppContent() {
     } else if (showStoreManagement) {
       navigate('/store', { replace: true })
     } else if (showShiftManagement) {
-      navigate('/shift', { replace: true })
+      navigate('/', { replace: true })
     } else if (showMasterDataManagement) {
       navigate('/master', { replace: true })
     } else if (showBudgetActualManagement) {
@@ -260,11 +261,6 @@ function AppContent() {
     setShowMasterDataManagement(false)
     setShowTenantSettings(false)
     setIsMenuOpen(false)
-  }
-
-  const goToDashboard = () => {
-    // ダッシュボードは廃止され、シフト管理がホームになった
-    goToShiftManagement()
   }
 
   const goToHistory = () => {
@@ -637,8 +633,14 @@ function AppContent() {
   }
 
   const goToCreateSecondPlan = (shift) => {
-    // 第2案作成画面へ
-    setSelectedShiftForSecondPlan(shift)
+    // 第2案作成画面へ（全店舗一括作成）
+    // 年月情報のみを渡して、全店舗の第2案を一括作成できるようにする
+    const secondPlanData = {
+      year: shift.year,
+      month: shift.month,
+      // store_id と store_name を除外することで全店舗モードになる
+    }
+    setSelectedShiftForSecondPlan(secondPlanData)
     setShowShiftManagement(false)
     setShowDraftShiftEditor(false)
     setShowShiftCreationMethodSelector(false)

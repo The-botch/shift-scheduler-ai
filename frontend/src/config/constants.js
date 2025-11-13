@@ -1,3 +1,10 @@
+// dateUtilsから日付関連関数をインポート
+import {
+  getCurrentYear as getYear,
+  getCurrentMonth as getMonth,
+  getCurrentYearMonth as getYearMonth
+} from '../utils/dateUtils'
+
 // システム基本定数
 export const SYSTEM = {
   STORE_ID: 1,
@@ -16,7 +23,6 @@ export const SYSTEM = {
  */
 export const getCurrentYear = () => {
   // 互換性のため残していますが、dateUtils.getCurrentYear() の使用を推奨
-  const { getCurrentYear: getYear } = require('../utils/dateUtils')
   return getYear()
 }
 
@@ -26,7 +32,6 @@ export const getCurrentYear = () => {
  */
 export const getCurrentMonth = () => {
   // 互換性のため残していますが、dateUtils.getCurrentMonth() の使用を推奨
-  const { getCurrentMonth: getMonth } = require('../utils/dateUtils')
   return getMonth()
 }
 
@@ -36,7 +41,6 @@ export const getCurrentMonth = () => {
  */
 export const getCurrentYearMonth = () => {
   // 互換性のため残していますが、dateUtils.getCurrentYearMonth() の使用を推奨
-  const { getCurrentYearMonth: getYearMonth } = require('../utils/dateUtils')
   return getYearMonth()
 }
 
