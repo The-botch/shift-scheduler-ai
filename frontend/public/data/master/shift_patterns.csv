@@ -1,7 +1,0 @@
-pattern_id,pattern_code,pattern_name,start_time,end_time,break_minutes,required_skills,is_active
-1,EARLY,早番,09:00,17:00,60,"[""CASHIER"",""CUSTOMER""]",TRUE
-2,MID,中番,13:00,21:00,60,"[""CASHIER"",""COOKING""]",TRUE
-3,LATE,遅番,17:00,22:00,0,"[""CASHIER"",""CUSTOMER""]",TRUE
-4,SHORT_AM,短時間午前,09:00,13:00,0,"[""CUSTOMER""]",TRUE
-5,SHORT_PM,短時間午後,14:00,18:00,0,"[""CUSTOMER""]",TRUE
-6,FULL,通し,09:00,22:00,120,"[""MANAGEMENT""]",TRUE

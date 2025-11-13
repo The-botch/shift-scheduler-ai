@@ -1,2 +1,0 @@
-store_id,store_code,store_name,address,phone_number,business_hours_start,business_hours_end,is_active
-1,STORE001,カフェ・ドゥ・渋谷,東京都渋谷区道玄坂1-2-3,03-1234-5678,09:00,22:00,TRUE

@@ -1,8 +1,0 @@
-preference_id,staff_id,staff_name,year,month,submitted_at,status,preferred_days,ng_days,preferred_time_slots,max_hours_per_week,notes
-PREF_001,1,田中太郎,2024,10,2024-09-20 10:30:00,submitted,"1,5,10,15,20,25","8,22",morning_afternoon,40,
-PREF_002,2,佐藤花子,2024,10,2024-09-21 14:20:00,submitted,"2,9,14,19,26,30","15",all_day,40,
-PREF_003,3,鈴木次郎,2024,10,2024-09-22 09:15:00,submitted,"4,10,14,21,28","3",afternoon_evening,35,
-PREF_004,4,山田美咲,2024,10,2024-09-23 16:45:00,submitted,"2,9,13,20,26","",evening,28,学業優先
-PREF_005,5,高橋健太,2024,10,2024-09-24 11:00:00,submitted,"5,7,11,15,17,23,29","28",morning_afternoon,30,
-PREF_006,6,伊藤さくら,2024,10,2024-09-25 13:30:00,submitted,"3,6,12,18,24","",all_day,35,
-PREF_007,7,渡辺翔,2024,10,2024-09-26 10:00:00,submitted,"1,8,15,22,29","",evening,20,学生のため夜のみ
