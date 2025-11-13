@@ -27,14 +27,44 @@ const ALLOWED_MIGRATIONS = [
 async function createMigrationTable() {
   const client = await pool.connect()
   try {
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS public.schema_migrations (
-        id SERIAL PRIMARY KEY,
-        migration_name VARCHAR(255) NOT NULL UNIQUE,
-        executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
-      )
+    // 既存のテーブルを確認
+    const tableCheck = await client.query(`
+      SELECT column_name
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+      AND table_name = 'schema_migrations'
     `)
-    console.log('✅ Migration tracking table ready')
+
+    if (tableCheck.rows.length === 0) {
+      // テーブルが存在しない場合は作成
+      await client.query(`
+        CREATE TABLE public.schema_migrations (
+          id SERIAL PRIMARY KEY,
+          migration_name VARCHAR(255) NOT NULL UNIQUE,
+          executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+        )
+      `)
+      console.log('✅ Migration tracking table created')
+    } else {
+      // テーブルが存在する場合、migration_nameカラムがあるか確認
+      const hasMigrationName = tableCheck.rows.some(row => row.column_name === 'migration_name')
+
+      if (!hasMigrationName) {
+        // 古いテーブルを削除して再作成
+        console.log('⚠️  Recreating schema_migrations table with correct structure')
+        await client.query('DROP TABLE IF EXISTS public.schema_migrations CASCADE')
+        await client.query(`
+          CREATE TABLE public.schema_migrations (
+            id SERIAL PRIMARY KEY,
+            migration_name VARCHAR(255) NOT NULL UNIQUE,
+            executed_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+          )
+        `)
+        console.log('✅ Migration tracking table recreated')
+      } else {
+        console.log('✅ Migration tracking table ready')
+      }
+    }
   } catch (error) {
     console.error('❌ Failed to create migration table:', error.message)
     throw error
