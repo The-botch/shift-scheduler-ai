@@ -142,18 +142,12 @@ const SecondPlanEditor = ({
     try {
       setLoading(true)
 
-      // selectedShiftから年月とplan_idを取得
+      // selectedShiftから年月を取得
       const year = selectedShift?.year || new Date().getFullYear()
       const month = selectedShift?.month || new Date().getMonth() + 1
       const planId = selectedShift?.planId
 
-      if (!planId) {
-        console.error('plan_idが指定されていません')
-        setLoading(false)
-        return
-      }
-
-      console.log(`第2案データ読み込み開始: ${year}年${month}月, plan_id=${planId}`)
+      console.log(`第2案データ読み込み開始: ${year}年${month}月, plan_id=${planId || '新規作成'}`)
 
       // マスタデータを取得（カスタムhook経由）
       const { staffMapping } = await loadMasterData()
@@ -249,12 +243,17 @@ const SecondPlanEditor = ({
       // 第1案と希望シフトを突合してアラートを判定
       checkPreferenceConflicts(firstPlanWithStaffInfo, preferencesData, staffMapping, year, month)
 
-      setLoading(false)
+      // データが正常に読み込まれたら生成済みフラグをON
+      // （第1案をコピーしたデータが表示される）
       setGenerated(true)
-    } catch (error) {
-      console.error('初期データ読み込みエラー:', error)
       setLoading(false)
-      alert(MESSAGES.ERROR.LOAD_FAILED)
+    } catch (error) {
+      console.error('❌ 初期データ読み込みエラー:', error)
+      console.error('エラー詳細:', error.message)
+      console.error('スタック:', error.stack)
+      setLoading(false)
+      // エラーが発生した場合は generated = false のまま（生成ボタン表示）
+      alert(MESSAGES.ERROR.LOAD_FAILED + '\n\n' + error.message)
     }
   }
 
@@ -346,27 +345,42 @@ const SecondPlanEditor = ({
       const ngCount = conflicts.filter(c => c.type === 'NG_DAY').length
       const notPreferredCount = conflicts.filter(c => c.type === 'NOT_PREFERRED').length
 
-      // メッセージに追加
-      setMessages(prev => [
-        ...prev,
-        {
-          id: prev.length + 1,
-          type: 'system',
-          content: `⚠️ 希望との不一致が${conflicts.length}件あります\n・NG日に配置: ${ngCount}件\n・希望日以外に配置: ${notPreferredCount}件\n問題のある日付: ${Array.from(problemDatesSet).sort((a,b) => a-b).join('日, ')}日`,
-          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
-        }
-      ])
+      // メッセージに追加（Strict Mode対策：重複チェック）
+      const warningContent = `⚠️ 希望との不一致が${conflicts.length}件あります\n・NG日に配置: ${ngCount}件\n・希望日以外に配置: ${notPreferredCount}件\n問題のある日付: ${Array.from(problemDatesSet).sort((a,b) => a-b).join('日, ')}日`
+      setMessages(prev => {
+        // 同じ内容のメッセージが既に存在するかチェック
+        const isDuplicate = prev.some(msg => msg.content === warningContent)
+        if (isDuplicate) return prev
+
+        return [
+          ...prev,
+          {
+            id: prev.length + 1,
+            type: 'system',
+            content: warningContent,
+            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+          }
+        ]
+      })
     } else {
       console.log('全てのシフトが希望通りに配置されています')
-      setMessages(prev => [
-        ...prev,
-        {
-          id: prev.length + 1,
-          type: 'system',
-          content: '✅ 全てのシフトが希望通りに配置されています。',
-          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
-        }
-      ])
+      // メッセージに追加（Strict Mode対策：重複チェック）
+      const successContent = '✅ 全てのシフトが希望通りに配置されています。'
+      setMessages(prev => {
+        // 同じ内容のメッセージが既に存在するかチェック
+        const isDuplicate = prev.some(msg => msg.content === successContent)
+        if (isDuplicate) return prev
+
+        return [
+          ...prev,
+          {
+            id: prev.length + 1,
+            type: 'system',
+            content: successContent,
+            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })
+          }
+        ]
+      })
     }
   }
 
