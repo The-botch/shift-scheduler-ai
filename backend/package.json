@@ -9,8 +9,7 @@
     "dev": "node --watch src/server.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage",
-    "migrate": "node scripts/run-migration.mjs"
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "axios": "^1.7.9",

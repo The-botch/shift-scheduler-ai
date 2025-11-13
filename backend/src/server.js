@@ -10,7 +10,6 @@ import vectorStoreRoutes from './routes/vector-store.js'
 import holidaysRoutes from './routes/holidays.js'
 import liffRoutes from './routes/liff.js'
 import { appendLog } from './utils/logger.js'
-import { runPendingMigrations } from './utils/migrator.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -112,11 +111,8 @@ app.use('/api/holidays', holidaysRoutes)
 app.use('/api/liff', liffRoutes)
 
 // Server startup
-async function startServer() {
+function startServer() {
   try {
-    // マイグレーションを実行
-    await runPendingMigrations()
-
     // サーバー起動
     app.listen(PORT, '0.0.0.0', () => {
       const startupMsg = `🚀 Backend server running on port ${PORT}`

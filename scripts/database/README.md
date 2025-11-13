@@ -195,6 +195,25 @@ ERROR: syntax error at or near
 
 これらのファイルが存在しない場合、エラーになります。
 
+## データベース変更管理方針
+
+このプロジェクトでは**DDL/DML方式**でデータベースを管理します。
+
+- **DDL（スキーマ定義）**: `ddl/schema.sql`にすべてのテーブル定義を記載
+- **DML（初期データ）**: `dml/*.sql`にマスターデータを記載
+- **マイグレーション機能は使用しません**: 既存のschema.sqlを直接編集してください
+
+### スキーマ変更時の手順
+
+1. **ローカル環境で変更**:
+   - `ddl/schema.sql`を編集
+   - `node setup.mjs --env dev`でローカルDBに適用
+   - アプリケーションをテスト
+
+2. **Railway（本番/開発環境）への適用**:
+   - Railway Consoleで直接SQLを実行
+   - または、setup.mjsを使ってRailwayのDATABASE_URLに対して実行
+
 ## 注意事項
 
 - **Tenant ID = 3で固定**: 全てのマスターデータはtenant_id=3で登録されます
