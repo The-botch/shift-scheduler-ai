@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { openai, getOpenAIHeaders, OPENAI_API_BASE } from './openaiService.js'
+import { openai, getOpenAIHeaders, OPENAI_API_BASE } from '../../src/services/openaiService.js'
 
 describe('openaiService', () => {
   describe('openai client', () => {

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import express from 'express'
 import request from 'supertest'
-import openaiRoutes from './openai.js'
+import openaiRoutes from '../../src/routes/openai.js'
 
 // globalのfetchをモック
 global.fetch = vi.fn()

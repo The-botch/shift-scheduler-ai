@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import fs from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
-import { saveCSV, convertCSVToJSON, deleteTempFile } from './fileService.js'
+import { saveCSV, convertCSVToJSON, deleteTempFile } from '../../src/services/fileService.js'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
