@@ -505,7 +505,7 @@ const Monitoring = () => {
       className="min-h-screen flex flex-col pt-16"
     >
       {/* ヘッダーエリア */}
-      <div className="flex-shrink-0 px-8 pt-4 mb-4 bg-white border-b border-gray-200">
+      <div className="flex-shrink-0 px-8 py-4 mb-4 bg-white border-b border-gray-200">
         {/* 1行目: タイトル */}
         <div className="mb-3">
           <h1 className="text-3xl font-bold text-gray-900">
