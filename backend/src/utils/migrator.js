@@ -6,7 +6,9 @@
 import { readFileSync, readdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { fileURLToPath } from 'url'
-import pool from '../config/database.js'
+import db from '../config/database.js'
+
+const pool = db.getPool()
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
