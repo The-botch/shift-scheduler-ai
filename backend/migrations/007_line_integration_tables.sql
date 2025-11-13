@@ -20,9 +20,9 @@ CREATE TABLE IF NOT EXISTS hr.staff_line_accounts (
 );
 
 -- インデックス作成
-CREATE INDEX idx_staff_line_accounts_user_id ON hr.staff_line_accounts(line_user_id);
-CREATE INDEX idx_staff_line_accounts_staff_id ON hr.staff_line_accounts(staff_id);
-CREATE INDEX idx_staff_line_accounts_tenant_id ON hr.staff_line_accounts(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_staff_line_accounts_user_id ON hr.staff_line_accounts(line_user_id);
+CREATE INDEX IF NOT EXISTS idx_staff_line_accounts_staff_id ON hr.staff_line_accounts(staff_id);
+CREATE INDEX IF NOT EXISTS idx_staff_line_accounts_tenant_id ON hr.staff_line_accounts(tenant_id);
 
 COMMENT ON TABLE hr.staff_line_accounts IS 'スタッフとLINEアカウントの紐付け';
 COMMENT ON COLUMN hr.staff_line_accounts.line_user_id IS 'LINE User ID (Uから始まる一意ID)';
@@ -47,10 +47,10 @@ CREATE TABLE IF NOT EXISTS ops.line_message_logs (
 );
 
 -- インデックス作成
-CREATE INDEX idx_line_message_logs_created ON ops.line_message_logs(created_at);
-CREATE INDEX idx_line_message_logs_staff ON ops.line_message_logs(staff_id);
-CREATE INDEX idx_line_message_logs_status ON ops.line_message_logs(status);
-CREATE INDEX idx_line_message_logs_user_id ON ops.line_message_logs(line_user_id);
+CREATE INDEX IF NOT EXISTS idx_line_message_logs_created ON ops.line_message_logs(created_at);
+CREATE INDEX IF NOT EXISTS idx_line_message_logs_staff ON ops.line_message_logs(staff_id);
+CREATE INDEX IF NOT EXISTS idx_line_message_logs_status ON ops.line_message_logs(status);
+CREATE INDEX IF NOT EXISTS idx_line_message_logs_user_id ON ops.line_message_logs(line_user_id);
 
 COMMENT ON TABLE ops.line_message_logs IS 'LINEメッセージの処理ログ（監査・デバッグ用）';
 COMMENT ON COLUMN ops.line_message_logs.status IS 'success: 成功, failed: 失敗, ignored: 無視';
