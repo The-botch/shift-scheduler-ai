@@ -116,7 +116,9 @@ const AppHeader = () => {
           {/* 左側：ロゴ/ホームボタン */}
           <div className="flex items-center gap-2 md:gap-4">
             <button
-              onClick={() => navigate('/')}
+              onClick={() => {
+                window.location.href = '/'
+              }}
               className="app-logo"
             >
               <BarChart3 className="h-6 w-6 text-slate-700" />
