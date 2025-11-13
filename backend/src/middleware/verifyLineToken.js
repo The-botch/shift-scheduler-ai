@@ -1,6 +1,5 @@
 import jwt from 'jsonwebtoken'
 import axios from 'axios'
-import jwkToPem from 'jwk-to-pem'
 
 // LINE公開鍵キャッシュ
 let linePublicKeys = null
@@ -69,13 +68,6 @@ export async function verifyLineToken(req, res, next) {
       })
     }
 
-    console.log('Public Key:', JSON.stringify(publicKey, null, 2))
-    console.log('Token Header:', JSON.stringify(decodedToken.header, null, 2))
-
-    // JWKからPEM形式に変換
-    // jwk-to-pemはRS256のみサポートしているため、アルゴリズムを明示的に指定
-    const pem = jwkToPem(publicKey)
-
     // トークンを検証
     const channelId = process.env.LINE_CHANNEL_ID
 
@@ -83,10 +75,32 @@ export async function verifyLineToken(req, res, next) {
       throw new Error('LINE_CHANNEL_IDが設定されていません')
     }
 
-    const verified = jwt.verify(idToken, pem, {
-      algorithms: ['RS256'],
-      audience: channelId,
-      issuer: 'https://access.line.me'
+    // JWKを直接使用してトークンを検証（ES256/RS256両方に対応）
+    // jsonwebtokenライブラリは内部でJWKをPEMに変換してくれる
+    const getKey = (header, callback) => {
+      const key = publicKeys.find(k => k.kid === header.kid)
+      if (!key) {
+        return callback(new Error('公開鍵が見つかりません'))
+      }
+
+      // JWKをそのまま返す（ES256にも対応）
+      callback(null, key)
+    }
+
+    const verified = await new Promise((resolve, reject) => {
+      jwt.verify(
+        idToken,
+        getKey,
+        {
+          algorithms: ['ES256', 'RS256'],
+          audience: channelId,
+          issuer: 'https://access.line.me'
+        },
+        (err, decoded) => {
+          if (err) return reject(err)
+          resolve(decoded)
+        }
+      )
     })
 
     // 検証済みのユーザー情報をリクエストに追加
