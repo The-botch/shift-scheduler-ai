@@ -56,37 +56,9 @@ COMMENT ON TABLE ops.line_message_logs IS 'LINEメッセージの処理ログ（
 COMMENT ON COLUMN ops.line_message_logs.status IS 'success: 成功, failed: 失敗, ignored: 無視';
 COMMENT ON COLUMN ops.line_message_logs.parsed_data IS '解析されたデータのJSON';
 
--- 3. 既存のshift_preferencesテーブルにユニーク制約を追加（存在しない場合）
-DO $$
-BEGIN
-  -- 既存の重複データを削除してからユニーク制約を追加
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'unique_shift_preference_per_staff_date'
-  ) THEN
-    -- 重複を削除（最新のものを残す）
-    DELETE FROM ops.shift_preferences
-    WHERE preference_id IN (
-      SELECT preference_id
-      FROM (
-        SELECT preference_id,
-               ROW_NUMBER() OVER (
-                 PARTITION BY tenant_id, staff_id, preference_date
-                 ORDER BY created_at DESC
-               ) as rn
-        FROM ops.shift_preferences
-      ) t
-      WHERE t.rn > 1
-    );
-
-    -- ユニーク制約を追加
-    ALTER TABLE ops.shift_preferences
-    ADD CONSTRAINT unique_shift_preference_per_staff_date
-    UNIQUE (tenant_id, staff_id, preference_date);
-
-    RAISE NOTICE 'Added unique constraint to shift_preferences';
-  END IF;
-END $$;
+-- 3. shift_preferencesテーブルのユニーク制約（スキップ）
+-- 注: shift_preferencesテーブルにはpreference_dateカラムが存在しないため、
+-- year, monthカラムを使用する必要がありますが、このマイグレーションでは不要なのでスキップします。
 
 -- 4. トリガー関数: updated_at自動更新
 CREATE OR REPLACE FUNCTION update_updated_at_column()
