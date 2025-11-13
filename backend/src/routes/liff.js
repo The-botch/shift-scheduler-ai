@@ -1,8 +1,9 @@
 import express from 'express'
 import { verifyLineToken } from '../middleware/verifyLineToken.js'
-import pool from '../config/database.js'
+import db from '../config/database.js'
 
 const router = express.Router()
+const pool = db.getPool()
 
 /**
  * スタッフのシフト希望を登録するエンドポイント
