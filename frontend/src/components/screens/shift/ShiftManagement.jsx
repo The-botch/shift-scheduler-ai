@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
 import { Button } from '../../ui/button'
@@ -33,26 +34,8 @@ const pageTransition = {
   duration: 0.5,
 }
 
-const ShiftManagement = ({
-  onNext,
-  onPrev,
-  onCreateShift,
-  onCreateSecondPlan,
-  onFirstPlan,
-  shiftStatus,
-  onHome,
-  onShiftManagement,
-  onLineMessages,
-  onMonitoring,
-  onStaffManagement,
-  onStoreManagement,
-  onConstraintManagement,
-  onBudgetActualManagement,
-  selectedStore,
-  setSelectedStore,
-  availableStores,
-  setAvailableStores,
-}) => {
+const ShiftManagement = () => {
+  const navigate = useNavigate()
   const [shifts, setShifts] = useState([]) // マトリックスデータ: { storeId, storeName, months: [{month, status, ...}] }
   const [summary, setSummary] = useState([]) // サマリーデータ
   const [loading, setLoading] = useState(true)
@@ -63,9 +46,28 @@ const ShiftManagement = ({
   const [showCreateModal, setShowCreateModal] = useState(false) // 新規作成モーダル表示
   const [modalShift, setModalShift] = useState(null) // モーダルで選択されたシフト
   const [isCopying, setIsCopying] = useState(false) // コピー中の状態
+  const [selectedStore, setSelectedStore] = useState('all') // 店舗フィルター
+  const [availableStores, setAvailableStores] = useState([]) // 利用可能な店舗リスト
 
   // 常に現在年を使用
   const currentYear = new Date().getFullYear()
+
+  // ナビゲーション関数（props由来の関数を置き換え）
+  const onFirstPlan = (shift) => {
+    navigate('/shift/draft-editor', { state: { shift } })
+  }
+
+  const onCreateSecondPlan = (shift) => {
+    navigate('/shift/second-plan', { state: { shift } })
+  }
+
+  const onMonitoring = (shift) => {
+    navigate('/shift/monitoring', { state: { shift } })
+  }
+
+  const onLineMessages = () => {
+    navigate('/shift/line')
+  }
 
   // APIからシフトサマリーを取得
   // 初回マウント時にも読み込み

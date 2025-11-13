@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate, Link } from 'react-router-dom'
 import { Button } from '../ui/button'
 import {
   BarChart3,
@@ -20,19 +21,8 @@ import {
 import { useTenant } from '../../contexts/TenantContext'
 import { BACKEND_API_URL } from '../../config/api'
 
-const AppHeader = ({
-  onHome,
-  onShiftManagement,
-  onLineMessages,
-  onMonitoring,
-  onStaffManagement,
-  onStoreManagement,
-  onConstraintManagement,
-  onBudgetActualManagement,
-  onMasterDataManagement,
-  onDataImpactDocumentation,
-  onTenantSettings,
-}) => {
+const AppHeader = () => {
+  const navigate = useNavigate()
   const [currentTime, setCurrentTime] = useState(new Date())
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [backendEnv, setBackendEnv] = useState(null)
@@ -107,15 +97,15 @@ const AppHeader = ({
   }
 
   const menuItems = [
-    { label: 'LINE', icon: MessageSquare, onClick: onLineMessages, show: !!onLineMessages },
-    { label: 'スタッフ管理', icon: Users, onClick: onStaffManagement, show: !!onStaffManagement },
-    { label: '店舗管理', icon: Store, onClick: onStoreManagement, show: !!onStoreManagement },
-    { label: '予実管理', icon: TrendingUp, onClick: onBudgetActualManagement, show: !!onBudgetActualManagement },
-    { label: 'マスター管理', icon: Database, onClick: onMasterDataManagement, show: !!onMasterDataManagement },
-  ].filter(item => item.show)
+    { label: 'LINE', icon: MessageSquare, path: '/shift/line' },
+    { label: 'スタッフ管理', icon: Users, path: '/staff' },
+    { label: '店舗管理', icon: Store, path: '/store' },
+    { label: '予実管理', icon: TrendingUp, path: '/budget-actual' },
+    { label: 'マスター管理', icon: Database, path: '/master' },
+  ]
 
-  const handleMenuItemClick = (onClick) => {
-    onClick()
+  const handleMenuItemClick = (path) => {
+    navigate(path)
     setIsMobileMenuOpen(false)
   }
 
@@ -126,7 +116,7 @@ const AppHeader = ({
           {/* 左側：ロゴ/ホームボタン */}
           <div className="flex items-center gap-2 md:gap-4">
             <button
-              onClick={onHome}
+              onClick={() => navigate('/')}
               className="app-logo"
             >
               <BarChart3 className="h-6 w-6 text-slate-700" />
@@ -164,7 +154,7 @@ const AppHeader = ({
                   key={index}
                   variant="ghost"
                   size="sm"
-                  onClick={item.onClick}
+                  onClick={() => handleMenuItemClick(item.path)}
                   className="text-slate-700"
                 >
                   <Icon className="h-4 w-4 mr-1.5" />
@@ -240,7 +230,7 @@ const AppHeader = ({
               return (
                 <button
                   key={index}
-                  onClick={() => handleMenuItemClick(item.onClick)}
+                  onClick={() => handleMenuItemClick(item.path)}
                   className="w-full flex items-center gap-3 px-4 py-3 text-slate-700 hover:bg-slate-50 rounded-lg transition-colors"
                 >
                   <Icon className="h-5 w-5" />
