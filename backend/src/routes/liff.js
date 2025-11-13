@@ -33,7 +33,10 @@ router.post('/shift-request', verifyLineToken, async (req, res) => {
 
     // LINE User IDからスタッフ情報を取得
     const staffResult = await client.query(
-      'SELECT staff_id, store_id FROM hr.staff WHERE line_user_id = $1',
+      `SELECT s.staff_id, s.store_id
+       FROM hr.staff_line_accounts sla
+       JOIN hr.staff s ON sla.staff_id = s.staff_id
+       WHERE sla.line_user_id = $1 AND sla.is_active = true`,
       [lineUserId]
     )
 
@@ -155,7 +158,10 @@ router.get('/shift-request', verifyLineToken, async (req, res) => {
 
     // LINE User IDからスタッフ情報を取得
     const staffResult = await client.query(
-      'SELECT staff_id, store_id FROM hr.staff WHERE line_user_id = $1',
+      `SELECT s.staff_id, s.store_id
+       FROM hr.staff_line_accounts sla
+       JOIN hr.staff s ON sla.staff_id = s.staff_id
+       WHERE sla.line_user_id = $1 AND sla.is_active = true`,
       [lineUserId]
     )
 
@@ -224,14 +230,12 @@ router.get('/staff-info', verifyLineToken, async (req, res) => {
         s.staff_id,
         s.name,
         s.store_id,
-        st.name as store_name,
-        s.weekly_hours_limit,
-        s.monthly_hours_limit,
-        s.health_insurance,
-        s.employment_insurance
-       FROM hr.staff s
+        st.store_name,
+        s.employment_type
+       FROM hr.staff_line_accounts sla
+       JOIN hr.staff s ON sla.staff_id = s.staff_id
        LEFT JOIN core.stores st ON s.store_id = st.store_id
-       WHERE s.line_user_id = $1`,
+       WHERE sla.line_user_id = $1 AND sla.is_active = true`,
       [lineUserId]
     )
 
@@ -252,6 +256,191 @@ router.get('/staff-info', verifyLineToken, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'スタッフ情報の取得中にエラーが発生しました'
+    })
+  } finally {
+    client.release()
+  }
+})
+
+/**
+ * LINE連携状態をチェックするエンドポイント
+ * GET /api/liff/check-link
+ */
+router.get('/check-link', verifyLineToken, async (req, res) => {
+  const client = await pool.connect()
+
+  try {
+    const lineUserId = req.lineUser.userId
+
+    // LINE User IDが連携されているかチェック
+    const linkResult = await client.query(
+      `SELECT
+        sla.staff_line_id,
+        sla.staff_id,
+        sla.display_name,
+        sla.linked_at,
+        s.name as staff_name,
+        s.store_id,
+        st.store_name,
+        s.employment_type
+       FROM hr.staff_line_accounts sla
+       JOIN hr.staff s ON sla.staff_id = s.staff_id
+       JOIN core.stores st ON s.store_id = st.store_id
+       WHERE sla.line_user_id = $1 AND sla.is_active = true`,
+      [lineUserId]
+    )
+
+    if (linkResult.rows.length === 0) {
+      return res.json({
+        success: true,
+        linked: false,
+        message: 'LINE連携が未完了です'
+      })
+    }
+
+    res.json({
+      success: true,
+      linked: true,
+      data: linkResult.rows[0]
+    })
+  } catch (error) {
+    console.error('LINE連携チェックエラー:', error)
+
+    res.status(500).json({
+      success: false,
+      error: '連携状態の確認中にエラーが発生しました'
+    })
+  } finally {
+    client.release()
+  }
+})
+
+/**
+ * 新規スタッフ登録（LINE User ID紐づけ）
+ * POST /api/liff/register-staff
+ *
+ * リクエストボディ:
+ * {
+ *   tenant_id: 3,
+ *   store_id: 1,
+ *   name: "山田太郎",
+ *   staff_code: "STAFF001",
+ *   employment_type: "PART_TIME",
+ *   email: "yamada@example.com",
+ *   phone_number: "090-1234-5678"
+ * }
+ */
+router.post('/register-staff', verifyLineToken, async (req, res) => {
+  const client = await pool.connect()
+
+  try {
+    const {
+      tenant_id,
+      store_id,
+      name,
+      staff_code,
+      employment_type,
+      email,
+      phone_number
+    } = req.body
+
+    const lineUserId = req.lineUser.userId
+    const displayName = req.lineUser.displayName
+
+    // バリデーション
+    if (!tenant_id || !store_id || !name || !staff_code || !employment_type) {
+      return res.status(400).json({
+        success: false,
+        error: '必須項目が入力されていません（tenant_id, store_id, name, staff_code, employment_type）'
+      })
+    }
+
+    // 既に連携済みかチェック
+    const existingLink = await client.query(
+      'SELECT staff_line_id FROM hr.staff_line_accounts WHERE line_user_id = $1',
+      [lineUserId]
+    )
+
+    if (existingLink.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'このLINEアカウントは既に連携されています'
+      })
+    }
+
+    // スタッフコードの重複チェック
+    const existingStaff = await client.query(
+      'SELECT staff_id FROM hr.staff WHERE tenant_id = $1 AND staff_code = $2',
+      [tenant_id, staff_code]
+    )
+
+    if (existingStaff.rows.length > 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'このスタッフコードは既に使用されています'
+      })
+    }
+
+    // トランザクション開始
+    await client.query('BEGIN')
+
+    // 1. hr.staffテーブルにスタッフを登録
+    const staffResult = await client.query(
+      `INSERT INTO hr.staff (
+        tenant_id,
+        store_id,
+        role_id,
+        staff_code,
+        name,
+        email,
+        phone_number,
+        employment_type,
+        hire_date,
+        is_active,
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+      RETURNING staff_id`,
+      [tenant_id, store_id, 1, staff_code, name, email, phone_number, employment_type]
+    )
+
+    const staffId = staffResult.rows[0].staff_id
+
+    // 2. hr.staff_line_accountsテーブルにLINE連携を登録
+    await client.query(
+      `INSERT INTO hr.staff_line_accounts (
+        tenant_id,
+        staff_id,
+        line_user_id,
+        display_name,
+        linked_at,
+        is_active,
+        created_at,
+        updated_at
+      ) VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+      [tenant_id, staffId, lineUserId, displayName]
+    )
+
+    // コミット
+    await client.query('COMMIT')
+
+    res.json({
+      success: true,
+      message: 'スタッフ登録とLINE連携が完了しました',
+      data: {
+        staff_id: staffId,
+        name,
+        staff_code,
+        line_user_id: lineUserId
+      }
+    })
+  } catch (error) {
+    await client.query('ROLLBACK')
+    console.error('スタッフ登録エラー:', error)
+
+    res.status(500).json({
+      success: false,
+      error: 'スタッフ登録中にエラーが発生しました'
     })
   } finally {
     client.release()
