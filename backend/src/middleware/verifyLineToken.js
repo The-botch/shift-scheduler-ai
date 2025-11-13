@@ -69,7 +69,11 @@ export async function verifyLineToken(req, res, next) {
       })
     }
 
+    console.log('Public Key:', JSON.stringify(publicKey, null, 2))
+    console.log('Token Header:', JSON.stringify(decodedToken.header, null, 2))
+
     // JWKからPEM形式に変換
+    // jwk-to-pemはRS256のみサポートしているため、アルゴリズムを明示的に指定
     const pem = jwkToPem(publicKey)
 
     // トークンを検証
