@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MultiStoreShiftTable 4つのバグ修正 - 設計書</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h1 { color: #2c3e50; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+    h2 { color: #34495e; margin-top: 30px; border-left: 4px solid #3498db; padding-left: 10px; }
+    h3 { color: #7f8c8d; }
+    .bug { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }
+    .fix { background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 15px 0; }
+    .risk { background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 15px 0; }
+    .info { background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 15px; margin: 15px 0; }
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; }
+    th { background: #3498db; color: white; }
+    tr:nth-child(even) { background: #f9f9f9; }
+    code { background: #f4f4f4; padding: 2px 6px; border-radius: 3px; font-family: 'Courier New', monospace; }
+    pre { background: #2c3e50; color: #ecf0f1; padding: 15px; border-radius: 5px; overflow-x: auto; }
+    .checkbox { margin: 10px 0; }
+    .checkbox input { margin-right: 10px; }
+    .commit-plan { background: #e8f4f8; padding: 20px; border-radius: 5px; margin: 20px 0; }
+    .metadata { background: #ecf0f1; padding: 15px; border-radius: 5px; margin-bottom: 20px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>MultiStoreShiftTable 4つのバグ修正 - 設計書</h1>
+
+    <div class="metadata">
+      <strong>Issue:</strong> #63<br>
+      <strong>作成日:</strong> 2025-11-14<br>
+      <strong>作成者:</strong> Claude<br>
+      <strong>ステータス:</strong> <span style="color: #e67e22;">設計中</span>
+    </div>
+
+    <h2>1. 修正の目的・背景</h2>
+    <p>MultiStoreShiftTableコンポーネントに4つのバグが発見されました。これらは第1ステップの実装時に発生したもので、ユーザー体験を損なうため早急な修正が必要です。</p>
+
+    <div class="bug">
+      <h3>バグ1: 月表示が先月になっている</h3>
+      <p>12月のデータを表示しているのに、ヘッダーに「11月」と表示される</p>
+    </div>
+
+    <div class="bug">
+      <h3>バグ2: Sticky列の背景透過問題</h3>
+      <p>日付列と全体列を固定(sticky)したが、背後が透けて見える</p>
+    </div>
+
+    <div class="bug">
+      <h3>バグ3: 背景色が変わらない</h3>
+      <p>hopeShiftsに基づくセル背景色の変更機能が動作していない（hopeShiftsが空配列のまま）</p>
+    </div>
+
+    <div class="bug">
+      <h3>バグ4: History.jsxでの不要な使用</h3>
+      <p>履歴画面でMultiStoreShiftTableが使われているが不要</p>
+    </div>
+
+    <h2>2. 影響範囲の完全なリスト</h2>
+
+    <h3>フロントエンド</h3>
+    <table>
+      <tr>
+        <th>ファイル</th>
+        <th>影響内容</th>
+        <th>修正要否</th>
+      </tr>
+      <tr>
+        <td><code>MultiStoreShiftTable.jsx</code></td>
+        <td>Sticky列の背景透過問題（Line 391, 402）</td>
+        <td>✅ 必要</td>
+      </tr>
+      <tr>
+        <td><code>FirstPlanEditor.jsx</code></td>
+        <td>月表示バグの影響を受ける（Line 87）</td>
+        <td>❓ 要調査</td>
+      </tr>
+      <tr>
+        <td><code>SecondPlanEditor.jsx</code></td>
+        <td>月表示バグの影響を受ける（5箇所）</td>
+        <td>❓ 要調査</td>
+      </tr>
+      <tr>
+        <td><code>History.jsx</code></td>
+        <td>不要なMultiStoreShiftTable使用（Line 813-821）</td>
+        <td>✅ 削除必要</td>
+      </tr>
+    </table>
+
+    <h3>バックエンド・データベース</h3>
+    <p>✅ 影響なし</p>
+
+    <h2>3. 参照元・参照先の完全なリスト</h2>
+
+    <h3>MultiStoreShiftTableの使用箇所</h3>
+    <ul>
+      <li><code>FirstPlanEditor.jsx</code> - Line 905-917</li>
+      <li><code>SecondPlanEditor.jsx</code> - Line 1231-1256, 1266-1289, 1293-1316, 1320-1344</li>
+      <li><code>History.jsx</code> - Line 813-821（削除対象）</li>
+    </ul>
+
+    <h3>親コンポーネントから渡されるprops</h3>
+    <ul>
+      <li><code>year</code> - 年（正常）</li>
+      <li><code>month</code> - 月（バグの可能性あり）</li>
+      <li><code>hopeShifts</code> - 希望シフトデータ（未実装、空配列）</li>
+    </ul>
+
+    <h2>4. 修正前後の動作比較</h2>
+
+    <h3>バグ1: 月表示</h3>
+    <div class="info">
+      <strong>修正前:</strong> 12月のデータなのに「11月」と表示<br>
+      <strong>修正後:</strong> 12月のデータで「12月」と正しく表示<br>
+      <strong>修正方法:</strong> 要調査（selectedShift.monthの値を確認）
+    </div>
+
+    <h3>バグ2: Sticky背景</h3>
+    <div class="info">
+      <strong>修正前:</strong> スクロール時に背後のセルが透けて見える<br>
+      <strong>修正後:</strong> 固定列の背景が不透明で、スクロールしても見やすい<br>
+      <strong>修正方法:</strong> MultiStoreShiftTable.jsx Line 391, 402に背景色を追加
+    </div>
+
+    <h3>バグ3: 背景色</h3>
+    <div class="info">
+      <strong>現状:</strong> hopeShiftsが空配列のため機能していない<br>
+      <strong>対応:</strong> 今回は対応せず、将来の実装タスクとして残す<br>
+      <strong>理由:</strong> 親コンポーネント側の実装が必要で影響範囲が大きい
+    </div>
+
+    <h3>バグ4: History.jsx</h3>
+    <div class="info">
+      <strong>修正前:</strong> MultiStoreShiftTableが使われている<br>
+      <strong>修正後:</strong> 削除（代替コンポーネントは未定）<br>
+      <strong>影響:</strong> History画面で一時的に表示が崩れる可能性
+    </div>
+
+    <h2>5. 想定されるリスクと対策</h2>
+
+    <div class="risk">
+      <h3>リスク1: 月表示バグの根本原因が不明</h3>
+      <p><strong>対策:</strong> selectedShift.monthの値をデバッグログで確認してから修正</p>
+    </div>
+
+    <div class="risk">
+      <h3>リスク2: History.jsx削除後の代替手段がない</h3>
+      <p><strong>対策:</strong> ユーザーに確認を取り、削除のみ実施。代替は別Issue化</p>
+    </div>
+
+    <div class="risk">
+      <h3>リスク3: Sticky背景の修正で他のスタイルが崩れる</h3>
+      <p><strong>対策:</strong> 修正後にブラウザで動作確認を実施</p>
+    </div>
+
+    <h2>6. テスト計画</h2>
+
+    <h3>手動テスト項目</h3>
+    <table>
+      <tr>
+        <th>テスト項目</th>
+        <th>期待結果</th>
+        <th>確認方法</th>
+      </tr>
+      <tr>
+        <td>月表示の確認</td>
+        <td>12月のデータで「12月」と表示される</td>
+        <td>FirstPlanEditor, SecondPlanEditorで確認</td>
+      </tr>
+      <tr>
+        <td>Sticky背景の確認</td>
+        <td>横スクロール時に背後が透けない</td>
+        <td>MultiStoreShiftTableで横スクロール</td>
+      </tr>
+      <tr>
+        <td>History.jsx削除の確認</td>
+        <td>エラーなく動作（表示は崩れてもOK）</td>
+        <td>History画面を開く</td>
+      </tr>
+    </table>
+
+    <h2>7. 実行計画（コミット分割戦略）</h2>
+
+    <div class="commit-plan">
+      <h3>コミット数: 4個</h3>
+
+      <div class="checkbox">
+        <input type="checkbox" id="commit1">
+        <label for="commit1"><strong>コミット1:</strong> バグ調査 - selectedShift.monthの値を確認</label>
+        <ul>
+          <li>FirstPlanEditor.jsx, SecondPlanEditor.jsxにデバッグログ追加</li>
+          <li>ブラウザで動作確認し、monthの値を特定</li>
+          <li>デバッグログを削除（コミットには含めない）</li>
+        </ul>
+      </div>
+
+      <div class="checkbox">
+        <input type="checkbox" id="commit2">
+        <label for="commit2"><strong>コミット2:</strong> fix: MultiStoreShiftTable Sticky列の背景透過問題を修正</label>
+        <ul>
+          <li>MultiStoreShiftTable.jsx Line 391, 402 を修正</li>
+          <li>背景色を追加（bg-gray-50, bg-blue-50）</li>
+          <li>ブラウザで動作確認</li>
+        </ul>
+      </div>
+
+      <div class="checkbox">
+        <input type="checkbox" id="commit3">
+        <label for="commit3"><strong>コミット3:</strong> fix: 月表示が先月になっているバグを修正</label>
+        <ul>
+          <li>コミット1の調査結果に基づいて修正</li>
+          <li>FirstPlanEditor.jsx, SecondPlanEditor.jsx を修正</li>
+          <li>ブラウザで動作確認</li>
+        </ul>
+      </div>
+
+      <div class="checkbox">
+        <input type="checkbox" id="commit4">
+        <label for="commit4"><strong>コミット4:</strong> refactor: History.jsxの不要なMultiStoreShiftTable使用を削除</label>
+        <ul>
+          <li>History.jsx Line 813-821 を削除</li>
+          <li>import文も削除</li>
+          <li>ブラウザで動作確認（エラーがないことを確認）</li>
+        </ul>
+      </div>
+    </div>
+
+    <h3>コミット順序の理由</h3>
+    <ol>
+      <li><strong>調査から開始:</strong> 月表示バグの原因を特定してから修正</li>
+      <li><strong>小さい修正から:</strong> Sticky背景は影響範囲が小さく安全</li>
+      <li><strong>複雑な修正:</strong> 月表示バグは複数ファイルに影響</li>
+      <li><strong>削除は最後:</strong> History.jsxの削除は影響が読めないため最後</li>
+    </ol>
+
+    <h3>ロールバック計画</h3>
+    <p>各コミット後にブラウザで動作確認。問題があればそのコミットをrevertして原因調査。</p>
+
+    <h2>8. 進捗管理</h2>
+
+    <div class="info">
+      <p>各タスク完了時に、このHTMLファイルのチェックボックスを更新します。</p>
+      <p>設計書は各コミットに含めて更新します。</p>
+    </div>
+
+    <h2>9. 備考</h2>
+
+    <div class="info">
+      <h3>バグ3（背景色）について</h3>
+      <p>hopeShiftsの実装は影響範囲が大きいため、今回は対応せず別Issueとして管理します。</p>
+      <p>関連Issue: （未作成）</p>
+    </div>
+
+    <hr style="margin: 40px 0;">
+
+    <p style="text-align: center; color: #7f8c8d;">
+      🤖 Generated with Claude Code<br>
+      最終更新: 2025-11-14
+    </p>
+  </div>
+</body>
+</html>

@@ -17,6 +17,8 @@ const MultiStoreShiftTable = ({
   onDayClick,
   conflicts = [], // 希望シフトとの不一致情報
   onConflictClick, // conflictセルがクリックされたときのコールバック
+  hopeShifts = [], // 希望シフトデータ
+  onCellClick, // セルクリック時のコールバック（全セル対応）
 }) => {
   const headerScrollRef = useRef(null)
   const bodyScrollRef = useRef(null)
@@ -215,6 +217,23 @@ const MultiStoreShiftTable = ({
     return conflict
   }
 
+  // 特定の日付とスタッフに対してhopeShiftを取得
+  const getHopeShift = (date, staffId) => {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+    return hopeShifts.find(
+      hope =>
+        hope.shift_date &&
+        hope.shift_date.startsWith(dateStr) &&
+        parseInt(hope.staff_id) === parseInt(staffId)
+    )
+  }
+
+  // セルの背景色を決定（hopeShiftの有無で判定）
+  const getCellBackgroundColor = (date, staffId) => {
+    const hopeShift = getHopeShift(date, staffId)
+    return hopeShift ? 'bg-green-50' : 'bg-white'
+  }
+
   // 時間帯による色分け（conflictがある場合は赤色を優先）
   const getTimeSlotColor = (startTime, date, staffId) => {
     if (getConflict(date, staffId)) {
@@ -266,10 +285,10 @@ const MultiStoreShiftTable = ({
           <thead className="bg-gray-50">
             {/* 1行目: 店舗名 */}
             <tr>
-              <th rowSpan={2} className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-300">
-                日付
+              <th rowSpan={2} className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-300 sticky left-0 z-20 bg-gray-50">
+                <div className="text-[0.6rem] font-bold">{year}年{month}月</div>
               </th>
-              <th rowSpan={2} className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-400 bg-blue-100">
+              <th rowSpan={2} className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-400 bg-blue-100 sticky left-[80px] z-20">
                 <div className="text-[0.65rem] leading-tight">📊全体</div>
               </th>
               {storeGroups.map(group => (
@@ -303,11 +322,11 @@ const MultiStoreShiftTable = ({
             </tr>
             {/* 月間合計行 */}
             <tr className="bg-gray-100 font-semibold">
-              <td className="px-0 py-0.5 border-r-2 border-gray-300 text-center text-gray-700">月合計</td>
+              <td className="px-0 py-0.5 border-r-2 border-gray-300 text-center text-gray-700 sticky left-0 z-20 bg-gray-100">月合計</td>
               {(() => {
                 const overallMonthly = getOverallMonthlyTotal()
                 return (
-                  <td className="px-0.5 py-0.5 border-r-2 border-gray-400 text-center bg-blue-100">
+                  <td className="px-0.5 py-0.5 border-r-2 border-gray-400 text-center bg-blue-100 sticky left-[80px] z-20">
                     <div className="text-gray-800 text-[0.5rem] leading-tight">{overallMonthly.totalDays}名</div>
                     <div className="text-gray-800 text-[0.5rem] leading-tight">{overallMonthly.totalHours.toFixed(1)}h</div>
                   </td>
@@ -371,7 +390,7 @@ const MultiStoreShiftTable = ({
             return (
               <tr key={date} className={rowBgColor}>
                 {/* 日付セル */}
-                <td className="px-1 py-0.5 border-r-2 border-b border-gray-200 bg-gray-50">
+                <td className="px-1 py-0.5 border-r-2 border-b border-gray-200 bg-gray-50 sticky left-0 z-20">
                   <div className="flex items-center gap-0.5">
                     <span className={`font-bold text-[0.85rem] leading-tight ${getWeekdayColor(date)}`}>
                       {date}({weekday})
@@ -383,7 +402,7 @@ const MultiStoreShiftTable = ({
                 </td>
 
                 {/* 全体サマリーセル */}
-                <td className="px-1 py-0.5 border-r-2 border-b border-gray-400 text-center bg-blue-50 cursor-pointer hover:bg-blue-100">
+                <td className="px-1 py-0.5 border-r-2 border-b border-gray-400 text-center bg-blue-50 cursor-pointer hover:bg-blue-100 sticky left-[80px] z-20">
                   <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
                     {overallSummary.staffCount}名 {overallSummary.totalHours.toFixed(1)}h
                   </div>
@@ -406,6 +425,8 @@ const MultiStoreShiftTable = ({
                         const shift = getShiftForDateAndStaff(date, staff.staff_id)
                         const hours = shift ? calculateHours(shift.start_time, shift.end_time) : 0
                         const conflict = getConflict(date, staff.staff_id)
+                        const hopeShift = getHopeShift(date, staff.staff_id)
+                        const cellBgColor = getCellBackgroundColor(date, staff.staff_id)
 
                         // シフトがあり、かつそのシフトの店舗が選択されている場合のみ表示
                         const shouldShowShift = shift &&
@@ -413,22 +434,32 @@ const MultiStoreShiftTable = ({
                           selectedStores.size > 0 &&
                           selectedStores.has(parseInt(shift.store_id))
 
+                        // セルクリックハンドラ
+                        const handleCellClick = () => {
+                          if (onCellClick) {
+                            onCellClick({
+                              date,
+                              staffId: staff.staff_id,
+                              shift: shouldShowShift ? shift : null,
+                              hopeShift,
+                              conflict,
+                              staff
+                            })
+                          }
+                        }
+
                         return (
                           <td
                             key={staff.staff_id}
-                            className="px-0.5 py-0.5 border-r border-b border-gray-200"
+                            className={`px-0.5 py-0.5 border-r border-b border-gray-200 ${cellBgColor} ${onCellClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+                            onClick={handleCellClick}
                           >
                             {shouldShowShift ? (
                               // シフト表示（読み取り専用）
                               <div
                                 className={`px-0.5 py-0.5 rounded border ${getTimeSlotColor(shift.start_time, date, staff.staff_id)} ${
                                   shift.modified_flag ? 'ring-1 ring-yellow-400' : ''
-                                } ${conflict ? 'cursor-pointer hover:opacity-80' : ''}`}
-                                onClick={() => {
-                                  if (conflict && onConflictClick) {
-                                    onConflictClick({ ...conflict, shift, staff })
-                                  }
-                                }}
+                                }`}
                               >
                                 <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
                                   {staff.store_id && shift.store_id && parseInt(staff.store_id) !== parseInt(shift.store_id)
