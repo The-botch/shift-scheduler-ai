@@ -14,7 +14,6 @@ import FirstPlanEditor from './components/screens/shift/FirstPlanEditor'
 import ShiftCreationMethodSelector from './components/screens/shift/ShiftCreationMethodSelector'
 import LineShiftInput from './components/screens/shift/LineShiftInput'
 import Monitoring from './components/screens/shift/Monitoring'
-import SecondPlanEditor from './components/screens/shift/SecondPlanEditor'
 import StaffManagement from './components/screens/StaffManagement'
 import StoreManagement from './components/screens/StoreManagement'
 import ConstraintManagement from './components/screens/ConstraintManagement'
@@ -52,7 +51,6 @@ function AppContent() {
   const [showDevTools, setShowDevTools] = useState(false)
   const [showTenantSettings, setShowTenantSettings] = useState(false)
   const [selectedShiftForEdit, setSelectedShiftForEdit] = useState(null)
-  const [selectedShiftForSecondPlan, setSelectedShiftForSecondPlan] = useState(null)
   const [shiftManagementKey, setShiftManagementKey] = useState(0) // 再マウント用
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [monitoringInitialMonth, setMonitoringInitialMonth] = useState(null) // Monitoring画面に渡す初期月
@@ -88,8 +86,6 @@ function AppContent() {
       setShowDraftShiftEditor(true)
     } else if (path === '/shift/method') {
       setShowShiftCreationMethodSelector(true)
-    } else if (path === '/shift/second-plan') {
-      setCurrentStep(2)
     } else if (path === '/dev-tools') {
       setShowDevTools(true)
     } else if (path === '/tenant-settings') {
@@ -125,8 +121,6 @@ function AppContent() {
       navigate('/dev-tools', { replace: true })
     } else if (showTenantSettings) {
       navigate('/tenant-settings', { replace: true })
-    } else if (currentStep === 2) {
-      navigate('/shift/second-plan', { replace: true })
     } else if (
       !showStaffManagement &&
       !showStoreManagement &&
@@ -177,15 +171,7 @@ function AppContent() {
       setHasUnsavedChanges(false)
     }
 
-    // 第2案画面からの戻りの場合、シフト管理に戻す（第1案仮承認済みまたは確定済みの場合）
-    if (
-      currentStep === 2 &&
-      (shiftStatus[10] === 'first_plan_approved' || shiftStatus[10] === 'completed')
-    ) {
-      setCurrentStep(1)
-      setShowShiftManagement(true)
-      setShowBudgetActualManagement(false)
-    } else if (currentStep > 1) {
+    if (currentStep > 1) {
       setCurrentStep(currentStep - 1)
     }
   }
@@ -469,9 +455,6 @@ function AppContent() {
       // 確定済みの場合は閲覧のみ
       alert(MESSAGES.INFO.VIEW_ONLY)
       return
-    } else if (status === 'APPROVED' && shift.planType === 'SECOND') {
-      // 第2案承認済みの場合は第2案画面で編集可能
-      goToCreateSecondPlan(shift)
     } else if ((status === 'APPROVED' && shift.planType === 'FIRST') || status === 'DRAFT') {
       // 第1案承認済みまたは下書きの場合はカレンダー表示・編集画面へ
       setSelectedShiftForEdit(shift)
@@ -632,44 +615,6 @@ function AppContent() {
     setShiftManagementKey(prev => prev + 1)
   }
 
-  const goToCreateSecondPlan = (shift) => {
-    // 第2案作成画面へ（全店舗一括作成）
-    // 年月情報のみを渡して、全店舗の第2案を一括作成できるようにする
-    const secondPlanData = {
-      year: shift.year,
-      month: shift.month,
-      // store_id と store_name を除外することで全店舗モードになる
-    }
-    setSelectedShiftForSecondPlan(secondPlanData)
-    setShowShiftManagement(false)
-    setShowDraftShiftEditor(false)
-    setShowShiftCreationMethodSelector(false)
-    setShowStaffManagement(false)
-    setShowStoreManagement(false)
-    setShowConstraintManagement(false)
-    setShowMonitoring(false)
-    setShowHistory(false)
-    setShowLineMessages(false)
-    setShowBudgetActualManagement(false)
-    setShowDevTools(false)
-    setShowTenantSettings(false)
-    setCurrentStep(2)
-  }
-
-  const approveSecondPlan = () => {
-    // 第2案を承認してシフト管理画面に戻る（ステータスはバックエンドで管理）
-    setHasUnsavedChanges(false)
-    setCurrentStep(1)
-    setShowShiftManagement(true)
-    setShowStaffManagement(false)
-    setShowStoreManagement(false)
-    setShowMonitoring(false)
-    setShowBudgetActualManagement(false)
-    setShowHistory(false)
-    // データを再読み込みするために再マウント
-    setShiftManagementKey(prev => prev + 1)
-  }
-
   const renderCurrentScreen = () => {
     if (showStaffManagement) {
       return (
@@ -822,7 +767,6 @@ function AppContent() {
           selectedShift={selectedShiftForEdit}
           onBack={backToShiftManagementFromDraft}
           onApprove={approveFirstPlan}
-          onCreateSecondPlan={goToCreateSecondPlan}
           onDelete={handleDeleteShiftPlan}
         />
       )
@@ -841,7 +785,6 @@ function AppContent() {
           onPrev={backFromShiftManagement}
           onFirstPlan={goToFirstPlanFromShiftMgmt}
           onCreateShift={goToFirstPlanFromShiftMgmt}
-          onCreateSecondPlan={goToCreateSecondPlan}
           shiftStatus={shiftStatus}
           onHome={goToShiftManagement}
           onShiftManagement={goToShiftManagement}
@@ -860,24 +803,6 @@ function AppContent() {
     }
 
     switch (currentStep) {
-      case 2:
-        return (
-          <SecondPlanEditor
-            onNext={approveSecondPlan}
-            onPrev={prevStep}
-            onMarkUnsaved={() => setHasUnsavedChanges(true)}
-            onMarkSaved={() => setHasUnsavedChanges(false)}
-            selectedShift={selectedShiftForSecondPlan}
-            onHome={goToShiftManagement}
-            onShiftManagement={goToShiftManagement}
-            onLineMessages={goToLineMessages}
-            onMonitoring={goToMonitoring}
-            onStaffManagement={goToStaffManagement}
-            onStoreManagement={goToStoreManagement}
-            onConstraintManagement={goToConstraintManagement}
-            onBudgetActualManagement={goToBudgetActualManagement}
-          />
-        )
       default:
         return (
           <ShiftManagement
@@ -885,7 +810,6 @@ function AppContent() {
             onPrev={backFromShiftManagement}
             onFirstPlan={goToFirstPlanFromShiftMgmt}
             onCreateShift={goToFirstPlanFromShiftMgmt}
-            onCreateSecondPlan={goToCreateSecondPlan}
             shiftStatus={shiftStatus}
             onHome={goToShiftManagement}
             onShiftManagement={goToShiftManagement}

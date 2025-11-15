@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FirstPlanEditor から SecondPlanEditor への遷移コード削除 - 設計書</title>
+  <style>
+    body { font-family: 'Segoe UI', sans-serif; max-width: 1400px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+    .container { background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    h1 { color: #2c3e50; border-bottom: 3px solid #e74c3c; padding-bottom: 10px; }
+    h2 { color: #34495e; margin-top: 30px; border-left: 4px solid #e74c3c; padding-left: 10px; }
+    h3 { color: #7f8c8d; }
+
+    .warning-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; }
+    .info-box { background: #d1ecf1; border-left: 4px solid #17a2b8; padding: 15px; margin: 15px 0; }
+    .success-box { background: #d4edda; border-left: 4px solid #28a745; padding: 15px; margin: 15px 0; }
+    .danger-box { background: #f8d7da; border-left: 4px solid #dc3545; padding: 15px; margin: 15px 0; }
+
+    table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+    th, td { border: 1px solid #ddd; padding: 12px; text-align: left; vertical-align: top; }
+    th { background: #e74c3c; color: white; }
+    tr:nth-child(even) { background: #f9f9f9; }
+
+    .code {
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 15px;
+      border-radius: 5px;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      margin: 10px 0;
+      overflow-x: auto;
+    }
+
+    .file-path { color: #3498db; font-weight: bold; }
+    .line-number { color: #95a5a6; }
+    .delete { background: #ffebee; text-decoration: line-through; color: #c62828; }
+    .add { background: #e8f5e9; color: #2e7d32; }
+
+    ul.checklist { list-style: none; padding-left: 0; }
+    ul.checklist li { padding: 8px; margin: 5px 0; background: #f8f9fa; border-left: 3px solid #6c757d; }
+    ul.checklist li input[type="checkbox"] { margin-right: 10px; }
+    ul.checklist li.done { background: #d4edda; border-left-color: #28a745; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🗑️ SecondPlanEditor の呼び出し箇所を1箇所に統一</h1>
+
+    <div class="info-box">
+      <strong>📅 作成日</strong>: 2025-11-16<br>
+      <strong>👤 作成者</strong>: Claude Code<br>
+      <strong>🎯 目的</strong>: SecondPlanEditor の呼び出し箇所を ShiftManagement のみに統一し、それ以外の呼び出し方法と不要になったコンポーネント・関数・Stateを全て削除する
+    </div>
+
+    <h2>📋 修正の目的・背景</h2>
+
+    <h3>現状の問題</h3>
+    <p>現在、SecondPlanEditor（第2案編集画面）への遷移ルートが<strong>2つ</strong>存在している：</p>
+
+    <div class="danger-box">
+      <strong>❌ 不要なルート（削除対象）</strong>
+      <div class="code">FirstPlanEditor
+  ↓ 「第2案作成」ボタン
+App.jsx (goToCreateSecondPlan)
+  ↓ currentStep = 2
+SecondPlanEditor (App.jsx経由)</div>
+    </div>
+
+    <div class="success-box">
+      <strong>✅ 正しいルート（残す）</strong>
+      <div class="code">ShiftManagement
+  ↓ 「第2案作成」ボタン
+navigate('/shift/second-plan')
+  ↓ React Router
+SecondPlanEditor (main.jsx経由)</div>
+    </div>
+
+    <h3>修正が必要な理由</h3>
+    <ol>
+      <li><strong>仕様の統一</strong>: 第2案作成は ShiftManagement からのみ行うべき</li>
+      <li><strong>バグの防止</strong>: FirstPlanEditor 経由だと year/month が正しく渡らない問題があった</li>
+      <li><strong>コードの簡素化</strong>: App.jsx の不要な currentStep 管理コードを削除できる</li>
+      <li><strong>保守性の向上</strong>: 遷移ルートが1つになり、デバッグしやすくなる</li>
+    </ol>
+
+    <h2>🔍 影響範囲の完全なリスト</h2>
+
+    <h3>フロントエンド</h3>
+
+    <h4>📍 SecondPlanEditor の呼び出し箇所（現状）</h4>
+    <table>
+      <tr>
+        <th>場所</th>
+        <th>呼び出し方法</th>
+        <th>対応</th>
+      </tr>
+      <tr style="background: #d4edda;">
+        <td><span class="file-path">main.jsx</span> (45行目)</td>
+        <td>React Router のルート定義<br><code>&lt;Route path="second-plan" element={&lt;SecondPlanEditor /&gt;} /&gt;</code></td>
+        <td><strong>✅ 残す</strong></td>
+      </tr>
+      <tr style="background: #d4edda;">
+        <td><span class="file-path">ShiftManagement.jsx</span> (60行目)</td>
+        <td>navigate() で遷移<br><code>navigate('/shift/second-plan', { state: { shift } })</code></td>
+        <td><strong>✅ 残す（唯一の入口）</strong></td>
+      </tr>
+      <tr style="background: #ffebee;">
+        <td><span class="file-path">App.jsx</span> (865-880行目)</td>
+        <td>switch (currentStep) で直接呼び出し<br><code>&lt;SecondPlanEditor selectedShift={selectedShiftForSecondPlan} .../&gt;</code></td>
+        <td><strong>❌ 削除</strong></td>
+      </tr>
+      <tr style="background: #ffebee;">
+        <td><span class="file-path">FirstPlanEditor.jsx</span> (836-841行目)</td>
+        <td>「第2案作成」ボタン → App.jsx 経由</td>
+        <td><strong>❌ 削除</strong></td>
+      </tr>
+    </table>
+
+    <h4>🗑️ 削除する不要なコード</h4>
+    <table>
+      <tr>
+        <th>ファイル</th>
+        <th>削除対象</th>
+        <th>行数</th>
+        <th>理由</th>
+      </tr>
+      <tr>
+        <td rowspan="6"><span class="file-path">App.jsx</span></td>
+        <td><code>import SecondPlanEditor</code></td>
+        <td>17行目</td>
+        <td>App.jsx から呼び出さなくなる</td>
+      </tr>
+      <tr>
+        <td><code>selectedShiftForSecondPlan</code> State</td>
+        <td>55行目</td>
+        <td>App.jsx 経由で渡さなくなる</td>
+      </tr>
+      <tr>
+        <td><code>goToCreateSecondPlan</code> 関数</td>
+        <td>635-666行目</td>
+        <td>使われなくなる</td>
+      </tr>
+      <tr>
+        <td><code>approveSecondPlan</code> 関数</td>
+        <td>659-674行目</td>
+        <td>App.jsx 経由の承認が不要になる</td>
+      </tr>
+      <tr>
+        <td><code>switch (currentStep)</code> の case 2</td>
+        <td>865-880行目</td>
+        <td>SecondPlanEditor を呼び出さなくなる</td>
+      </tr>
+      <tr>
+        <td><code>onCreateSecondPlan</code> Props（3箇所）</td>
+        <td>825, 844, 888行目</td>
+        <td>FirstPlanEditor に渡す必要がなくなる</td>
+      </tr>
+      <tr>
+        <td rowspan="2"><span class="file-path">FirstPlanEditor.jsx</span></td>
+        <td><code>onCreateSecondPlan</code> Props 受け取り</td>
+        <td>46行目</td>
+        <td>使わなくなる</td>
+      </tr>
+      <tr>
+        <td>「第2案作成」ボタン</td>
+        <td>836-841行目</td>
+        <td>不要な遷移ボタン</td>
+      </tr>
+    </table>
+
+    <h4>🔍 影響なし</h4>
+    <table>
+      <tr>
+        <th>ファイル</th>
+        <th>理由</th>
+      </tr>
+      <tr>
+        <td><span class="file-path">main.jsx</span></td>
+        <td>React Router の定義はそのまま使う</td>
+      </tr>
+      <tr>
+        <td><span class="file-path">ShiftManagement.jsx</span></td>
+        <td>独自の <code>onCreateSecondPlan</code> を持っているため、App.jsx の削除は無関係</td>
+      </tr>
+      <tr>
+        <td><span class="file-path">SecondPlanEditor.jsx</span></td>
+        <td>呼び出され方が変わるだけで、コンポーネント自体は変更なし</td>
+      </tr>
+    </table>
+
+    <h3>バックエンド</h3>
+    <div class="info-box">
+      ❌ <strong>影響なし</strong> - 画面遷移の変更のみのため、API には影響しない
+    </div>
+
+    <h3>データベース</h3>
+    <div class="info-box">
+      ❌ <strong>影響なし</strong> - DB スキーマやデータには一切影響しない
+    </div>
+
+    <h2>📝 修正内容の詳細</h2>
+
+    <h3>1. FirstPlanEditor.jsx の修正</h3>
+
+    <p><strong>削除対象: Props 定義（46行目）</strong></p>
+    <div class="code delete">onCreateSecondPlan,  // ← この行を削除</div>
+
+    <p><strong>削除対象: 第2案作成ボタン（837-841行目）</strong></p>
+    <div class="code delete">{onCreateSecondPlan && (
+  &lt;Button size="sm" onClick={() => onCreateSecondPlan({ ...selectedShift, year, month, storeId, store_id: storeId })} className="bg-green-600 hover:bg-green-700"&gt;
+    &lt;PlusCircle className="w-4 h-4" /&gt;
+    第2案作成
+  &lt;/Button&gt;
+)}</div>
+
+    <h3>2. App.jsx の修正</h3>
+
+    <p><strong>削除対象: goToCreateSecondPlan 関数（635-666行目）</strong></p>
+    <div class="code delete">const goToCreateSecondPlan = (shift) => {
+  // 第2案作成画面へ（全店舗一括作成）
+  console.log('[DEBUG App.jsx goToCreateSecondPlan] shift:', shift)
+  const secondPlanData = {
+    year: shift.year,
+    month: shift.month,
+  }
+  setSelectedShiftForSecondPlan(secondPlanData)
+
+  // URL パラメータも更新
+  const url = new URL(window.location)
+  url.searchParams.set('year', shift.year)
+  url.searchParams.set('month', shift.month)
+  window.history.pushState({}, '', url)
+
+  setShowShiftManagement(false)
+  setShowDraftShiftEditor(false)
+  // ... 他のフラグ
+  setCurrentStep(2)
+}</div>
+
+    <p><strong>削除対象: FirstPlanEditor への Props（834, 853, 897行目）</strong></p>
+    <div class="code delete">onCreateSecondPlan={goToCreateSecondPlan}  // ← この Props を削除</div>
+
+    <div class="warning-box">
+      <strong>⚠️ 注意</strong>: 以下のコードは他の場所で使われている可能性があるため、慎重に確認する
+      <ul>
+        <li><code>currentStep</code> State とその使用箇所</li>
+        <li><code>approveSecondPlan</code> 関数</li>
+        <li><code>selectedShiftForSecondPlan</code> State</li>
+        <li><code>switch (currentStep)</code> の case 2</li>
+      </ul>
+    </div>
+
+    <h2>🎯 実行計画</h2>
+
+    <h3>コミット分割戦略</h3>
+    <p>修正は<strong>1つのコミット</strong>で行う（影響範囲が明確で限定的なため）</p>
+
+    <h3>実行ステップ</h3>
+    <ul class="checklist">
+      <li><input type="checkbox"> ステップ1: FirstPlanEditor.jsx の修正
+        <ul>
+          <li>46行目: Props <code>onCreateSecondPlan</code> を削除</li>
+          <li>836-841行目: 「第2案作成」ボタン部分を削除</li>
+        </ul>
+      </li>
+      <li><input type="checkbox"> ステップ2: App.jsx の修正（削除対象8箇所）
+        <ul>
+          <li>17行目: <code>import SecondPlanEditor</code> を削除</li>
+          <li>55行目: <code>selectedShiftForSecondPlan</code> State とその setter を削除</li>
+          <li>635-666行目: <code>goToCreateSecondPlan</code> 関数を削除</li>
+          <li>659-674行目: <code>approveSecondPlan</code> 関数を削除</li>
+          <li>825行目: FirstPlanEditor への <code>onCreateSecondPlan</code> Props を削除</li>
+          <li>844行目: FirstPlanEditor への <code>onCreateSecondPlan</code> Props を削除</li>
+          <li>865-880行目: <code>switch (currentStep)</code> の case 2 を削除</li>
+          <li>888行目: ShiftManagement への <code>onCreateSecondPlan</code> Props を削除</li>
+        </ul>
+      </li>
+      <li><input type="checkbox"> ステップ3: 動作確認
+        <ul>
+          <li>ブラウザをリフレッシュ</li>
+          <li>FirstPlanEditor に「第2案作成」ボタンが<strong>表示されない</strong>ことを確認</li>
+          <li>ShiftManagement から「第2案作成」ボタンで SecondPlanEditor に遷移できることを確認</li>
+          <li>コンソールエラーがないことを確認</li>
+          <li>React DevTools で Props エラーがないことを確認</li>
+        </ul>
+      </li>
+      <li><input type="checkbox"> ステップ4: デバッグコードの削除確認
+        <ul>
+          <li><code>git diff</code> でコミット対象を確認</li>
+          <li><code>grep -r "DEBUG:"</code> でデバッグコードを検索</li>
+          <li>デバッグコードがあれば削除</li>
+        </ul>
+      </li>
+      <li><input type="checkbox"> ステップ5: コミット
+        <ul>
+          <li>設計書と一緒にコミット</li>
+          <li>コミットメッセージ: "refactor: SecondPlanEditor の呼び出し箇所を ShiftManagement のみに統一"</li>
+        </ul>
+      </li>
+    </ul>
+
+    <h3>各ステップの依存関係</h3>
+    <ul>
+      <li>ステップ1とステップ2は独立している（どちらから実施してもOK）</li>
+      <li>ステップ3はステップ1,2完了後に実施</li>
+      <li>ステップ4,5は順番に実施</li>
+    </ul>
+
+    <h2>🔄 ロールバック計画</h2>
+
+    <div class="info-box">
+      <strong>問題が発生した場合</strong>:
+      <div class="code">git revert &lt;commit-hash&gt;</div>
+      <p>1つのコミットなので、revert で簡単に戻せる</p>
+    </div>
+
+    <h2>✅ テスト計画</h2>
+
+    <h3>手動テスト</h3>
+    <table>
+      <tr>
+        <th>テスト項目</th>
+        <th>期待される動作</th>
+        <th>結果</th>
+      </tr>
+      <tr>
+        <td>FirstPlanEditor を開く</td>
+        <td>「第2案作成」ボタンが<strong>表示されない</strong></td>
+        <td><input type="checkbox"></td>
+      </tr>
+      <tr>
+        <td>ShiftManagement で「第2案作成」をクリック</td>
+        <td>SecondPlanEditor が開く</td>
+        <td><input type="checkbox"></td>
+      </tr>
+      <tr>
+        <td>コンソールエラー確認</td>
+        <td>エラーが<strong>出ない</strong></td>
+        <td><input type="checkbox"></td>
+      </tr>
+      <tr>
+        <td>ブラウザのReact DevTools確認</td>
+        <td>Props エラーが<strong>出ない</strong></td>
+        <td><input type="checkbox"></td>
+      </tr>
+    </table>
+
+    <h2>🎨 修正前後の比較図</h2>
+
+    <h3>修正前</h3>
+    <div class="danger-box">
+      <div class="code">┌─────────────────────┐
+│ ShiftManagement     │
+└─────────────────────┘
+         │
+         ├─────────────────────────┐
+         │                         │
+         ↓                         ↓
+  [第2案作成]               [第1案編集]
+    navigate()                     │
+         │                         │
+         ↓                         ↓
+┌─────────────────────┐   ┌─────────────────────┐
+│ SecondPlanEditor    │   │ FirstPlanEditor     │
+│ (React Router)      │   └─────────────────────┘
+└─────────────────────┘            │
+                                   │ [第2案作成]
+                                   │ onCreateSecondPlan()
+                                   ↓
+                           ┌─────────────────────┐
+                           │ App.jsx             │
+                           │ currentStep = 2     │
+                           └─────────────────────┘
+                                   │
+                                   ↓
+                           ┌─────────────────────┐
+                           │ SecondPlanEditor    │
+                           │ (App.jsx経由)       │
+                           └─────────────────────┘
+
+<strong style="color: red;">❌ 2つのルートが存在（混乱の原因）</strong></div>
+    </div>
+
+    <h3>修正後</h3>
+    <div class="success-box">
+      <div class="code">┌─────────────────────┐
+│ ShiftManagement     │
+└─────────────────────┘
+         │
+         ├─────────────────────────┐
+         │                         │
+         ↓                         ↓
+  [第2案作成]               [第1案編集]
+    navigate()                     │
+         │                         │
+         ↓                         ↓
+┌─────────────────────┐   ┌─────────────────────┐
+│ SecondPlanEditor    │   │ FirstPlanEditor     │
+│ (React Router)      │   │                     │
+└─────────────────────┘   │ [第2案作成] なし    │
+                           └─────────────────────┘
+
+<strong style="color: green;">✅ 1つのルートのみ（シンプル・明確）</strong></div>
+    </div>
+
+    <h2>🚨 想定されるリスクと対策</h2>
+
+    <table>
+      <tr>
+        <th>リスク</th>
+        <th>発生確率</th>
+        <th>影響度</th>
+        <th>対策</th>
+      </tr>
+      <tr>
+        <td>currentStep が他の機能で使われている</td>
+        <td>中</td>
+        <td>高</td>
+        <td>全ての使用箇所を grep で確認してから削除判断</td>
+      </tr>
+      <tr>
+        <td>Props エラーが発生する</td>
+        <td>低</td>
+        <td>中</td>
+        <td>修正後にブラウザコンソールを確認</td>
+      </tr>
+      <tr>
+        <td>ShiftManagement のボタンが動かない</td>
+        <td>低</td>
+        <td>高</td>
+        <td>ShiftManagement は変更しないため問題なし</td>
+      </tr>
+    </table>
+
+    <h2>📊 期待される効果</h2>
+
+    <ul>
+      <li>✅ <strong>UI/UX の改善</strong>: 不要なボタンがなくなり、ユーザーの混乱が減る</li>
+      <li>✅ <strong>データフローの明確化</strong>: 第2案作成の入口が1つになり、処理が追いやすくなる</li>
+      <li>✅ <strong>バグの予防</strong>: FirstPlanEditor 経由の year/month が渡らないバグが発生しなくなる</li>
+      <li>✅ <strong>保守性の向上</strong>: コードが減り、理解しやすくなる</li>
+      <li>✅ <strong>パフォーマンス</strong>: 不要な State 管理がなくなる（微小な改善）</li>
+    </ul>
+
+    <hr style="margin: 40px 0;">
+
+    <p style="text-align: center; color: #7f8c8d;">
+      🤖 Generated with Claude Code<br>
+      作成日: 2025-11-16
+    </p>
+  </div>
+</body>
+</html>

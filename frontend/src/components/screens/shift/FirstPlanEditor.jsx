@@ -43,7 +43,6 @@ const FirstPlanEditor = ({
   selectedShift,
   onBack,
   onApprove,
-  onCreateSecondPlan,
   onDelete,
   mode = 'edit' // 'view' or 'edit'
 }) => {
@@ -833,12 +832,6 @@ const FirstPlanEditor = ({
                     )}
                     {saving ? '保存中...' : '保存'}
                   </Button>
-                  {onCreateSecondPlan && (
-                    <Button size="sm" onClick={() => onCreateSecondPlan({ ...selectedShift, storeId, store_id: storeId })} className="bg-green-600 hover:bg-green-700">
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      第2案作成
-                    </Button>
-                  )}
                   <Button size="sm" variant="outline" onClick={handleDelete} className="border-red-300 text-red-600 hover:bg-red-50">
                     <Trash2 className="h-4 w-4 mr-1" />
                     削除
