@@ -1,8 +1,0 @@
-allowance_id,distance_from_km,distance_to_km,daily_allowance,monthly_max,notes
-1,0,2,0,0,2km未満（支給なし）
-2,2,10,500,10000,2km以上10km未満
-3,10,15,600,12000,10km以上15km未満
-4,15,25,800,16000,15km以上25km未満
-5,25,35,1000,20000,25km以上35km未満
-6,35,45,1200,24000,35km以上45km未満
-7,45,999,1500,30000,45km以上

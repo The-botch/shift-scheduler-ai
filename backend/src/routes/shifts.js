@@ -233,7 +233,7 @@ router.get('/', async (req, res) => {
         staff.name as staff_name,
         staff.staff_code,
         r.role_name,
-        sh.shift_date,
+        TO_CHAR(sh.shift_date, 'YYYY-MM-DD') as shift_date,
         sh.pattern_id,
         pat.pattern_name,
         pat.pattern_code,
@@ -429,7 +429,24 @@ router.post('/plans/generate', async (req, res) => {
     // 前月のシフトデータを取得
     const prevShifts = await query(`
       SELECT
-        sh.*,
+        sh.shift_id,
+        sh.tenant_id,
+        sh.store_id,
+        sh.plan_id,
+        sh.staff_id,
+        TO_CHAR(sh.shift_date, 'YYYY-MM-DD') as shift_date,
+        sh.pattern_id,
+        sh.start_time,
+        sh.end_time,
+        sh.break_minutes,
+        sh.total_hours,
+        sh.labor_cost,
+        sh.assigned_skills,
+        sh.is_preferred,
+        sh.is_modified,
+        sh.notes,
+        sh.created_at,
+        sh.updated_at,
         pat.pattern_name,
         pat.pattern_code
       FROM ops.shifts sh

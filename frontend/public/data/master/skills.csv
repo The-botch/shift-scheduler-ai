@@ -1,5 +1,0 @@
-skill_id,skill_code,skill_name,description,is_active
-1,CASHIER,レジ,レジ業務・会計処理が可能,TRUE
-2,COOKING,調理,調理業務が可能,TRUE
-3,CUSTOMER,接客,接客・案内業務が可能,TRUE
-4,MANAGEMENT,管理,店舗管理・スタッフマネジメント,TRUE
