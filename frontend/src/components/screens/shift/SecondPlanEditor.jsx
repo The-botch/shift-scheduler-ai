@@ -101,6 +101,14 @@ const SecondPlanEditor = ({
   const [deletedShiftIds, setDeletedShiftIds] = useState(new Set())
   const [addedShifts, setAddedShifts] = useState([]) // 新規追加されたシフト
 
+  // シフト編集モーダルの状態
+  const [modalState, setModalState] = useState({
+    isOpen: false,
+    mode: 'add', // 'add' | 'edit'
+    shift: null,
+    position: { x: 0, y: 0 }, // ポップアップ表示位置
+  })
+
   // CSVデータ格納用state
   const [csvShifts, setCsvShifts] = useState([])
   const [csvIssues, setCsvIssues] = useState([])
@@ -1044,7 +1052,20 @@ const SecondPlanEditor = ({
 
       // 新規追加されたシフトを作成
       for (const newShift of addedShifts) {
-        const { shift_id, modified_flag, staff_name, role, ...shiftData } = newShift
+        // バックエンドAPIに必要なフィールドのみを抽出
+        const shiftData = {
+          tenant_id: newShift.tenant_id,
+          store_id: newShift.store_id,
+          plan_id: newShift.plan_id,
+          staff_id: newShift.staff_id,
+          shift_date: newShift.shift_date,
+          pattern_id: newShift.pattern_id,
+          start_time: newShift.start_time,
+          end_time: newShift.end_time,
+          break_minutes: newShift.break_minutes,
+          is_preferred: newShift.is_preferred,
+          is_modified: newShift.is_modified,
+        }
         console.log('新規シフト作成:', shiftData)
         updatePromises.push(shiftRepository.createShift(shiftData))
       }
@@ -1087,6 +1108,135 @@ const SecondPlanEditor = ({
       console.error('エラー詳細:', error.message, error.stack)
       alert(`下書きの保存に失敗しました\n\nエラー: ${error.message}`)
     }
+  }
+
+  // シフト新規追加ハンドラー（メモリに保存のみ）
+  const handleAddShift = (shiftData) => {
+    console.log('=== handleAddShift START ===')
+    console.log('shiftData:', shiftData)
+
+    const year = selectedShift?.year || new Date().getFullYear()
+    const month = selectedShift?.month || new Date().getMonth() + 1
+    const planId = selectedShift?.plan_id || selectedShift?.planId
+    const tenantId = selectedShift?.tenant_id || 3 // デフォルトでテナント3
+
+    // 仮IDを生成
+    const tempId = `temp_${Date.now()}_${Math.random()}`
+
+    const newShift = {
+      shift_id: tempId,
+      tenant_id: tenantId,
+      store_id: shiftData.store_id,
+      plan_id: planId,
+      staff_id: shiftData.staff_id,
+      shift_date: shiftData.date, // MultiStoreShiftTableで使用されるフィールド名
+      pattern_id: 1, // デフォルトパターン（通常勤務）
+      start_time: shiftData.start_time,
+      end_time: shiftData.end_time,
+      break_minutes: shiftData.break_minutes || 0,
+      is_preferred: false,
+      is_modified: true,
+      year: year,
+      month: month,
+      plan_type: 'SECOND',
+      staff_name: shiftData.staff_name,
+      role: staffMap[shiftData.staff_id]?.role_name || 'スタッフ',
+      modified_flag: true,
+    }
+
+    setHasUnsavedChanges(true)
+
+    // addedShifts配列に追加
+    setAddedShifts(prev => [...prev, newShift])
+
+    // csvShiftsに追加（画面に即座に反映）
+    setCsvShifts(prev => [...prev, newShift])
+
+    // 表示中の日のシフトに追加
+    if (selectedDate && shiftData.date === selectedDate) {
+      setDayShifts(prev => [...prev, newShift])
+    }
+
+    console.log('=== handleAddShift END ===')
+  }
+
+  // セルクリック時のハンドラー
+  const handleShiftClick = ({ mode, shift, date, staffId, storeId, event }) => {
+    console.log('=== handleShiftClick ===')
+    console.log('mode:', mode)
+    console.log('shift:', shift)
+
+    // クリック位置を取得
+    const rect = event?.target.getBoundingClientRect()
+    const position = rect ? {
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    } : {
+      x: window.innerWidth / 2,
+      y: window.innerHeight / 2,
+    }
+
+    // 日付フォーマットを統一（"2024-11-29" 形式）
+    const formattedDate = typeof date === 'string' && date.includes('-')
+      ? date
+      : `${selectedShift?.year || new Date().getFullYear()}-${String(selectedShift?.month || new Date().getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+
+    if (mode === 'add') {
+      // 新規追加モード
+      const storeData = storesMap instanceof Map
+        ? storesMap.get(parseInt(storeId))
+        : storesMap[parseInt(storeId)]
+
+      setModalState({
+        isOpen: true,
+        mode: 'add',
+        shift: {
+          date: formattedDate,
+          staff_id: staffId,
+          store_id: storeId,
+          staff_name: staffMap[staffId]?.name || '不明',
+          store_name: storeData?.store_name || '不明',
+        },
+        position,
+      })
+    } else {
+      // 編集モード
+      setModalState({
+        isOpen: true,
+        mode: 'edit',
+        shift: {
+          ...shift,
+          date: shift.date || formattedDate,
+        },
+        position,
+      })
+    }
+  }
+
+  // モーダルからの保存処理
+  const handleModalSave = (timeData) => {
+    console.log('=== handleModalSave ===')
+    console.log('modalState:', modalState)
+    console.log('timeData:', timeData)
+
+    if (modalState.mode === 'add') {
+      handleAddShift({
+        ...modalState.shift,
+        ...timeData,
+      })
+    } else {
+      handleUpdateShift(modalState.shift.shift_id, timeData)
+    }
+
+    setModalState({ isOpen: false, mode: 'add', shift: null })
+  }
+
+  // モーダルからの削除処理
+  const handleModalDelete = () => {
+    if (!confirm('このシフトを削除しますか？')) return
+
+    handleDeleteShift(modalState.shift.shift_id)
+    setModalState({ isOpen: false, mode: 'add', shift: null })
   }
 
   // AI提案の修正を適用するハンドラー
@@ -1148,6 +1298,329 @@ const SecondPlanEditor = ({
       console.error('第2案承認エラー:', error)
       alert(MESSAGES.ERROR.SHIFT_APPROVE_FAILED)
     }
+  }
+
+  // シフト編集ポップアップコンポーネント
+  const ShiftEditModal = ({ isOpen, onClose, mode, shift, preferences, onSave, onDelete, position, availableStores }) => {
+    const [startTime, setStartTime] = useState(shift?.start_time || '')
+    const [endTime, setEndTime] = useState(shift?.end_time || '')
+    const [breakMinutes, setBreakMinutes] = useState(shift?.break_minutes || 0)
+    const [storeId, setStoreId] = useState(shift?.store_id || '')
+    const [popupStyle, setPopupStyle] = useState({})
+    const [isDragging, setIsDragging] = useState(false)
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
+    const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 })
+
+    // shift が変更されたときにフォームの値をリセット
+    useEffect(() => {
+      if (shift) {
+        setStartTime(shift.start_time || '')
+        setEndTime(shift.end_time || '')
+        setBreakMinutes(shift.break_minutes || 0)
+        setStoreId(shift.store_id || '')
+      }
+    }, [shift])
+
+    // ドラッグハンドラー
+    const handleDragStart = (e) => {
+      setIsDragging(true)
+      setDragStart({
+        x: e.clientX - popupPosition.x,
+        y: e.clientY - popupPosition.y,
+      })
+    }
+
+    const handleDrag = (e) => {
+      if (isDragging) {
+        setPopupPosition({
+          x: e.clientX - dragStart.x,
+          y: e.clientY - dragStart.y,
+        })
+      }
+    }
+
+    const handleDragEnd = () => {
+      setIsDragging(false)
+    }
+
+    // ドラッグイベントリスナー
+    useEffect(() => {
+      if (isDragging) {
+        window.addEventListener('mousemove', handleDrag)
+        window.addEventListener('mouseup', handleDragEnd)
+        return () => {
+          window.removeEventListener('mousemove', handleDrag)
+          window.removeEventListener('mouseup', handleDragEnd)
+        }
+      }
+    }, [isDragging, dragStart, popupPosition])
+
+    // ポップアップの位置を計算（画面端で見切れないように調整）
+    useEffect(() => {
+      if (isOpen && position) {
+        const popupWidth = 320
+        const popupHeight = mode === 'edit' ? 320 : 300 // 編集モードは削除ボタン分高い
+        const margin = 20
+
+        let x = position.x
+        let y = position.y
+
+        // 右端チェック
+        if (x + popupWidth / 2 > window.innerWidth - margin) {
+          x = window.innerWidth - popupWidth - margin
+        } else if (x - popupWidth / 2 < margin) {
+          // 左端チェック
+          x = margin
+        } else {
+          // 中央配置
+          x = x - popupWidth / 2
+        }
+
+        // 下端チェック
+        if (y + popupHeight > window.innerHeight - margin) {
+          // 上に表示
+          y = position.y - popupHeight - 20
+          if (y < margin) {
+            y = margin
+          }
+        } else {
+          // 上寄りに表示（クリック位置から少し上）
+          y = position.y - 30
+        }
+
+        // 初期位置を設定
+        setPopupPosition({ x, y })
+      }
+    }, [isOpen, position, mode])
+
+    // スタイルを更新
+    useEffect(() => {
+      setPopupStyle({
+        position: 'fixed',
+        left: `${popupPosition.x}px`,
+        top: `${popupPosition.y}px`,
+        zIndex: 1000,
+        cursor: isDragging ? 'move' : 'default',
+      })
+    }, [popupPosition, isDragging])
+
+    // 希望シフトのチェック
+    const checkPreference = () => {
+      if (!shift || !preferences) return null
+
+      const pref = preferences.find(p => parseInt(p.staff_id) === parseInt(shift.staff_id))
+      if (!pref) return null
+
+      const dateStr = shift.date // "2024-11-29" 形式
+
+      // NG日チェック
+      if (pref.ng_days) {
+        const ngDays = pref.ng_days.split(',').map(d => d.trim())
+        if (ngDays.includes(dateStr)) {
+          return 'ng'
+        }
+      }
+
+      // 希望日チェック
+      if (pref.preferred_days) {
+        const preferredDays = pref.preferred_days.split(',').map(d => d.trim())
+        if (preferredDays.includes(dateStr)) {
+          return 'preferred'
+        }
+      }
+
+      return null
+    }
+
+    const handleSave = () => {
+      // 必須項目チェック
+      if (!startTime || !endTime) {
+        alert('開始時刻と終了時刻を入力してください')
+        return
+      }
+
+      if (!storeId) {
+        alert('勤務店舗を選択してください')
+        return
+      }
+
+      // 時刻の妥当性チェック
+      if (startTime >= endTime) {
+        alert('終了時刻は開始時刻より後にしてください')
+        return
+      }
+
+      // 休憩時間の妥当性チェック
+      const breakMins = parseInt(breakMinutes) || 0
+      if (breakMins < 0) {
+        alert('休憩時間は0以上の値を入力してください')
+        return
+      }
+
+      // 希望シフトチェック
+      const prefStatus = checkPreference()
+      if (prefStatus === 'ng') {
+        const confirmMsg = mode === 'add'
+          ? 'この日はスタッフのNG日として登録されています。\n本当にシフトを追加しますか？'
+          : 'この日はスタッフのNG日として登録されています。\n本当に更新しますか？'
+        if (!confirm(confirmMsg)) {
+          return
+        }
+      }
+
+      onSave({
+        start_time: startTime,
+        end_time: endTime,
+        break_minutes: breakMins,
+        store_id: parseInt(storeId),
+      })
+    }
+
+    if (!isOpen || !shift) return null
+
+    return (
+      <>
+        {/* 背景オーバーレイ（薄く半透明） */}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[999]"
+              onClick={onClose}
+              style={{ backgroundColor: 'rgba(0, 0, 0, 0.1)' }}
+            />
+          )}
+        </AnimatePresence>
+
+        {/* ポップアップ本体 */}
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: -10 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: -10 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className="bg-white rounded-lg shadow-2xl p-4 w-[320px]"
+              style={popupStyle}
+              onClick={(e) => e.stopPropagation()}
+            >
+          {/* ヘッダー */}
+          <div
+            className="flex items-center justify-between mb-2 cursor-move select-none"
+            onMouseDown={handleDragStart}
+          >
+            <h3 className="text-base font-bold text-gray-800">
+              {mode === 'add' ? 'シフト追加' : 'シフト編集'}
+            </h3>
+            <button
+              onClick={onClose}
+              onMouseDown={(e) => e.stopPropagation()}
+              className="text-gray-400 hover:text-gray-600 text-xl leading-none"
+            >
+              ×
+            </button>
+          </div>
+
+          {/* スタッフ・日付情報の表示 */}
+          <div className="bg-blue-50 border border-blue-200 p-2 rounded mb-2 text-xs">
+            <div className="flex justify-between mb-1">
+              <span className="text-gray-600">スタッフ</span>
+              <span className="font-semibold">{shift.staff_name}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">日付</span>
+              <span className="font-semibold">{shift.date}</span>
+            </div>
+          </div>
+
+          {/* フォーム入力 */}
+          <div className="space-y-2">
+            {/* 店舗選択 */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                勤務店舗 <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={storeId}
+                onChange={(e) => setStoreId(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">-- 店舗を選択 --</option>
+                {availableStores && availableStores.map(store => (
+                  <option key={store.store_id} value={store.store_id}>
+                    {store.store_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                開始時刻 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                終了時刻 <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-medium text-gray-700 mb-1">
+                休憩時間（分）
+              </label>
+              <input
+                type="number"
+                value={breakMinutes}
+                onChange={(e) => setBreakMinutes(e.target.value)}
+                min="0"
+                step="15"
+                placeholder="例: 60"
+                className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            </div>
+          </div>
+
+          {/* ボタン群 */}
+          <div className="flex gap-2 mt-3">
+            {mode === 'edit' && (
+              <Button
+                onClick={onDelete}
+                size="sm"
+                variant="destructive"
+                className="bg-red-600 hover:bg-red-700 text-xs"
+              >
+                <Trash2 className="h-3 w-3 mr-1" />
+                削除
+              </Button>
+            )}
+            <div className="flex-1"></div>
+            <Button onClick={onClose} size="sm" variant="outline" className="border-gray-300 text-xs">
+              キャンセル
+            </Button>
+            <Button onClick={handleSave} size="sm" className="bg-blue-600 hover:bg-blue-700 text-xs">
+              {mode === 'add' ? '追加' : '更新'}
+            </Button>
+          </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </>
+    )
   }
 
   return (
@@ -1339,6 +1812,7 @@ const SecondPlanEditor = ({
                   conflicts={conflicts}
                   onConflictClick={setSelectedConflict}
                   preferences={preferences}
+                  onShiftClick={handleShiftClick}
                 />
               </div>
             </div>
@@ -1431,6 +1905,7 @@ const SecondPlanEditor = ({
                     conflicts={conflicts}
                     onConflictClick={setSelectedConflict}
                     preferences={preferences}
+                    onShiftClick={handleShiftClick}
                   />
                 </div>
               </div>
@@ -1741,6 +2216,19 @@ const SecondPlanEditor = ({
               </motion.div>
             )}
           </AnimatePresence>
+
+          {/* シフト編集ポップアップ */}
+          <ShiftEditModal
+            isOpen={modalState.isOpen}
+            mode={modalState.mode}
+            shift={modalState.shift}
+            preferences={preferences}
+            position={modalState.position}
+            availableStores={availableStores}
+            onClose={() => setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })}
+            onSave={handleModalSave}
+            onDelete={handleModalDelete}
+          />
         </div>
       )}
     </motion.div>

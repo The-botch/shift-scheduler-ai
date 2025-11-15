@@ -20,6 +20,7 @@ const MultiStoreShiftTable = ({
   hopeShifts = [], // 希望シフトデータ
   onCellClick, // セルクリック時のコールバック（全セル対応）
   preferences = [], // 希望シフトのpreferredDays/ngDays情報
+  onShiftClick, // シフト追加・編集用のコールバック
 }) => {
   const headerScrollRef = useRef(null)
   const bodyScrollRef = useRef(null)
@@ -204,18 +205,11 @@ const MultiStoreShiftTable = ({
 
   // 特定の日付とスタッフに対してconflictを取得
   const getConflict = (date, staffId) => {
-    const conflict = conflicts.find(c => {
+    return conflicts.find(c => {
       const dateMatch = c.date === date
       const staffMatch = parseInt(c.staffId) === parseInt(staffId)
-      if (dateMatch && !staffMatch && date === 29) {
-        console.log('29日のconflict staffId不一致:', { conflictStaffId: c.staffId, tableStaffId: staffId, conflict: c })
-      }
       return dateMatch && staffMatch
     })
-    if (date === 29 && conflict) {
-      console.log('29日のconflict見つかった:', { date, staffId, conflict })
-    }
-    return conflict
   }
 
   // 特定の日付とスタッフに対してhopeShiftを取得
@@ -469,8 +463,52 @@ const MultiStoreShiftTable = ({
                           selectedStores.has(parseInt(shift.store_id))
 
                         // セルクリックハンドラ
-                        const handleCellClick = () => {
-                          if (onCellClick) {
+                        const handleCellClick = (e) => {
+                          // 新しいonShiftClickがある場合はそれを優先
+                          if (onShiftClick) {
+                            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+
+                            if (shouldShowShift && shift) {
+                              // 既存シフトがある → 編集モード
+                              onShiftClick({
+                                mode: 'edit',
+                                shift: {
+                                  ...shift,
+                                  date: dateStr,
+                                  staff_name: staff.name,
+                                  store_name: getStoreName(shift.store_id),
+                                },
+                                date: dateStr,
+                                staffId: staff.staff_id,
+                                storeId: shift.store_id,
+                                event: e,
+                              })
+                            } else {
+                              // 空セル → 新規追加モード
+                              // 選択されている店舗から最初のものを使用（複数店舗選択時）
+                              const storeId = staff.store_id || (selectedStores && selectedStores.size > 0
+                                ? Array.from(selectedStores)[0]
+                                : null)
+
+                              if (storeId) {
+                                onShiftClick({
+                                  mode: 'add',
+                                  shift: {
+                                    date: dateStr,
+                                    staff_id: staff.staff_id,
+                                    store_id: storeId,
+                                    staff_name: staff.name,
+                                    store_name: getStoreName(storeId),
+                                  },
+                                  date: dateStr,
+                                  staffId: staff.staff_id,
+                                  storeId: storeId,
+                                  event: e,
+                                })
+                              }
+                            }
+                          } else if (onCellClick) {
+                            // 従来のonCellClickコールバック
                             onCellClick({
                               date,
                               staffId: staff.staff_id,
@@ -505,7 +543,13 @@ const MultiStoreShiftTable = ({
                               </div>
                             ) : (
                               // 空セル
-                              <div className="py-1"></div>
+                              <div className={`py-1 flex items-center justify-center ${onShiftClick ? 'group' : ''}`}>
+                                {onShiftClick && (
+                                  <div className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg font-light">
+                                    +
+                                  </div>
+                                )}
+                              </div>
                             )}
                           </td>
                         )
