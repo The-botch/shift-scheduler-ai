@@ -58,7 +58,13 @@ const ShiftManagement = () => {
   }
 
   const onCreateSecondPlan = (shift) => {
-    navigate('/shift/second-plan', { state: { shift } })
+    // 第二案は全店舗対象なので、年月とplanIdのみを渡す（storeIdを除外）
+    const secondPlanData = {
+      year: shift.year,
+      month: shift.month,
+      planId: shift.planId,
+    }
+    navigate('/shift/second-plan', { state: { shift: secondPlanData } })
   }
 
   const onMonitoring = (shift) => {

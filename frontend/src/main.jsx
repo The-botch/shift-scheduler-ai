@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
 import './index.css'
 import AppLayout from './AppLayout.jsx'
 import { getCurrentTenantId, setCurrentTenantId, resetTenantId } from './config/tenant'
@@ -25,6 +25,17 @@ window.getCurrentTenantId = getCurrentTenantId
 window.setCurrentTenantId = setCurrentTenantId
 window.resetTenantId = resetTenantId
 
+// ラッパーコンポーネント: location.state.shift を selectedShift として渡す
+const FirstPlanEditorWrapper = () => {
+  const location = useLocation()
+  return <FirstPlanEditor selectedShift={location.state?.shift} />
+}
+
+const SecondPlanEditorWrapper = () => {
+  const location = useLocation()
+  return <SecondPlanEditor selectedShift={location.state?.shift} />
+}
+
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
@@ -40,9 +51,9 @@ createRoot(document.getElementById('root')).render(
             <Route path="history" element={<History />} />
             <Route path="line" element={<LineShiftInput />} />
             <Route path="monitoring" element={<Monitoring />} />
-            <Route path="draft-editor" element={<FirstPlanEditor />} />
+            <Route path="draft-editor" element={<FirstPlanEditorWrapper />} />
             <Route path="method" element={<ShiftCreationMethodSelector />} />
-            <Route path="second-plan" element={<SecondPlanEditor />} />
+            <Route path="second-plan" element={<SecondPlanEditorWrapper />} />
           </Route>
           <Route path="dev-tools" element={<DevTools />} />
         </Route>
