@@ -19,7 +19,6 @@ import {
   Store,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'
-import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import { exportCSV, generateFilename } from '../../../utils/csvHelper'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
@@ -806,19 +805,6 @@ const History = ({
               )
             })}
           </div>
-        </div>
-
-        {/* マルチストアシフトテーブル */}
-        <div className="flex-1 overflow-hidden px-8 mb-4">
-          <MultiStoreShiftTable
-            year={selectedMonth.year}
-            month={selectedMonth.month}
-            shiftData={shiftData}
-            staffMap={staffMap}
-            storesMap={storesMap}
-            selectedStores={selectedStores}
-            onDayClick={handleDayClick}
-          />
         </div>
 
           {/* タイムライン表示 */}
