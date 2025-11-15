@@ -1241,6 +1241,7 @@ const SecondPlanEditor = ({
                   onDayClick={handleDayClick}
                   conflicts={conflicts}
                   onConflictClick={setSelectedConflict}
+                  preferences={preferences}
                 />
               </div>
             </div>
@@ -1274,6 +1275,7 @@ const SecondPlanEditor = ({
                   onDayClick={handleDayClick}
                   conflicts={conflicts}
                   onConflictClick={setSelectedConflict}
+                  preferences={preferences}
                 />
               </div>
             </div>
@@ -1301,6 +1303,7 @@ const SecondPlanEditor = ({
                     onDayClick={handleDayClick}
                     conflicts={conflicts}
                     onConflictClick={setSelectedConflict}
+                    preferences={preferences}
                   />
                 </div>
               </div>
@@ -1330,6 +1333,7 @@ const SecondPlanEditor = ({
                     onDayClick={handleDayClick}
                     conflicts={conflicts}
                     onConflictClick={setSelectedConflict}
+                    preferences={preferences}
                   />
                 </div>
               </div>

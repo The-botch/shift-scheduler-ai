@@ -19,6 +19,7 @@ const MultiStoreShiftTable = ({
   onConflictClick, // conflictセルがクリックされたときのコールバック
   hopeShifts = [], // 希望シフトデータ
   onCellClick, // セルクリック時のコールバック（全セル対応）
+  preferences = [], // 希望シフトのpreferredDays/ngDays情報
 }) => {
   const headerScrollRef = useRef(null)
   const bodyScrollRef = useRef(null)
@@ -228,14 +229,47 @@ const MultiStoreShiftTable = ({
     )
   }
 
-  // セルの背景色を決定（hopeShiftの有無で判定）
+  // スタッフの希望シフト情報を取得
+  const getStaffPreference = (staffId) => {
+    return preferences.find(pref => parseInt(pref.staff_id) === parseInt(staffId))
+  }
+
+  // その日がpreferredDaysに含まれているかチェック
+  const isPreferredDay = (date, staffId) => {
+    const pref = getStaffPreference(staffId)
+    if (!pref || !pref.preferred_days) return false
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+    const days = pref.preferred_days.split(',').map(d => d.trim())
+    return days.includes(dateStr)
+  }
+
+  // その日がngDaysに含まれているかチェック
+  const isNgDay = (date, staffId) => {
+    const pref = getStaffPreference(staffId)
+    if (!pref || !pref.ng_days) return false
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+    const days = pref.ng_days.split(',').map(d => d.trim())
+    return days.includes(dateStr)
+  }
+
+  // セルの背景色を決定（希望シフトとの関係で判定）
   const getCellBackgroundColor = (date, staffId) => {
+    // NGの日は赤色
+    if (isNgDay(date, staffId)) {
+      return 'bg-red-200'
+    }
+    // 希望日は緑色
+    if (isPreferredDay(date, staffId)) {
+      return 'bg-green-300'
+    }
+    // それ以外は従来のロジック（hopeShiftの有無）
     const hopeShift = getHopeShift(date, staffId)
     return hopeShift ? 'bg-green-50' : 'bg-white'
   }
 
-  // 時間帯による色分け（conflictがある場合は赤色を優先）
+  // 時間帯による色分け
   const getTimeSlotColor = (startTime, date, staffId) => {
+    // conflictチェック
     if (getConflict(date, staffId)) {
       return 'bg-red-100 border-red-400'
     }
