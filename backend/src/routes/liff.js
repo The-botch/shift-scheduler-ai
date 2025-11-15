@@ -338,6 +338,7 @@ router.post('/register-staff', verifyLineToken, async (req, res) => {
     const {
       tenant_id,
       store_id,
+      role_id,
       name,
       staff_code,
       employment_type,
@@ -349,10 +350,10 @@ router.post('/register-staff', verifyLineToken, async (req, res) => {
     const displayName = req.lineUser.displayName
 
     // バリデーション
-    if (!tenant_id || !store_id || !name || !staff_code || !employment_type) {
+    if (!tenant_id || !store_id || !role_id || !name || !staff_code || !employment_type) {
       return res.status(400).json({
         success: false,
-        error: '必須項目が入力されていません（tenant_id, store_id, name, staff_code, employment_type）'
+        error: '必須項目が入力されていません（tenant_id, store_id, role_id, name, staff_code, employment_type）'
       })
     }
 
@@ -402,7 +403,7 @@ router.post('/register-staff', verifyLineToken, async (req, res) => {
         updated_at
       ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, CURRENT_DATE, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
       RETURNING staff_id`,
-      [tenant_id, store_id, 1, staff_code, name, email, phone_number, employment_type]
+      [tenant_id, store_id, role_id, staff_code, name, email, phone_number, employment_type]
     )
 
     const staffId = staffResult.rows[0].staff_id
