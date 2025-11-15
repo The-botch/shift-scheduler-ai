@@ -21,6 +21,8 @@ import {
   GripVertical,
   AlertTriangle,
   Trash2,
+  Save,
+  Loader2,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
@@ -91,6 +93,13 @@ const SecondPlanEditor = ({
   const [pendingChange, setPendingChange] = useState(null)
   const [loading, setLoading] = useState(true)
   const [preferences, setPreferences] = useState([]) // 希望シフト
+
+  // 下書き保存用のstate（FirstPlanEditorと同じ仕組み）
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [modifiedShifts, setModifiedShifts] = useState({}) // { shiftId: { start_time, end_time, ... } }
+  const [deletedShiftIds, setDeletedShiftIds] = useState(new Set())
+  const [addedShifts, setAddedShifts] = useState([]) // 新規追加されたシフト
 
   // CSVデータ格納用state
   const [csvShifts, setCsvShifts] = useState([])
@@ -948,65 +957,135 @@ const SecondPlanEditor = ({
     setDayShifts([])
   }
 
-  // シフト更新ハンドラー
-  const handleUpdateShift = async (shiftId, updates) => {
-    try {
-      // バックエンドAPIでシフトを更新
-      await shiftRepository.updateShift(shiftId, updates)
+  // シフト更新ハンドラー（メモリに保存のみ、FirstPlanEditorと同じ仕組み）
+  const handleUpdateShift = (shiftId, updates) => {
+    console.log('=== handleUpdateShift START ===')
+    console.log('shiftId:', shiftId)
+    console.log('updates:', updates)
+    setHasUnsavedChanges(true)
 
-      // ローカルステートを更新
-      setCsvShifts(prev =>
+    // ローカルの変更を保持
+    setModifiedShifts(prev => ({
+      ...prev,
+      [shiftId]: {
+        ...prev[shiftId],
+        ...updates,
+      },
+    }))
+
+    // ローカルステートを更新（UIを即座に更新）
+    setCsvShifts(prev =>
+      prev.map(shift =>
+        shift.shift_id === shiftId
+          ? { ...shift, ...updates, modified_flag: true }
+          : shift
+      )
+    )
+
+    // 表示中の日のシフトも更新
+    if (selectedDate) {
+      setDayShifts(prev =>
         prev.map(shift =>
           shift.shift_id === shiftId
-            ? { ...shift, ...updates, is_modified: true }
+            ? { ...shift, ...updates, modified_flag: true }
             : shift
         )
       )
+    }
 
-      // 表示中の日のシフトも更新
-      if (selectedDate) {
-        setDayShifts(prev =>
-          prev.map(shift =>
-            shift.shift_id === shiftId
-              ? { ...shift, ...updates, modified_flag: true }
-              : shift
-          )
-        )
+    console.log('=== handleUpdateShift END ===')
+    console.log('Updated successfully for shiftId:', shiftId)
+  }
+
+  // シフト削除ハンドラー（メモリに保存のみ、FirstPlanEditorと同じ仕組み）
+  const handleDeleteShift = (shiftId) => {
+    setHasUnsavedChanges(true)
+
+    // ローカルの削除リストに追加
+    setDeletedShiftIds(prev => new Set([...prev, shiftId]))
+
+    // ローカルステートから削除（UIから削除）
+    setCsvShifts(prev => prev.filter(shift => shift.shift_id !== shiftId))
+
+    // 表示中の日のシフトからも削除
+    if (selectedDate) {
+      const updatedShifts = dayShifts.filter(s => s.shift_id !== shiftId)
+      setDayShifts(updatedShifts)
+
+      // その日のシフトがなくなったら閉じる
+      if (updatedShifts.length === 0) {
+        closeDayView()
       }
-
-      // カレンダー表示も更新
-      await loadInitialData()
-    } catch (error) {
-      console.error('シフト更新エラー:', error)
-      alert(MESSAGES.ERROR.SHIFT_UPDATE_FAILED)
     }
   }
 
-  // シフト削除ハンドラー
-  const handleDeleteShift = async (shiftId) => {
+  // 下書き保存ハンドラー（FirstPlanEditorと同じ仕組み）
+  const handleSaveDraft = async () => {
+    if (!confirm('下書きを保存しますか？')) {
+      return
+    }
+
     try {
-      // バックエンドAPIでシフトを削除
-      await shiftRepository.deleteShift(shiftId)
+      setSaving(true)
+      console.log('下書き保存処理開始')
 
-      // ローカルステートから削除
-      setCsvShifts(prev => prev.filter(shift => shift.shift_id !== shiftId))
-
-      // 表示中の日のシフトからも削除
-      if (selectedDate) {
-        const updatedShifts = dayShifts.filter(s => s.shift_id !== shiftId)
-        setDayShifts(updatedShifts)
-
-        // その日のシフトがなくなったら閉じる
-        if (updatedShifts.length === 0) {
-          closeDayView()
-        }
+      if (!hasUnsavedChanges) {
+        alert(MESSAGES.SUCCESS.NO_CHANGES)
+        setSaving(false)
+        return
       }
 
-      // カレンダー表示も更新
+      console.log('新規追加:', addedShifts.length, '件')
+      console.log('修正:', Object.keys(modifiedShifts).length, '件')
+      console.log('削除:', deletedShiftIds.size, '件')
+
+      // すべての変更をバックエンドに送信
+      const updatePromises = []
+
+      // 新規追加されたシフトを作成
+      for (const newShift of addedShifts) {
+        const { shift_id, modified_flag, staff_name, role, ...shiftData } = newShift
+        console.log('新規シフト作成:', shiftData)
+        updatePromises.push(shiftRepository.createShift(shiftData))
+      }
+
+      // 修正されたシフトを更新
+      for (const [shiftId, updates] of Object.entries(modifiedShifts)) {
+        console.log('シフト更新:', shiftId, updates)
+        updatePromises.push(shiftRepository.updateShift(Number(shiftId), updates))
+      }
+
+      // 削除されたシフトを削除
+      for (const shiftId of deletedShiftIds) {
+        console.log('シフト削除:', shiftId)
+        updatePromises.push(shiftRepository.deleteShift(shiftId))
+      }
+
+      // すべての変更を並行実行
+      if (updatePromises.length > 0) {
+        console.log('変更をバックエンドに送信中...')
+        const results = await Promise.all(updatePromises)
+        console.log('保存完了:', results)
+      }
+
+      // ローカルステートをリセット
+      setModifiedShifts({})
+      setDeletedShiftIds(new Set())
+      setAddedShifts([])
+      setHasUnsavedChanges(false)
+
+      console.log('下書き保存処理完了')
+
+      alert(MESSAGES.SUCCESS.SAVED)
+      // データをリロードして最新の状態を表示
       await loadInitialData()
+
+      setSaving(false)
     } catch (error) {
-      console.error('シフト削除エラー:', error)
-      alert(MESSAGES.ERROR.SHIFT_DELETE_FAILED)
+      setSaving(false)
+      console.error('下書き保存エラー:', error)
+      console.error('エラー詳細:', error.message, error.stack)
+      alert(`下書きの保存に失敗しました\n\nエラー: ${error.message}`)
     }
   }
 
@@ -1094,6 +1173,11 @@ const SecondPlanEditor = ({
                 {selectedShift?.store_name ? `${selectedShift.store_name} · ` : '全店舗 · '}
                 スタッフ希望を反映したシフト
               </span>
+              {hasUnsavedChanges && (
+                <span className="text-sm font-semibold text-orange-600 ml-3 animate-pulse">
+                  ● 未保存の変更があります
+                </span>
+              )}
             </h1>
           </div>
         </div>
@@ -1127,6 +1211,19 @@ const SecondPlanEditor = ({
               </Button>
             </>
           )}
+          <Button
+            onClick={handleSaveDraft}
+            disabled={saving || !hasUnsavedChanges}
+            size="sm"
+            className="bg-blue-600 hover:bg-blue-700"
+          >
+            {saving ? (
+              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+            ) : (
+              <Save className="h-4 w-4 mr-1" />
+            )}
+            {saving ? '保存中...' : '下書き保存'}
+          </Button>
           <Button
             onClick={handleApprove}
             size="sm"
