@@ -39,7 +39,6 @@ const pageTransition = {
 
 const Dashboard = ({
   onNext,
-  onHistory,
   onShiftManagement,
   onMonitoring,
   onStaffManagement,

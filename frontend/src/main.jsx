@@ -12,7 +12,6 @@ import SecondPlanEditor from './components/screens/shift/SecondPlanEditor'
 import ShiftCreationMethodSelector from './components/screens/shift/ShiftCreationMethodSelector'
 import LineShiftInput from './components/screens/shift/LineShiftInput'
 import Monitoring from './components/screens/shift/Monitoring'
-import History from './components/screens/shift/History'
 import StaffManagement from './components/screens/StaffManagement'
 import StoreManagement from './components/screens/StoreManagement'
 import ConstraintManagement from './components/screens/ConstraintManagement'
@@ -48,7 +47,6 @@ createRoot(document.getElementById('root')).render(
           <Route path="budget-actual" element={<BudgetActualManagement />} />
           <Route path="constraint" element={<ConstraintManagement />} />
           <Route path="shift">
-            <Route path="history" element={<History />} />
             <Route path="line" element={<LineShiftInput />} />
             <Route path="monitoring" element={<Monitoring />} />
             <Route path="draft-editor" element={<FirstPlanEditorWrapper />} />

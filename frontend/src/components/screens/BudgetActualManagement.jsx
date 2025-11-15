@@ -140,7 +140,6 @@ const BudgetActualManagement = () => {
   // ナビゲーション関数
   const onHome = () => navigate('/')
   const onNext = () => navigate('/shift/method')
-  const onHistory = () => navigate('/shift/history')
   const onShiftManagement = () => navigate('/')
   const onMonitoring = () => navigate('/shift/monitoring')
   const onStaffManagement = () => navigate('/staff')
@@ -1292,7 +1291,6 @@ const BudgetActualManagement = () => {
       {/* ダッシュボード表示 */}
       <Dashboard
         onNext={onNext}
-        onHistory={onHistory}
         onHome={onHome}
         onShiftManagement={onShiftManagement}
         onMonitoring={onMonitoring}
