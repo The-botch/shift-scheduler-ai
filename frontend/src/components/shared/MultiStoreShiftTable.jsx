@@ -248,30 +248,27 @@ const MultiStoreShiftTable = ({
 
   // セルの背景色を決定（希望シフトとの関係で判定）
   const getCellBackgroundColor = (date, staffId) => {
-    // NGの日は赤色
+    // NGの日は薄グレー
     if (isNgDay(date, staffId)) {
-      return 'bg-red-200'
+      return 'bg-gray-100'
     }
-    // 希望日は緑色
+    // 希望日は薄緑
     if (isPreferredDay(date, staffId)) {
-      return 'bg-green-300'
+      return 'bg-green-50'
     }
-    // それ以外は従来のロジック（hopeShiftの有無）
-    const hopeShift = getHopeShift(date, staffId)
-    return hopeShift ? 'bg-green-50' : 'bg-white'
+    // 希望登録なし
+    return 'bg-white'
   }
 
-  // 時間帯による色分け
-  const getTimeSlotColor = (startTime, date, staffId) => {
-    // conflictチェック
-    if (getConflict(date, staffId)) {
-      return 'bg-red-100 border-red-400'
+  // シフトカードの色分け（希望通りか否か）
+  const getShiftCardColor = (date, staffId) => {
+    const isPreferred = isPreferredDay(date, staffId)
+
+    if (isPreferred) {
+      return 'bg-green-100 border border-green-400' // 希望通り = Good
+    } else {
+      return 'bg-red-200 border border-red-500' // 希望外 = NG（要修正）
     }
-    if (!startTime) return 'bg-gray-100'
-    const hour = parseInt(startTime.split(':')[0])
-    if (hour < 9) return 'bg-blue-50 border-blue-200'
-    if (hour < 12) return 'bg-green-50 border-green-200'
-    return 'bg-orange-50 border-orange-200'
   }
 
   // 曜日を取得（JST対応）
@@ -529,10 +526,13 @@ const MultiStoreShiftTable = ({
                             {shouldShowShift ? (
                               // シフト表示（読み取り専用）
                               <div
-                                className={`px-0.5 py-0.5 rounded border ${getTimeSlotColor(shift.start_time, date, staff.staff_id)} ${
-                                  shift.modified_flag ? 'ring-1 ring-yellow-400' : ''
-                                }`}
+                                className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id)} relative`}
                               >
+                                {shift.modified_flag && (
+                                  <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
+                                    !
+                                  </div>
+                                )}
                                 <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
                                   {staff.store_id && shift.store_id && parseInt(staff.store_id) !== parseInt(shift.store_id)
                                     ? `${getStoreCode(shift.store_id)} `

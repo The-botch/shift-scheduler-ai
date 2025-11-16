@@ -1654,7 +1654,42 @@ const SecondPlanEditor = ({
             </h1>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-3 items-center">
+          {/* 色分け凡例 */}
+          {generated && (
+            <>
+              {/* セル背景色の凡例 */}
+              <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-md border border-gray-200">
+                <span className="text-[0.65rem] font-semibold text-gray-600">セル:</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-3.5 h-3.5 bg-green-50 border border-green-300 rounded"></div>
+                  <span className="text-[0.65rem] text-gray-700">希望日</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3.5 h-3.5 bg-gray-100 border border-gray-400 rounded"></div>
+                  <span className="text-[0.65rem] text-gray-700">NG日</span>
+                </div>
+              </div>
+
+              {/* シフトカードの凡例 */}
+              <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-md border border-gray-200">
+                <span className="text-[0.65rem] font-semibold text-gray-600">シフト:</span>
+                <div className="flex items-center gap-1">
+                  <div className="w-3.5 h-3.5 bg-green-100 border border-green-400 rounded"></div>
+                  <span className="text-[0.65rem] text-gray-700">希望通り</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <div className="w-3.5 h-3.5 bg-red-200 border border-red-500 rounded"></div>
+                  <span className="text-[0.65rem] text-gray-700">希望不一致</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <span className="text-[0.65rem]">⚠️</span>
+                  <span className="text-[0.65rem] text-gray-700">修正済</span>
+                </div>
+              </div>
+            </>
+          )}
+
           {/* 表示切り替えボタン */}
           {generated && (
             <>
