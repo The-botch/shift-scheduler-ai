@@ -21,6 +21,7 @@ const MultiStoreShiftTable = ({
   onCellClick, // セルクリック時のコールバック（全セル対応）
   preferences = [], // 希望シフトのpreferredDays/ngDays情報
   onShiftClick, // シフト追加・編集用のコールバック
+  showPreferenceColoring = true, // 希望シフトベースの色分けを表示するか（第一案ではfalse）
 }) => {
   const headerScrollRef = useRef(null)
   const bodyScrollRef = useRef(null)
@@ -248,6 +249,11 @@ const MultiStoreShiftTable = ({
 
   // セルの背景色を決定（希望シフトとの関係で判定）
   const getCellBackgroundColor = (date, staffId) => {
+    // 希望シフトベースの色分けが無効の場合（第一案）
+    if (!showPreferenceColoring) {
+      return 'bg-white'
+    }
+
     // NGの日は薄グレー
     if (isNgDay(date, staffId)) {
       return 'bg-gray-100'
@@ -262,6 +268,11 @@ const MultiStoreShiftTable = ({
 
   // シフトカードの色分け（雇用形態別ロジック）
   const getShiftCardColor = (date, staffId) => {
+    // 希望シフトベースの色分けが無効の場合（第一案）
+    if (!showPreferenceColoring) {
+      return 'bg-gray-100 border border-gray-300'
+    }
+
     const staff = staffMap[staffId]
     const employmentType = staff?.employment_type || ''
     const isNg = isNgDay(date, staffId)

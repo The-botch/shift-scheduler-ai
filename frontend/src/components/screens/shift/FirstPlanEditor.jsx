@@ -163,13 +163,7 @@ const FirstPlanEditor = ({
 
       setShiftData(allShifts)
 
-      // 希望シフトを取得
-      const preferencesData = await shiftRepository.getPreferences({
-        year,
-        month
-      })
-      console.log(`希望シフト取得: ${preferencesData.length}件`)
-      setPreferences(preferencesData)
+      // 希望シフトは取得しない（第一案は前月コピーなので不要）
 
       setLoading(false)
     } catch (err) {
@@ -242,13 +236,7 @@ const FirstPlanEditor = ({
         role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
       })))
 
-      // 希望シフトを取得
-      const preferencesData = await shiftRepository.getPreferences({
-        year,
-        month
-      })
-      console.log(`希望シフト取得: ${preferencesData.length}件`)
-      setPreferences(preferencesData)
+      // 希望シフトは取得しない（第一案は前月コピーなので不要）
 
       setLoading(false)
     } catch (err) {
@@ -1369,6 +1357,7 @@ const FirstPlanEditor = ({
           onDayClick={isEditMode ? handleDayClick : undefined}
           onShiftClick={isEditMode ? handleShiftClick : undefined}
           preferences={preferences}
+          showPreferenceColoring={false}
         />
       </div>
 

@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>第一案・第二案の設計差異</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .section {
+            margin-bottom: 3rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #e5e7eb;
+        }
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+        pre {
+            background-color: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-6xl mx-auto p-8 bg-white shadow-lg my-8 rounded-lg">
+        <!-- ヘッダー -->
+        <header class="mb-8 pb-6 border-b-2 border-gray-200">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">第一案・第二案の設計差異</h1>
+            <p class="text-gray-600">バージョン 1.0 | 作成日: 2025-01-19</p>
+            <div class="mt-4 bg-blue-50 border-l-4 border-blue-500 p-4">
+                <p class="text-sm font-semibold text-blue-800">📌 設計の目的</p>
+                <p class="text-sm text-blue-700 mt-1">第一案と第二案は異なる目的を持つため、希望シフトデータの取り扱いが異なる。コンポーネントは共通だが、呼び出し側で動作を制御する。</p>
+            </div>
+        </header>
+
+        <!-- 1. 第一案と第二案の違い -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">🔍</span> 1. 第一案と第二案の根本的な違い
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-blue-50 border border-blue-200 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-blue-900 mb-3">📋 第一案（FirstPlanEditor）</h3>
+                    <div class="space-y-3 text-gray-700">
+                        <div>
+                            <h4 class="font-semibold text-blue-800 mb-2">目的:</h4>
+                            <p class="text-sm">前月のシフトをコピーして、新しい月の基礎データとする</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-blue-800 mb-2">データソース:</h4>
+                            <p class="text-sm">前月の実績シフト（そのままコピー）</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-blue-800 mb-2">希望シフトとの関係:</h4>
+                            <p class="text-sm bg-yellow-100 border border-yellow-400 p-2 rounded">
+                                <strong>希望シフトは考慮しない</strong><br>
+                                前月のコピーなので、今月の希望シフトとは無関係
+                            </p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-blue-800 mb-2">色分け:</h4>
+                            <p class="text-sm">希望シフトベースの色分けは<strong class="text-red-600">不要</strong></p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-green-50 border border-green-200 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-green-900 mb-3">✅ 第二案（SecondPlanEditor）</h3>
+                    <div class="space-y-3 text-gray-700">
+                        <div>
+                            <h4 class="font-semibold text-green-800 mb-2">目的:</h4>
+                            <p class="text-sm">第一案をベースに、希望シフトと突合して調整する</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-green-800 mb-2">データソース:</h4>
+                            <p class="text-sm">第一案 + 希望シフトデータ</p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-green-800 mb-2">希望シフトとの関係:</h4>
+                            <p class="text-sm bg-green-100 border border-green-400 p-2 rounded">
+                                <strong>希望シフトを考慮する</strong><br>
+                                スタッフの希望日・NG日と突合して調整
+                            </p>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-green-800 mb-2">色分け:</h4>
+                            <p class="text-sm">希望シフトベースの色分けが<strong class="text-green-600">必要</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                <h4 class="font-semibold text-red-900 mb-2">❌ 現状の問題</h4>
+                <p class="text-sm text-red-800 mb-2">
+                    第一案でも希望シフトデータを取得して色分けを表示している。<br>
+                    しかし、第一案は前月のコピーなので、今月の希望シフトとの突合は意味がない。
+                </p>
+                <p class="text-sm text-red-800 font-semibold">
+                    → 第一案では希望シフトを取得せず、色分けも表示しないべき
+                </p>
+            </div>
+        </section>
+
+        <!-- 2. 技術的な実装方針 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">⚙️</span> 2. 技術的な実装方針
+            </h2>
+
+            <div class="bg-blue-50 border border-blue-200 p-6 rounded-lg mb-6">
+                <h3 class="text-xl font-bold text-blue-900 mb-4">基本方針: フラグを追加して呼び出し側で制御</h3>
+
+                <div class="space-y-4">
+                    <div>
+                        <h4 class="font-semibold text-blue-800 mb-2">問題:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                            <li>preferencesが空でも、getShiftCardColor()のロジックに入ってしまう</li>
+                            <li>isPreferred=false, isNg=false の結果、正社員は全部緑、アルバイトは全部赤になる</li>
+                            <li>第一案では色分けロジック自体をスキップする必要がある</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="font-semibold text-blue-800 mb-2">解決策:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                            <li><strong>MultiStoreShiftTable:</strong> showPreferenceColoringフラグを追加</li>
+                            <li><strong>FirstPlanEditor:</strong> showPreferenceColoring={false}を渡す</li>
+                            <li><strong>SecondPlanEditor:</strong> showPreferenceColoring={true}を渡す</li>
+                        </ul>
+                    </div>
+
+                    <div>
+                        <h4 class="font-semibold text-blue-800 mb-2">重要な違い:</h4>
+                        <div class="bg-white p-3 rounded border border-blue-300 text-sm">
+                            <p class="font-semibold text-blue-900 mb-2">第二案で希望を出していないスタッフ:</p>
+                            <ul class="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                                <li>正社員: NG日がないので全部緑 ✅（正しい）</li>
+                                <li>アルバイト: 希望日がないので全部赤 ✅（正しい）</li>
+                                <li>→ 希望シフトとの突合という概念があるので、色分けロジックに入るべき</li>
+                            </ul>
+                            <p class="font-semibold text-blue-900 mt-3 mb-2">第一案（全スタッフ）:</p>
+                            <ul class="list-disc list-inside space-y-1 text-gray-700 ml-4">
+                                <li>全て同じデフォルト色 ✅（正しい）</li>
+                                <li>→ 希望シフトとの突合という概念自体がないので、色分けロジックに入らない</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-gray-50 border border-gray-300 p-6 rounded-lg">
+                <h3 class="text-xl font-bold text-gray-800 mb-4">MultiStoreShiftTableの修正後のロジック</h3>
+                <pre><code>const MultiStoreShiftTable = ({
+  year,
+  month,
+  shiftData,
+  staffMap,
+  storesMap,
+  selectedStores,
+  onDayClick,
+  preferences = [],
+  showPreferenceColoring = true, // 👈 新しいフラグ（デフォルトtrue）
+  // ...
+}) => {
+
+// セル背景色の判定
+const getCellBackgroundColor = (date, staffId) => {
+  if (!showPreferenceColoring) {
+    return 'bg-white' // 第一案: 色分けなし
+  }
+
+  // 第二案: 希望シフトベースの色分け
+  if (isNgDay(date, staffId)) {
+    return 'bg-gray-100'
+  }
+  if (isPreferredDay(date, staffId)) {
+    return 'bg-green-50'
+  }
+  return 'bg-white'
+}
+
+// シフトカード色の判定
+const getShiftCardColor = (date, staffId) => {
+  if (!showPreferenceColoring) {
+    return 'bg-gray-100 border border-gray-300' // 第一案: デフォルト色
+  }
+
+  // 第二案: 雇用形態別の色分け
+  const staff = staffMap[staffId]
+  const employmentType = staff?.employment_type || ''
+  const isNg = isNgDay(date, staffId)
+  const isPreferred = isPreferredDay(date, staffId)
+
+  if (employmentType === 'PART_TIME') {
+    return isPreferred ? 'bg-green-100 border border-green-400' : 'bg-red-200 border border-red-500'
+  }
+
+  return isNg ? 'bg-red-200 border border-red-500' : 'bg-green-100 border border-green-400'
+}</code></pre>
+                <p class="text-sm text-gray-700 mt-4">
+                    <strong>重要:</strong> showPreferenceColoringフラグで色分けロジック全体をスキップする。
+                    第二案では、希望を出していないスタッフでもロジックに入り、適切に色分けされる。
+                </p>
+            </div>
+        </section>
+
+        <!-- 3. 実装手順 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">🚀</span> 3. 実装手順
+            </h2>
+
+            <div class="space-y-6">
+                <div class="border-l-4 border-blue-500 pl-4 py-2 bg-blue-50">
+                    <h3 class="text-xl font-bold text-blue-900 mb-2">Step 1: MultiStoreShiftTableにフラグを追加</h3>
+                    <p class="text-sm text-gray-700 mb-3">showPreferenceColoringプロップを追加</p>
+
+                    <div class="bg-white p-4 rounded border border-blue-300">
+                        <h4 class="font-semibold text-blue-800 mb-2">MultiStoreShiftTable.jsx:</h4>
+                        <pre><code>const MultiStoreShiftTable = ({
+  year,
+  month,
+  shiftData,
+  staffMap,
+  storesMap,
+  selectedStores,
+  onDayClick,
+  preferences = [],
+  showPreferenceColoring = true, // 👈 追加（デフォルトtrue）
+  // ...
+}) => {</code></pre>
+                    </div>
+
+                    <div class="bg-white p-4 rounded border border-blue-300 mt-3">
+                        <h4 class="font-semibold text-blue-800 mb-2">getCellBackgroundColorを修正:</h4>
+                        <pre><code>const getCellBackgroundColor = (date, staffId) => {
+  if (!showPreferenceColoring) {
+    return 'bg-white'
+  }
+  // 既存のロジック...
+}</code></pre>
+                    </div>
+
+                    <div class="bg-white p-4 rounded border border-blue-300 mt-3">
+                        <h4 class="font-semibold text-blue-800 mb-2">getShiftCardColorを修正:</h4>
+                        <pre><code>const getShiftCardColor = (date, staffId) => {
+  if (!showPreferenceColoring) {
+    return 'bg-gray-100 border border-gray-300'
+  }
+  // 既存のロジック...
+}</code></pre>
+                    </div>
+                </div>
+
+                <div class="border-l-4 border-red-500 pl-4 py-2 bg-red-50">
+                    <h3 class="text-xl font-bold text-red-900 mb-2">Step 2: FirstPlanEditorの修正</h3>
+                    <p class="text-sm text-gray-700 mb-3">希望シフトの取得処理を削除 + フラグをfalseに設定</p>
+
+                    <div class="bg-white p-4 rounded border border-red-300">
+                        <h4 class="font-semibold text-red-800 mb-2">データ取得部分を削除:</h4>
+                        <pre><code>// 希望シフトは取得しない（第一案は前月コピーなので不要）
+// getPreferences()の呼び出しを削除</code></pre>
+                    </div>
+
+                    <div class="bg-white p-4 rounded border border-green-300 mt-3">
+                        <h4 class="font-semibold text-green-800 mb-2">MultiStoreShiftTableの呼び出しにフラグ追加:</h4>
+                        <pre><code>&lt;MultiStoreShiftTable
+  year={year}
+  month={month}
+  shiftData={shiftData}
+  staffMap={staffMap}
+  storesMap={storesMap}
+  selectedStores={selectedStores}
+  preferences={preferences}
+  showPreferenceColoring={false} // 👈 追加
+  onDayClick={handleDayClick}
+  onShiftClick={handleShiftClick}
+/&gt;</code></pre>
+                    </div>
+                </div>
+
+                <div class="border-l-4 border-green-500 pl-4 py-2 bg-green-50">
+                    <h3 class="text-xl font-bold text-green-900 mb-2">Step 3: SecondPlanEditorの修正</h3>
+                    <p class="text-sm text-gray-700 mb-3">MultiStoreShiftTableの呼び出しにフラグを明示的に追加（デフォルトtrueなので省略可）</p>
+
+                    <div class="bg-white p-4 rounded border border-green-300">
+                        <h4 class="font-semibold text-green-800 mb-2">MultiStoreShiftTableの呼び出し:</h4>
+                        <pre><code>&lt;MultiStoreShiftTable
+  year={year}
+  month={month}
+  shiftData={csvShifts}
+  staffMap={staffMap}
+  storesMap={storesMap}
+  selectedStores={selectedStores}
+  preferences={preferences}
+  showPreferenceColoring={true} // 👈 明示的に指定（省略可）
+  onDayClick={handleDayClick}
+  onShiftClick={handleShiftClick}
+/&gt;</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 期待される動作 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">✅</span> 4. 期待される動作
+            </h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>画面</th>
+                        <th>希望シフト取得</th>
+                        <th>セル背景色</th>
+                        <th>シフトカード色</th>
+                        <th>理由</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="bg-blue-50">
+                        <td class="font-semibold">FirstPlanEditor<br>（第一案）</td>
+                        <td class="text-red-600 font-semibold">❌ なし</td>
+                        <td>全て白<br><code class="text-xs">bg-white</code></td>
+                        <td>デフォルト色<br><code class="text-xs">bg-gray-100</code></td>
+                        <td class="text-sm">前月コピーなので希望シフトとの突合は不要</td>
+                    </tr>
+                    <tr class="bg-green-50">
+                        <td class="font-semibold">SecondPlanEditor<br>（第二案）</td>
+                        <td class="text-green-600 font-semibold">✅ あり</td>
+                        <td>
+                            希望日: <code class="text-xs">bg-green-50</code><br>
+                            NG日: <code class="text-xs">bg-gray-100</code><br>
+                            その他: <code class="text-xs">bg-white</code>
+                        </td>
+                        <td>
+                            PART_TIME: 希望日のみ緑<br>
+                            FULL_TIME: NG日以外は緑
+                        </td>
+                        <td class="text-sm">希望シフトと突合して調整するため色分けが必要</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 5. 注意事項 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">⚠️</span> 5. 注意事項
+            </h2>
+
+            <div class="space-y-4">
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4">
+                    <h4 class="font-semibold text-yellow-900 mb-2">コンポーネントの再利用性</h4>
+                    <p class="text-sm text-yellow-800">
+                        MultiStoreShiftTableコンポーネントは、第一案・第二案の両方で使用される共通コンポーネント。<br>
+                        <strong>コンポーネント自体に条件分岐を追加するのは避け、データの有無で動作を制御する。</strong>
+                    </p>
+                </div>
+
+                <div class="bg-blue-50 border-l-4 border-blue-500 p-4">
+                    <h4 class="font-semibold text-blue-900 mb-2">将来の拡張性</h4>
+                    <p class="text-sm text-blue-800">
+                        今後、第三案や他のビューで同じコンポーネントを使う場合も、<br>
+                        preferencesを渡すかどうかで動作を制御できるため、拡張性が高い。
+                    </p>
+                </div>
+
+                <div class="bg-red-50 border-l-4 border-red-500 p-4">
+                    <h4 class="font-semibold text-red-900 mb-2">削除する箇所の特定</h4>
+                    <p class="text-sm text-red-800 mb-2">
+                        FirstPlanEditor.jsx内で以下のコードを探して削除:
+                    </p>
+                    <ul class="list-disc list-inside space-y-1 text-sm text-red-700 ml-4">
+                        <li><code>shiftRepository.getPreferences(...)</code> の呼び出し</li>
+                        <li><code>setPreferences(...)</code> の呼び出し</li>
+                        <li>関連するconsole.log（希望シフト取得に関するもの）</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- フッター -->
+        <footer class="mt-12 pt-6 border-t-2 border-gray-200 text-center text-gray-600 text-sm">
+            <p>© 2025 Shift Scheduler AI - Design Documentation</p>
+            <p class="mt-2">バージョン 1.0 | 作成日: 2025-01-19</p>
+            <div class="mt-4 bg-blue-50 border border-blue-200 rounded p-4 text-left max-w-2xl mx-auto">
+                <h4 class="font-semibold text-blue-900 mb-2">📝 まとめ</h4>
+                <p class="text-xs text-blue-800">
+                    第一案と第二案は目的が異なるため、希望シフトの取り扱いも異なる。<br>
+                    コンポーネントは共通だが、呼び出し側（FirstPlanEditor vs SecondPlanEditor）でデータを渡すか渡さないかを制御する。<br>
+                    これにより、シンプルで拡張性の高い設計が実現できる。
+                </p>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
