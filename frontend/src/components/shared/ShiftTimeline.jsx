@@ -113,6 +113,34 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
 
   const { columns, shifts: processedShifts } = calculateOverlaps()
 
+  // 時間帯ごとのスタッフ数を計算（30分刻み）
+  const calculateStaffCountByTime = () => {
+    const intervals = []
+    // 5:00から28:00まで30分刻み
+    for (let h = startHour; h < endHour; h++) {
+      intervals.push({ hour: h, minute: 0, count: 0 })
+      intervals.push({ hour: h, minute: 30, count: 0 })
+    }
+
+    // 各30分区間で何人が勤務しているかカウント
+    intervals.forEach(interval => {
+      const intervalMinutes = interval.hour * 60 + interval.minute
+      shifts.forEach(shift => {
+        const shiftStart = timeToMinutes(shift.start_time)
+        const shiftEnd = timeToMinutes(shift.end_time)
+        // その時刻がシフトの範囲内にあればカウント
+        if (intervalMinutes >= shiftStart && intervalMinutes < shiftEnd) {
+          interval.count++
+        }
+      })
+    })
+
+    return intervals
+  }
+
+  const staffCountByTime = calculateStaffCountByTime()
+  const maxStaffCount = Math.max(...staffCountByTime.map(i => i.count), 1)
+
   // 位置（%）を分に変換
   const positionToMinutes = position => {
     const startMinutes = startHour * 60
@@ -225,7 +253,8 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
           <div className="flex items-center justify-between mt-1">
             <p className="text-[0.5rem] text-gray-600 leading-tight">
               {shifts.length}名のスタッフが勤務 ·{' '}
-              {columns > 1 ? `最大${columns}名の重なり` : '重なりなし'}
+              {columns > 1 ? `最大${columns}名の重なり` : '重なりなし'} ·{' '}
+              <span className="text-blue-700 font-medium">最大同時勤務: {maxStaffCount}名</span>
             </p>
             {/* 凡例 */}
             <div className="flex items-center gap-1.5">
@@ -258,6 +287,32 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
                   </div>
                 </div>
               ))}
+            </div>
+
+            {/* スタッフ数表示列 */}
+            <div className="w-16 flex-shrink-0 border-r bg-blue-50 relative">
+              {staffCountByTime.map((interval, index) => {
+                const barWidth = (interval.count / maxStaffCount) * 100
+                return (
+                  <div
+                    key={index}
+                    className="absolute h-[20px] w-full flex items-center"
+                    style={{ top: `${index * 20}px` }}
+                  >
+                    {/* 棒グラフ */}
+                    <div
+                      className="h-full bg-blue-400 transition-all"
+                      style={{ width: `${barWidth}%` }}
+                    />
+                    {/* 人数表示 */}
+                    {interval.count > 0 && (
+                      <div className="absolute right-1 text-[0.5rem] font-bold text-blue-900 leading-tight">
+                        {interval.count}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
             {/* シフトブロック（右側） */}

@@ -924,14 +924,14 @@ const SecondPlanEditor = ({
     }
   }
 
-  const handleDayClick = date => {
+  const handleDayClick = (date, storeId = null) => {
     // selectedShiftから年月を取得
     const year = selectedShift?.year || new Date().getFullYear()
     const month = selectedShift?.month || new Date().getMonth() + 1
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
 
     // CSVデータから該当日のシフトを取得
-    const dayShiftsData = csvShifts.filter(s => {
+    let dayShiftsData = csvShifts.filter(s => {
       // s.dateが数値の場合と文字列の場合の両方に対応
       if (typeof s.date === 'number') {
         return s.date === date
@@ -940,6 +940,11 @@ const SecondPlanEditor = ({
       }
       return s.date === date
     })
+
+    // storeIdが指定されている場合は、その店舗のシフトのみにフィルタリング
+    if (storeId) {
+      dayShiftsData = dayShiftsData.filter(s => s.store_id === storeId)
+    }
 
     // ShiftTimelineコンポーネント用のフォーマットに変換
     const formattedShifts = dayShiftsData.map(shift => {

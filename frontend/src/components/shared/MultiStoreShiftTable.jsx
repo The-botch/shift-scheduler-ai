@@ -260,14 +260,31 @@ const MultiStoreShiftTable = ({
     return 'bg-white'
   }
 
-  // シフトカードの色分け（希望通りか否か）
+  // シフトカードの色分け（雇用形態別ロジック）
   const getShiftCardColor = (date, staffId) => {
+    const staff = staffMap[staffId]
+    const employmentType = staff?.employment_type || ''
+    const isNg = isNgDay(date, staffId)
     const isPreferred = isPreferredDay(date, staffId)
 
-    if (isPreferred) {
-      return 'bg-green-100 border border-green-400' // 希望通り = Good
+    // 【PART_TIMEの場合】アルバイト・パートは希望日のみ勤務可能
+    if (employmentType === 'PART_TIME') {
+      if (isPreferred) {
+        // 希望日に配置 → 緑色（OK）
+        return 'bg-green-100 border border-green-400'
+      } else {
+        // 希望日以外に配置 → 赤色（要修正）
+        return 'bg-red-200 border border-red-500'
+      }
+    }
+
+    // 【FULL_TIMEの場合】正社員はNG日以外なら勤務可能
+    if (isNg) {
+      // NG日に配置 → 赤色（要修正）
+      return 'bg-red-200 border border-red-500'
     } else {
-      return 'bg-red-200 border border-red-500' // 希望外 = NG（要修正）
+      // NG日以外に配置 → 緑色（OK）
+      return 'bg-green-100 border border-green-400'
     }
   }
 
@@ -427,7 +444,10 @@ const MultiStoreShiftTable = ({
                 </td>
 
                 {/* 全体サマリーセル */}
-                <td className="px-1 py-0.5 border-r-2 border-b border-gray-400 text-center bg-blue-50 cursor-pointer hover:bg-blue-100 sticky left-[80px] z-20">
+                <td
+                  className="px-1 py-0.5 border-r-2 border-b border-gray-400 text-center bg-blue-50 cursor-pointer hover:bg-blue-100 sticky left-[80px] z-20"
+                  onClick={() => onDayClick && onDayClick(date)}
+                >
                   <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
                     {overallSummary.staffCount}名 {overallSummary.totalHours.toFixed(1)}h
                   </div>
@@ -439,7 +459,10 @@ const MultiStoreShiftTable = ({
                   return (
                     <React.Fragment key={group.storeId}>
                       {/* 店舗の日別サマリーセル */}
-                      <td className="px-1 py-0.5 border-r border-b border-gray-300 text-center bg-gray-50 cursor-pointer hover:bg-gray-100">
+                      <td
+                        className="px-1 py-0.5 border-r border-b border-gray-300 text-center bg-gray-50 cursor-pointer hover:bg-gray-100"
+                        onClick={() => onDayClick && onDayClick(date, group.storeId)}
+                      >
                         <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
                           {storeSummary.staffCount}名 {storeSummary.totalHours.toFixed(1)}h
                         </div>

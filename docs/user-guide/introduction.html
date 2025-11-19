@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shift Scheduler AI - はじめてのご利用ガイド</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .step-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .step-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 12px 24px rgba(0, 0, 0, 0.15);
+        }
+        .feature-icon {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 via-white to-purple-50">
+    <div class="max-w-6xl mx-auto p-8">
+        <!-- ヘッダー -->
+        <header class="text-center mb-12 pt-8">
+            <div class="inline-block bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-full text-sm font-semibold mb-4">
+                🚀 Welcome to Shift Scheduler
+            </div>
+            <h1 class="text-5xl font-bold text-gray-900 mb-4">
+                はじめてのご利用ガイド
+            </h1>
+            <p class="text-xl text-gray-600 max-w-2xl mx-auto">
+                複数店舗のシフト管理を効率化。視覚的で分かりやすいシフト表作成ツール。
+            </p>
+        </header>
+
+        <!-- このアプリでできること -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">
+                <span class="text-blue-600">✨</span> このアプリでできること
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                    <div class="feature-icon bg-blue-100 text-blue-600 text-2xl mb-4">
+                        📊
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3">視覚的なシフト管理</h3>
+                    <p class="text-gray-600 text-sm leading-relaxed">
+                        直感的な表形式でシフトを一覧表示。希望日・NG日を色分けして可視化し、シフト作成をサポートします。
+                    </p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                    <div class="feature-icon bg-green-100 text-green-600 text-2xl mb-4">
+                        🏪
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3">複数店舗対応</h3>
+                    <p class="text-gray-600 text-sm leading-relaxed">
+                        複数店舗のシフトを一元管理。店舗間の応援勤務も簡単に設定でき、リソースの最適配分を実現します。
+                    </p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-lg border border-gray-100">
+                    <div class="feature-icon bg-purple-100 text-purple-600 text-2xl mb-4">
+                        ✏️
+                    </div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-3">簡単なシフト編集</h3>
+                    <p class="text-gray-600 text-sm leading-relaxed">
+                        セルをクリックするだけでシフトの追加・編集・削除が可能。下書き保存機能で途中経過も保存できます。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 使い方の流れ -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">
+                <span class="text-purple-600">📝</span> 使い方の流れ
+            </h2>
+            <div class="space-y-6">
+                <!-- Step 1 -->
+                <div class="step-card bg-white p-6 rounded-xl shadow-lg border-l-4 border-blue-500">
+                    <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 bg-blue-500 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                            1
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">マスタデータの準備</h3>
+                            <p class="text-gray-600 mb-4">
+                                まずは基本情報を登録します。メニューから以下を設定してください。
+                            </p>
+                            <div class="bg-blue-50 p-4 rounded-lg space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-blue-600">🏢</span>
+                                    <span class="text-sm"><strong>店舗マスタ:</strong> 店舗名・店舗コードを登録</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-blue-600">👤</span>
+                                    <span class="text-sm"><strong>スタッフマスタ:</strong> スタッフ情報・所属店舗・役割を登録</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-blue-600">🎯</span>
+                                    <span class="text-sm"><strong>役割マスタ:</strong> 役職・権限レベルを設定</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="step-card bg-white p-6 rounded-xl shadow-lg border-l-4 border-green-500">
+                    <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 bg-green-500 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                            2
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">希望シフトの登録</h3>
+                            <p class="text-gray-600 mb-4">
+                                各スタッフの希望シフトを入力します。
+                            </p>
+                            <div class="bg-green-50 p-4 rounded-lg space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-green-600">✅</span>
+                                    <span class="text-sm"><strong>希望日:</strong> 勤務を希望する日を選択</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-green-600">❌</span>
+                                    <span class="text-sm"><strong>NG日:</strong> 勤務できない日を選択</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-green-600">⏰</span>
+                                    <span class="text-sm"><strong>希望時間:</strong> 勤務可能な時間帯を入力（オプション）</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="step-card bg-white p-6 rounded-xl shadow-lg border-l-4 border-purple-500">
+                    <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 bg-purple-500 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                            3
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">シフト表の作成</h3>
+                            <p class="text-gray-600 mb-4">
+                                「シフト管理」メニューから、シフト表を作成します。
+                            </p>
+                            <div class="bg-purple-50 p-4 rounded-lg space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-purple-600">📅</span>
+                                    <span class="text-sm">対象月を選択してシフト作成を開始</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-purple-600">✏️</span>
+                                    <span class="text-sm">セルをクリックしてシフトを追加</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-purple-600">🎨</span>
+                                    <span class="text-sm">希望日（緑）・NG日（グレー）を参考に配置</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 4 -->
+                <div class="step-card bg-white p-6 rounded-xl shadow-lg border-l-4 border-orange-500">
+                    <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                            4
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">シフトの調整と編集</h3>
+                            <p class="text-gray-600 mb-4">
+                                作成したシフトを確認し、必要に応じて調整します。
+                            </p>
+                            <div class="bg-orange-50 p-4 rounded-lg space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-orange-600">✏️</span>
+                                    <span class="text-sm">セルをクリックしてシフトを編集・削除</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-orange-600">💾</span>
+                                    <span class="text-sm">下書き保存で途中経過を保存可能</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-orange-600">📊</span>
+                                    <span class="text-sm">月間集計で勤務時間を確認</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-orange-600">🔴</span>
+                                    <span class="text-sm">赤色（NG日配置）を減らして調整</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Step 5 -->
+                <div class="step-card bg-white p-6 rounded-xl shadow-lg border-l-4 border-pink-500">
+                    <div class="flex items-start gap-4">
+                        <div class="flex-shrink-0 w-12 h-12 bg-pink-500 text-white rounded-full flex items-center justify-center font-bold text-lg">
+                            5
+                        </div>
+                        <div class="flex-1">
+                            <h3 class="text-xl font-bold text-gray-800 mb-2">シフトの確定</h3>
+                            <p class="text-gray-600 mb-4">
+                                最終確認を行い、シフトを確定します。
+                            </p>
+                            <div class="bg-pink-50 p-4 rounded-lg space-y-2">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-pink-600">✅</span>
+                                    <span class="text-sm">NG日配置がないか最終チェック</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-pink-600">📊</span>
+                                    <span class="text-sm">勤務時間の過不足を確認</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-pink-600">💾</span>
+                                    <span class="text-sm">確定保存してシフトを完成</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 画面の見方 -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">
+                <span class="text-green-600">🎨</span> 画面の見方（色分けルール）
+            </h2>
+
+            <div class="bg-white p-8 rounded-xl shadow-lg border border-gray-100">
+                <!-- セル背景色 -->
+                <div class="mb-8">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">セル背景色（スタッフの希望）</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div class="w-12 h-12 bg-green-50 border-2 border-green-300 rounded"></div>
+                            <div>
+                                <div class="font-bold text-gray-800">希望日</div>
+                                <div class="text-xs text-gray-600">勤務を希望している日</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 p-4 bg-gray-50 border border-gray-300 rounded-lg">
+                            <div class="w-12 h-12 bg-gray-100 border-2 border-gray-400 rounded"></div>
+                            <div>
+                                <div class="font-bold text-gray-800">NG日</div>
+                                <div class="text-xs text-gray-600">勤務できない日</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 p-4 bg-white border border-gray-200 rounded-lg">
+                            <div class="w-12 h-12 bg-white border-2 border-gray-300 rounded"></div>
+                            <div>
+                                <div class="font-bold text-gray-800">希望登録なし</div>
+                                <div class="text-xs text-gray-600">特に希望のない日</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- シフトカードの色 -->
+                <div>
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">シフトカードの色（配置の適切性）</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div class="flex items-center gap-3 p-4 bg-green-50 border border-green-200 rounded-lg">
+                            <div class="w-12 h-12 bg-green-100 border-2 border-green-400 rounded flex items-center justify-center text-xs font-bold text-gray-700">
+                                9-17
+                            </div>
+                            <div>
+                                <div class="font-bold text-green-700">✅ 問題なし</div>
+                                <div class="text-xs text-gray-600">NG日以外に配置されたシフト</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <div class="w-12 h-12 bg-red-200 border-2 border-red-500 rounded flex items-center justify-center text-xs font-bold text-gray-700">
+                                9-17
+                            </div>
+                            <div>
+                                <div class="font-bold text-red-700">❌ NG日配置</div>
+                                <div class="text-xs text-gray-600">NG日に配置されたシフト（要修正）</div>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-3 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div class="w-12 h-12 bg-green-100 border-2 border-green-400 rounded flex items-center justify-center text-xs font-bold text-gray-700 relative">
+                                9-17
+                                <span class="absolute -top-1 -right-1 text-sm">⚠️</span>
+                            </div>
+                            <div>
+                                <div class="font-bold text-yellow-700">⚠️ 修正済み</div>
+                                <div class="text-xs text-gray-600">手動で編集されたシフト</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- よくある質問 -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">
+                <span class="text-yellow-600">💡</span> よくある質問
+            </h2>
+            <div class="space-y-4">
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Q. シフト表の色分けは何を意味していますか？</h3>
+                    <p class="text-gray-600 text-sm">
+                        A. セル背景色はスタッフの希望を、シフトカードの色は配置の適切性を表しています。緑のセルは希望日、グレーのセルはNG日、赤いシフトカードはNG日への配置を示します。
+                    </p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Q. 希望日にシフトを入れるメリットは？</h3>
+                    <p class="text-gray-600 text-sm">
+                        A. 希望日（緑のセル）にシフトを配置すると、スタッフの満足度が向上します。赤いシフトカード（NG日配置）を減らすことで、シフトの品質を高めることができます。
+                    </p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Q. 複数店舗のシフトを同時に管理できますか？</h3>
+                    <p class="text-gray-600 text-sm">
+                        A. はい、可能です。店舗選択機能で複数店舗を選択し、一覧表示できます。店舗間の応援勤務も簡単に設定できます。
+                    </p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Q. シフトの途中保存はできますか？</h3>
+                    <p class="text-gray-600 text-sm">
+                        A. はい、「下書き保存」機能で途中経過を保存できます。後から編集を再開することも可能です。
+                    </p>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md border border-gray-100">
+                    <h3 class="text-lg font-bold text-gray-800 mb-2">Q. 赤色（NG日配置）のシフトを減らすには？</h3>
+                    <p class="text-gray-600 text-sm">
+                        A. 赤いシフトカードをクリックして編集し、別の日に移動させるか、他のスタッフに割り当ててください。希望日（緑のセル）に配置することで、赤色を減らすことができます。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Tips -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold text-gray-800 mb-8 text-center">
+                <span class="text-blue-600">🎯</span> 活用のコツ
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
+                    <div class="text-3xl mb-3">📅</div>
+                    <h3 class="text-lg font-bold text-blue-900 mb-2">希望シフトは早めに入力</h3>
+                    <p class="text-sm text-blue-800">
+                        月初めに全員の希望シフトを入力しておくことで、シフト作成がスムーズに進みます。
+                    </p>
+                </div>
+                <div class="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-xl border border-green-200">
+                    <div class="text-3xl mb-3">🎨</div>
+                    <h3 class="text-lg font-bold text-green-900 mb-2">色分けを活用</h3>
+                    <p class="text-sm text-green-800">
+                        緑のセル（希望日）にシフトを配置し、赤いシフトカード（NG日配置）を減らすことで、質の高いシフト表を作成できます。
+                    </p>
+                </div>
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
+                    <div class="text-3xl mb-3">💾</div>
+                    <h3 class="text-lg font-bold text-purple-900 mb-2">こまめに保存</h3>
+                    <p class="text-sm text-purple-800">
+                        下書き保存機能を活用し、途中経過を保存しながら作業を進めましょう。
+                    </p>
+                </div>
+                <div class="bg-gradient-to-br from-orange-50 to-orange-100 p-6 rounded-xl border border-orange-200">
+                    <div class="text-3xl mb-3">📊</div>
+                    <h3 class="text-lg font-bold text-orange-900 mb-2">集計機能を活用</h3>
+                    <p class="text-sm text-orange-800">
+                        月間合計や日別サマリーで勤務時間を確認。過不足がないかチェックできます。
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 次のステップ -->
+        <section class="mb-16">
+            <div class="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-8 rounded-xl shadow-xl text-center">
+                <h2 class="text-3xl font-bold mb-4">さっそく始めましょう！</h2>
+                <p class="text-lg mb-6 opacity-90">
+                    まずは店舗マスタとスタッフマスタの登録から始めてください。
+                </p>
+                <div class="flex flex-wrap justify-center gap-4">
+                    <a href="/masters/stores" class="bg-white text-blue-600 px-6 py-3 rounded-lg font-bold hover:bg-blue-50 transition-colors">
+                        🏢 店舗マスタへ
+                    </a>
+                    <a href="/masters/staff" class="bg-white text-purple-600 px-6 py-3 rounded-lg font-bold hover:bg-purple-50 transition-colors">
+                        👤 スタッフマスタへ
+                    </a>
+                    <a href="/shift" class="bg-yellow-400 text-gray-900 px-6 py-3 rounded-lg font-bold hover:bg-yellow-300 transition-colors">
+                        📅 シフト管理へ
+                    </a>
+                </div>
+            </div>
+        </section>
+
+        <!-- フッター -->
+        <footer class="text-center text-gray-500 text-sm pt-8 border-t border-gray-200">
+            <p>© 2025 Shift Scheduler</p>
+            <p class="mt-2">質問やサポートが必要な場合は、管理者にお問い合わせください。</p>
+        </footer>
+    </div>
+</body>
+</html>

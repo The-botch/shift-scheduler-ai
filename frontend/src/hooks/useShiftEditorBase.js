@@ -48,6 +48,7 @@ export const useShiftEditorBase = (selectedShift) => {
           role_name: rolesMapping[staff.role_id] || 'スタッフ',
           is_active: staff.is_active,
           store_id: staff.store_id,
+          employment_type: staff.employment_type,
         }
       })
       setStaffMap(staffMapping)

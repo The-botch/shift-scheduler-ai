@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト追加・編集・削除機能 設計書</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+        }
+        h3 {
+            color: #555;
+            margin-top: 20px;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .important {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .code {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .ui-mockup {
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .modal-mockup {
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            padding: 20px;
+            max-width: 500px;
+            margin: 20px auto;
+            background: #ffffff;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        .modal-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #3498db;
+            color: #2c3e50;
+        }
+        .form-group {
+            margin: 15px 0;
+        }
+        .form-label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #555;
+        }
+        .form-input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 14px;
+            box-sizing: border-box;
+        }
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            justify-content: flex-end;
+        }
+        .button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        .button-primary {
+            background-color: #3498db;
+            color: white;
+        }
+        .button-danger {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .button-secondary {
+            background-color: #95a5a6;
+            color: white;
+        }
+        .flow-diagram {
+            background: #f8f9fa;
+            border: 2px dashed #3498db;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .flow-step {
+            background: white;
+            border: 2px solid #3498db;
+            border-radius: 4px;
+            padding: 10px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        .arrow {
+            text-align: center;
+            font-size: 24px;
+            color: #3498db;
+            margin: 5px 0;
+        }
+        .note {
+            background-color: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .cell-example {
+            display: inline-block;
+            width: 80px;
+            height: 60px;
+            border: 1px solid #ccc;
+            margin: 5px;
+            padding: 5px;
+            text-align: center;
+            vertical-align: top;
+            border-radius: 4px;
+        }
+        .cell-empty {
+            background-color: #f8f9fa;
+            cursor: pointer;
+        }
+        .cell-filled {
+            background-color: #d4edda;
+            cursor: pointer;
+        }
+        .cell-ng {
+            background-color: #ffcccc;
+        }
+    </style>
+</head>
+<body>
+    <h1>シフト追加・編集・削除機能 設計書</h1>
+
+    <div class="section">
+        <h2>1. 概要</h2>
+        <p>SecondPlanEditorにおいて、シフトセルをクリックすることで、シフトの追加・編集・削除ができる機能を実装する。</p>
+
+        <div class="important">
+            <strong>重要な設計原則:</strong>
+            <ul>
+                <li><strong>共通コンポーネントの使用</strong>: 新規追加と編集は同一のモーダルコンポーネントを使用する</li>
+                <li>空のセルをクリック → 新規追加モード（フォームが空の状態）</li>
+                <li>既存シフトをクリック → 編集モード（フォームに現在の値が入力済み）</li>
+                <li>下書き保存機能との統合: 変更は即座にDBに保存せず、メモリに保持し、「下書き保存」ボタンで一括保存</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. UIアウトプットイメージ</h2>
+
+        <h3>2.1 セルクリック前の状態</h3>
+        <div class="ui-mockup">
+            <p><strong>シフト表の例:</strong></p>
+            <div style="display: flex; gap: 10px; justify-content: center; align-items: flex-start;">
+                <div>
+                    <div style="font-size: 12px; text-align: center; margin-bottom: 5px;">スタッフA</div>
+                    <div class="cell-example cell-empty">
+                        <div style="font-size: 10px; color: #999;">29日</div>
+                        <div style="font-size: 12px; color: #999;">クリックして追加</div>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; text-align: center; margin-bottom: 5px;">スタッフB</div>
+                    <div class="cell-example cell-filled">
+                        <div style="font-size: 10px; color: #666;">29日</div>
+                        <div style="font-size: 11px; font-weight: bold;">9:00-18:00</div>
+                    </div>
+                </div>
+                <div>
+                    <div style="font-size: 12px; text-align: center; margin-bottom: 5px;">スタッフC</div>
+                    <div class="cell-example cell-ng">
+                        <div style="font-size: 10px; color: #666;">29日</div>
+                        <div style="font-size: 11px; font-weight: bold;">9:00-18:00</div>
+                        <div style="font-size: 9px; color: #c00;">NG日</div>
+                    </div>
+                </div>
+            </div>
+            <p style="margin-top: 15px; font-size: 13px; color: #666;">
+                緑背景: 希望シフトの日 | 赤背景: NG日 | 白背景: 通常の日
+            </p>
+        </div>
+
+        <h3>2.2 共通モーダル: 新規追加モード</h3>
+        <div class="ui-mockup">
+            <p><strong>空セルをクリックした場合:</strong></p>
+            <div class="modal-mockup">
+                <div class="modal-header">シフト追加</div>
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                    <strong>スタッフ:</strong> 山田太郎<br>
+                    <strong>日付:</strong> 2024年11月29日<br>
+                    <strong>店舗:</strong> 本店
+                </div>
+                <div class="form-group">
+                    <label class="form-label">開始時刻 *</label>
+                    <input type="time" class="form-input" placeholder="例: 09:00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">終了時刻 *</label>
+                    <input type="time" class="form-input" placeholder="例: 18:00">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">休憩時間（分）</label>
+                    <input type="number" class="form-input" placeholder="例: 60" min="0" step="15">
+                </div>
+                <div class="button-group">
+                    <button class="button button-secondary">キャンセル</button>
+                    <button class="button button-primary">追加</button>
+                </div>
+            </div>
+        </div>
+
+        <h3>2.3 共通モーダル: 編集モード</h3>
+        <div class="ui-mockup">
+            <p><strong>既存シフトをクリックした場合（同じコンポーネント、データが入力済み）:</strong></p>
+            <div class="modal-mockup">
+                <div class="modal-header">シフト編集</div>
+                <div style="background: #f8f9fa; padding: 10px; border-radius: 4px; margin-bottom: 15px;">
+                    <strong>スタッフ:</strong> 山田太郎<br>
+                    <strong>日付:</strong> 2024年11月29日<br>
+                    <strong>店舗:</strong> 本店
+                </div>
+                <div class="form-group">
+                    <label class="form-label">開始時刻 *</label>
+                    <input type="time" class="form-input" value="09:00" style="background: #fff;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">終了時刻 *</label>
+                    <input type="time" class="form-input" value="18:00" style="background: #fff;">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">休憩時間（分）</label>
+                    <input type="number" class="form-input" value="60" style="background: #fff;" min="0" step="15">
+                </div>
+                <div class="button-group">
+                    <button class="button button-danger">削除</button>
+                    <button class="button button-secondary">キャンセル</button>
+                    <button class="button button-primary">更新</button>
+                </div>
+            </div>
+            <div class="note">
+                <strong>ポイント:</strong> 新規追加と編集は同じコンポーネント（ShiftEditModal）を使用。編集モードの場合のみ「削除」ボタンが表示される。
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>3. データフロー図</h2>
+
+        <div class="flow-diagram">
+            <h3>新規追加フロー</h3>
+            <div class="flow-step">空のセルをクリック</div>
+            <div class="arrow">↓</div>
+            <div class="flow-step">ShiftEditModal表示（新規モード、フォーム空）</div>
+            <div class="arrow">↓</div>
+            <div class="flow-step">開始時刻・終了時刻・休憩時間を入力して「追加」ボタンをクリック</div>
+            <div class="arrow">↓</div>
+            <div class="flow-step" style="border: 2px solid #ffc107;">
+                バリデーション処理<br>
+                <small>→ 必須項目チェック</small><br>
+                <small>→ 時刻の妥当性チェック</small><br>
+                <small>→ 希望シフトチェック（NG日なら警告）</small>
+            </div>
+            <div class="arrow">↓</div>
+            <div class="flow-step">
+                handleAddShift() が呼ばれる<br>
+                <small>→ addedShifts配列に追加</small><br>
+                <small>→ csvShifts, dayShiftsを更新</small><br>
+                <small>→ hasUnsavedChanges = true</small>
+            </div>
+            <div class="arrow">↓</div>
+            <div class="flow-step">モーダルを閉じる、画面に反映</div>
+            <div class="arrow">↓</div>
+            <div class="flow-step">「下書き保存」ボタンをクリック</div>
+            <div class="arrow">↓</div>
+            <div class="flow-step">handleSaveDraft() で一括DB保存</div>
+        </div>
+
+        <div class="flow-diagram" style="margin-top: 30px;">
+            <h3>編集・削除フロー</h3>
+            <div class="flow-step">既存シフトのセルをクリック</div>
+            <div class="arrow">↓</div>
+            <div class="flow-step">ShiftEditModal表示（編集モード、現在の値が入力済み）</div>
+            <div class="arrow">↓</div>
+            <div class="flow-step" style="border: 2px solid #3498db;">
+                【分岐1】時刻・休憩時間を変更して「更新」ボタン
+            </div>
+            <div class="arrow">↓</div>
+            <div class="flow-step" style="border: 2px solid #ffc107;">
+                バリデーション処理<br>
+                <small>→ 必須項目チェック</small><br>
+                <small>→ 時刻の妥当性チェック</small><br>
+                <small>→ 希望シフトチェック（NG日なら警告）</small>
+            </div>
+            <div class="arrow">↓</div>
+            <div class="flow-step" style="border: 2px solid #3498db;">
+                handleUpdateShift() 呼び出し<br>
+                → modifiedShifts に追加
+            </div>
+            <div style="text-align: center; margin: 20px 0; font-weight: bold;">または</div>
+            <div class="flow-step" style="border: 2px solid #e74c3c;">
+                【分岐2】「削除」ボタンをクリック<br>
+                → 確認ダイアログ表示<br>
+                → handleDeleteShift() 呼び出し<br>
+                → deletedShiftIds に追加
+            </div>
+            <div class="arrow">↓</div>
+            <div class="flow-step">モーダルを閉じる、画面に反映</div>
+            <div class="arrow">↓</div>
+            <div class="flow-step">「下書き保存」ボタンをクリック</div>
+            <div class="arrow">↓</div>
+            <div class="flow-step">handleSaveDraft() で一括DB保存</div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>4. コンポーネント設計</h2>
+
+        <h3>4.1 共通モーダルコンポーネント（ShiftEditModal）</h3>
+        <div class="important">
+            <strong>設計の核心:</strong> 新規追加と編集で同じコンポーネントを使用することで、コードの重複を避け、保守性を向上させる。
+        </div>
+
+        <div class="code">
+<pre>// SecondPlanEditor.jsx 内に定義
+
+const ShiftEditModal = ({
+  isOpen,           // モーダル表示フラグ
+  onClose,          // 閉じる関数
+  mode,             // 'add' | 'edit'
+  shift,            // 編集モードの場合は既存シフトデータ、新規の場合は基本情報のみ
+  onSave,           // 保存時のコールバック
+  onDelete,         // 削除時のコールバック（編集モードのみ）
+  preferences       // 希望シフトデータ（NG日チェック用）
+}) => {
+  const [startTime, setStartTime] = useState(shift?.start_time || '')
+  const [endTime, setEndTime] = useState(shift?.end_time || '')
+  const [breakMinutes, setBreakMinutes] = useState(shift?.break_minutes || 0)
+
+  // 希望シフトのチェック
+  const checkPreference = () => {
+    const pref = preferences.find(p => parseInt(p.staff_id) === parseInt(shift.staff_id))
+    if (!pref) return null
+
+    const dateStr = shift.date // "2024-11-29" 形式
+
+    // NG日チェック
+    if (pref.ng_days) {
+      const ngDays = pref.ng_days.split(',').map(d => d.trim())
+      if (ngDays.includes(dateStr)) {
+        return 'ng'
+      }
+    }
+
+    // 希望日チェック
+    if (pref.preferred_days) {
+      const preferredDays = pref.preferred_days.split(',').map(d => d.trim())
+      if (preferredDays.includes(dateStr)) {
+        return 'preferred'
+      }
+    }
+
+    return null
+  }
+
+  const handleSave = () => {
+    // 必須項目チェック
+    if (!startTime || !endTime) {
+      alert('開始時刻と終了時刻を入力してください')
+      return
+    }
+
+    // 時刻の妥当性チェック
+    if (startTime >= endTime) {
+      alert('終了時刻は開始時刻より後にしてください')
+      return
+    }
+
+    // 希望シフトチェック
+    const prefStatus = checkPreference()
+    if (prefStatus === 'ng') {
+      const confirmMsg = mode === 'add'
+        ? 'この日はスタッフのNG日として登録されています。\n本当にシフトを追加しますか？'
+        : 'この日はスタッフのNG日として登録されています。\n本当に更新しますか？'
+      if (!confirm(confirmMsg)) {
+        return
+      }
+    }
+
+    onSave({
+      start_time: startTime,
+      end_time: endTime,
+      break_minutes: parseInt(breakMinutes) || 0
+    })
+  }
+
+  return (
+    &lt;AnimatePresence&gt;
+      {isOpen && (
+        &lt;motion.div className="modal-overlay"&gt;
+          &lt;div className="modal-content"&gt;
+            &lt;h2&gt;{mode === 'add' ? 'シフト追加' : 'シフト編集'}&lt;/h2&gt;
+
+            {/* スタッフ・日付・店舗情報の表示 */}
+            &lt;div className="shift-info"&gt;
+              &lt;p&gt;スタッフ: {shift.staff_name}&lt;/p&gt;
+              &lt;p&gt;日付: {shift.date}&lt;/p&gt;
+              &lt;p&gt;店舗: {shift.store_name}&lt;/p&gt;
+            &lt;/div&gt;
+
+            {/* 時刻入力フォーム */}
+            &lt;div&gt;
+              &lt;label&gt;開始時刻 *&lt;/label&gt;
+              &lt;input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+              /&gt;
+            &lt;/div&gt;
+            &lt;div&gt;
+              &lt;label&gt;終了時刻 *&lt;/label&gt;
+              &lt;input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              /&gt;
+            &lt;/div&gt;
+            &lt;div&gt;
+              &lt;label&gt;休憩時間（分）&lt;/label&gt;
+              &lt;input
+                type="number"
+                value={breakMinutes}
+                onChange={(e) => setBreakMinutes(e.target.value)}
+                min="0"
+                step="15"
+                placeholder="例: 60"
+              /&gt;
+            &lt;/div&gt;
+
+            {/* ボタン群 */}
+            &lt;div className="button-group"&gt;
+              {mode === 'edit' && (
+                &lt;button onClick={onDelete} className="button-danger"&gt;
+                  削除
+                &lt;/button&gt;
+              )}
+              &lt;button onClick={onClose} className="button-secondary"&gt;
+                キャンセル
+              &lt;/button&gt;
+              &lt;button onClick={handleSave} className="button-primary"&gt;
+                {mode === 'add' ? '追加' : '更新'}
+              &lt;/button&gt;
+            &lt;/div&gt;
+          &lt;/div&gt;
+        &lt;/motion.div&gt;
+      )}
+    &lt;/AnimatePresence&gt;
+  )
+}</pre>
+        </div>
+
+        <h3>4.2 セルクリックハンドラー</h3>
+        <div class="code">
+<pre>// MultiStoreShiftTable.jsx
+
+const handleCellClick = (date, staffId, storeId) => {
+  // 既存シフトがあるか確認
+  const existingShift = getShiftForCell(date, staffId, storeId)
+
+  if (existingShift) {
+    // 編集モード
+    onShiftClick?.({
+      mode: 'edit',
+      shift: existingShift,
+      date,
+      staffId,
+      storeId
+    })
+  } else {
+    // 新規追加モード
+    onShiftClick?.({
+      mode: 'add',
+      shift: {
+        date,
+        staff_id: staffId,
+        store_id: storeId,
+        staff_name: getStaffName(staffId),
+        store_name: getStoreName(storeId)
+      }
+    })
+  }
+}</pre>
+        </div>
+
+        <h3>4.3 SecondPlanEditorでの統合</h3>
+        <div class="code">
+<pre>// SecondPlanEditor.jsx
+
+const [modalState, setModalState] = useState({
+  isOpen: false,
+  mode: 'add',  // 'add' | 'edit'
+  shift: null
+})
+
+// セルクリック時のハンドラー
+const handleShiftClick = ({ mode, shift }) => {
+  setModalState({
+    isOpen: true,
+    mode,
+    shift
+  })
+}
+
+// モーダルからの保存処理
+const handleModalSave = (timeData) => {
+  if (modalState.mode === 'add') {
+    handleAddShift({
+      ...modalState.shift,
+      ...timeData
+    })
+  } else {
+    handleUpdateShift(modalState.shift.shift_id, timeData)
+  }
+  setModalState({ isOpen: false, mode: 'add', shift: null })
+}
+
+// モーダルからの削除処理
+const handleModalDelete = () => {
+  if (!confirm('このシフトを削除しますか？')) return
+  handleDeleteShift(modalState.shift.shift_id)
+  setModalState({ isOpen: false, mode: 'add', shift: null })
+}
+
+return (
+  &lt;&gt;
+    {/* シフト表 */}
+    &lt;MultiStoreShiftTable
+      onShiftClick={handleShiftClick}
+      // ... other props
+    /&gt;
+
+    {/* 共通モーダル */}
+    &lt;ShiftEditModal
+      isOpen={modalState.isOpen}
+      mode={modalState.mode}
+      shift={modalState.shift}
+      preferences={preferences}
+      onClose={() => setModalState({ isOpen: false, mode: 'add', shift: null })}
+      onSave={handleModalSave}
+      onDelete={handleModalDelete}
+    /&gt;
+  &lt;/&gt;
+)</pre>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>5. 状態管理</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>状態変数</th>
+                    <th>型</th>
+                    <th>説明</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><code>modalState</code></td>
+                    <td>Object</td>
+                    <td>モーダルの表示状態、モード（add/edit）、対象シフトデータを保持</td>
+                </tr>
+                <tr>
+                    <td><code>addedShifts</code></td>
+                    <td>Array</td>
+                    <td>新規追加されたシフトのリスト（下書き保存時にDBに追加）</td>
+                </tr>
+                <tr>
+                    <td><code>modifiedShifts</code></td>
+                    <td>Object</td>
+                    <td>編集されたシフトのマップ（shift_id → 変更データ）</td>
+                </tr>
+                <tr>
+                    <td><code>deletedShiftIds</code></td>
+                    <td>Set</td>
+                    <td>削除対象のshift_idセット</td>
+                </tr>
+                <tr>
+                    <td><code>hasUnsavedChanges</code></td>
+                    <td>Boolean</td>
+                    <td>未保存の変更があるかのフラグ</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>6. 実装手順</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>順序</th>
+                    <th>タスク</th>
+                    <th>ファイル</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>1</td>
+                    <td>ShiftEditModalコンポーネントの実装</td>
+                    <td>SecondPlanEditor.jsx</td>
+                </tr>
+                <tr>
+                    <td>2</td>
+                    <td>modalState状態の追加</td>
+                    <td>SecondPlanEditor.jsx</td>
+                </tr>
+                <tr>
+                    <td>3</td>
+                    <td>handleShiftClick, handleModalSave, handleModalDelete 関数の実装</td>
+                    <td>SecondPlanEditor.jsx</td>
+                </tr>
+                <tr>
+                    <td>4</td>
+                    <td>handleAddShift 関数の実装（新規追加ロジック）</td>
+                    <td>SecondPlanEditor.jsx</td>
+                </tr>
+                <tr>
+                    <td>5</td>
+                    <td>MultiStoreShiftTableにonShiftClick propsを追加</td>
+                    <td>SecondPlanEditor.jsx</td>
+                </tr>
+                <tr>
+                    <td>6</td>
+                    <td>セルクリック処理の実装（handleCellClick）</td>
+                    <td>MultiStoreShiftTable.jsx</td>
+                </tr>
+                <tr>
+                    <td>7</td>
+                    <td>handleSaveDraft にaddedShifts保存ロジックを統合（既存）</td>
+                    <td>SecondPlanEditor.jsx</td>
+                </tr>
+                <tr>
+                    <td>8</td>
+                    <td>動作確認とバグ修正</td>
+                    <td>全体</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>7. 注意事項</h2>
+
+        <div class="note">
+            <h3>仮IDの扱い</h3>
+            <p>新規追加されたシフトは、shift_idがまだDBで割り当てられていないため、仮IDを使用する:</p>
+            <div class="code">
+<pre>const tempId = `temp_${Date.now()}_${Math.random()}`
+
+const newShift = {
+  shift_id: tempId,  // 仮ID
+  staff_id: staffId,
+  store_id: storeId,
+  date: date,
+  start_time: startTime,
+  end_time: endTime,
+  break_minutes: breakMinutes,
+  modified_flag: true
+}</pre>
+            </div>
+        </div>
+
+        <div class="note">
+            <h3>データ整合性</h3>
+            <ul>
+                <li>csvShifts, dayShifts, addedShifts の3つの状態を常に同期させる</li>
+                <li>削除されたシフトはcsvShifts/dayShiftsから削除し、deletedShiftIdsに追加</li>
+                <li>編集されたシフトはcsvShifts/dayShiftsを即座に更新し、modifiedShiftsにも記録</li>
+            </ul>
+        </div>
+
+        <div class="note">
+            <h3>エラーハンドリング</h3>
+            <ul>
+                <li><strong>時刻の妥当性チェック</strong>: 開始時刻 < 終了時刻</li>
+                <li><strong>必須項目の入力チェック</strong>: 開始時刻と終了時刻は必須</li>
+                <li><strong>休憩時間の妥当性チェック</strong>: 0以上の整数、勤務時間を超えないこと</li>
+                <li><strong>希望シフトチェック</strong>:
+                    <ul>
+                        <li>NG日にシフトを追加/更新する場合 → 警告ダイアログを表示</li>
+                        <li>希望日にシフトを追加する場合 → 通常通り処理（警告なし）</li>
+                    </ul>
+                </li>
+                <li><strong>保存失敗時のロールバック処理</strong></li>
+            </ul>
+        </div>
+
+        <div class="important">
+            <h3>コンポーネント再利用のメリット</h3>
+            <ul>
+                <li>✅ コードの重複を避けられる（DRY原則）</li>
+                <li>✅ バグ修正やメンテナンスが1箇所で済む</li>
+                <li>✅ ユーザー体験が統一される（同じUIで追加と編集ができる）</li>
+                <li>✅ テストが容易になる（1つのコンポーネントのみテストすればよい）</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>8. まとめ</h2>
+        <p>本設計では、<strong>ShiftEditModalという1つの共通コンポーネント</strong>を使用して、シフトの新規追加と編集の両方を実現します。</p>
+
+        <h3>主な特徴:</h3>
+        <ul>
+            <li><strong>共通コンポーネント</strong>: mode propsによって動作を切り替え、編集モードの場合のみ削除ボタンを表示</li>
+            <li><strong>必要な入力項目</strong>: 開始時刻、終了時刻、休憩時間（分）</li>
+            <li><strong>バリデーション機能</strong>:
+                <ul>
+                    <li>必須項目チェック</li>
+                    <li>時刻の妥当性チェック（開始 < 終了）</li>
+                    <li>休憩時間の妥当性チェック</li>
+                    <li><strong>希望シフトチェック</strong>: NG日に登録・更新しようとする場合は警告ダイアログを表示</li>
+                </ul>
+            </li>
+            <li><strong>下書き保存との統合</strong>: 複数の変更を行った後に一括で保存できる柔軟な操作性</li>
+        </ul>
+
+        <p>この設計により、シンプルかつ保守性の高い実装を実現し、ユーザーにとって使いやすいシフト管理機能を提供します。</p>
+    </div>
+</body>
+</html>
