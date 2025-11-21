@@ -11,12 +11,26 @@
     "test:schema": "node scripts/test_schema_crud.mjs",
     "test:schema:keep": "node scripts/test_schema_crud_no_cleanup.mjs",
     "db:cleanup": "node scripts/cleanup_test_data.mjs",
-    "db:setup": "node scripts/run_db_setup.mjs"
+    "db:setup": "node scripts/run_db_setup.mjs",
+    "prepare": "husky install",
+    "lint": "cd frontend && npm run lint",
+    "test": "cd frontend && npm run test",
+    "typecheck": "cd frontend && npm run typecheck"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx}": "cd frontend && eslint --fix"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
     "dotenv": "^17.2.3",
     "pg": "^8.16.3"
+  },
+  "devDependencies": {
+    "husky": "^9.0.0",
+    "lint-staged": "^15.0.0",
+    "commitlint": "^18.0.0",
+    "@commitlint/config-conventional": "^18.0.0",
+    "prettier": "^3.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
