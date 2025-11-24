@@ -19,12 +19,7 @@ import {
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import {
-  getActualShifts,
-  getPayroll,
-  getSalesActual,
-  clearStore,
-} from '../../utils/indexedDB'
+import { getActualShifts, getPayroll, getSalesActual, clearStore } from '../../utils/indexedDB'
 import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
 import { INDEXED_DB } from '../../config'
 import { PAGE_VARIANTS, PAGE_TRANSITION } from '../../config/display'

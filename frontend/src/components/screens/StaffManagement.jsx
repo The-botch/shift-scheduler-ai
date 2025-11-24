@@ -2,15 +2,7 @@ import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import {
-  Users,
-  X,
-  TrendingUp,
-  Award,
-  FileText,
-  Database,
-  Filter,
-} from 'lucide-react'
+import { Users, X, TrendingUp, Award, FileText, Database, Filter } from 'lucide-react'
 import { calculatePayslip } from '../../utils/salaryCalculator'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
