@@ -46,12 +46,8 @@ const LiffLogin = () => {
     <div className="flex items-center justify-center min-h-screen bg-gradient-to-b from-green-50 to-blue-50 p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            シフト管理システム
-          </CardTitle>
-          <p className="text-center text-gray-500 text-sm">
-            スタッフ用シフト希望登録
-          </p>
+          <CardTitle className="text-2xl font-bold text-center">シフト管理システム</CardTitle>
+          <p className="text-center text-gray-500 text-sm">スタッフ用シフト希望登録</p>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

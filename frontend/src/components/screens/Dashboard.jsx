@@ -92,9 +92,9 @@ const Dashboard = ({
         setAnnualSummary(summary)
 
         const monthly = calculateMonthlyData(
-          plannedShifts2025,
-          actualShifts2025,
-          actualPayroll2025,
+          plannedShiftsData,
+          actualShiftsData,
+          actualPayrollData,
           salesForecastData,
           actualSalesData
         )
@@ -357,7 +357,9 @@ const Dashboard = ({
         >
           <Card className={`border-2 shadow-sm ${recruitmentStatus.borderColor}`}>
             <CardContent className="p-4">
-              <div className={`flex items-center gap-4 px-4 py-3 bg-gradient-to-br rounded-xl ${recruitmentStatus.bgColor}`}>
+              <div
+                className={`flex items-center gap-4 px-4 py-3 bg-gradient-to-br rounded-xl ${recruitmentStatus.bgColor}`}
+              >
                 <Clock
                   className={`h-8 w-8 ${
                     recruitmentStatus.color === 'green'
@@ -485,7 +487,9 @@ const Dashboard = ({
                         </p>
                       </div>
                       <div className="bg-white border border-slate-200 rounded-lg p-4">
-                        <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">営業利益</p>
+                        <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">
+                          営業利益
+                        </p>
                         <p
                           className={`text-2xl md:text-xl font-bold ${annualSummary.profitDiff > 0 ? 'text-blue-600' : 'text-red-600'}`}
                         >
@@ -498,7 +502,9 @@ const Dashboard = ({
                         </p>
                       </div>
                       <div className="bg-white border border-slate-200 rounded-lg p-4">
-                        <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">人件費率</p>
+                        <p className="text-sm md:text-xs font-medium text-slate-600 mb-2">
+                          人件費率
+                        </p>
                         <p
                           className={`text-2xl md:text-xl font-bold ${(() => {
                             const plannedRate =

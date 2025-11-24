@@ -27,7 +27,7 @@ export const useLiff = () => {
             displayName: userProfile.displayName,
             pictureUrl: userProfile.pictureUrl,
             statusMessage: userProfile.statusMessage,
-            idToken
+            idToken,
           })
           setIsLoggedIn(true)
         }
@@ -58,6 +58,6 @@ export const useLiff = () => {
     loading,
     error,
     login,
-    logout
+    logout,
   }
 }

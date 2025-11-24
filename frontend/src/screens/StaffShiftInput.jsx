@@ -20,20 +20,18 @@ const StaffShiftInput = () => {
 
   const handleDateToggle = (year, month, date) => {
     const dateKey = { year, month, date }
-    const exists = selectedDates.some(
-      d => d.year === year && d.month === month && d.date === date
-    )
+    const exists = selectedDates.some(d => d.year === year && d.month === month && d.date === date)
 
     if (exists) {
-      setSelectedDates(selectedDates.filter(
-        d => !(d.year === year && d.month === month && d.date === date)
-      ))
+      setSelectedDates(
+        selectedDates.filter(d => !(d.year === year && d.month === month && d.date === date))
+      )
     } else {
       setSelectedDates([...selectedDates, dateKey])
     }
   }
 
-  const handleShiftTimeSelect = (time) => {
+  const handleShiftTimeSelect = time => {
     setShiftTime(time)
   }
 
@@ -50,40 +48,43 @@ const StaffShiftInput = () => {
       const shiftRequests = selectedDates.map(d => ({
         date: `${d.year}-${String(d.month).padStart(2, '0')}-${String(d.date).padStart(2, '0')}`,
         start_time: shiftTime.start_time,
-        end_time: shiftTime.end_time
+        end_time: shiftTime.end_time,
       }))
 
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_API_URL}/api/liff/shift-request`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${profile.idToken}`
-        },
-        body: JSON.stringify({
-          shift_dates: shiftRequests
-        })
-      })
+      const response = await fetch(
+        `${import.meta.env.VITE_BACKEND_API_URL}/api/liff/shift-request`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${profile.idToken}`,
+          },
+          body: JSON.stringify({
+            shift_dates: shiftRequests,
+          }),
+        }
+      )
 
       const result = await response.json()
 
       if (result.success) {
         setSubmitStatus({
           type: 'success',
-          message: `${selectedDates.length}日分のシフト希望を登録しました`
+          message: `${selectedDates.length}日分のシフト希望を登録しました`,
         })
         setSelectedDates([])
         setShiftTime(null)
       } else {
         setSubmitStatus({
           type: 'error',
-          message: result.error || 'シフト希望の登録に失敗しました'
+          message: result.error || 'シフト希望の登録に失敗しました',
         })
       }
     } catch (error) {
       console.error('シフト登録エラー:', error)
       setSubmitStatus({
         type: 'error',
-        message: 'ネットワークエラーが発生しました'
+        message: 'ネットワークエラーが発生しました',
       })
     } finally {
       setSubmitting(false)
@@ -109,12 +110,7 @@ const StaffShiftInput = () => {
                 <p className="text-xs text-gray-600">シフト希望登録</p>
               </div>
             </div>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={logout}
-              className="text-gray-600"
-            >
+            <Button variant="ghost" size="sm" onClick={logout} className="text-gray-600">
               <LogOut className="h-4 w-4 mr-1" />
               ログアウト
             </Button>
@@ -148,9 +144,7 @@ const StaffShiftInput = () => {
                     )}
                     <p
                       className={`text-sm font-medium ${
-                        submitStatus.type === 'success'
-                          ? 'text-green-800'
-                          : 'text-red-800'
+                        submitStatus.type === 'success' ? 'text-green-800' : 'text-red-800'
                       }`}
                     >
                       {submitStatus.message}
@@ -172,10 +166,7 @@ const StaffShiftInput = () => {
 
         {/* シフトパターン選択 */}
         {selectedDates.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <ShiftPatternSelector
               onSelect={handleShiftTimeSelect}
               selectedDatesCount={selectedDates.length}
@@ -185,10 +176,7 @@ const StaffShiftInput = () => {
 
         {/* 登録ボタン */}
         {selectedDates.length > 0 && shiftTime && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
             <Card className="bg-blue-50 border-blue-200">
               <CardContent className="pt-4">
                 <div className="space-y-3">
@@ -196,7 +184,9 @@ const StaffShiftInput = () => {
                     <p className="font-medium mb-1">登録内容:</p>
                     <ul className="space-y-1 text-xs">
                       <li>• 選択日数: {selectedDates.length}日</li>
-                      <li>• シフト時間: {shiftTime.start_time} - {shiftTime.end_time}</li>
+                      <li>
+                        • シフト時間: {shiftTime.start_time} - {shiftTime.end_time}
+                      </li>
                       <li>• パターン: {shiftTime.pattern_name}</li>
                     </ul>
                   </div>

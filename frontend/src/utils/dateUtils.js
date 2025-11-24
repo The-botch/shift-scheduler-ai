@@ -16,7 +16,7 @@ const JST_TIMEZONE = 'Asia/Tokyo'
  * @param {string} dateStr - YYYY-MM-DD 形式の日付文字列
  * @returns {Date} JST日付オブジェクト
  */
-export const parseJSTDate = (dateStr) => {
+export const parseJSTDate = dateStr => {
   // YYYY-MM-DD 形式をパース（JSTとして扱う）
   const parsed = parse(dateStr, 'yyyy-MM-dd', new Date())
   return toZonedTime(parsed, JST_TIMEZONE)
@@ -39,7 +39,7 @@ export const formatDate = date => {
  * @param {string} dateStr - YYYY-MM-DD 形式の日付文字列
  * @returns {number} 曜日 (0=日曜, 1=月曜, ..., 6=土曜)
  */
-export const getDayOfWeekFromString = (dateStr) => {
+export const getDayOfWeekFromString = dateStr => {
   const jstDate = parseJSTDate(dateStr)
   return getDay(jstDate)
 }
@@ -80,7 +80,7 @@ export const getCurrentYearMonth = () => {
   const jstNow = toZonedTime(now, JST_TIMEZONE)
   return {
     year: getYear(jstNow),
-    month: getMonth(jstNow) + 1,  // date-fns の getMonth は0始まり
+    month: getMonth(jstNow) + 1, // date-fns の getMonth は0始まり
   }
 }
 
@@ -101,7 +101,7 @@ export const getCurrentYear = () => {
 export const getCurrentMonth = () => {
   const now = new Date()
   const jstNow = toZonedTime(now, JST_TIMEZONE)
-  return getMonth(jstNow) + 1  // date-fns の getMonth は0始まり
+  return getMonth(jstNow) + 1 // date-fns の getMonth は0始まり
 }
 
 /**

@@ -621,13 +621,16 @@ export class MasterRepository {
    */
   async updateEmploymentType(employmentTypeId, data) {
     try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_EMPLOYMENT_TYPES}/${employmentTypeId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
+      const response = await fetch(
+        `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_EMPLOYMENT_TYPES}/${employmentTypeId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        }
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -650,9 +653,12 @@ export class MasterRepository {
    */
   async deleteEmploymentType(employmentTypeId) {
     try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_EMPLOYMENT_TYPES}/${employmentTypeId}`, {
-        method: 'DELETE',
-      })
+      const response = await fetch(
+        `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_EMPLOYMENT_TYPES}/${employmentTypeId}`,
+        {
+          method: 'DELETE',
+        }
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -710,13 +716,16 @@ export class MasterRepository {
    */
   async updateShiftPattern(patternId, data) {
     try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SHIFT_PATTERNS}/${patternId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
+      const response = await fetch(
+        `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SHIFT_PATTERNS}/${patternId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        }
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -739,9 +748,12 @@ export class MasterRepository {
    */
   async deleteShiftPattern(patternId) {
     try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SHIFT_PATTERNS}/${patternId}`, {
-        method: 'DELETE',
-      })
+      const response = await fetch(
+        `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SHIFT_PATTERNS}/${patternId}`,
+        {
+          method: 'DELETE',
+        }
+      )
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`)
@@ -813,13 +825,16 @@ export class MasterRepository {
 
   async updateDivision(divisionId, data) {
     try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_DIVISIONS}/${divisionId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
+      const response = await fetch(
+        `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_DIVISIONS}/${divisionId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        }
+      )
 
       if (!response.ok) {
         throw new Error(`Failed to update division: ${response.statusText}`)
@@ -839,9 +854,12 @@ export class MasterRepository {
 
   async deleteDivision(divisionId) {
     try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_DIVISIONS}/${divisionId}`, {
-        method: 'DELETE',
-      })
+      const response = await fetch(
+        `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_DIVISIONS}/${divisionId}`,
+        {
+          method: 'DELETE',
+        }
+      )
 
       if (!response.ok) {
         throw new Error(`Failed to delete division: ${response.statusText}`)
@@ -913,13 +931,16 @@ export class MasterRepository {
 
   async updateCommuteAllowance(allowanceId, data) {
     try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_COMMUTE_ALLOWANCE}/${allowanceId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
+      const response = await fetch(
+        `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_COMMUTE_ALLOWANCE}/${allowanceId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(data),
+        }
+      )
 
       if (!response.ok) {
         throw new Error(`Failed to update commute allowance: ${response.statusText}`)
@@ -939,9 +960,12 @@ export class MasterRepository {
 
   async deleteCommuteAllowance(allowanceId) {
     try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_COMMUTE_ALLOWANCE}/${allowanceId}`, {
-        method: 'DELETE',
-      })
+      const response = await fetch(
+        `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_COMMUTE_ALLOWANCE}/${allowanceId}`,
+        {
+          method: 'DELETE',
+        }
+      )
 
       if (!response.ok) {
         throw new Error(`Failed to delete commute allowance: ${response.statusText}`)
@@ -956,914 +980,6 @@ export class MasterRepository {
       return result.data
     } catch (error) {
       throw new Error(`通勤手当削除エラー: ${error.message}`)
-    }
-  }
-
-  // =========================
-  // Insurance Rates Master CRUD
-  // =========================
-
-  async getInsuranceRates(tenantId = null) {
-    const actualTenantId = tenantId ?? getCurrentTenantId()
-    try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_INSURANCE_RATES}?tenant_id=${actualTenantId}`
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '保険料率マスタ取得に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`保険料率マスタ取得エラー: ${error.message}`)
-    }
-  }
-
-  async createInsuranceRate(data) {
-    try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_INSURANCE_RATES}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to create insurance rate: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '保険料率作成に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`保険料率作成エラー: ${error.message}`)
-    }
-  }
-
-  async updateInsuranceRate(rateId, data) {
-    try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_INSURANCE_RATES}/${rateId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to update insurance rate: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '保険料率更新に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`保険料率更新エラー: ${error.message}`)
-    }
-  }
-
-  async deleteInsuranceRate(rateId) {
-    try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_INSURANCE_RATES}/${rateId}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to delete insurance rate: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '保険料率削除に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`保険料率削除エラー: ${error.message}`)
-    }
-  }
-
-  // =======================
-  // Tax Brackets Master CRUD
-  // =======================
-
-  async getTaxBrackets(tenantId = null) {
-    const actualTenantId = tenantId ?? getCurrentTenantId()
-    try {
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_TAX_BRACKETS}?tenant_id=${actualTenantId}`
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '税率区分マスタ取得に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`税率区分マスタ取得エラー: ${error.message}`)
-    }
-  }
-
-  async createTaxBracket(data) {
-    try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_TAX_BRACKETS}`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to create tax bracket: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '税率区分作成に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`税率区分作成エラー: ${error.message}`)
-    }
-  }
-
-  async updateTaxBracket(bracketId, data) {
-    try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_TAX_BRACKETS}/${bracketId}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to update tax bracket: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '税率区分更新に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`税率区分更新エラー: ${error.message}`)
-    }
-  }
-
-  async deleteTaxBracket(bracketId) {
-    try {
-      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_TAX_BRACKETS}/${bracketId}`, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error(`Failed to delete tax bracket: ${response.statusText}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '税率区分削除に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`税率区分削除エラー: ${error.message}`)
-    }
-  }
-
-  // ==================== Staff Master ====================
-
-  async getStaff(tenantId = null) {
-    try {
-      const actualTenantId = tenantId ?? getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STAFF}?tenant_id=${actualTenantId}`
-
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || 'スタッフマスタ取得に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`スタッフマスタ取得エラー: ${error.message}`)
-    }
-  }
-
-  async createStaff(data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STAFF}`
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || 'スタッフ作成に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`スタッフ作成エラー: ${error.message}`)
-    }
-  }
-
-  async updateStaff(staffId, data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STAFF}/${staffId}`
-
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || 'スタッフ更新に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`スタッフ更新エラー: ${error.message}`)
-    }
-  }
-
-  async deleteStaff(staffId) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STAFF}/${staffId}?tenant_id=${tenantId}`
-
-      const response = await fetch(url, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || 'スタッフ削除に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`スタッフ削除エラー: ${error.message}`)
-    }
-  }
-
-  // ==================== Stores Master ====================
-
-  async getStores(tenantId = null) {
-    try {
-      const actualTenantId = tenantId ?? getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORES}?tenant_id=${actualTenantId}`
-
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '店舗マスタ取得に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`店舗マスタ取得エラー: ${error.message}`)
-    }
-  }
-
-  async createStore(data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORES}`
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '店舗作成に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`店舗作成エラー: ${error.message}`)
-    }
-  }
-
-  async updateStore(storeId, data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORES}/${storeId}`
-
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '店舗更新に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`店舗更新エラー: ${error.message}`)
-    }
-  }
-
-  async deleteStore(storeId) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORES}/${storeId}?tenant_id=${tenantId}`
-
-      const response = await fetch(url, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '店舗削除に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`店舗削除エラー: ${error.message}`)
-    }
-  }
-
-  // ==================== Labor Law Constraints Master ====================
-
-  async getLaborLawConstraints(tenantId = null) {
-    try {
-      const actualTenantId = tenantId ?? getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_LAW_CONSTRAINTS}?tenant_id=${actualTenantId}`
-
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '労働法制約マスタ取得に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`労働法制約マスタ取得エラー: ${error.message}`)
-    }
-  }
-
-  async createLaborLawConstraint(data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_LAW_CONSTRAINTS}`
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '労働法制約作成に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`労働法制約作成エラー: ${error.message}`)
-    }
-  }
-
-  async updateLaborLawConstraint(constraintId, data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_LAW_CONSTRAINTS}/${constraintId}`
-
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '労働法制約更新に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`労働法制約更新エラー: ${error.message}`)
-    }
-  }
-
-  async deleteLaborLawConstraint(constraintId) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_LAW_CONSTRAINTS}/${constraintId}?tenant_id=${tenantId}`
-
-      const response = await fetch(url, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '労働法制約削除に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`労働法制約削除エラー: ${error.message}`)
-    }
-  }
-
-  // ==================== Store Constraints Master ====================
-
-  async getStoreConstraints(tenantId = null) {
-    try {
-      const actualTenantId = tenantId ?? getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORE_CONSTRAINTS}?tenant_id=${actualTenantId}`
-
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '店舗制約マスタ取得に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`店舗制約マスタ取得エラー: ${error.message}`)
-    }
-  }
-
-  async createStoreConstraint(data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORE_CONSTRAINTS}`
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '店舗制約作成に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`店舗制約作成エラー: ${error.message}`)
-    }
-  }
-
-  async updateStoreConstraint(constraintId, data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORE_CONSTRAINTS}/${constraintId}`
-
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '店舗制約更新に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`店舗制約更新エラー: ${error.message}`)
-    }
-  }
-
-  async deleteStoreConstraint(constraintId) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORE_CONSTRAINTS}/${constraintId}?tenant_id=${tenantId}`
-
-      const response = await fetch(url, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '店舗制約削除に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`店舗制約削除エラー: ${error.message}`)
-    }
-  }
-
-  // ==================== Labor Management Rules Master ====================
-
-  async getLaborManagementRules(tenantId = null) {
-    try {
-      const actualTenantId = tenantId ?? getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_MANAGEMENT_RULES}?tenant_id=${actualTenantId}`
-
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '労務管理ルールマスタ取得に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`労務管理ルールマスタ取得エラー: ${error.message}`)
-    }
-  }
-
-  async createLaborManagementRule(data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_MANAGEMENT_RULES}`
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '労務管理ルール作成に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`労務管理ルール作成エラー: ${error.message}`)
-    }
-  }
-
-  async updateLaborManagementRule(ruleId, data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_MANAGEMENT_RULES}/${ruleId}`
-
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '労務管理ルール更新に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`労務管理ルール更新エラー: ${error.message}`)
-    }
-  }
-
-  async deleteLaborManagementRule(ruleId) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_LABOR_MANAGEMENT_RULES}/${ruleId}?tenant_id=${tenantId}`
-
-      const response = await fetch(url, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || '労務管理ルール削除に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`労務管理ルール削除エラー: ${error.message}`)
-    }
-  }
-
-  // ==================== Shift Validation Rules Master ====================
-
-  async getShiftValidationRules(tenantId = null) {
-    try {
-      const actualTenantId = tenantId ?? getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SHIFT_VALIDATION_RULES}?tenant_id=${actualTenantId}`
-
-      const response = await fetch(url)
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || 'シフト検証ルールマスタ取得に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`シフト検証ルールマスタ取得エラー: ${error.message}`)
-    }
-  }
-
-  async createShiftValidationRule(data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SHIFT_VALIDATION_RULES}`
-
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || 'シフト検証ルール作成に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`シフト検証ルール作成エラー: ${error.message}`)
-    }
-  }
-
-  async updateShiftValidationRule(ruleId, data) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SHIFT_VALIDATION_RULES}/${ruleId}`
-
-      const response = await fetch(url, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          tenant_id: tenantId,
-          ...data,
-        }),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || 'シフト検証ルール更新に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`シフト検証ルール更新エラー: ${error.message}`)
-    }
-  }
-
-  async deleteShiftValidationRule(ruleId) {
-    try {
-      const tenantId = getCurrentTenantId()
-
-      const url = `${BACKEND_API_URL}${API_ENDPOINTS.MASTER_SHIFT_VALIDATION_RULES}/${ruleId}?tenant_id=${tenantId}`
-
-      const response = await fetch(url, {
-        method: 'DELETE',
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const result = await response.json()
-
-      if (!result.success) {
-        throw new Error(result.error || 'シフト検証ルール削除に失敗しました')
-      }
-
-      return result.data
-    } catch (error) {
-      throw new Error(`シフト検証ルール削除エラー: ${error.message}`)
     }
   }
 }

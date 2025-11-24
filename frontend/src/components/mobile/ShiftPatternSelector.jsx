@@ -6,9 +6,16 @@ import { Clock } from 'lucide-react'
 
 const SHIFT_PATTERNS = [
   { id: 'morning', name: '午前', start: '09:00', end: '18:00', color: 'bg-blue-500', icon: '🌅' },
-  { id: 'afternoon', name: '午後', start: '13:00', end: '22:00', color: 'bg-orange-500', icon: '🌆' },
+  {
+    id: 'afternoon',
+    name: '午後',
+    start: '13:00',
+    end: '22:00',
+    color: 'bg-orange-500',
+    icon: '🌆',
+  },
   { id: 'night', name: '夜間', start: '10:00', end: '20:00', color: 'bg-purple-500', icon: '🌙' },
-  { id: 'custom', name: 'カスタム', start: '', end: '', color: 'bg-gray-500', icon: '⚙️' }
+  { id: 'custom', name: 'カスタム', start: '', end: '', color: 'bg-gray-500', icon: '⚙️' },
 ]
 
 const ShiftPatternSelector = ({ onSelect, selectedDatesCount = 0 }) => {
@@ -16,14 +23,14 @@ const ShiftPatternSelector = ({ onSelect, selectedDatesCount = 0 }) => {
   const [customStart, setCustomStart] = useState('09:00')
   const [customEnd, setCustomEnd] = useState('18:00')
 
-  const handlePatternSelect = (pattern) => {
+  const handlePatternSelect = pattern => {
     setSelectedPattern(pattern.id)
 
     if (pattern.id !== 'custom') {
       onSelect({
         start_time: pattern.start,
         end_time: pattern.end,
-        pattern_name: pattern.name
+        pattern_name: pattern.name,
       })
     }
   }
@@ -33,7 +40,7 @@ const ShiftPatternSelector = ({ onSelect, selectedDatesCount = 0 }) => {
       onSelect({
         start_time: customStart,
         end_time: customEnd,
-        pattern_name: 'カスタム'
+        pattern_name: 'カスタム',
       })
     }
   }
@@ -54,7 +61,7 @@ const ShiftPatternSelector = ({ onSelect, selectedDatesCount = 0 }) => {
       <CardContent className="space-y-3">
         {/* パターンボタン */}
         <div className="grid grid-cols-2 gap-2">
-          {SHIFT_PATTERNS.map((pattern) => (
+          {SHIFT_PATTERNS.map(pattern => (
             <motion.button
               key={pattern.id}
               whileTap={{ scale: 0.98 }}
@@ -101,24 +108,20 @@ const ShiftPatternSelector = ({ onSelect, selectedDatesCount = 0 }) => {
               className="space-y-3 pt-3 border-t"
             >
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  開始時刻
-                </label>
+                <label className="text-sm font-medium text-gray-700 block mb-1">開始時刻</label>
                 <input
                   type="time"
                   value={customStart}
-                  onChange={(e) => setCustomStart(e.target.value)}
+                  onChange={e => setCustomStart(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">
-                  終了時刻
-                </label>
+                <label className="text-sm font-medium text-gray-700 block mb-1">終了時刻</label>
                 <input
                   type="time"
                   value={customEnd}
-                  onChange={(e) => setCustomEnd(e.target.value)}
+                  onChange={e => setCustomEnd(e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>

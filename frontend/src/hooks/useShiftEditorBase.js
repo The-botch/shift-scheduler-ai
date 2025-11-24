@@ -10,7 +10,7 @@ const masterRepository = new MasterRepository()
  * @param {Object} selectedShift - 選択されたシフト情報
  * @returns {Object} 共通の状態と関数
  */
-export const useShiftEditorBase = (selectedShift) => {
+export const useShiftEditorBase = selectedShift => {
   const [staffMap, setStaffMap] = useState({})
   const [rolesMap, setRolesMap] = useState({})
   const [storesMap, setStoresMap] = useState({})
@@ -90,7 +90,7 @@ export const useShiftEditorBase = (selectedShift) => {
    * selectedShiftにstoreIdが明示的に指定されている場合のみ、その店舗だけを選択
    * それ以外（一括作成など）は全店舗を選択
    */
-  const initializeSelectedStores = (stores) => {
+  const initializeSelectedStores = stores => {
     const initialStoreId = selectedShift?.storeId || selectedShift?.store_id
 
     if (initialStoreId) {
@@ -105,7 +105,7 @@ export const useShiftEditorBase = (selectedShift) => {
   /**
    * 店舗選択状態をトグル
    */
-  const toggleStoreSelection = (storeId) => {
+  const toggleStoreSelection = storeId => {
     setSelectedStores(prev => {
       const newSet = new Set(prev)
       const numericStoreId = parseInt(storeId)

@@ -65,12 +65,7 @@ export class AnalyticsRepository {
    */
   async getSalesActual(params = {}) {
     try {
-      const {
-        tenantId = AnalyticsRepository.DEFAULT_TENANT_ID,
-        storeId,
-        year,
-        month,
-      } = params
+      const { tenantId = AnalyticsRepository.DEFAULT_TENANT_ID, storeId, year, month } = params
 
       const queryParams = new URLSearchParams({ tenant_id: tenantId })
       if (storeId) queryParams.append('store_id', storeId)
@@ -106,12 +101,7 @@ export class AnalyticsRepository {
    */
   async getSalesForecast(params = {}) {
     try {
-      const {
-        tenantId = AnalyticsRepository.DEFAULT_TENANT_ID,
-        storeId,
-        year,
-        month,
-      } = params
+      const { tenantId = AnalyticsRepository.DEFAULT_TENANT_ID, storeId, year, month } = params
 
       const queryParams = new URLSearchParams({ tenant_id: tenantId })
       if (storeId) queryParams.append('store_id', storeId)
@@ -146,11 +136,7 @@ export class AnalyticsRepository {
    */
   async getDashboardMetrics(params = {}) {
     try {
-      const {
-        tenantId = AnalyticsRepository.DEFAULT_TENANT_ID,
-        metricName,
-        status,
-      } = params
+      const { tenantId = AnalyticsRepository.DEFAULT_TENANT_ID, metricName, status } = params
 
       const queryParams = new URLSearchParams({ tenant_id: tenantId })
       if (metricName) queryParams.append('metric_name', metricName)

@@ -64,7 +64,7 @@ const StaffManagement = () => {
         taxBracketsData,
         commuteAllowancesData,
         shiftPatternsData,
-        storesData
+        storesData,
       ] = await Promise.all([
         masterRepository.getStaff(tenantId),
         masterRepository.getRoles(tenantId),
@@ -74,7 +74,7 @@ const StaffManagement = () => {
         masterRepository.getTaxBrackets(tenantId),
         masterRepository.getCommuteAllowance(tenantId),
         masterRepository.getShiftPatterns(tenantId),
-        masterRepository.getStores(tenantId)
+        masterRepository.getStores(tenantId),
       ])
 
       // データを旧形式に合わせる（Papa.parseの戻り値形式）
@@ -140,24 +140,26 @@ const StaffManagement = () => {
       const performanceMap = {}
 
       // 全スタッフの給与データを一括取得
-      const payrollResponse = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_PAYROLL}?tenant_id=${tenantId}`);
-      const payrollData = await payrollResponse.json();
-      const allPayroll = payrollData.success ? payrollData.data : [];
+      const payrollResponse = await fetch(
+        `${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_PAYROLL}?tenant_id=${tenantId}`
+      )
+      const payrollData = await payrollResponse.json()
+      const allPayroll = payrollData.success ? payrollData.data : []
 
       // スタッフIDごとにグループ化
-      const payrollByStaff = {};
+      const payrollByStaff = {}
       allPayroll.forEach(p => {
         if (!payrollByStaff[p.staff_id]) {
-          payrollByStaff[p.staff_id] = [];
+          payrollByStaff[p.staff_id] = []
         }
-        payrollByStaff[p.staff_id].push(p);
-      });
+        payrollByStaff[p.staff_id].push(p)
+      })
 
       // 各スタッフの実績データをバックエンドAPIから取得して集計
       for (const staff of staffParsed.data) {
         try {
-          const payrollHistory = payrollByStaff[staff.staff_id] || [];
-          const workHistory = []; // 労働時間実績は現在未使用
+          const payrollHistory = payrollByStaff[staff.staff_id] || []
+          const workHistory = [] // 労働時間実績は現在未使用
 
           // 実績データがある場合のみperformanceMapに登録（給与データのみでもOK）
           if (payrollHistory.length > 0) {
@@ -338,7 +340,11 @@ const StaffManagement = () => {
                       {selectedStaff.line_user_id ? (
                         <span className="inline-flex items-center gap-1 text-green-600">
                           <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                            <path
+                              fillRule="evenodd"
+                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                              clipRule="evenodd"
+                            />
                           </svg>
                           連携済み
                         </span>
@@ -350,7 +356,9 @@ const StaffManagement = () => {
                   {selectedStaff.line_user_id && (
                     <div>
                       <div className="text-gray-600">LINE User ID</div>
-                      <div className="font-mono text-xs text-gray-500 break-all">{selectedStaff.line_user_id}</div>
+                      <div className="font-mono text-xs text-gray-500 break-all">
+                        {selectedStaff.line_user_id}
+                      </div>
                     </div>
                   )}
                   {selectedStaff.line_display_name && (
@@ -362,9 +370,11 @@ const StaffManagement = () => {
                   <div>
                     <div className="text-gray-600">給与</div>
                     <div className="font-bold text-green-700">
-                      {(selectedStaff.employment_type === 'monthly' || selectedStaff.employment_type === 'FULL_TIME') &&
+                      {(selectedStaff.employment_type === 'monthly' ||
+                        selectedStaff.employment_type === 'FULL_TIME') &&
                         `¥${parseInt(selectedStaff.monthly_salary || 0).toLocaleString()} / 月`}
-                      {(selectedStaff.employment_type === 'hourly' || selectedStaff.employment_type === 'PART_TIME') &&
+                      {(selectedStaff.employment_type === 'hourly' ||
+                        selectedStaff.employment_type === 'PART_TIME') &&
                         `¥${parseInt(selectedStaff.hourly_rate || 0).toLocaleString()} / 時間`}
                       {selectedStaff.employment_type === 'contract' &&
                         `¥${parseInt(selectedStaff.contract_fee || 0).toLocaleString()} / 月`}
@@ -460,7 +470,10 @@ const StaffManagement = () => {
                     let totalWage = 0
                     let avgDailyWage = 0
 
-                    if (selectedStaff.employment_type === 'monthly' || selectedStaff.employment_type === 'FULL_TIME') {
+                    if (
+                      selectedStaff.employment_type === 'monthly' ||
+                      selectedStaff.employment_type === 'FULL_TIME'
+                    ) {
                       totalWage = parseInt(selectedStaff.monthly_salary || 0) * monthCount
                       avgDailyWage = Math.round(
                         totalWage / staffPerformance[selectedStaff.name].totalDays
@@ -470,7 +483,10 @@ const StaffManagement = () => {
                       avgDailyWage = Math.round(
                         totalWage / staffPerformance[selectedStaff.name].totalDays
                       )
-                    } else if (selectedStaff.employment_type === 'hourly' || selectedStaff.employment_type === 'PART_TIME') {
+                    } else if (
+                      selectedStaff.employment_type === 'hourly' ||
+                      selectedStaff.employment_type === 'PART_TIME'
+                    ) {
                       totalWage = Math.round(
                         staffPerformance[selectedStaff.name].totalHours *
                           parseInt(selectedStaff.hourly_rate || 0)
@@ -589,51 +605,57 @@ const StaffManagement = () => {
                                 <thead className="bg-gray-50 sticky top-0">
                                   <tr>
                                     <th className="px-3 py-2 text-left text-sm md:text-xs font-semibold text-gray-600">
-                                    年月
-                                  </th>
-                                  <th className="px-3 py-2 text-right text-sm md:text-xs font-semibold text-gray-600">
-                                    勤務日数
-                                  </th>
-                                  <th className="px-3 py-2 text-right text-sm md:text-xs font-semibold text-gray-600">
-                                    総時間
-                                  </th>
-                                  <th className="px-3 py-2 text-right text-sm md:text-xs font-semibold text-gray-600">
-                                    給与
-                                  </th>
-                                </tr>
-                              </thead>
-                              <tbody className="bg-white divide-y divide-gray-100">
-                                {Object.entries(staffPerformance[selectedStaff.name].monthlyStats)
-                                  .filter(([monthKey]) => monthKey.startsWith('2024'))
-                                  .sort((a, b) => a[0].localeCompare(b[0]))
-                                  .map(([monthKey, stats]) => {
-                                    // 給与計算: 正社員・業務委託は固定給、時給制のみ実績ベース
-                                    let monthlySalary = 0
-                                    if (selectedStaff.employment_type === 'monthly' || selectedStaff.employment_type === 'FULL_TIME') {
-                                      monthlySalary = parseInt(selectedStaff.monthly_salary || 0)
-                                    } else if (selectedStaff.employment_type === 'contract') {
-                                      monthlySalary = parseInt(selectedStaff.contract_fee || 0)
-                                    } else if (selectedStaff.employment_type === 'hourly' || selectedStaff.employment_type === 'PART_TIME') {
-                                      monthlySalary = Math.round(
-                                        stats.hours * parseInt(selectedStaff.hourly_rate || 0)
-                                      )
-                                    }
+                                      年月
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-sm md:text-xs font-semibold text-gray-600">
+                                      勤務日数
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-sm md:text-xs font-semibold text-gray-600">
+                                      総時間
+                                    </th>
+                                    <th className="px-3 py-2 text-right text-sm md:text-xs font-semibold text-gray-600">
+                                      給与
+                                    </th>
+                                  </tr>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-100">
+                                  {Object.entries(staffPerformance[selectedStaff.name].monthlyStats)
+                                    .filter(([monthKey]) => monthKey.startsWith('2024'))
+                                    .sort((a, b) => a[0].localeCompare(b[0]))
+                                    .map(([monthKey, stats]) => {
+                                      // 給与計算: 正社員・業務委託は固定給、時給制のみ実績ベース
+                                      let monthlySalary = 0
+                                      if (
+                                        selectedStaff.employment_type === 'monthly' ||
+                                        selectedStaff.employment_type === 'FULL_TIME'
+                                      ) {
+                                        monthlySalary = parseInt(selectedStaff.monthly_salary || 0)
+                                      } else if (selectedStaff.employment_type === 'contract') {
+                                        monthlySalary = parseInt(selectedStaff.contract_fee || 0)
+                                      } else if (
+                                        selectedStaff.employment_type === 'hourly' ||
+                                        selectedStaff.employment_type === 'PART_TIME'
+                                      ) {
+                                        monthlySalary = Math.round(
+                                          stats.hours * parseInt(selectedStaff.hourly_rate || 0)
+                                        )
+                                      }
 
-                                    return (
-                                      <tr key={monthKey} className="hover:bg-gray-50">
-                                        <td className="px-3 py-2 font-medium">{monthKey}</td>
-                                        <td className="px-3 py-2 text-right">{stats.days}日</td>
-                                        <td className="px-3 py-2 text-right">
-                                          {stats.hours.toFixed(1)}h
-                                        </td>
-                                        <td className="px-3 py-2 text-right font-medium text-green-700">
-                                          ¥{monthlySalary.toLocaleString()}
-                                        </td>
-                                      </tr>
-                                    )
-                                  })}
-                              </tbody>
-                            </table>
+                                      return (
+                                        <tr key={monthKey} className="hover:bg-gray-50">
+                                          <td className="px-3 py-2 font-medium">{monthKey}</td>
+                                          <td className="px-3 py-2 text-right">{stats.days}日</td>
+                                          <td className="px-3 py-2 text-right">
+                                            {stats.hours.toFixed(1)}h
+                                          </td>
+                                          <td className="px-3 py-2 text-right font-medium text-green-700">
+                                            ¥{monthlySalary.toLocaleString()}
+                                          </td>
+                                        </tr>
+                                      )
+                                    })}
+                                </tbody>
+                              </table>
                             </div>
                           </div>
                         </div>
@@ -897,10 +919,12 @@ const StaffManagement = () => {
                             ) || taxBrackets[taxBrackets.length - 1]
 
                           // 所得税
-                          const annualIncomeTax = bracket ? Math.floor(
-                            taxableAmount * (parseFloat(bracket.tax_rate) / 100) -
-                              parseFloat(bracket.deduction)
-                          ) : 0
+                          const annualIncomeTax = bracket
+                            ? Math.floor(
+                                taxableAmount * (parseFloat(bracket.tax_rate) / 100) -
+                                  parseFloat(bracket.deduction)
+                              )
+                            : 0
 
                           // 住民税（年額：課税所得の10%）
                           const annualResidentTax = Math.floor(predictedAnnualBaseSalary * 0.1)
@@ -1089,9 +1113,7 @@ const StaffManagement = () => {
                                     <div>
                                       社会保険:{' '}
                                       <span className="font-bold">
-                                        {selectedStaff.has_social_insurance
-                                          ? '加入'
-                                          : '未加入'}
+                                        {selectedStaff.has_social_insurance ? '加入' : '未加入'}
                                       </span>
                                     </div>
                                   </div>
@@ -1143,255 +1165,271 @@ const StaffManagement = () => {
             <div className="flex flex-col overflow-hidden h-full">
               <div className="flex-1 overflow-auto">
                 <div className="p-6">
-                {showMasters ? (
-                /* マスター編集セクション */
-                <>
-                  {/* 役職一覧 */}
-                  <div className="mb-8">
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                      <div className="w-1 h-6 bg-blue-600 rounded"></div>
-                      役職マスタ
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      {roles.map(role => (
-                        <Card
-                          key={role.role_id}
-                          className="border-2 hover:shadow-md transition-shadow"
-                        >
-                          <CardContent className="p-4">
-                            <div className="font-bold text-lg mb-1">{role.role_name}</div>
-                            <div className="text-sm text-gray-600">{role.role_code}</div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* 雇用形態一覧 */}
-                  <div className="mb-8">
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                      <div className="w-1 h-6 bg-purple-600 rounded"></div>
-                      雇用形態マスタ
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-                      {employmentTypes.map(type => (
-                        <Card
-                          key={type.employment_type_id}
-                          className="border-2 hover:shadow-md transition-shadow"
-                        >
-                          <CardContent className="p-4">
-                            <div className="font-bold text-lg mb-1">{type.employment_name}</div>
-                            <div className="text-sm text-gray-600">{type.employment_code}</div>
-                            <div className="text-xs text-gray-500 mt-2">
-                              {type.payment_type === 'monthly' && '月給制'}
-                              {type.payment_type === 'hourly' && '時給制'}
-                              {type.payment_type === 'contract' && '委託契約'}
-                            </div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* スキル一覧 */}
-                  <div className="mb-8">
-                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                      <div className="w-1 h-6 bg-green-600 rounded"></div>
-                      スキルマスタ
-                    </h3>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                      {skills.map(skill => (
-                        <Card
-                          key={skill.skill_id}
-                          className="border-2 hover:shadow-md transition-shadow"
-                        >
-                          <CardContent className="p-4">
-                            <div className="font-bold text-lg mb-1">{skill.skill_name}</div>
-                            <div className="text-sm text-gray-600">{skill.skill_code}</div>
-                            <div className="text-xs text-gray-500 mt-2">{skill.description}</div>
-                          </CardContent>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                </>
-              ) : (
-                /* スタッフ一覧テーブル */
-                <div className="flex flex-col h-full">
-                  {/* 固定ヘッダー部分 */}
-                  <div className="px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-bold flex items-center gap-2">
-                        <div className="w-1 h-6 bg-orange-600 rounded"></div>
-                        スタッフ一覧 ({filteredStaffList.length}名)
-                      </h3>
-                      <div className="flex items-center gap-3">
-                        <Filter className="h-4 w-4 text-gray-600" />
-                        <select
-                          value={statusFilter}
-                          onChange={(e) => setStatusFilter(e.target.value)}
-                          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        >
-                          <option value="all">全ての状態</option>
-                          <option value="active">在籍のみ</option>
-                          <option value="inactive">退職のみ</option>
-                        </select>
-                        <select
-                          value={selectedStore}
-                          onChange={(e) => setSelectedStore(e.target.value)}
-                          className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
-                        >
-                          <option value="all">全ての店舗</option>
-                          {stores.map(store => (
-                            <option key={store.store_id} value={store.store_id}>
-                              {store.store_name}
-                            </option>
+                  {showMasters ? (
+                    /* マスター編集セクション */
+                    <>
+                      {/* 役職一覧 */}
+                      <div className="mb-8">
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                          <div className="w-1 h-6 bg-blue-600 rounded"></div>
+                          役職マスタ
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          {roles.map(role => (
+                            <Card
+                              key={role.role_id}
+                              className="border-2 hover:shadow-md transition-shadow"
+                            >
+                              <CardContent className="p-4">
+                                <div className="font-bold text-lg mb-1">{role.role_name}</div>
+                                <div className="text-sm text-gray-600">{role.role_code}</div>
+                              </CardContent>
+                            </Card>
                           ))}
-                        </select>
+                        </div>
                       </div>
-                    </div>
-                  </div>
 
-                  {/* スクロール可能なコンテンツ部分 */}
-                  <div className="flex-1 overflow-auto">
-                  {filteredStaffList.length === 0 ? (
-                    <Card className="bg-gray-50 border-2 border-gray-300">
-                      <CardContent className="p-8 text-center">
-                        <div className="flex flex-col items-center gap-3">
-                          <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
-                            <Users className="h-8 w-8 text-gray-400" />
-                          </div>
-                          <div>
-                            <p className="text-lg font-bold text-gray-700 mb-1">
-                              {selectedStore === 'all' ? 'スタッフデータがありません' : 'この店舗にスタッフがいません'}
-                            </p>
-                            <p className="text-sm text-gray-500">
-                              {selectedStore === 'all'
-                                ? 'CSVインポートボタンからスタッフデータをインポートしてください'
-                                : '別の店舗を選択するか、フィルターを「全ての店舗」に変更してください'}
-                            </p>
+                      {/* 雇用形態一覧 */}
+                      <div className="mb-8">
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                          <div className="w-1 h-6 bg-purple-600 rounded"></div>
+                          雇用形態マスタ
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+                          {employmentTypes.map(type => (
+                            <Card
+                              key={type.employment_type_id}
+                              className="border-2 hover:shadow-md transition-shadow"
+                            >
+                              <CardContent className="p-4">
+                                <div className="font-bold text-lg mb-1">{type.employment_name}</div>
+                                <div className="text-sm text-gray-600">{type.employment_code}</div>
+                                <div className="text-xs text-gray-500 mt-2">
+                                  {type.payment_type === 'monthly' && '月給制'}
+                                  {type.payment_type === 'hourly' && '時給制'}
+                                  {type.payment_type === 'contract' && '委託契約'}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* スキル一覧 */}
+                      <div className="mb-8">
+                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                          <div className="w-1 h-6 bg-green-600 rounded"></div>
+                          スキルマスタ
+                        </h3>
+                        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                          {skills.map(skill => (
+                            <Card
+                              key={skill.skill_id}
+                              className="border-2 hover:shadow-md transition-shadow"
+                            >
+                              <CardContent className="p-4">
+                                <div className="font-bold text-lg mb-1">{skill.skill_name}</div>
+                                <div className="text-sm text-gray-600">{skill.skill_code}</div>
+                                <div className="text-xs text-gray-500 mt-2">
+                                  {skill.description}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    /* スタッフ一覧テーブル */
+                    <div className="flex flex-col h-full">
+                      {/* 固定ヘッダー部分 */}
+                      <div className="px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-lg font-bold flex items-center gap-2">
+                            <div className="w-1 h-6 bg-orange-600 rounded"></div>
+                            スタッフ一覧 ({filteredStaffList.length}名)
+                          </h3>
+                          <div className="flex items-center gap-3">
+                            <Filter className="h-4 w-4 text-gray-600" />
+                            <select
+                              value={statusFilter}
+                              onChange={e => setStatusFilter(e.target.value)}
+                              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            >
+                              <option value="all">全ての状態</option>
+                              <option value="active">在籍のみ</option>
+                              <option value="inactive">退職のみ</option>
+                            </select>
+                            <select
+                              value={selectedStore}
+                              onChange={e => setSelectedStore(e.target.value)}
+                              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            >
+                              <option value="all">全ての店舗</option>
+                              {stores.map(store => (
+                                <option key={store.store_id} value={store.store_id}>
+                                  {store.store_name}
+                                </option>
+                              ))}
+                            </select>
                           </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ) : (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full bg-white border border-gray-200 table-auto">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                              スタッフコード
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                              氏名
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                              フリガナ
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                              役職
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                              雇用形態
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                              デフォルト店舗
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                              入社日
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                              スキルレベル
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                              週最大時間
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                              LINE連携
-                            </th>
-                            <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                              状態
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {filteredStaffList.map((staff, index) => (
-                            <motion.tr
-                              key={staff.staff_id}
-                              initial={{ opacity: 0, y: 10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              transition={{ delay: index * 0.05 }}
-                              className="hover:bg-blue-50 transition-colors cursor-pointer"
-                              onClick={() => setSelectedStaff(staff)}
-                            >
-                              <td className="px-4 py-3 text-sm border-b">{staff.staff_code}</td>
-                              <td className="px-4 py-3 text-sm font-medium border-b">
-                                {staff.name}
-                              </td>
-                              <td className="px-4 py-3 text-sm text-gray-600 border-b">
-                                {staff.name_kana}
-                              </td>
-                              <td className="px-4 py-3 text-sm border-b">
-                                {getRoleName(staff.role_id)}
-                              </td>
-                              <td className="px-4 py-3 text-sm border-b">
-                                {getEmploymentTypeName(staff.employment_type)}
-                              </td>
-                              <td className="px-4 py-3 text-sm border-b">
-                                {staff.store_name || '未設定'}
-                              </td>
-                              <td className="px-4 py-3 text-sm border-b">{staff.hire_date}</td>
-                              <td className="px-4 py-3 text-sm border-b">
-                                <div className="flex items-center gap-1">
-                                  {[...Array(5)].map((_, i) => (
-                                    <div
-                                      key={i}
-                                      className={`w-2 h-2 rounded-full ${
-                                        i < parseInt(staff.skill_level)
-                                          ? 'bg-yellow-400'
-                                          : 'bg-gray-200'
-                                      }`}
-                                    />
-                                  ))}
+                      </div>
+
+                      {/* スクロール可能なコンテンツ部分 */}
+                      <div className="flex-1 overflow-auto">
+                        {filteredStaffList.length === 0 ? (
+                          <Card className="bg-gray-50 border-2 border-gray-300">
+                            <CardContent className="p-8 text-center">
+                              <div className="flex flex-col items-center gap-3">
+                                <div className="w-16 h-16 bg-gray-200 rounded-full flex items-center justify-center">
+                                  <Users className="h-8 w-8 text-gray-400" />
                                 </div>
-                              </td>
-                              <td className="px-4 py-3 text-sm border-b">
-                                {staff.max_hours_per_week}時間
-                              </td>
-                              <td className="px-4 py-3 text-sm border-b">
-                                {staff.line_user_id ? (
-                                  <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
-                                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
-                                      <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                                    </svg>
-                                    済
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded-full text-xs">
-                                    未
-                                  </span>
-                                )}
-                              </td>
-                              <td className="px-4 py-3 text-sm border-b">
-                                {staff.is_active === true ? (
-                                  <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
-                                    在籍
-                                  </span>
-                                ) : (
-                                  <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">
-                                    退職
-                                  </span>
-                                )}
-                              </td>
-                            </motion.tr>
-                          ))}
-                        </tbody>
-                      </table>
+                                <div>
+                                  <p className="text-lg font-bold text-gray-700 mb-1">
+                                    {selectedStore === 'all'
+                                      ? 'スタッフデータがありません'
+                                      : 'この店舗にスタッフがいません'}
+                                  </p>
+                                  <p className="text-sm text-gray-500">
+                                    {selectedStore === 'all'
+                                      ? 'CSVインポートボタンからスタッフデータをインポートしてください'
+                                      : '別の店舗を選択するか、フィルターを「全ての店舗」に変更してください'}
+                                  </p>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ) : (
+                          <div className="overflow-x-auto">
+                            <table className="min-w-full bg-white border border-gray-200 table-auto">
+                              <thead className="bg-gray-50">
+                                <tr>
+                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
+                                    スタッフコード
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
+                                    氏名
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
+                                    フリガナ
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
+                                    役職
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
+                                    雇用形態
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
+                                    デフォルト店舗
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
+                                    入社日
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
+                                    スキルレベル
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
+                                    週最大時間
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
+                                    LINE連携
+                                  </th>
+                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
+                                    状態
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {filteredStaffList.map((staff, index) => (
+                                  <motion.tr
+                                    key={staff.staff_id}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: index * 0.05 }}
+                                    className="hover:bg-blue-50 transition-colors cursor-pointer"
+                                    onClick={() => setSelectedStaff(staff)}
+                                  >
+                                    <td className="px-4 py-3 text-sm border-b">
+                                      {staff.staff_code}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm font-medium border-b">
+                                      {staff.name}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm text-gray-600 border-b">
+                                      {staff.name_kana}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm border-b">
+                                      {getRoleName(staff.role_id)}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm border-b">
+                                      {getEmploymentTypeName(staff.employment_type)}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm border-b">
+                                      {staff.store_name || '未設定'}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm border-b">
+                                      {staff.hire_date}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm border-b">
+                                      <div className="flex items-center gap-1">
+                                        {[...Array(5)].map((_, i) => (
+                                          <div
+                                            key={i}
+                                            className={`w-2 h-2 rounded-full ${
+                                              i < parseInt(staff.skill_level)
+                                                ? 'bg-yellow-400'
+                                                : 'bg-gray-200'
+                                            }`}
+                                          />
+                                        ))}
+                                      </div>
+                                    </td>
+                                    <td className="px-4 py-3 text-sm border-b">
+                                      {staff.max_hours_per_week}時間
+                                    </td>
+                                    <td className="px-4 py-3 text-sm border-b">
+                                      {staff.line_user_id ? (
+                                        <span className="inline-flex items-center gap-1 px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
+                                          <svg
+                                            className="w-3 h-3"
+                                            fill="currentColor"
+                                            viewBox="0 0 20 20"
+                                          >
+                                            <path
+                                              fillRule="evenodd"
+                                              d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
+                                              clipRule="evenodd"
+                                            />
+                                          </svg>
+                                          済
+                                        </span>
+                                      ) : (
+                                        <span className="px-2 py-1 bg-gray-100 text-gray-500 rounded-full text-xs">
+                                          未
+                                        </span>
+                                      )}
+                                    </td>
+                                    <td className="px-4 py-3 text-sm border-b">
+                                      {staff.is_active === true ? (
+                                        <span className="px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                                          在籍
+                                        </span>
+                                      ) : (
+                                        <span className="px-2 py-1 bg-gray-100 text-gray-800 rounded-full text-xs">
+                                          退職
+                                        </span>
+                                      )}
+                                    </td>
+                                  </motion.tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   )}
-                  </div>
-                </div>
-              )}
                 </div>
               </div>
             </div>

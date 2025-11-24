@@ -27,13 +27,13 @@ const MultiStoreShiftTable = ({
   const bodyScrollRef = useRef(null)
 
   // ヘッダーとボディのスクロールを同期
-  const handleHeaderScroll = (e) => {
+  const handleHeaderScroll = e => {
     if (bodyScrollRef.current) {
       bodyScrollRef.current.scrollLeft = e.target.scrollLeft
     }
   }
 
-  const handleBodyScroll = (e) => {
+  const handleBodyScroll = e => {
     if (headerScrollRef.current) {
       headerScrollRef.current.scrollLeft = e.target.scrollLeft
     }
@@ -44,20 +44,20 @@ const MultiStoreShiftTable = ({
   const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1)
 
   // 時刻をHH:MM形式にフォーマット
-  const formatTime = (time) => {
+  const formatTime = time => {
     if (!time) return ''
     return time.substring(0, 5)
   }
 
   // 店舗IDから店舗コードを取得
-  const getStoreCode = (storeId) => {
+  const getStoreCode = storeId => {
     if (!storesMap || !storeId) return ''
     const store = storesMap[storeId]
     return store ? store.store_code : ''
   }
 
   // 店舗IDから店舗名を取得
-  const getStoreName = (storeId) => {
+  const getStoreName = storeId => {
     if (!storesMap || !storeId) return ''
     const store = storesMap[storeId]
     return store ? store.store_name : ''
@@ -89,7 +89,12 @@ const MultiStoreShiftTable = ({
     dates.forEach(date => {
       const shift = getShiftForDateAndStaff(date, staffId)
       // シフトがあり、かつそのシフトの店舗が選択されている場合のみカウント
-      if (shift && selectedStores && selectedStores.size > 0 && selectedStores.has(parseInt(shift.store_id))) {
+      if (
+        shift &&
+        selectedStores &&
+        selectedStores.size > 0 &&
+        selectedStores.has(parseInt(shift.store_id))
+      ) {
         totalDays++
         totalHours += calculateHours(shift.start_time, shift.end_time)
       }
@@ -122,7 +127,7 @@ const MultiStoreShiftTable = ({
         storeGroups.push({
           storeId,
           storeName: getStoreName(storeId),
-          staff: staffInStore
+          staff: staffInStore,
         })
       }
     }
@@ -137,8 +142,13 @@ const MultiStoreShiftTable = ({
     allStaff.forEach(staff => {
       const shift = getShiftForDateAndStaff(date, staff.staff_id)
       // シフトがあり、その店舗のシフトで、選択されている場合のみカウント
-      if (shift && parseInt(shift.store_id) === parseInt(storeId) &&
-          selectedStores && selectedStores.size > 0 && selectedStores.has(parseInt(shift.store_id))) {
+      if (
+        shift &&
+        parseInt(shift.store_id) === parseInt(storeId) &&
+        selectedStores &&
+        selectedStores.size > 0 &&
+        selectedStores.has(parseInt(shift.store_id))
+      ) {
         staffCount++
         totalHours += calculateHours(shift.start_time, shift.end_time)
       }
@@ -148,14 +158,19 @@ const MultiStoreShiftTable = ({
   }
 
   // 日付の全体サマリーを計算（選択された全店舗の合計）
-  const getOverallDailySummary = (date) => {
+  const getOverallDailySummary = date => {
     let staffCount = 0
     let totalHours = 0
 
     allStaff.forEach(staff => {
       const shift = getShiftForDateAndStaff(date, staff.staff_id)
       // シフトがあり、かつそのシフトの店舗が選択されている場合のみカウント
-      if (shift && selectedStores && selectedStores.size > 0 && selectedStores.has(parseInt(shift.store_id))) {
+      if (
+        shift &&
+        selectedStores &&
+        selectedStores.size > 0 &&
+        selectedStores.has(parseInt(shift.store_id))
+      ) {
         staffCount++
         totalHours += calculateHours(shift.start_time, shift.end_time)
       }
@@ -173,7 +188,12 @@ const MultiStoreShiftTable = ({
       allStaff.forEach(staff => {
         const shift = getShiftForDateAndStaff(date, staff.staff_id)
         // シフトがあり、かつそのシフトの店舗が選択されている場合のみカウント
-        if (shift && selectedStores && selectedStores.size > 0 && selectedStores.has(parseInt(shift.store_id))) {
+        if (
+          shift &&
+          selectedStores &&
+          selectedStores.size > 0 &&
+          selectedStores.has(parseInt(shift.store_id))
+        ) {
           totalDays++
           totalHours += calculateHours(shift.start_time, shift.end_time)
         }
@@ -184,7 +204,7 @@ const MultiStoreShiftTable = ({
   }
 
   // 店舗の月間合計を計算
-  const getStoreMonthlyTotal = (storeId) => {
+  const getStoreMonthlyTotal = storeId => {
     let totalDays = 0
     let totalHours = 0
 
@@ -193,8 +213,13 @@ const MultiStoreShiftTable = ({
       allStaff.forEach(staff => {
         const shift = getShiftForDateAndStaff(date, staff.staff_id)
         // シフトがあり、その店舗のシフトで、選択されている場合のみカウント
-        if (shift && parseInt(shift.store_id) === parseInt(storeId) &&
-            selectedStores && selectedStores.size > 0 && selectedStores.has(parseInt(shift.store_id))) {
+        if (
+          shift &&
+          parseInt(shift.store_id) === parseInt(storeId) &&
+          selectedStores &&
+          selectedStores.size > 0 &&
+          selectedStores.has(parseInt(shift.store_id))
+        ) {
           totalDays++
           totalHours += calculateHours(shift.start_time, shift.end_time)
         }
@@ -225,7 +250,7 @@ const MultiStoreShiftTable = ({
   }
 
   // スタッフの希望シフト情報を取得
-  const getStaffPreference = (staffId) => {
+  const getStaffPreference = staffId => {
     return preferences.find(pref => parseInt(pref.staff_id) === parseInt(staffId))
   }
 
@@ -338,10 +363,18 @@ const MultiStoreShiftTable = ({
           <thead className="bg-gray-50">
             {/* 1行目: 店舗名 */}
             <tr>
-              <th rowSpan={2} className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-300 sticky left-0 z-20 bg-gray-50">
-                <div className="text-[0.6rem] font-bold">{year}年{month}月</div>
+              <th
+                rowSpan={2}
+                className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-300 sticky left-0 z-20 bg-gray-50"
+              >
+                <div className="text-[0.6rem] font-bold">
+                  {year}年{month}月
+                </div>
               </th>
-              <th rowSpan={2} className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-400 bg-blue-100 sticky left-[80px] z-20">
+              <th
+                rowSpan={2}
+                className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-400 bg-blue-100 sticky left-[80px] z-20"
+              >
                 <div className="text-[0.65rem] leading-tight">📊全体</div>
               </th>
               {storeGroups.map(group => (
@@ -367,7 +400,9 @@ const MultiStoreShiftTable = ({
                       className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r border-gray-200"
                     >
                       <div className="text-[0.55rem] leading-tight">{staff.name}</div>
-                      <div className="text-[0.45rem] text-gray-500 font-normal leading-tight">{staff.role_name}</div>
+                      <div className="text-[0.45rem] text-gray-500 font-normal leading-tight">
+                        {staff.role_name}
+                      </div>
                     </th>
                   ))}
                 </React.Fragment>
@@ -375,13 +410,19 @@ const MultiStoreShiftTable = ({
             </tr>
             {/* 月間合計行 */}
             <tr className="bg-gray-100 font-semibold">
-              <td className="px-0 py-0.5 border-r-2 border-gray-300 text-center text-gray-700 sticky left-0 z-20 bg-gray-100">月合計</td>
+              <td className="px-0 py-0.5 border-r-2 border-gray-300 text-center text-gray-700 sticky left-0 z-20 bg-gray-100">
+                月合計
+              </td>
               {(() => {
                 const overallMonthly = getOverallMonthlyTotal()
                 return (
                   <td className="px-0.5 py-0.5 border-r-2 border-gray-400 text-center bg-blue-100 sticky left-[80px] z-20">
-                    <div className="text-gray-800 text-[0.5rem] leading-tight">{overallMonthly.totalDays}名</div>
-                    <div className="text-gray-800 text-[0.5rem] leading-tight">{overallMonthly.totalHours.toFixed(1)}h</div>
+                    <div className="text-gray-800 text-[0.5rem] leading-tight">
+                      {overallMonthly.totalDays}名
+                    </div>
+                    <div className="text-gray-800 text-[0.5rem] leading-tight">
+                      {overallMonthly.totalHours.toFixed(1)}h
+                    </div>
                   </td>
                 )
               })()}
@@ -390,8 +431,12 @@ const MultiStoreShiftTable = ({
                 return (
                   <React.Fragment key={group.storeId}>
                     <td className="px-0.5 py-0.5 border-r border-gray-300 text-center bg-gray-100">
-                      <div className="text-gray-800 text-[0.5rem] leading-tight">{storeMonthly.totalDays}名</div>
-                      <div className="text-gray-800 text-[0.5rem] leading-tight">{storeMonthly.totalHours.toFixed(1)}h</div>
+                      <div className="text-gray-800 text-[0.5rem] leading-tight">
+                        {storeMonthly.totalDays}名
+                      </div>
+                      <div className="text-gray-800 text-[0.5rem] leading-tight">
+                        {storeMonthly.totalHours.toFixed(1)}h
+                      </div>
                     </td>
                     {group.staff.map(staff => {
                       const { totalDays, totalHours } = getStaffMonthlyTotal(staff.staff_id)
@@ -400,7 +445,9 @@ const MultiStoreShiftTable = ({
                           key={staff.staff_id}
                           className="px-0.5 py-0.5 border-r border-gray-200 text-center"
                         >
-                          <div className="text-gray-800 text-[0.5rem] leading-tight">{totalHours.toFixed(1)}h</div>
+                          <div className="text-gray-800 text-[0.5rem] leading-tight">
+                            {totalHours.toFixed(1)}h
+                          </div>
                         </td>
                       )
                     })}
@@ -432,168 +479,181 @@ const MultiStoreShiftTable = ({
             ))}
           </colgroup>
           <tbody>
-          {dates.map((date, index) => {
-            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-            const holiday = isHoliday(year, month, date)
-            const holidayName = getHolidayName(year, month, date)
-            const weekday = getWeekday(date)
-            const overallSummary = getOverallDailySummary(date)
-            const rowBgColor = index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+            {dates.map((date, index) => {
+              const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+              const holiday = isHoliday(year, month, date)
+              const holidayName = getHolidayName(year, month, date)
+              const weekday = getWeekday(date)
+              const overallSummary = getOverallDailySummary(date)
+              const rowBgColor = index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
 
-            return (
-              <tr key={date} className={rowBgColor}>
-                {/* 日付セル */}
-                <td className="px-1 py-0.5 border-r-2 border-b border-gray-200 bg-gray-50 sticky left-0 z-20">
-                  <div className="flex items-center gap-0.5">
-                    <span className={`font-bold text-[0.85rem] leading-tight ${getWeekdayColor(date)}`}>
-                      {date}({weekday})
-                    </span>
-                    {holiday && (
-                      <span className="text-[0.5rem] text-red-600 font-medium leading-tight">{holidayName}</span>
-                    )}
-                  </div>
-                </td>
-
-                {/* 全体サマリーセル */}
-                <td
-                  className="px-1 py-0.5 border-r-2 border-b border-gray-400 text-center bg-blue-50 cursor-pointer hover:bg-blue-100 sticky left-[80px] z-20"
-                  onClick={() => onDayClick && onDayClick(date)}
-                >
-                  <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                    {overallSummary.staffCount}名 {overallSummary.totalHours.toFixed(1)}h
-                  </div>
-                </td>
-
-                {/* 店舗ごとのグループ */}
-                {storeGroups.map(group => {
-                  const storeSummary = getStoreDailySummary(date, group.storeId)
-                  return (
-                    <React.Fragment key={group.storeId}>
-                      {/* 店舗の日別サマリーセル */}
-                      <td
-                        className="px-1 py-0.5 border-r border-b border-gray-300 text-center bg-gray-50 cursor-pointer hover:bg-gray-100"
-                        onClick={() => onDayClick && onDayClick(date, group.storeId)}
+              return (
+                <tr key={date} className={rowBgColor}>
+                  {/* 日付セル */}
+                  <td className="px-1 py-0.5 border-r-2 border-b border-gray-200 bg-gray-50 sticky left-0 z-20">
+                    <div className="flex items-center gap-0.5">
+                      <span
+                        className={`font-bold text-[0.85rem] leading-tight ${getWeekdayColor(date)}`}
                       >
-                        <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                          {storeSummary.staffCount}名 {storeSummary.totalHours.toFixed(1)}h
-                        </div>
-                      </td>
+                        {date}({weekday})
+                      </span>
+                      {holiday && (
+                        <span className="text-[0.5rem] text-red-600 font-medium leading-tight">
+                          {holidayName}
+                        </span>
+                      )}
+                    </div>
+                  </td>
 
-                      {/* スタッフごとのシフトセル */}
-                      {group.staff.map(staff => {
-                        const shift = getShiftForDateAndStaff(date, staff.staff_id)
-                        const hours = shift ? calculateHours(shift.start_time, shift.end_time) : 0
-                        const conflict = getConflict(date, staff.staff_id)
-                        const hopeShift = getHopeShift(date, staff.staff_id)
-                        const cellBgColor = getCellBackgroundColor(date, staff.staff_id)
+                  {/* 全体サマリーセル */}
+                  <td
+                    className="px-1 py-0.5 border-r-2 border-b border-gray-400 text-center bg-blue-50 cursor-pointer hover:bg-blue-100 sticky left-[80px] z-20"
+                    onClick={() => onDayClick && onDayClick(date)}
+                  >
+                    <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
+                      {overallSummary.staffCount}名 {overallSummary.totalHours.toFixed(1)}h
+                    </div>
+                  </td>
 
-                        // シフトがあり、かつそのシフトの店舗が選択されている場合のみ表示
-                        const shouldShowShift = shift &&
-                          selectedStores &&
-                          selectedStores.size > 0 &&
-                          selectedStores.has(parseInt(shift.store_id))
+                  {/* 店舗ごとのグループ */}
+                  {storeGroups.map(group => {
+                    const storeSummary = getStoreDailySummary(date, group.storeId)
+                    return (
+                      <React.Fragment key={group.storeId}>
+                        {/* 店舗の日別サマリーセル */}
+                        <td
+                          className="px-1 py-0.5 border-r border-b border-gray-300 text-center bg-gray-50 cursor-pointer hover:bg-gray-100"
+                          onClick={() => onDayClick && onDayClick(date, group.storeId)}
+                        >
+                          <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
+                            {storeSummary.staffCount}名 {storeSummary.totalHours.toFixed(1)}h
+                          </div>
+                        </td>
 
-                        // セルクリックハンドラ
-                        const handleCellClick = (e) => {
-                          // 新しいonShiftClickがある場合はそれを優先
-                          if (onShiftClick) {
-                            const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+                        {/* スタッフごとのシフトセル */}
+                        {group.staff.map(staff => {
+                          const shift = getShiftForDateAndStaff(date, staff.staff_id)
+                          const hours = shift ? calculateHours(shift.start_time, shift.end_time) : 0
+                          const conflict = getConflict(date, staff.staff_id)
+                          const hopeShift = getHopeShift(date, staff.staff_id)
+                          const cellBgColor = getCellBackgroundColor(date, staff.staff_id)
 
-                            if (shouldShowShift && shift) {
-                              // 既存シフトがある → 編集モード
-                              onShiftClick({
-                                mode: 'edit',
-                                shift: {
-                                  ...shift,
-                                  date: dateStr,
-                                  staff_name: staff.name,
-                                  store_name: getStoreName(shift.store_id),
-                                },
-                                date: dateStr,
-                                staffId: staff.staff_id,
-                                storeId: shift.store_id,
-                                event: e,
-                              })
-                            } else {
-                              // 空セル → 新規追加モード
-                              // 選択されている店舗から最初のものを使用（複数店舗選択時）
-                              const storeId = staff.store_id || (selectedStores && selectedStores.size > 0
-                                ? Array.from(selectedStores)[0]
-                                : null)
+                          // シフトがあり、かつそのシフトの店舗が選択されている場合のみ表示
+                          const shouldShowShift =
+                            shift &&
+                            selectedStores &&
+                            selectedStores.size > 0 &&
+                            selectedStores.has(parseInt(shift.store_id))
 
-                              if (storeId) {
+                          // セルクリックハンドラ
+                          const handleCellClick = e => {
+                            // 新しいonShiftClickがある場合はそれを優先
+                            if (onShiftClick) {
+                              const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+
+                              if (shouldShowShift && shift) {
+                                // 既存シフトがある → 編集モード
                                 onShiftClick({
-                                  mode: 'add',
+                                  mode: 'edit',
                                   shift: {
+                                    ...shift,
                                     date: dateStr,
-                                    staff_id: staff.staff_id,
-                                    store_id: storeId,
                                     staff_name: staff.name,
-                                    store_name: getStoreName(storeId),
+                                    store_name: getStoreName(shift.store_id),
                                   },
                                   date: dateStr,
                                   staffId: staff.staff_id,
-                                  storeId: storeId,
+                                  storeId: shift.store_id,
                                   event: e,
                                 })
-                              }
-                            }
-                          } else if (onCellClick) {
-                            // 従来のonCellClickコールバック
-                            onCellClick({
-                              date,
-                              staffId: staff.staff_id,
-                              shift: shouldShowShift ? shift : null,
-                              hopeShift,
-                              conflict,
-                              staff
-                            })
-                          }
-                        }
+                              } else {
+                                // 空セル → 新規追加モード
+                                // 選択されている店舗から最初のものを使用（複数店舗選択時）
+                                const storeId =
+                                  staff.store_id ||
+                                  (selectedStores && selectedStores.size > 0
+                                    ? Array.from(selectedStores)[0]
+                                    : null)
 
-                        return (
-                          <td
-                            key={staff.staff_id}
-                            className={`px-0.5 py-0.5 border-r border-b border-gray-200 ${cellBgColor} ${onCellClick ? 'cursor-pointer hover:opacity-80' : ''}`}
-                            onClick={handleCellClick}
-                          >
-                            {shouldShowShift ? (
-                              // シフト表示（読み取り専用）
-                              <div
-                                className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id)} relative`}
-                              >
-                                {shift.modified_flag && (
-                                  <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
-                                    !
+                                if (storeId) {
+                                  onShiftClick({
+                                    mode: 'add',
+                                    shift: {
+                                      date: dateStr,
+                                      staff_id: staff.staff_id,
+                                      store_id: storeId,
+                                      staff_name: staff.name,
+                                      store_name: getStoreName(storeId),
+                                    },
+                                    date: dateStr,
+                                    staffId: staff.staff_id,
+                                    storeId: storeId,
+                                    event: e,
+                                  })
+                                }
+                              }
+                            } else if (onCellClick) {
+                              // 従来のonCellClickコールバック
+                              onCellClick({
+                                date,
+                                staffId: staff.staff_id,
+                                shift: shouldShowShift ? shift : null,
+                                hopeShift,
+                                conflict,
+                                staff,
+                              })
+                            }
+                          }
+
+                          return (
+                            <td
+                              key={staff.staff_id}
+                              className={`px-0.5 py-0.5 border-r border-b border-gray-200 ${cellBgColor} ${onCellClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+                              onClick={handleCellClick}
+                            >
+                              {shouldShowShift ? (
+                                // シフト表示（読み取り専用）
+                                <div
+                                  className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id)} relative`}
+                                >
+                                  {shift.modified_flag && (
+                                    <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
+                                      !
+                                    </div>
+                                  )}
+                                  <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
+                                    {staff.store_id &&
+                                    shift.store_id &&
+                                    parseInt(staff.store_id) !== parseInt(shift.store_id)
+                                      ? `${getStoreCode(shift.store_id)} `
+                                      : ''}
+                                    {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
                                   </div>
-                                )}
-                                <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                                  {staff.store_id && shift.store_id && parseInt(staff.store_id) !== parseInt(shift.store_id)
-                                    ? `${getStoreCode(shift.store_id)} `
-                                    : ''}
-                                  {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
+                                  <div className="text-[0.45rem] text-gray-600 leading-tight">
+                                    {hours.toFixed(1)}h
+                                  </div>
                                 </div>
-                                <div className="text-[0.45rem] text-gray-600 leading-tight">{hours.toFixed(1)}h</div>
-                              </div>
-                            ) : (
-                              // 空セル
-                              <div className={`py-1 flex items-center justify-center ${onShiftClick ? 'group' : ''}`}>
-                                {onShiftClick && (
-                                  <div className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg font-light">
-                                    +
-                                  </div>
-                                )}
-                              </div>
-                            )}
-                          </td>
-                        )
-                      })}
-                    </React.Fragment>
-                  )
-                })}
-              </tr>
-            )
-          })}
+                              ) : (
+                                // 空セル
+                                <div
+                                  className={`py-1 flex items-center justify-center ${onShiftClick ? 'group' : ''}`}
+                                >
+                                  {onShiftClick && (
+                                    <div className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg font-light">
+                                      +
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </td>
+                          )
+                        })}
+                      </React.Fragment>
+                    )
+                  })}
+                </tr>
+              )
+            })}
           </tbody>
         </table>
       </div>

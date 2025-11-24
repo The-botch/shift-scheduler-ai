@@ -7,6 +7,11 @@ import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
  * History, DraftShiftEditor, SecondPlanEditorで使用
  */
 const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => {
+  // 祝日データを事前に読み込む
+  useEffect(() => {
+    loadHolidays()
+  }, [])
+
   // calendarDataがnullの場合は空の状態を表示
   if (!calendarData) {
     return (
@@ -23,15 +28,10 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
   const weekDays = ['日', '月', '火', '水', '木', '金', '土']
 
   // 時刻をHH:MM形式にフォーマット
-  const formatTime = (time) => {
+  const formatTime = time => {
     if (!time) return ''
     return time.substring(0, 5)
   }
-
-  // 祝日データを事前に読み込む
-  useEffect(() => {
-    loadHolidays()
-  }, [])
 
   // カレンダーグリッド用の配列を作成
   const calendarDays = []
@@ -48,12 +48,17 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
     <div className="flex flex-col h-full overflow-hidden">
       {/* 店舗名ヘッダー */}
       <div className="px-2 md:px-3 py-1 bg-blue-50 border-b border-blue-200 rounded-t-lg mb-1 flex-shrink-0">
-        <h3 className="text-base md:text-lg font-semibold text-blue-900">店舗: {storeName || '全店舗'}</h3>
+        <h3 className="text-base md:text-lg font-semibold text-blue-900">
+          店舗: {storeName || '全店舗'}
+        </h3>
       </div>
       {/* 曜日ヘッダー */}
       <div className="grid grid-cols-7 gap-1 md:gap-2 mb-2 flex-shrink-0">
         {weekDays.map(day => (
-          <div key={day} className="p-2 md:p-3 text-center text-sm md:text-base font-bold bg-blue-50 rounded">
+          <div
+            key={day}
+            className="p-2 md:p-3 text-center text-sm md:text-base font-bold bg-blue-50 rounded"
+          >
             {day}
           </div>
         ))}
@@ -93,7 +98,11 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
               <div className="flex items-center justify-between mb-0.5">
                 <div
                   className={`text-sm md:text-base leading-tight font-bold ${
-                    hasModified ? 'text-yellow-700' : isDayHoliday || isWeekend ? 'text-red-600' : 'text-gray-700'
+                    hasModified
+                      ? 'text-yellow-700'
+                      : isDayHoliday || isWeekend
+                        ? 'text-red-600'
+                        : 'text-gray-700'
                   }`}
                 >
                   {day}
@@ -133,7 +142,9 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
                 </motion.div>
               ))}
               {dayShifts.length > 2 && (
-                <div className="text-xs md:text-sm leading-tight text-gray-500">+{dayShifts.length - 2}</div>
+                <div className="text-xs md:text-sm leading-tight text-gray-500">
+                  +{dayShifts.length - 2}
+                </div>
               )}
             </motion.div>
           )

@@ -5,7 +5,11 @@
  * 環境変数で上書き可能です。
  */
 
-import { getCurrentYear, getCurrentMonth, getCurrentYearMonth as getJSTYearMonth } from '../utils/dateUtils'
+import {
+  getCurrentYear,
+  getCurrentMonth,
+  getCurrentYearMonth as getJSTYearMonth,
+} from '../utils/dateUtils'
 
 export const DEFAULT_CONFIG = {
   // テナント・店舗設定
@@ -17,7 +21,7 @@ export const DEFAULT_CONFIG = {
   DEMO_STAFF_ID: parseInt(import.meta.env.VITE_DEMO_STAFF_ID) || 5,
   DEMO_YEAR: parseInt(import.meta.env.VITE_DEMO_YEAR) || 2024,
   DEMO_MONTH: parseInt(import.meta.env.VITE_DEMO_MONTH) || 10,
-};
+}
 
 /**
  * 現在の年月を取得（JST）
@@ -25,7 +29,7 @@ export const DEFAULT_CONFIG = {
  */
 export const getCurrentYearMonth = () => {
   return getJSTYearMonth()
-};
+}
 
 /**
  * 次月の年月を取得（JST）
@@ -35,7 +39,7 @@ export const getNextMonthYearMonth = () => {
   const year = current.month === 12 ? current.year + 1 : current.year
   const month = current.month === 12 ? 1 : current.month + 1
   return { year, month }
-};
+}
 
 /**
  * デモパラメータ（LINE希望入力など）
@@ -46,6 +50,6 @@ export const DEMO_PARAMS = {
   staff_id: DEFAULT_CONFIG.DEMO_STAFF_ID,
   year: DEFAULT_CONFIG.DEMO_YEAR,
   month: DEFAULT_CONFIG.DEMO_MONTH,
-};
+}
 
-export default DEFAULT_CONFIG;
+export default DEFAULT_CONFIG

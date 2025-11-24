@@ -332,7 +332,7 @@ const MasterDataManagement = ({ onPrev }) => {
     setShowModal(true)
   }
 
-  const handleEdit = (item) => {
+  const handleEdit = item => {
     setModalMode('edit')
     setEditingItem(item)
 
@@ -476,9 +476,13 @@ const MasterDataManagement = ({ onPrev }) => {
     setShowModal(true)
   }
 
-  const handleDelete = async (item) => {
+  const handleDelete = async item => {
     const itemName = getItemDisplayName(item)
-    if (!window.confirm(`「${itemName}」を削除してもよろしいですか？\n※論理削除されます（is_active = false）`)) {
+    if (
+      !window.confirm(
+        `「${itemName}」を削除してもよろしいですか？\n※論理削除されます（is_active = false）`
+      )
+    ) {
       return
     }
 
@@ -753,7 +757,7 @@ const MasterDataManagement = ({ onPrev }) => {
     }
   }
 
-  const getItemDisplayName = (item) => {
+  const getItemDisplayName = item => {
     switch (selectedMaster) {
       case 'staff':
         return item.name
@@ -958,7 +962,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.staff_code || ''}
-                onChange={(e) => handleInputChange('staff_code', e.target.value)}
+                onChange={e => handleInputChange('staff_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: S001"
               />
@@ -970,7 +974,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.name || ''}
-                onChange={(e) => handleInputChange('name', e.target.value)}
+                onChange={e => handleInputChange('name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 山田太郎"
               />
@@ -981,11 +985,11 @@ const MasterDataManagement = ({ onPrev }) => {
               </label>
               <select
                 value={formData.store_id || ''}
-                onChange={(e) => handleInputChange('store_id', e.target.value)}
+                onChange={e => handleInputChange('store_id', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">選択してください</option>
-                {stores.map((store) => (
+                {stores.map(store => (
                   <option key={store.store_id} value={store.store_id}>
                     {store.store_name}
                   </option>
@@ -998,11 +1002,11 @@ const MasterDataManagement = ({ onPrev }) => {
               </label>
               <select
                 value={formData.role_id || ''}
-                onChange={(e) => handleInputChange('role_id', e.target.value)}
+                onChange={e => handleInputChange('role_id', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">選択してください</option>
-                {roles.map((role) => (
+                {roles.map(role => (
                   <option key={role.role_id} value={role.role_id}>
                     {role.role_name}
                   </option>
@@ -1010,16 +1014,14 @@ const MasterDataManagement = ({ onPrev }) => {
               </select>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                部署
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">部署</label>
               <select
                 value={formData.division_id || ''}
-                onChange={(e) => handleInputChange('division_id', e.target.value)}
+                onChange={e => handleInputChange('division_id', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">選択してください</option>
-                {divisions.map((division) => (
+                {divisions.map(division => (
                   <option key={division.division_id} value={division.division_id}>
                     {division.division_name}
                   </option>
@@ -1033,34 +1035,30 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="email"
                 value={formData.email || ''}
-                onChange={(e) => handleInputChange('email', e.target.value)}
+                onChange={e => handleInputChange('email', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: yamada@example.com"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                電話番号
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">電話番号</label>
               <input
                 type="tel"
                 value={formData.phone_number || ''}
-                onChange={(e) => handleInputChange('phone_number', e.target.value)}
+                onChange={e => handleInputChange('phone_number', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 090-1234-5678"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                雇用形態
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">雇用形態</label>
               <select
                 value={formData.employment_type || ''}
-                onChange={(e) => handleInputChange('employment_type', e.target.value)}
+                onChange={e => handleInputChange('employment_type', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">選択してください</option>
-                {employmentTypes.map((et) => (
+                {employmentTypes.map(et => (
                   <option key={et.employment_type_id} value={et.employment_code}>
                     {et.employment_name}
                   </option>
@@ -1068,49 +1066,41 @@ const MasterDataManagement = ({ onPrev }) => {
               </select>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                入社日
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">入社日</label>
               <input
                 type="date"
                 value={formData.hire_date || ''}
-                onChange={(e) => handleInputChange('hire_date', e.target.value)}
+                onChange={e => handleInputChange('hire_date', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                退職日
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">退職日</label>
               <input
                 type="date"
                 value={formData.resignation_date || ''}
-                onChange={(e) => handleInputChange('resignation_date', e.target.value)}
+                onChange={e => handleInputChange('resignation_date', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                月額給与
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">月額給与</label>
               <input
                 type="number"
                 step="0.01"
                 value={formData.monthly_salary || ''}
-                onChange={(e) => handleInputChange('monthly_salary', e.target.value)}
+                onChange={e => handleInputChange('monthly_salary', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 250000"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                時給
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">時給</label>
               <input
                 type="number"
                 step="0.01"
                 value={formData.hourly_rate || ''}
-                onChange={(e) => handleInputChange('hourly_rate', e.target.value)}
+                onChange={e => handleInputChange('hourly_rate', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 1200"
               />
@@ -1127,7 +1117,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.store_code || ''}
-                onChange={(e) => handleInputChange('store_code', e.target.value)}
+                onChange={e => handleInputChange('store_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: ST001"
               />
@@ -1139,7 +1129,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.store_name || ''}
-                onChange={(e) => handleInputChange('store_name', e.target.value)}
+                onChange={e => handleInputChange('store_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 新宿店"
               />
@@ -1150,11 +1140,11 @@ const MasterDataManagement = ({ onPrev }) => {
               </label>
               <select
                 value={formData.division_id || ''}
-                onChange={(e) => handleInputChange('division_id', e.target.value)}
+                onChange={e => handleInputChange('division_id', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">選択してください</option>
-                {divisions.map((division) => (
+                {divisions.map(division => (
                   <option key={division.division_id} value={division.division_id}>
                     {division.division_name}
                   </option>
@@ -1162,48 +1152,40 @@ const MasterDataManagement = ({ onPrev }) => {
               </select>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                住所
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">住所</label>
               <input
                 type="text"
                 value={formData.address || ''}
-                onChange={(e) => handleInputChange('address', e.target.value)}
+                onChange={e => handleInputChange('address', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 東京都新宿区..."
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                電話番号
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">電話番号</label>
               <input
                 type="tel"
                 value={formData.phone_number || ''}
-                onChange={(e) => handleInputChange('phone_number', e.target.value)}
+                onChange={e => handleInputChange('phone_number', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 03-1234-5678"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                営業開始時刻
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">営業開始時刻</label>
               <input
                 type="time"
                 value={formData.business_hours_start || ''}
-                onChange={(e) => handleInputChange('business_hours_start', e.target.value)}
+                onChange={e => handleInputChange('business_hours_start', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                営業終了時刻
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">営業終了時刻</label>
               <input
                 type="time"
                 value={formData.business_hours_end || ''}
-                onChange={(e) => handleInputChange('business_hours_end', e.target.value)}
+                onChange={e => handleInputChange('business_hours_end', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1219,7 +1201,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.role_code || ''}
-                onChange={(e) => handleInputChange('role_code', e.target.value)}
+                onChange={e => handleInputChange('role_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: MGR"
               />
@@ -1231,18 +1213,16 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.role_name || ''}
-                onChange={(e) => handleInputChange('role_name', e.target.value)}
+                onChange={e => handleInputChange('role_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: マネージャー"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                説明
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">説明</label>
               <textarea
                 value={formData.description || ''}
-                onChange={(e) => handleInputChange('description', e.target.value)}
+                onChange={e => handleInputChange('description', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows="3"
                 placeholder="役職の説明を入力"
@@ -1260,7 +1240,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.skill_code || ''}
-                onChange={(e) => handleInputChange('skill_code', e.target.value)}
+                onChange={e => handleInputChange('skill_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: CASH"
               />
@@ -1272,18 +1252,16 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.skill_name || ''}
-                onChange={(e) => handleInputChange('skill_name', e.target.value)}
+                onChange={e => handleInputChange('skill_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: レジ操作"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                説明
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">説明</label>
               <textarea
                 value={formData.description || ''}
-                onChange={(e) => handleInputChange('description', e.target.value)}
+                onChange={e => handleInputChange('description', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows="3"
                 placeholder="スキルの説明を入力"
@@ -1301,7 +1279,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.employment_code || ''}
-                onChange={(e) => handleInputChange('employment_code', e.target.value)}
+                onChange={e => handleInputChange('employment_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: PART_TIME"
               />
@@ -1313,18 +1291,16 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.employment_name || ''}
-                onChange={(e) => handleInputChange('employment_name', e.target.value)}
+                onChange={e => handleInputChange('employment_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: アルバイト"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                支払タイプ
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">支払タイプ</label>
               <select
                 value={formData.payment_type || ''}
-                onChange={(e) => handleInputChange('payment_type', e.target.value)}
+                onChange={e => handleInputChange('payment_type', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <option value="">選択してください</option>
@@ -1345,7 +1321,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.pattern_code || ''}
-                onChange={(e) => handleInputChange('pattern_code', e.target.value)}
+                onChange={e => handleInputChange('pattern_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: MRN"
               />
@@ -1357,30 +1333,26 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.pattern_name || ''}
-                onChange={(e) => handleInputChange('pattern_name', e.target.value)}
+                onChange={e => handleInputChange('pattern_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 早番"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                開始時刻
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">開始時刻</label>
               <input
                 type="time"
                 value={formData.start_time || ''}
-                onChange={(e) => handleInputChange('start_time', e.target.value)}
+                onChange={e => handleInputChange('start_time', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                終了時刻
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">終了時刻</label>
               <input
                 type="time"
                 value={formData.end_time || ''}
-                onChange={(e) => handleInputChange('end_time', e.target.value)}
+                onChange={e => handleInputChange('end_time', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1391,7 +1363,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="number"
                 value={formData.break_minutes || ''}
-                onChange={(e) => handleInputChange('break_minutes', e.target.value)}
+                onChange={e => handleInputChange('break_minutes', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 60"
               />
@@ -1408,7 +1380,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.division_code || ''}
-                onChange={(e) => handleInputChange('division_code', e.target.value)}
+                onChange={e => handleInputChange('division_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: SALES"
               />
@@ -1420,31 +1392,27 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.division_name || ''}
-                onChange={(e) => handleInputChange('division_name', e.target.value)}
+                onChange={e => handleInputChange('division_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 営業部"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                部署種別
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">部署種別</label>
               <input
                 type="text"
                 value={formData.division_type || ''}
-                onChange={(e) => handleInputChange('division_type', e.target.value)}
+                onChange={e => handleInputChange('division_type', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 営業"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                親部署ID
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">親部署ID</label>
               <input
                 type="number"
                 value={formData.parent_division_id || ''}
-                onChange={(e) => handleInputChange('parent_division_id', e.target.value)}
+                onChange={e => handleInputChange('parent_division_id', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="上位部署がある場合に入力"
               />
@@ -1456,7 +1424,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="email"
                 value={formData.contact_email || ''}
-                onChange={(e) => handleInputChange('contact_email', e.target.value)}
+                onChange={e => handleInputChange('contact_email', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: sales@example.com"
               />
@@ -1468,7 +1436,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="tel"
                 value={formData.contact_phone || ''}
-                onChange={(e) => handleInputChange('contact_phone', e.target.value)}
+                onChange={e => handleInputChange('contact_phone', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 03-1234-5678"
               />
@@ -1486,7 +1454,7 @@ const MasterDataManagement = ({ onPrev }) => {
                 type="number"
                 step="0.1"
                 value={formData.distance_from_km || ''}
-                onChange={(e) => handleInputChange('distance_from_km', e.target.value)}
+                onChange={e => handleInputChange('distance_from_km', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 0"
               />
@@ -1499,7 +1467,7 @@ const MasterDataManagement = ({ onPrev }) => {
                 type="number"
                 step="0.1"
                 value={formData.distance_to_km || ''}
-                onChange={(e) => handleInputChange('distance_to_km', e.target.value)}
+                onChange={e => handleInputChange('distance_to_km', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 5"
               />
@@ -1512,44 +1480,38 @@ const MasterDataManagement = ({ onPrev }) => {
                 type="number"
                 step="0.01"
                 value={formData.allowance_amount || ''}
-                onChange={(e) => handleInputChange('allowance_amount', e.target.value)}
+                onChange={e => handleInputChange('allowance_amount', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 5000"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                日額手当
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">日額手当</label>
               <input
                 type="number"
                 step="0.01"
                 value={formData.daily_allowance || ''}
-                onChange={(e) => handleInputChange('daily_allowance', e.target.value)}
+                onChange={e => handleInputChange('daily_allowance', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 500"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                月額上限
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">月額上限</label>
               <input
                 type="number"
                 step="0.01"
                 value={formData.monthly_max || ''}
-                onChange={(e) => handleInputChange('monthly_max', e.target.value)}
+                onChange={e => handleInputChange('monthly_max', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 15000"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                説明
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">説明</label>
               <textarea
                 value={formData.description || ''}
-                onChange={(e) => handleInputChange('description', e.target.value)}
+                onChange={e => handleInputChange('description', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows="3"
                 placeholder="通勤手当の説明を入力"
@@ -1567,19 +1529,17 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.insurance_type || ''}
-                onChange={(e) => handleInputChange('insurance_type', e.target.value)}
+                onChange={e => handleInputChange('insurance_type', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 健康保険"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                料率名
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">料率名</label>
               <input
                 type="text"
                 value={formData.rate_name || ''}
-                onChange={(e) => handleInputChange('rate_name', e.target.value)}
+                onChange={e => handleInputChange('rate_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 2024年度健康保険料率"
               />
@@ -1592,7 +1552,7 @@ const MasterDataManagement = ({ onPrev }) => {
                 type="number"
                 step="0.0001"
                 value={formData.employee_rate || ''}
-                onChange={(e) => handleInputChange('employee_rate', e.target.value)}
+                onChange={e => handleInputChange('employee_rate', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 0.05"
               />
@@ -1605,30 +1565,26 @@ const MasterDataManagement = ({ onPrev }) => {
                 type="number"
                 step="0.0001"
                 value={formData.employer_rate || ''}
-                onChange={(e) => handleInputChange('employer_rate', e.target.value)}
+                onChange={e => handleInputChange('employer_rate', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 0.05"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                適用開始日
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">適用開始日</label>
               <input
                 type="date"
                 value={formData.effective_from || ''}
-                onChange={(e) => handleInputChange('effective_from', e.target.value)}
+                onChange={e => handleInputChange('effective_from', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                適用終了日
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">適用終了日</label>
               <input
                 type="date"
                 value={formData.effective_to || ''}
-                onChange={(e) => handleInputChange('effective_to', e.target.value)}
+                onChange={e => handleInputChange('effective_to', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1644,19 +1600,17 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.tax_type || ''}
-                onChange={(e) => handleInputChange('tax_type', e.target.value)}
+                onChange={e => handleInputChange('tax_type', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 所得税"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                区分名
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">区分名</label>
               <input
                 type="text"
                 value={formData.bracket_name || ''}
-                onChange={(e) => handleInputChange('bracket_name', e.target.value)}
+                onChange={e => handleInputChange('bracket_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 195万円以下"
               />
@@ -1669,20 +1623,18 @@ const MasterDataManagement = ({ onPrev }) => {
                 type="number"
                 step="0.01"
                 value={formData.income_from || ''}
-                onChange={(e) => handleInputChange('income_from', e.target.value)}
+                onChange={e => handleInputChange('income_from', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 0"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                所得終了
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">所得終了</label>
               <input
                 type="number"
                 step="0.01"
                 value={formData.income_to || ''}
-                onChange={(e) => handleInputChange('income_to', e.target.value)}
+                onChange={e => handleInputChange('income_to', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 1950000"
               />
@@ -1695,43 +1647,37 @@ const MasterDataManagement = ({ onPrev }) => {
                 type="number"
                 step="0.0001"
                 value={formData.tax_rate || ''}
-                onChange={(e) => handleInputChange('tax_rate', e.target.value)}
+                onChange={e => handleInputChange('tax_rate', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 0.05"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                控除額
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">控除額</label>
               <input
                 type="number"
                 step="0.01"
                 value={formData.deduction_amount || ''}
-                onChange={(e) => handleInputChange('deduction_amount', e.target.value)}
+                onChange={e => handleInputChange('deduction_amount', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 0"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                適用開始日
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">適用開始日</label>
               <input
                 type="date"
                 value={formData.effective_from || ''}
-                onChange={(e) => handleInputChange('effective_from', e.target.value)}
+                onChange={e => handleInputChange('effective_from', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                適用終了日
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">適用終了日</label>
               <input
                 type="date"
                 value={formData.effective_to || ''}
-                onChange={(e) => handleInputChange('effective_to', e.target.value)}
+                onChange={e => handleInputChange('effective_to', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
@@ -1747,7 +1693,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.constraint_code || ''}
-                onChange={(e) => handleInputChange('constraint_code', e.target.value)}
+                onChange={e => handleInputChange('constraint_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: LLC001"
               />
@@ -1759,18 +1705,16 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.constraint_name || ''}
-                onChange={(e) => handleInputChange('constraint_name', e.target.value)}
+                onChange={e => handleInputChange('constraint_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 週40時間制限"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                説明
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">説明</label>
               <textarea
                 value={formData.description || ''}
-                onChange={(e) => handleInputChange('description', e.target.value)}
+                onChange={e => handleInputChange('description', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows="3"
                 placeholder="制約の説明を入力"
@@ -1788,7 +1732,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.constraint_code || ''}
-                onChange={(e) => handleInputChange('constraint_code', e.target.value)}
+                onChange={e => handleInputChange('constraint_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: SC001"
               />
@@ -1800,18 +1744,16 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.constraint_name || ''}
-                onChange={(e) => handleInputChange('constraint_name', e.target.value)}
+                onChange={e => handleInputChange('constraint_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 最小配置人数"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                説明
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">説明</label>
               <textarea
                 value={formData.description || ''}
-                onChange={(e) => handleInputChange('description', e.target.value)}
+                onChange={e => handleInputChange('description', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows="3"
                 placeholder="制約の説明を入力"
@@ -1829,7 +1771,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.rule_code || ''}
-                onChange={(e) => handleInputChange('rule_code', e.target.value)}
+                onChange={e => handleInputChange('rule_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: LMR001"
               />
@@ -1841,18 +1783,16 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.rule_name || ''}
-                onChange={(e) => handleInputChange('rule_name', e.target.value)}
+                onChange={e => handleInputChange('rule_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 連続勤務日数上限"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                説明
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">説明</label>
               <textarea
                 value={formData.description || ''}
-                onChange={(e) => handleInputChange('description', e.target.value)}
+                onChange={e => handleInputChange('description', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows="3"
                 placeholder="ルールの説明を入力"
@@ -1870,7 +1810,7 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.rule_code || ''}
-                onChange={(e) => handleInputChange('rule_code', e.target.value)}
+                onChange={e => handleInputChange('rule_code', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: SVR001"
               />
@@ -1882,18 +1822,16 @@ const MasterDataManagement = ({ onPrev }) => {
               <input
                 type="text"
                 value={formData.rule_name || ''}
-                onChange={(e) => handleInputChange('rule_name', e.target.value)}
+                onChange={e => handleInputChange('rule_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 勤務間インターバル"
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                説明
-              </label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">説明</label>
               <textarea
                 value={formData.description || ''}
-                onChange={(e) => handleInputChange('description', e.target.value)}
+                onChange={e => handleInputChange('description', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 rows="3"
                 placeholder="ルールの説明を入力"
@@ -1961,9 +1899,7 @@ const MasterDataManagement = ({ onPrev }) => {
         className="max-w-[1800px] mx-auto px-4"
       >
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">
-            マスターデータ管理
-          </h1>
+          <h1 className="text-3xl font-bold text-gray-900 mb-1">マスターデータ管理</h1>
           <p className="text-sm text-gray-600">各種マスターデータの閲覧・編集</p>
         </div>
 
@@ -1977,7 +1913,7 @@ const MasterDataManagement = ({ onPrev }) => {
               </div>
             </div>
             <div className="overflow-y-auto h-[calc(100%-50px)]">
-              {masterTypes.map((type) => {
+              {masterTypes.map(type => {
                 const Icon = type.icon
                 return (
                   <button
@@ -2006,119 +1942,123 @@ const MasterDataManagement = ({ onPrev }) => {
               </div>
             ) : (
               <>
-            {/* ヘッダー */}
-            <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {selectedMasterType && (
-                    <>
-                      {React.createElement(selectedMasterType.icon, {
-                        className: 'h-6 w-6 text-blue-600',
-                      })}
-                      <div>
-                        <h2 className="text-lg font-bold text-gray-900">
-                          {selectedMasterType.label}
-                        </h2>
-                        <p className="text-xs text-gray-600">
-                          {masterData.length}件のデータ
-                        </p>
-                      </div>
-                    </>
+                {/* ヘッダー */}
+                <div className="px-5 py-4 border-b border-gray-200 bg-gray-50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {selectedMasterType && (
+                        <>
+                          {React.createElement(selectedMasterType.icon, {
+                            className: 'h-6 w-6 text-blue-600',
+                          })}
+                          <div>
+                            <h2 className="text-lg font-bold text-gray-900">
+                              {selectedMasterType.label}
+                            </h2>
+                            <p className="text-xs text-gray-600">{masterData.length}件のデータ</p>
+                          </div>
+                        </>
+                      )}
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => {}}
+                        className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
+                      >
+                        <Download className="h-4 w-4" />
+                        エクスポート
+                      </button>
+                      <button
+                        onClick={handleCreate}
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
+                      >
+                        <Plus className="h-4 w-4" />
+                        新規追加
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* エラー表示 */}
+                {error && (
+                  <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 rounded">
+                    <p className="text-red-800 text-sm">{error}</p>
+                  </div>
+                )}
+
+                {/* データテーブル */}
+                <div className="flex-1 overflow-auto">
+                  {loading ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-600">読み込み中...</p>
+                    </div>
+                  ) : masterData.length === 0 ? (
+                    <div className="flex items-center justify-center h-full">
+                      <p className="text-gray-600">データがありません</p>
+                    </div>
+                  ) : (
+                    <table className="w-full border-collapse">
+                      <thead className="bg-gray-100 sticky top-0 z-10">
+                        <tr>
+                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap">
+                            No.
+                          </th>
+                          {getTableColumns().map(column => (
+                            <th
+                              key={column.key}
+                              className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap"
+                              style={{ minWidth: column.width }}
+                            >
+                              {column.label}
+                            </th>
+                          ))}
+                          <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap">
+                            操作
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {masterData.map((item, index) => (
+                          <tr
+                            key={index}
+                            className="hover:bg-blue-50 transition-colors border-b border-gray-200"
+                          >
+                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
+                              {index + 1}
+                            </td>
+                            {getTableColumns().map(column => (
+                              <td
+                                key={column.key}
+                                className="px-4 py-3 text-sm text-gray-800 whitespace-nowrap"
+                              >
+                                {getCellValue(item, column)}
+                              </td>
+                            ))}
+                            <td className="px-4 py-3 text-sm whitespace-nowrap">
+                              <div className="flex justify-center gap-2">
+                                <button
+                                  onClick={() => handleEdit(item)}
+                                  className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"
+                                  title="編集"
+                                >
+                                  <Edit3 className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={() => handleDelete(item)}
+                                  className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors"
+                                  title="削除"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   )}
                 </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {}}
-                    className="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-                  >
-                    <Download className="h-4 w-4" />
-                    エクスポート
-                  </button>
-                  <button
-                    onClick={handleCreate}
-                    className="flex items-center gap-1.5 px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
-                  >
-                    <Plus className="h-4 w-4" />
-                    新規追加
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* エラー表示 */}
-            {error && (
-              <div className="mx-5 mt-4 p-3 bg-red-50 border border-red-200 rounded">
-                <p className="text-red-800 text-sm">{error}</p>
-              </div>
-            )}
-
-            {/* データテーブル */}
-            <div className="flex-1 overflow-auto">
-              {loading ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-600">読み込み中...</p>
-                </div>
-              ) : masterData.length === 0 ? (
-                <div className="flex items-center justify-center h-full">
-                  <p className="text-gray-600">データがありません</p>
-                </div>
-              ) : (
-                <table className="w-full border-collapse">
-                  <thead className="bg-gray-100 sticky top-0 z-10">
-                    <tr>
-                      <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap">
-                        No.
-                      </th>
-                      {getTableColumns().map(column => (
-                        <th
-                          key={column.key}
-                          className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap"
-                          style={{ minWidth: column.width }}
-                        >
-                          {column.label}
-                        </th>
-                      ))}
-                      <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap">
-                        操作
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {masterData.map((item, index) => (
-                      <tr key={index} className="hover:bg-blue-50 transition-colors border-b border-gray-200">
-                        <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                          {index + 1}
-                        </td>
-                        {getTableColumns().map(column => (
-                          <td key={column.key} className="px-4 py-3 text-sm text-gray-800 whitespace-nowrap">
-                            {getCellValue(item, column)}
-                          </td>
-                        ))}
-                        <td className="px-4 py-3 text-sm whitespace-nowrap">
-                          <div className="flex justify-center gap-2">
-                            <button
-                              onClick={() => handleEdit(item)}
-                              className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"
-                              title="編集"
-                            >
-                              <Edit3 className="h-4 w-4" />
-                            </button>
-                            <button
-                              onClick={() => handleDelete(item)}
-                              className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors"
-                              title="削除"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              )}
-            </div>
-            </>
+              </>
             )}
           </div>
         </div>

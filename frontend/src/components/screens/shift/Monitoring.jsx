@@ -45,13 +45,19 @@ const Monitoring = () => {
   const shift = location.state?.shift
 
   // shiftオブジェクトから年月と店舗IDを抽出
-  const initialMonth = shift?.year && shift?.month ? {
-    year: parseInt(shift.year),
-    month: parseInt(shift.month)
-  } : null
+  const initialMonth =
+    shift?.year && shift?.month
+      ? {
+          year: parseInt(shift.year),
+          month: parseInt(shift.month),
+        }
+      : null
   // store_id と storeId の両方に対応
-  const initialStoreId = shift?.store_id ? parseInt(shift.store_id) :
-                        shift?.storeId ? parseInt(shift.storeId) : null
+  const initialStoreId = shift?.store_id
+    ? parseInt(shift.store_id)
+    : shift?.storeId
+      ? parseInt(shift.storeId)
+      : null
 
   // デバッグログ
   console.log('Monitoring - 受け取ったshift:', shift)
@@ -110,7 +116,14 @@ const Monitoring = () => {
   }, [tenantId])
 
   useEffect(() => {
-    console.log('Monitoring - loadAvailabilityData実行 historyYear:', historyYear, 'historyMonth:', historyMonth, 'selectedStoreId:', selectedStoreId)
+    console.log(
+      'Monitoring - loadAvailabilityData実行 historyYear:',
+      historyYear,
+      'historyMonth:',
+      historyMonth,
+      'selectedStoreId:',
+      selectedStoreId
+    )
     loadAvailabilityData()
   }, [historyYear, historyMonth, selectedStoreId, tenantId])
 
@@ -138,12 +151,13 @@ const Monitoring = () => {
         ? `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&year=${historyYear}&month=${historyMonth}`
         : `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&year=${historyYear}`
 
-      const [staffResponse, rolesResponse, patternsResponse, preferencesResponse] = await Promise.all([
-        fetch(`${apiUrl}/api/master/staff?tenant_id=${tenantId}`),
-        fetch(`${apiUrl}/api/master/roles?tenant_id=${tenantId}`),
-        fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}`),
-        fetch(preferencesUrl),
-      ])
+      const [staffResponse, rolesResponse, patternsResponse, preferencesResponse] =
+        await Promise.all([
+          fetch(`${apiUrl}/api/master/staff?tenant_id=${tenantId}`),
+          fetch(`${apiUrl}/api/master/roles?tenant_id=${tenantId}`),
+          fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}`),
+          fetch(preferencesUrl),
+        ])
 
       const staffResult = await staffResponse.json()
       const rolesResult = await rolesResponse.json()
@@ -180,7 +194,12 @@ const Monitoring = () => {
       setShiftPatternsMap(patternsMapping)
 
       // スタッフを店舗でフィルタリング
-      console.log('Monitoring - フィルタリング前のスタッフ数:', staffData.length, 'selectedStoreId:', selectedStoreId)
+      console.log(
+        'Monitoring - フィルタリング前のスタッフ数:',
+        staffData.length,
+        'selectedStoreId:',
+        selectedStoreId
+      )
       const filteredStaffData = selectedStoreId
         ? staffData.filter(staff => {
             const match = parseInt(staff.store_id) === parseInt(selectedStoreId)
@@ -246,9 +265,16 @@ const Monitoring = () => {
           const preferredDays = req.preferred_days.split(',')
           preferredDays.forEach(dateStr => {
             const date = new Date(dateStr.trim())
-            if (!isNaN(date.getTime()) && date.getFullYear() === historyYear && date.getMonth() + 1 === historyMonth) {
+            if (
+              !isNaN(date.getTime()) &&
+              date.getFullYear() === historyYear &&
+              date.getMonth() + 1 === historyMonth
+            ) {
               const staffInfo = staffMapping[req.staff_id]
-              if (staffInfo && (!selectedStoreId || parseInt(staffInfo.store_id) === parseInt(selectedStoreId))) {
+              if (
+                staffInfo &&
+                (!selectedStoreId || parseInt(staffInfo.store_id) === parseInt(selectedStoreId))
+              ) {
                 calendarShifts.push({
                   shift_date: dateStr.trim(),
                   staff_id: req.staff_id,
@@ -268,9 +294,16 @@ const Monitoring = () => {
           const ngDays = req.ng_days.split(',')
           ngDays.forEach(dateStr => {
             const date = new Date(dateStr.trim())
-            if (!isNaN(date.getTime()) && date.getFullYear() === historyYear && date.getMonth() + 1 === historyMonth) {
+            if (
+              !isNaN(date.getTime()) &&
+              date.getFullYear() === historyYear &&
+              date.getMonth() + 1 === historyMonth
+            ) {
               const staffInfo = staffMapping[req.staff_id]
-              if (staffInfo && (!selectedStoreId || parseInt(staffInfo.store_id) === parseInt(selectedStoreId))) {
+              if (
+                staffInfo &&
+                (!selectedStoreId || parseInt(staffInfo.store_id) === parseInt(selectedStoreId))
+              ) {
                 calendarShifts.push({
                   shift_date: dateStr.trim(),
                   staff_id: req.staff_id,
@@ -300,7 +333,13 @@ const Monitoring = () => {
 
   // 募集状況を判定（締め切り前/締め切り済み/募集終了を区別）
   const getRecruitmentStatus = () => {
-    if (!historyMonth) return { status: '確認中', color: 'gray', bgColor: 'from-gray-50 to-gray-100', borderColor: 'border-gray-300' }
+    if (!historyMonth)
+      return {
+        status: '確認中',
+        color: 'gray',
+        bgColor: 'from-gray-50 to-gray-100',
+        borderColor: 'border-gray-300',
+      }
 
     const now = new Date()
     now.setHours(0, 0, 0, 0) // 時刻をリセットして日付のみで比較
@@ -321,7 +360,7 @@ const Monitoring = () => {
         color: 'green',
         bgColor: 'from-green-50 to-green-100',
         borderColor: 'border-green-200',
-        deadline: `締切: ${deadlineDate.getMonth() + 1}/${deadlineDate.getDate()}`
+        deadline: `締切: ${deadlineDate.getMonth() + 1}/${deadlineDate.getDate()}`,
       }
     }
 
@@ -332,7 +371,7 @@ const Monitoring = () => {
         color: 'orange',
         bgColor: 'from-orange-50 to-orange-100',
         borderColor: 'border-orange-200',
-        deadline: '変更可能'
+        deadline: '変更可能',
       }
     }
 
@@ -342,7 +381,7 @@ const Monitoring = () => {
       color: 'gray',
       bgColor: 'from-gray-50 to-gray-100',
       borderColor: 'border-gray-300',
-      deadline: '確定済み'
+      deadline: '確定済み',
     }
   }
 
@@ -423,12 +462,12 @@ const Monitoring = () => {
         shift_id: `pref-${latestRequest.preference_id}-${day}`,
         staff_name: selectedStaff.name,
         role: roleName,
-        start_time: '09:00',  // 仮の値
-        end_time: '18:00',    // 仮の値
+        start_time: '09:00', // 仮の値
+        end_time: '18:00', // 仮の値
         actual_hours: 8,
         planned_hours: 8,
         modified_flag: false,
-        is_preference: true,  // 希望シフトであることを示すフラグ
+        is_preference: true, // 希望シフトであることを示すフラグ
       },
     ]
   }
@@ -441,7 +480,14 @@ const Monitoring = () => {
     const latestRequest = requests.length > 0 ? requests[requests.length - 1] : null
 
     if (!latestRequest) {
-      return { preferredDaysSet: new Set(), daysInMonth: 31, firstDay: 0, year: 2024, month: 10, latestRequest: null }
+      return {
+        preferredDaysSet: new Set(),
+        daysInMonth: 31,
+        firstDay: 0,
+        year: 2024,
+        month: 10,
+        latestRequest: null,
+      }
     }
 
     const preferredDaysSet = new Set()
@@ -476,7 +522,6 @@ const Monitoring = () => {
     return { preferredDaysSet, daysInMonth, firstDay, year, month, latestRequest }
   }
 
-
   const calculateHours = (startTime, endTime) => {
     if (!startTime || !endTime) return 0
     const [startHour, startMin] = startTime.split(':').map(Number)
@@ -508,12 +553,8 @@ const Monitoring = () => {
       <div className="flex-shrink-0 px-8 py-4 mb-4 bg-white border-b border-gray-200">
         {/* 1行目: タイトル */}
         <div className="mb-3">
-          <h1 className="text-3xl font-bold text-gray-900">
-            シフト希望提出状況
-          </h1>
-          <p className="text-base text-gray-600 mt-1">
-            スタッフのシフト希望提出状況を確認できます
-          </p>
+          <h1 className="text-3xl font-bold text-gray-900">シフト希望提出状況</h1>
+          <p className="text-base text-gray-600 mt-1">スタッフのシフト希望提出状況を確認できます</p>
         </div>
 
         {/* 2行目: 対象年月・店舗 */}
@@ -536,7 +577,11 @@ const Monitoring = () => {
                   key={month}
                   variant={historyMonth === month ? 'default' : 'outline'}
                   size="sm"
-                  className={historyMonth === month ? 'bg-blue-600 hover:bg-blue-700 text-sm px-3 py-1.5 font-semibold' : 'text-sm px-3 py-1.5'}
+                  className={
+                    historyMonth === month
+                      ? 'bg-blue-600 hover:bg-blue-700 text-sm px-3 py-1.5 font-semibold'
+                      : 'text-sm px-3 py-1.5'
+                  }
                   onClick={() => {
                     console.log('Monitoring - 月ボタンクリック:', month, '現在の月:', historyMonth)
                     setHistoryMonth(month)
@@ -556,7 +601,7 @@ const Monitoring = () => {
             <label className="text-base font-semibold text-gray-700">対象店舗:</label>
             <select
               value={selectedStoreId || ''}
-              onChange={(e) => {
+              onChange={e => {
                 const newStoreId = e.target.value ? parseInt(e.target.value) : null
                 console.log('Monitoring - 店舗選択変更:', newStoreId, '元の値:', selectedStoreId)
                 setSelectedStoreId(newStoreId)
@@ -578,33 +623,53 @@ const Monitoring = () => {
       <div className="flex-shrink-0 px-8 mb-4">
         <div className="flex gap-4">
           {/* 募集状況カード */}
-          <div className={`flex items-center gap-3 px-4 py-3 bg-gradient-to-br rounded-xl border-2 shadow-sm ${recruitmentStatus.bgColor} ${recruitmentStatus.borderColor}`}>
-            <Clock className={`h-6 w-6 ${
-              recruitmentStatus.color === 'green' ? 'text-green-600' :
-              recruitmentStatus.color === 'orange' ? 'text-orange-600' :
-              'text-gray-600'
-            }`} />
+          <div
+            className={`flex items-center gap-3 px-4 py-3 bg-gradient-to-br rounded-xl border-2 shadow-sm ${recruitmentStatus.bgColor} ${recruitmentStatus.borderColor}`}
+          >
+            <Clock
+              className={`h-6 w-6 ${
+                recruitmentStatus.color === 'green'
+                  ? 'text-green-600'
+                  : recruitmentStatus.color === 'orange'
+                    ? 'text-orange-600'
+                    : 'text-gray-600'
+              }`}
+            />
             <div>
-              <div className={`text-xs font-semibold mb-0.5 ${
-                recruitmentStatus.color === 'green' ? 'text-green-700' :
-                recruitmentStatus.color === 'orange' ? 'text-orange-700' :
-                'text-gray-700'
-              }`}>
+              <div
+                className={`text-xs font-semibold mb-0.5 ${
+                  recruitmentStatus.color === 'green'
+                    ? 'text-green-700'
+                    : recruitmentStatus.color === 'orange'
+                      ? 'text-orange-700'
+                      : 'text-gray-700'
+                }`}
+              >
                 シフト募集状況
               </div>
-              <div className={`text-xl font-bold ${
-                recruitmentStatus.color === 'green' ? 'text-green-600' :
-                recruitmentStatus.color === 'orange' ? 'text-orange-600' :
-                'text-gray-600'
-              }`}>
+              <div
+                className={`text-xl font-bold ${
+                  recruitmentStatus.color === 'green'
+                    ? 'text-green-600'
+                    : recruitmentStatus.color === 'orange'
+                      ? 'text-orange-600'
+                      : 'text-gray-600'
+                }`}
+              >
                 {recruitmentStatus.status}
               </div>
-              <div className={`text-xs mt-0.5 ${
-                recruitmentStatus.color === 'green' ? 'text-green-600' :
-                recruitmentStatus.color === 'orange' ? 'text-orange-600' :
-                'text-gray-600'
-              }`}>
-                {historyMonth ? `${historyYear}年${historyMonth}月分 - ${recruitmentStatus.deadline}` : `${historyYear}年分`}
+              <div
+                className={`text-xs mt-0.5 ${
+                  recruitmentStatus.color === 'green'
+                    ? 'text-green-600'
+                    : recruitmentStatus.color === 'orange'
+                      ? 'text-orange-600'
+                      : 'text-gray-600'
+                }`}
+              >
+                {historyMonth
+                  ? `${historyYear}年${historyMonth}月分 - ${recruitmentStatus.deadline}`
+                  : `${historyYear}年分`}
               </div>
             </div>
           </div>
@@ -652,241 +717,255 @@ const Monitoring = () => {
         </CardHeader>
         <CardContent className="flex-1 overflow-y-auto px-6 pb-4">
           <div className="space-y-3">
-                {staffStatus.map(staff => (
-                <motion.div
-                  key={staff.id}
-                  className={`flex items-center justify-between p-3 border rounded-lg ${
-                    staff.submitted ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'
-                  }`}
-                  whileHover={{ scale: 1.01 }}
-                  onClick={() => handleStaffClick(staff)}
-                >
-                  <div className="flex items-center space-x-3">
-                    <div
-                      className={`w-3 h-3 rounded-full ${
-                        staff.submitted ? 'bg-green-500' : 'bg-red-500'
-                      }`}
-                    />
-                    <div>
-                      <p className={`font-medium ${staff.submitted ? 'text-blue-600' : ''}`}>
-                        {staff.name}
-                        {staff.submitted && (
-                          <span className="text-xs ml-2 text-gray-500">(クリックで詳細)</span>
-                        )}
-                      </p>
-                      <p className="text-sm text-gray-600">
-                        {staff.submitted
-                          ? `提出済み: ${staff.submittedAt}`
-                          : `最終催促: ${staff.lastReminder}`}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    {staff.submitted ? (
-                      <div className="flex items-center text-green-600">
-                        <CheckCircle className="h-4 w-4 mr-1" />
-                        <span className="text-sm">完了</span>
-                      </div>
-                    ) : (
-                      <>
-                        <div className="flex items-center text-red-600">
-                          <AlertCircle className="h-4 w-4 mr-1" />
-                          <span className="text-sm">未提出</span>
-                        </div>
-                        <Button size="sm" variant="outline" onClick={() => sendReminder(staff.id)}>
-                          <Send className="h-4 w-4 mr-1" />
-                          催促
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                  </motion.div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-
-        {/* 希望シフト詳細モーダル */}
-        {selectedStaff && (
-          <div
-            className="fixed inset-0 flex items-center justify-center z-50 p-4"
-            onClick={closeModal}
-          >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col"
-              onClick={e => e.stopPropagation()}
-            >
-              {/* ヘッダー */}
-              <div className="border-b bg-gray-50 px-6 py-4 flex-shrink-0">
-                <div className="flex items-center justify-between">
+            {staffStatus.map(staff => (
+              <motion.div
+                key={staff.id}
+                className={`flex items-center justify-between p-3 border rounded-lg ${
+                  staff.submitted ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'
+                }`}
+                whileHover={{ scale: 1.01 }}
+                onClick={() => handleStaffClick(staff)}
+              >
+                <div className="flex items-center space-x-3">
+                  <div
+                    className={`w-3 h-3 rounded-full ${
+                      staff.submitted ? 'bg-green-500' : 'bg-red-500'
+                    }`}
+                  />
                   <div>
-                    <h2 className="text-2xl font-bold">{selectedStaff.name}の希望シフト</h2>
-                    <p className="text-sm text-gray-600 mt-1">
-                      提出日時: {selectedStaff.submittedAt}
+                    <p className={`font-medium ${staff.submitted ? 'text-blue-600' : ''}`}>
+                      {staff.name}
+                      {staff.submitted && (
+                        <span className="text-xs ml-2 text-gray-500">(クリックで詳細)</span>
+                      )}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {staff.submitted
+                        ? `提出済み: ${staff.submittedAt}`
+                        : `最終催促: ${staff.lastReminder}`}
                     </p>
                   </div>
-                  <Button variant="ghost" size="sm" onClick={closeModal}>
-                    <X className="h-5 w-5" />
-                  </Button>
                 </div>
+
+                <div className="flex items-center space-x-2">
+                  {staff.submitted ? (
+                    <div className="flex items-center text-green-600">
+                      <CheckCircle className="h-4 w-4 mr-1" />
+                      <span className="text-sm">完了</span>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="flex items-center text-red-600">
+                        <AlertCircle className="h-4 w-4 mr-1" />
+                        <span className="text-sm">未提出</span>
+                      </div>
+                      <Button size="sm" variant="outline" onClick={() => sendReminder(staff.id)}>
+                        <Send className="h-4 w-4 mr-1" />
+                        催促
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* 希望シフト詳細モーダル */}
+      {selectedStaff && (
+        <div
+          className="fixed inset-0 flex items-center justify-center z-50 p-4"
+          onClick={closeModal}
+        >
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.9, opacity: 0 }}
+            className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col"
+            onClick={e => e.stopPropagation()}
+          >
+            {/* ヘッダー */}
+            <div className="border-b bg-gray-50 px-6 py-4 flex-shrink-0">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold">{selectedStaff.name}の希望シフト</h2>
+                  <p className="text-sm text-gray-600 mt-1">
+                    提出日時: {selectedStaff.submittedAt}
+                  </p>
+                </div>
+                <Button variant="ghost" size="sm" onClick={closeModal}>
+                  <X className="h-5 w-5" />
+                </Button>
               </div>
+            </div>
 
-              {/* コンテンツ */}
-              <div className="flex-1 overflow-y-auto p-6">
-                {(() => {
-                  const { preferredDaysSet, daysInMonth, firstDay, year, month, latestRequest } = getCalendarData(selectedStaff.id)
-                  const weekDays = ['日', '月', '火', '水', '木', '金', '土']
+            {/* コンテンツ */}
+            <div className="flex-1 overflow-y-auto p-6">
+              {(() => {
+                const { preferredDaysSet, daysInMonth, firstDay, year, month, latestRequest } =
+                  getCalendarData(selectedStaff.id)
+                const weekDays = ['日', '月', '火', '水', '木', '金', '土']
 
-                  if (!latestRequest) {
-                    return (
-                      <div className="text-center text-gray-500 py-8">
-                        このスタッフのシフト希望はまだ登録されていません。
-                      </div>
-                    )
-                  }
-
-                  // カレンダーグリッド用の配列を作成
-                  const calendarDays = []
-                  // 月初の空セル
-                  for (let i = 0; i < firstDay; i++) {
-                    calendarDays.push(null)
-                  }
-                  // 日付セル
-                  for (let day = 1; day <= daysInMonth; day++) {
-                    calendarDays.push(day)
-                  }
-
-                  // スタッフの雇用形態を確認
-                  // selectedStaff.idは数値、staffMapのキーは文字列なので変換が必要
-                  const staffKey = selectedStaff.id.toString()
-                  const currentStaff = staffMap[staffKey]
-
-                  if (!currentStaff) {
-                    console.error('Staff not found in staffMap:', selectedStaff.id, 'staffMap keys:', Object.keys(staffMap))
-                  }
-
-                  const isPartTimeStaff = currentStaff?.employment_type === 'PART_TIME' || currentStaff?.employment_type === 'PART'
-                  const hasNgDays = latestRequest.ng_days && latestRequest.ng_days.length > 0
-                  const hasPreferredDays = latestRequest.preferred_days && latestRequest.preferred_days.length > 0
-
+                if (!latestRequest) {
                   return (
-                    <div>
-                      <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                        <Calendar className="h-5 w-5 text-blue-600" />
-                        {year}年{month}月の{isPartTimeStaff ? 'シフト希望' : '休み希望'}
-                      </h3>
-
-                      {/* 追加情報 */}
-                      {latestRequest.notes && (
-                        <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                          <div className="text-sm font-bold text-yellow-800 mb-1">備考</div>
-                          <div className="text-sm text-yellow-700">{latestRequest.notes}</div>
-                        </div>
-                      )}
-
-                      {latestRequest.max_hours_per_week && (
-                        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
-                          <div className="text-sm">
-                            <span className="font-bold text-blue-800">週最大勤務時間: </span>
-                            <span className="text-blue-700">{latestRequest.max_hours_per_week}時間</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* 曜日ヘッダー */}
-                      <div className="grid grid-cols-7 gap-2 mb-2">
-                        {weekDays.map(day => (
-                          <div
-                            key={day}
-                            className="p-2 text-center text-sm font-bold bg-gray-100 rounded"
-                          >
-                            {day}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* カレンダーグリッド */}
-                      <div className="grid grid-cols-7 gap-2">
-                        {calendarDays.map((day, index) => {
-                          if (!day) {
-                            // 空セル
-                            return <div key={`empty-${index}`} className="min-h-[100px]" />
-                          }
-
-                          const dayOfWeek = (firstDay + day - 1) % 7
-                          const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
-                          const isPreferred = preferredDaysSet.has(day)
-
-                          return (
-                            <motion.div
-                              key={day}
-                              className={`p-2 border-2 rounded-lg min-h-[100px] ${
-                                isPreferred
-                                  ? isPartTimeStaff
-                                    ? 'bg-green-50 border-green-300 cursor-pointer hover:bg-green-100'
-                                    : 'bg-red-50 border-red-300 cursor-pointer hover:bg-red-100'
-                                  : 'bg-gray-50 border-gray-200'
-                              } ${isWeekend && !isPreferred ? 'bg-blue-50' : ''}`}
-                              initial={{ opacity: 0, scale: 0.9 }}
-                              animate={{ opacity: 1, scale: 1 }}
-                              transition={{ delay: index * 0.01 }}
-                              onClick={() => isPreferred && handleDayClick(day)}
-                            >
-                              <div
-                                className={`text-sm font-bold mb-1 ${
-                                  isWeekend ? 'text-blue-600' : 'text-gray-700'
-                                }`}
-                              >
-                                {day}
-                              </div>
-                              {isPreferred && (
-                                <div className="space-y-1">
-                                  <div className={`text-xs font-bold ${isPartTimeStaff ? 'text-green-700' : 'text-red-700'}`}>
-                                    {isPartTimeStaff ? '◯ 出勤希望' : '✕ 休み希望'}
-                                  </div>
-                                </div>
-                              )}
-                            </motion.div>
-                          )
-                        })}
-                      </div>
-
-                      {/* 凡例 */}
-                      <div className="mt-4 flex items-center gap-4 text-sm">
-                        <div className="flex items-center gap-2">
-                          <div className={`w-4 h-4 border-2 rounded ${isPartTimeStaff ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`}></div>
-                          <span>{isPartTimeStaff ? '出勤希望' : '休み希望'}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 bg-gray-50 border-2 border-gray-200 rounded"></div>
-                          <span>希望なし</span>
-                        </div>
-                      </div>
+                    <div className="text-center text-gray-500 py-8">
+                      このスタッフのシフト希望はまだ登録されていません。
                     </div>
                   )
-                })()}
-              </div>
-            </motion.div>
-          </div>
+                }
+
+                // カレンダーグリッド用の配列を作成
+                const calendarDays = []
+                // 月初の空セル
+                for (let i = 0; i < firstDay; i++) {
+                  calendarDays.push(null)
+                }
+                // 日付セル
+                for (let day = 1; day <= daysInMonth; day++) {
+                  calendarDays.push(day)
+                }
+
+                // スタッフの雇用形態を確認
+                // selectedStaff.idは数値、staffMapのキーは文字列なので変換が必要
+                const staffKey = selectedStaff.id.toString()
+                const currentStaff = staffMap[staffKey]
+
+                if (!currentStaff) {
+                  console.error(
+                    'Staff not found in staffMap:',
+                    selectedStaff.id,
+                    'staffMap keys:',
+                    Object.keys(staffMap)
+                  )
+                }
+
+                const isPartTimeStaff =
+                  currentStaff?.employment_type === 'PART_TIME' ||
+                  currentStaff?.employment_type === 'PART'
+                const hasNgDays = latestRequest.ng_days && latestRequest.ng_days.length > 0
+                const hasPreferredDays =
+                  latestRequest.preferred_days && latestRequest.preferred_days.length > 0
+
+                return (
+                  <div>
+                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                      <Calendar className="h-5 w-5 text-blue-600" />
+                      {year}年{month}月の{isPartTimeStaff ? 'シフト希望' : '休み希望'}
+                    </h3>
+
+                    {/* 追加情報 */}
+                    {latestRequest.notes && (
+                      <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                        <div className="text-sm font-bold text-yellow-800 mb-1">備考</div>
+                        <div className="text-sm text-yellow-700">{latestRequest.notes}</div>
+                      </div>
+                    )}
+
+                    {latestRequest.max_hours_per_week && (
+                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
+                        <div className="text-sm">
+                          <span className="font-bold text-blue-800">週最大勤務時間: </span>
+                          <span className="text-blue-700">
+                            {latestRequest.max_hours_per_week}時間
+                          </span>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 曜日ヘッダー */}
+                    <div className="grid grid-cols-7 gap-2 mb-2">
+                      {weekDays.map(day => (
+                        <div
+                          key={day}
+                          className="p-2 text-center text-sm font-bold bg-gray-100 rounded"
+                        >
+                          {day}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* カレンダーグリッド */}
+                    <div className="grid grid-cols-7 gap-2">
+                      {calendarDays.map((day, index) => {
+                        if (!day) {
+                          // 空セル
+                          return <div key={`empty-${index}`} className="min-h-[100px]" />
+                        }
+
+                        const dayOfWeek = (firstDay + day - 1) % 7
+                        const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
+                        const isPreferred = preferredDaysSet.has(day)
+
+                        return (
+                          <motion.div
+                            key={day}
+                            className={`p-2 border-2 rounded-lg min-h-[100px] ${
+                              isPreferred
+                                ? isPartTimeStaff
+                                  ? 'bg-green-50 border-green-300 cursor-pointer hover:bg-green-100'
+                                  : 'bg-red-50 border-red-300 cursor-pointer hover:bg-red-100'
+                                : 'bg-gray-50 border-gray-200'
+                            } ${isWeekend && !isPreferred ? 'bg-blue-50' : ''}`}
+                            initial={{ opacity: 0, scale: 0.9 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ delay: index * 0.01 }}
+                            onClick={() => isPreferred && handleDayClick(day)}
+                          >
+                            <div
+                              className={`text-sm font-bold mb-1 ${
+                                isWeekend ? 'text-blue-600' : 'text-gray-700'
+                              }`}
+                            >
+                              {day}
+                            </div>
+                            {isPreferred && (
+                              <div className="space-y-1">
+                                <div
+                                  className={`text-xs font-bold ${isPartTimeStaff ? 'text-green-700' : 'text-red-700'}`}
+                                >
+                                  {isPartTimeStaff ? '◯ 出勤希望' : '✕ 休み希望'}
+                                </div>
+                              </div>
+                            )}
+                          </motion.div>
+                        )
+                      })}
+                    </div>
+
+                    {/* 凡例 */}
+                    <div className="mt-4 flex items-center gap-4 text-sm">
+                      <div className="flex items-center gap-2">
+                        <div
+                          className={`w-4 h-4 border-2 rounded ${isPartTimeStaff ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`}
+                        ></div>
+                        <span>{isPartTimeStaff ? '出勤希望' : '休み希望'}</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 bg-gray-50 border-2 border-gray-200 rounded"></div>
+                        <span>希望なし</span>
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      {/* ShiftTimeline詳細表示 */}
+      <AnimatePresence>
+        {selectedDay && selectedStaff && (
+          <ShiftTimeline
+            date={selectedDay}
+            year={getCalendarData(selectedStaff.id).year}
+            month={getCalendarData(selectedStaff.id).month}
+            shifts={getDayShifts(selectedDay, selectedStaff.id)}
+            onClose={closeDayView}
+          />
         )}
-
-        {/* ShiftTimeline詳細表示 */}
-        <AnimatePresence>
-          {selectedDay && selectedStaff && (
-            <ShiftTimeline
-              date={selectedDay}
-              year={getCalendarData(selectedStaff.id).year}
-              month={getCalendarData(selectedStaff.id).month}
-              shifts={getDayShifts(selectedDay, selectedStaff.id)}
-              onClose={closeDayView}
-            />
-          )}
-        </AnimatePresence>
-
+      </AnimatePresence>
     </motion.div>
   )
 }

@@ -46,6 +46,6 @@ export const handleError = (error, context = '') => {
   }
 
   console.error('Error:', errorInfo)
-  
+
   return errorInfo
 }

@@ -31,13 +31,13 @@ const MobileShiftCalendar = ({ year, month, selectedDates = [], onDateToggle }) 
     }
   }
 
-  const handleDateClick = (date) => {
+  const handleDateClick = date => {
     if (onDateToggle) {
       onDateToggle(currentYear, currentMonth, date)
     }
   }
 
-  const isSelected = (date) => {
+  const isSelected = date => {
     return selectedDates.some(
       d => d.year === currentYear && d.month === currentMonth && d.date === date
     )
@@ -125,9 +125,7 @@ const MobileShiftCalendar = ({ year, month, selectedDates = [], onDateToggle }) 
 
       {/* 選択数表示 */}
       {selectedDates.length > 0 && (
-        <div className="mt-4 text-center text-sm text-gray-600">
-          {selectedDates.length}日選択中
-        </div>
+        <div className="mt-4 text-center text-sm text-gray-600">{selectedDates.length}日選択中</div>
       )}
     </Card>
   )

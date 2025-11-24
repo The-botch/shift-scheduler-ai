@@ -28,9 +28,7 @@ const ShiftCalendar = ({
                 ? 'border-orange-300 bg-orange-50 shadow-lg'
                 : 'border-gray-100 bg-white hover:border-blue-200'
             }`}
-            animate={
-              changedDates.has(dayData.date) ? { scale: [1, 1.05, 1] } : {}
-            }
+            animate={changedDates.has(dayData.date) ? { scale: [1, 1.05, 1] } : {}}
             transition={{ duration: 0.5 }}
           >
             <div className="text-sm font-bold mb-2 text-gray-700 flex items-center justify-between">

@@ -1427,657 +1427,665 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* 左側：シフト生成操作エリア */}
           <div className="lg:col-span-2">
-          <Card className="shadow-lg">
-            <CardContent className="p-6">
-              <div className="space-y-4">
-                {/* 設定トグルボタン */}
-                <div className="flex justify-end">
-                  <Button
-                    onClick={() => setShowDevSettings(!showDevSettings)}
-                    size="sm"
-                    variant="outline"
-                    className="flex items-center gap-2"
-                  >
-                    <Settings className="h-4 w-4" />
-                    設定
-                    {showDevSettings ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-                  </Button>
-                </div>
-
-                {/* 開発者設定エリア（折りたたみ可能） */}
-                {showDevSettings && (
-                  <div className="space-y-4 border-t pt-4">
-                    {/* Vector Store管理 */}
-                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
-                      <h4 className="font-semibold text-gray-800 mb-3">Vector Store管理</h4>
-                      <div className="space-y-2">
-                        {vectorStoreId ? (
-                          <div className="bg-green-100 p-3 rounded border border-green-300">
-                            <div className="flex items-center gap-2 mb-1">
-                              <CheckCircle2 className="h-4 w-4 text-green-600" />
-                              <span className="font-semibold text-green-800">セットアップ済み</span>
-                            </div>
-                            <div className="text-xs text-gray-600 font-mono">
-                              Vector Store ID: {vectorStoreId.substring(0, 20)}...
-                            </div>
-                            {assistantId && (
-                              <div className="text-xs text-gray-600 font-mono">
-                                Assistant ID: {assistantId.substring(0, 20)}...
-                              </div>
-                            )}
-                            <Button
-                              onClick={resetAssistantSetup}
-                              size="sm"
-                              variant="outline"
-                              className="mt-2 h-6 text-xs text-red-600 border-red-300 hover:bg-red-50"
-                            >
-                              <RefreshCw className="h-3 w-3 mr-1" />
-                              リセット
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="bg-yellow-100 p-3 rounded border border-yellow-300">
-                            <p className="text-sm text-yellow-800 mb-2">
-                              ⚠️ Vector
-                              Storeが未セットアップです。初回のみセットアップが必要です（10件のCSVファイルをアップロード）。
-                            </p>
-                            <Button
-                              onClick={handleSetupVectorStore}
-                              disabled={isSettingUp}
-                              size="sm"
-                              className="bg-purple-600 hover:bg-purple-700 h-8"
-                            >
-                              {isSettingUp ? (
-                                <>
-                                  <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
-                                  セットアップ中...
-                                </>
-                              ) : (
-                                <>
-                                  <Database className="h-3 w-3 mr-1" />
-                                  Vector Storeをセットアップ
-                                </>
-                              )}
-                            </Button>
-                          </div>
-                        )}
-
-                        {/* セットアップ進捗 */}
-                        {setupProgress.message && (
-                          <div className="bg-blue-50 p-2 rounded border border-blue-200">
-                            <div className="flex items-center justify-between text-xs">
-                              <span className="text-blue-800">{setupProgress.message}</span>
-                              <span className="text-blue-600 font-semibold">
-                                {setupProgress.current}/{setupProgress.total}
-                              </span>
-                            </div>
-                            {setupProgress.total > 0 && (
-                              <div className="w-full bg-blue-200 rounded-full h-2 mt-1">
-                                <div
-                                  className="bg-blue-600 h-2 rounded-full transition-all"
-                                  style={{
-                                    width: `${(setupProgress.current / setupProgress.total) * 100}%`,
-                                  }}
-                                ></div>
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* 対象期間入力 */}
-                    <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-                      <h4 className="font-semibold text-gray-800 mb-3">対象期間</h4>
-                      <div className="flex gap-3 items-center">
-                        <div className="flex-1">
-                          <label className="block text-xs text-gray-600 mb-1">年</label>
-                          <input
-                            type="number"
-                            min="2020"
-                            max="2030"
-                            value={targetYear}
-                            onChange={e => {
-                              setTargetYear(parseInt(e.target.value))
-                              setInputData(null) // 期間変更時はデータクリア
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-xs text-gray-600 mb-1">月</label>
-                          <input
-                            type="number"
-                            min="1"
-                            max="12"
-                            value={targetMonth}
-                            onChange={e => {
-                              setTargetMonth(parseInt(e.target.value))
-                              setInputData(null) // 期間変更時はデータクリア
-                            }}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
-                          />
-                        </div>
-                        <div className="flex-1">
-                          <label className="block text-xs text-gray-600 mb-1">&nbsp;</label>
-                          <div className="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-semibold text-gray-700">
-                            {targetYear}年{targetMonth}月
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* カテゴリートグル */}
-                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border border-indigo-200">
-                      <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
-                        <Database className="h-4 w-4 text-indigo-600" />
-                        インプットデータ分類
-                      </h4>
-                      <div className="grid grid-cols-1 gap-2">
-                        {Object.values(INPUT_CATEGORIES).map(category => (
-                          <label
-                            key={category.id}
-                            className={`flex items-start gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${
-                              enabledCategories[category.id]
-                                ? 'bg-white border-indigo-400 shadow-sm'
-                                : 'bg-gray-50 border-gray-200'
-                            } ${category.required ? 'opacity-75' : 'hover:border-indigo-300'}`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={enabledCategories[category.id]}
-                              onChange={() => toggleCategory(category.id)}
-                              disabled={category.required}
-                              className="mt-1 h-4 w-4 text-indigo-600 rounded focus:ring-indigo-500"
-                            />
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                <span className="font-semibold text-sm text-gray-800">
-                                  {category.name}
-                                </span>
-                                {category.required && (
-                                  <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-medium">
-                                    必須
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-xs text-gray-600 mt-1">{category.description}</p>
-                            </div>
-                          </label>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* インプットデータ収集状況 - メインエリア */}
-                <div>
-                  <div
-                    className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => setShowDataCollectionStatus(!showDataCollectionStatus)}
-                  >
-                    <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                      <Database className="h-4 w-4 text-green-600" />
-                      データ収集状況 ({targetYear}年{targetMonth}月)
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          loadInputData()
-                        }}
-                        disabled={inputLoading}
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 hover:bg-green-100"
-                      >
-                        {inputLoading ? (
-                          <RefreshCw className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <>
-                            <RefreshCw className="h-3 w-3 mr-1" />
-                            収集実行
-                          </>
-                        )}
-                      </Button>
-                      {showDataCollectionStatus ? (
-                        <ChevronUp className="h-4 w-4 text-gray-600" />
+            <Card className="shadow-lg">
+              <CardContent className="p-6">
+                <div className="space-y-4">
+                  {/* 設定トグルボタン */}
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => setShowDevSettings(!showDevSettings)}
+                      size="sm"
+                      variant="outline"
+                      className="flex items-center gap-2"
+                    >
+                      <Settings className="h-4 w-4" />
+                      設定
+                      {showDevSettings ? (
+                        <ChevronUp className="h-4 w-4" />
                       ) : (
-                        <ChevronDown className="h-4 w-4 text-gray-600" />
+                        <ChevronDown className="h-4 w-4" />
                       )}
-                    </div>
+                    </Button>
                   </div>
 
-                  {showDataCollectionStatus && (
-                    <div className="mt-3 bg-white p-4 rounded-lg border border-gray-200">
-                      <div className="space-y-2">
-                        {/* カテゴリー別の収集状況 */}
-                        <div className="grid grid-cols-1 gap-2">
-                          {Object.values(INPUT_CATEGORIES).map(category => {
-                            const isEnabled = enabledCategories[category.id]
-                            const isCollected =
-                              inputData?.inputs?.[
-                                category.id === 'legal'
-                                  ? 'legalRequirements'
-                                  : category.id === 'store'
-                                    ? 'storeConstraints'
-                                    : category.id === 'history'
-                                      ? 'historicalShifts'
-                                      : category.id === 'sales'
-                                        ? 'salesForecast'
-                                        : category.id === 'staff'
-                                          ? 'staffData'
-                                          : category.id === 'calendar'
-                                            ? 'japaneseEvents'
-                                            : 'weatherData'
-                              ]
-
-                            return (
-                              <div
-                                key={category.id}
-                                className={`flex items-center justify-between p-2 rounded text-xs ${
-                                  isCollected
-                                    ? 'bg-green-100 border border-green-300'
-                                    : isEnabled
-                                      ? 'bg-white border border-gray-200'
-                                      : 'bg-gray-50 border border-gray-200 opacity-60'
-                                }`}
-                              >
-                                <div className="flex items-center gap-2">
-                                  <span className="font-semibold text-gray-800">
-                                    {category.name}
-                                  </span>
-                                  {isEnabled ? (
-                                    <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
-                                      収集対象
-                                    </span>
-                                  ) : (
-                                    <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full">
-                                      無効
-                                    </span>
-                                  )}
-                                </div>
-                                {isCollected ? (
-                                  <span className="flex items-center gap-1 text-green-700 font-semibold">
-                                    <CheckCircle2 className="h-4 w-4" />
-                                    収集済み
-                                  </span>
-                                ) : isEnabled ? (
-                                  <span className="text-gray-500">未収集</span>
-                                ) : null}
+                  {/* 開発者設定エリア（折りたたみ可能） */}
+                  {showDevSettings && (
+                    <div className="space-y-4 border-t pt-4">
+                      {/* Vector Store管理 */}
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border border-purple-200">
+                        <h4 className="font-semibold text-gray-800 mb-3">Vector Store管理</h4>
+                        <div className="space-y-2">
+                          {vectorStoreId ? (
+                            <div className="bg-green-100 p-3 rounded border border-green-300">
+                              <div className="flex items-center gap-2 mb-1">
+                                <CheckCircle2 className="h-4 w-4 text-green-600" />
+                                <span className="font-semibold text-green-800">
+                                  セットアップ済み
+                                </span>
                               </div>
-                            )
-                          })}
-                        </div>
-
-                        {inputData && (
-                          <>
-                            <div className="border-t border-gray-300 pt-2 mt-2">
+                              <div className="text-xs text-gray-600 font-mono">
+                                Vector Store ID: {vectorStoreId.substring(0, 20)}...
+                              </div>
+                              {assistantId && (
+                                <div className="text-xs text-gray-600 font-mono">
+                                  Assistant ID: {assistantId.substring(0, 20)}...
+                                </div>
+                              )}
                               <Button
-                                onClick={() => setShowInputDetails(!showInputDetails)}
+                                onClick={resetAssistantSetup}
                                 size="sm"
-                                variant="ghost"
-                                className="w-full h-6 text-xs"
+                                variant="outline"
+                                className="mt-2 h-6 text-xs text-red-600 border-red-300 hover:bg-red-50"
                               >
-                                {showInputDetails ? '詳細を閉じる ▲' : '収集データの詳細を表示 ▼'}
+                                <RefreshCw className="h-3 w-3 mr-1" />
+                                リセット
                               </Button>
                             </div>
-                            {showInputDetails && (
-                              <div className="bg-white p-3 rounded text-xs max-h-96 overflow-y-auto border border-gray-300">
-                                {/* 参照ファイル一覧 */}
-                                <div className="mb-4">
-                                  <h5 className="font-semibold text-gray-800 mb-2">
-                                    📂 参照したCSVファイル
-                                  </h5>
-                                  {Object.entries(inputData.inputs).map(
-                                    ([key, value]) =>
-                                      value.files &&
-                                      value.files.length > 0 && (
-                                        <div
-                                          key={key}
-                                          className="mb-3 pl-2 border-l-2 border-blue-300"
-                                        >
-                                          <div className="font-semibold text-blue-700 mb-1">
-                                            {value.source}
-                                          </div>
-                                          <ul className="list-disc list-inside text-gray-600 space-y-1">
-                                            {value.files.map((file, idx) => (
-                                              <li key={idx} className="font-mono text-xs">
-                                                {file}
-                                              </li>
-                                            ))}
-                                          </ul>
-                                          {/* データ件数の詳細 */}
-                                          {value.summary && (
-                                            <div className="mt-1 text-gray-500 text-xs">
-                                              {Object.entries(value.summary).map(
-                                                ([sumKey, sumValue]) =>
-                                                  sumKey.endsWith('Count') && (
-                                                    <span key={sumKey} className="mr-3">
-                                                      {sumKey.replace('Count', '')}: {sumValue}件
-                                                    </span>
-                                                  )
-                                              )}
-                                            </div>
-                                          )}
-                                        </div>
-                                      )
+                          ) : (
+                            <div className="bg-yellow-100 p-3 rounded border border-yellow-300">
+                              <p className="text-sm text-yellow-800 mb-2">
+                                ⚠️ Vector
+                                Storeが未セットアップです。初回のみセットアップが必要です（10件のCSVファイルをアップロード）。
+                              </p>
+                              <Button
+                                onClick={handleSetupVectorStore}
+                                disabled={isSettingUp}
+                                size="sm"
+                                className="bg-purple-600 hover:bg-purple-700 h-8"
+                              >
+                                {isSettingUp ? (
+                                  <>
+                                    <RefreshCw className="h-3 w-3 mr-1 animate-spin" />
+                                    セットアップ中...
+                                  </>
+                                ) : (
+                                  <>
+                                    <Database className="h-3 w-3 mr-1" />
+                                    Vector Storeをセットアップ
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          )}
+
+                          {/* セットアップ進捗 */}
+                          {setupProgress.message && (
+                            <div className="bg-blue-50 p-2 rounded border border-blue-200">
+                              <div className="flex items-center justify-between text-xs">
+                                <span className="text-blue-800">{setupProgress.message}</span>
+                                <span className="text-blue-600 font-semibold">
+                                  {setupProgress.current}/{setupProgress.total}
+                                </span>
+                              </div>
+                              {setupProgress.total > 0 && (
+                                <div className="w-full bg-blue-200 rounded-full h-2 mt-1">
+                                  <div
+                                    className="bg-blue-600 h-2 rounded-full transition-all"
+                                    style={{
+                                      width: `${(setupProgress.current / setupProgress.total) * 100}%`,
+                                    }}
+                                  ></div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* 対象期間入力 */}
+                      <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                        <h4 className="font-semibold text-gray-800 mb-3">対象期間</h4>
+                        <div className="flex gap-3 items-center">
+                          <div className="flex-1">
+                            <label className="block text-xs text-gray-600 mb-1">年</label>
+                            <input
+                              type="number"
+                              min="2020"
+                              max="2030"
+                              value={targetYear}
+                              onChange={e => {
+                                setTargetYear(parseInt(e.target.value))
+                                setInputData(null) // 期間変更時はデータクリア
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-xs text-gray-600 mb-1">月</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="12"
+                              value={targetMonth}
+                              onChange={e => {
+                                setTargetMonth(parseInt(e.target.value))
+                                setInputData(null) // 期間変更時はデータクリア
+                              }}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="block text-xs text-gray-600 mb-1">&nbsp;</label>
+                            <div className="px-3 py-2 bg-white border border-gray-300 rounded-md text-sm font-semibold text-gray-700">
+                              {targetYear}年{targetMonth}月
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* カテゴリートグル */}
+                      <div className="bg-gradient-to-r from-indigo-50 to-purple-50 p-4 rounded-lg border border-indigo-200">
+                        <h4 className="font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                          <Database className="h-4 w-4 text-indigo-600" />
+                          インプットデータ分類
+                        </h4>
+                        <div className="grid grid-cols-1 gap-2">
+                          {Object.values(INPUT_CATEGORIES).map(category => (
+                            <label
+                              key={category.id}
+                              className={`flex items-start gap-3 p-3 rounded-lg border-2 transition-all cursor-pointer ${
+                                enabledCategories[category.id]
+                                  ? 'bg-white border-indigo-400 shadow-sm'
+                                  : 'bg-gray-50 border-gray-200'
+                              } ${category.required ? 'opacity-75' : 'hover:border-indigo-300'}`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={enabledCategories[category.id]}
+                                onChange={() => toggleCategory(category.id)}
+                                disabled={category.required}
+                                className="mt-1 h-4 w-4 text-indigo-600 rounded focus:ring-indigo-500"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-semibold text-sm text-gray-800">
+                                    {category.name}
+                                  </span>
+                                  {category.required && (
+                                    <span className="text-xs px-2 py-0.5 bg-red-100 text-red-700 rounded-full font-medium">
+                                      必須
+                                    </span>
                                   )}
                                 </div>
-
-                                {/* プロンプトプレビュー */}
-                                <div className="border-t border-gray-200 pt-3">
-                                  <h5 className="font-semibold text-gray-800 mb-2">
-                                    📝 生成されるプロンプト（プレビュー）
-                                  </h5>
-                                  <pre className="whitespace-pre-wrap text-gray-700 bg-gray-50 p-2 rounded">
-                                    {formatInputsForPrompt(inputData).substring(0, 2000)}...
-                                  </pre>
-                                </div>
+                                <p className="text-xs text-gray-600 mt-1">{category.description}</p>
                               </div>
-                            )}
-                          </>
-                        )}
-
-                        {!inputData && (
-                          <div className="text-xs text-gray-600 text-center py-3 bg-gray-50 rounded">
-                            💡 「収集実行」ボタンでデータを読み込みます
-                          </div>
-                        )}
+                            </label>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   )}
-                </div>
 
-                {/* 追加制約・希望入力エリア */}
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-2 border-blue-300">
-                  <label className="block text-base font-semibold text-gray-800 mb-2 flex items-center gap-2">
-                    <FileEdit className="h-5 w-5 text-blue-600" />
-                    追加の制約・希望を入力
-                  </label>
-                  <textarea
-                    className="w-full p-3 border-2 border-blue-200 rounded-md resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
-                    rows="5"
-                    placeholder="例:\n• 週末は必ず2名以上配置してください\n• 田中さんは火曜日休み希望です\n• 水曜日は営業時間を延長します"
-                    value={aiPrompt}
-                    onChange={e => setAiPrompt(e.target.value)}
-                  />
-                  <p className="text-xs text-gray-600 mt-2">
-                    💡 特別な制約やスタッフの希望を自由に記入してください（1行1項目推奨）
-                  </p>
-                </div>
-
-                {/* アクションボタンエリア */}
-                <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
-                  <div className="flex gap-2">
-                    <Button
-                      onClick={buildAndShowPrompt}
-                      disabled={inputLoading || (useAssistantsAPI && !vectorStoreId)}
-                      size="default"
-                      variant={showPromptEditor ? 'outline' : 'default'}
-                      className={
-                        showPromptEditor ? 'flex-1' : 'flex-1 bg-green-600 hover:bg-green-700 h-11'
-                      }
+                  {/* インプットデータ収集状況 - メインエリア */}
+                  <div>
+                    <div
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => setShowDataCollectionStatus(!showDataCollectionStatus)}
                     >
-                      {inputLoading ? (
-                        <>
-                          <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                          生成中...
-                        </>
-                      ) : (
-                        <>
-                          <FileText className="h-5 w-5 mr-2" />
-                          {showPromptEditor ? 'プロンプトを再生成' : 'プロンプトを生成'}
-                        </>
-                      )}
-                    </Button>
-
-                    {showPromptEditor && (
-                      <>
+                      <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                        <Database className="h-4 w-4 text-green-600" />
+                        データ収集状況 ({targetYear}年{targetMonth}月)
+                      </h4>
+                      <div className="flex items-center gap-2">
                         <Button
-                          onClick={() => setIsPromptEditable(!isPromptEditable)}
-                          size="default"
-                          variant="outline"
-                          className="flex-1 h-11"
+                          onClick={e => {
+                            e.stopPropagation()
+                            loadInputData()
+                          }}
+                          disabled={inputLoading}
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 hover:bg-green-100"
                         >
-                          <Code2 className="h-5 w-5 mr-1" />
-                          {isPromptEditable ? '編集中' : '編集'}
-                        </Button>
-                        <Button
-                          onClick={executeShiftGeneration}
-                          disabled={aiLoading}
-                          size="default"
-                          className="flex-1 bg-purple-600 hover:bg-purple-700 h-11"
-                        >
-                          {aiLoading ? (
-                            <>
-                              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                              生成中...
-                            </>
+                          {inputLoading ? (
+                            <RefreshCw className="h-3 w-3 animate-spin" />
                           ) : (
                             <>
-                              <Play className="h-5 w-5 mr-2" />
-                              シフトを生成
+                              <RefreshCw className="h-3 w-3 mr-1" />
+                              収集実行
                             </>
                           )}
                         </Button>
-                      </>
+                        {showDataCollectionStatus ? (
+                          <ChevronUp className="h-4 w-4 text-gray-600" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-gray-600" />
+                        )}
+                      </div>
+                    </div>
+
+                    {showDataCollectionStatus && (
+                      <div className="mt-3 bg-white p-4 rounded-lg border border-gray-200">
+                        <div className="space-y-2">
+                          {/* カテゴリー別の収集状況 */}
+                          <div className="grid grid-cols-1 gap-2">
+                            {Object.values(INPUT_CATEGORIES).map(category => {
+                              const isEnabled = enabledCategories[category.id]
+                              const isCollected =
+                                inputData?.inputs?.[
+                                  category.id === 'legal'
+                                    ? 'legalRequirements'
+                                    : category.id === 'store'
+                                      ? 'storeConstraints'
+                                      : category.id === 'history'
+                                        ? 'historicalShifts'
+                                        : category.id === 'sales'
+                                          ? 'salesForecast'
+                                          : category.id === 'staff'
+                                            ? 'staffData'
+                                            : category.id === 'calendar'
+                                              ? 'japaneseEvents'
+                                              : 'weatherData'
+                                ]
+
+                              return (
+                                <div
+                                  key={category.id}
+                                  className={`flex items-center justify-between p-2 rounded text-xs ${
+                                    isCollected
+                                      ? 'bg-green-100 border border-green-300'
+                                      : isEnabled
+                                        ? 'bg-white border border-gray-200'
+                                        : 'bg-gray-50 border border-gray-200 opacity-60'
+                                  }`}
+                                >
+                                  <div className="flex items-center gap-2">
+                                    <span className="font-semibold text-gray-800">
+                                      {category.name}
+                                    </span>
+                                    {isEnabled ? (
+                                      <span className="text-xs px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full">
+                                        収集対象
+                                      </span>
+                                    ) : (
+                                      <span className="text-xs px-2 py-0.5 bg-gray-200 text-gray-600 rounded-full">
+                                        無効
+                                      </span>
+                                    )}
+                                  </div>
+                                  {isCollected ? (
+                                    <span className="flex items-center gap-1 text-green-700 font-semibold">
+                                      <CheckCircle2 className="h-4 w-4" />
+                                      収集済み
+                                    </span>
+                                  ) : isEnabled ? (
+                                    <span className="text-gray-500">未収集</span>
+                                  ) : null}
+                                </div>
+                              )
+                            })}
+                          </div>
+
+                          {inputData && (
+                            <>
+                              <div className="border-t border-gray-300 pt-2 mt-2">
+                                <Button
+                                  onClick={() => setShowInputDetails(!showInputDetails)}
+                                  size="sm"
+                                  variant="ghost"
+                                  className="w-full h-6 text-xs"
+                                >
+                                  {showInputDetails ? '詳細を閉じる ▲' : '収集データの詳細を表示 ▼'}
+                                </Button>
+                              </div>
+                              {showInputDetails && (
+                                <div className="bg-white p-3 rounded text-xs max-h-96 overflow-y-auto border border-gray-300">
+                                  {/* 参照ファイル一覧 */}
+                                  <div className="mb-4">
+                                    <h5 className="font-semibold text-gray-800 mb-2">
+                                      📂 参照したCSVファイル
+                                    </h5>
+                                    {Object.entries(inputData.inputs).map(
+                                      ([key, value]) =>
+                                        value.files &&
+                                        value.files.length > 0 && (
+                                          <div
+                                            key={key}
+                                            className="mb-3 pl-2 border-l-2 border-blue-300"
+                                          >
+                                            <div className="font-semibold text-blue-700 mb-1">
+                                              {value.source}
+                                            </div>
+                                            <ul className="list-disc list-inside text-gray-600 space-y-1">
+                                              {value.files.map((file, idx) => (
+                                                <li key={idx} className="font-mono text-xs">
+                                                  {file}
+                                                </li>
+                                              ))}
+                                            </ul>
+                                            {/* データ件数の詳細 */}
+                                            {value.summary && (
+                                              <div className="mt-1 text-gray-500 text-xs">
+                                                {Object.entries(value.summary).map(
+                                                  ([sumKey, sumValue]) =>
+                                                    sumKey.endsWith('Count') && (
+                                                      <span key={sumKey} className="mr-3">
+                                                        {sumKey.replace('Count', '')}: {sumValue}件
+                                                      </span>
+                                                    )
+                                                )}
+                                              </div>
+                                            )}
+                                          </div>
+                                        )
+                                    )}
+                                  </div>
+
+                                  {/* プロンプトプレビュー */}
+                                  <div className="border-t border-gray-200 pt-3">
+                                    <h5 className="font-semibold text-gray-800 mb-2">
+                                      📝 生成されるプロンプト（プレビュー）
+                                    </h5>
+                                    <pre className="whitespace-pre-wrap text-gray-700 bg-gray-50 p-2 rounded">
+                                      {formatInputsForPrompt(inputData).substring(0, 2000)}...
+                                    </pre>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {!inputData && (
+                            <div className="text-xs text-gray-600 text-center py-3 bg-gray-50 rounded">
+                              💡 「収集実行」ボタンでデータを読み込みます
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )}
                   </div>
-                  {!showPromptEditor && (
-                    <p className="text-xs text-gray-600 mt-2 text-center">
-                      ① まずプロンプトを生成 → ② 内容を確認・編集 → ③ AIにシフト生成を依頼
-                    </p>
-                  )}
-                </div>
 
-                {/* プロンプトエディター */}
-                {showPromptEditor && (
-                  <div className="bg-gradient-to-r from-yellow-50 to-amber-50 p-4 rounded-lg border-2 border-yellow-400 shadow-md">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-yellow-600" />
-                        生成されたプロンプト
-                      </h4>
-                      <Button
-                        onClick={() => {
-                          setShowPromptEditor(false)
-                          setIsPromptEditable(false)
-                        }}
-                        size="sm"
-                        variant="ghost"
-                        className="h-7 text-xs hover:bg-yellow-100"
-                      >
-                        ✕ 閉じる
-                      </Button>
-                    </div>
+                  {/* 追加制約・希望入力エリア */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border-2 border-blue-300">
+                    <label className="block text-base font-semibold text-gray-800 mb-2 flex items-center gap-2">
+                      <FileEdit className="h-5 w-5 text-blue-600" />
+                      追加の制約・希望を入力
+                    </label>
                     <textarea
-                      className={`w-full p-3 border-2 rounded-md text-sm font-mono resize-none transition-all ${
-                        isPromptEditable
-                          ? 'border-yellow-500 bg-white shadow-inner'
-                          : 'border-gray-300 bg-gray-50'
-                      }`}
-                      rows="10"
-                      value={generatedPrompt}
-                      onChange={e => setGeneratedPrompt(e.target.value)}
-                      readOnly={!isPromptEditable}
+                      className="w-full p-3 border-2 border-blue-200 rounded-md resize-none focus:border-blue-400 focus:ring-2 focus:ring-blue-200"
+                      rows="5"
+                      placeholder="例:\n• 週末は必ず2名以上配置してください\n• 田中さんは火曜日休み希望です\n• 水曜日は営業時間を延長します"
+                      value={aiPrompt}
+                      onChange={e => setAiPrompt(e.target.value)}
                     />
-                    <div className="mt-2 p-2 bg-white rounded border border-yellow-300">
-                      <p className="text-xs text-gray-700">
-                        {isPromptEditable
-                          ? '✏️ 編集モード：内容を自由に変更できます。完了したら「シフトを生成」ボタンを押してください。'
-                          : '👁️ 閲覧モード：「編集」ボタンを押すと内容を変更できます。'}
-                      </p>
-                    </div>
+                    <p className="text-xs text-gray-600 mt-2">
+                      💡 特別な制約やスタッフの希望を自由に記入してください（1行1項目推奨）
+                    </p>
                   </div>
-                )}
 
-                {aiResponse && (
-                  <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border-2 border-purple-300 shadow-md">
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-gray-800 flex items-center gap-2 text-base">
-                        <MessageSquare className="h-5 w-5 text-purple-600" />
-                        AI生成結果
-                      </h4>
+                  {/* アクションボタンエリア */}
+                  <div className="bg-white p-4 rounded-lg border-2 border-gray-200">
+                    <div className="flex gap-2">
                       <Button
-                        onClick={copyAiResponse}
-                        size="sm"
-                        variant="outline"
-                        className="h-8 text-xs hover:bg-purple-100"
+                        onClick={buildAndShowPrompt}
+                        disabled={inputLoading || (useAssistantsAPI && !vectorStoreId)}
+                        size="default"
+                        variant={showPromptEditor ? 'outline' : 'default'}
+                        className={
+                          showPromptEditor
+                            ? 'flex-1'
+                            : 'flex-1 bg-green-600 hover:bg-green-700 h-11'
+                        }
                       >
-                        {copied ? (
+                        {inputLoading ? (
                           <>
-                            <Check className="h-4 w-4 mr-1 text-green-600" />
-                            コピー済み
+                            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                            生成中...
                           </>
                         ) : (
                           <>
-                            <Copy className="h-4 w-4 mr-1" />
-                            コピー
+                            <FileText className="h-5 w-5 mr-2" />
+                            {showPromptEditor ? 'プロンプトを再生成' : 'プロンプトを生成'}
                           </>
                         )}
                       </Button>
-                    </div>
-                    <div className="bg-white p-4 rounded border border-purple-200 max-h-96 overflow-y-auto">
-                      <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
-                        {aiResponse}
-                      </pre>
-                    </div>
-                  </div>
-                )}
 
-                {/* バリデーション結果 */}
-                {generatedShiftValidation && (
-                  <div
-                    className={`p-4 rounded-lg border-2 shadow-md ${
-                      generatedShiftValidation.isValid
-                        ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-400'
-                        : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-400'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-3">
-                      <h4 className="font-semibold text-gray-800 flex items-center gap-2 text-base">
-                        {generatedShiftValidation.isValid ? (
-                          <CheckCircle2 className="h-6 w-6 text-green-600" />
-                        ) : (
-                          <AlertCircle className="h-6 w-6 text-red-600" />
-                        )}
-                        検証結果
-                      </h4>
-                      <div className="flex gap-2">
-                        {(generatedShiftValidation.errorCount > 0 ||
-                          generatedShiftValidation.warningCount > 0) && (
+                      {showPromptEditor && (
+                        <>
                           <Button
-                            onClick={generateImprovementPrompt}
-                            size="sm"
-                            variant="default"
-                            className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
-                            disabled={inputLoading}
+                            onClick={() => setIsPromptEditable(!isPromptEditable)}
+                            size="default"
+                            variant="outline"
+                            className="flex-1 h-11"
                           >
-                            {inputLoading ? (
+                            <Code2 className="h-5 w-5 mr-1" />
+                            {isPromptEditable ? '編集中' : '編集'}
+                          </Button>
+                          <Button
+                            onClick={executeShiftGeneration}
+                            disabled={aiLoading}
+                            size="default"
+                            className="flex-1 bg-purple-600 hover:bg-purple-700 h-11"
+                          >
+                            {aiLoading ? (
                               <>
-                                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                <Loader2 className="h-5 w-5 mr-2 animate-spin" />
                                 生成中...
                               </>
                             ) : (
                               <>
-                                <FileEdit className="h-3 w-3 mr-1" />
-                                改善プロンプトを生成
+                                <Play className="h-5 w-5 mr-2" />
+                                シフトを生成
                               </>
                             )}
                           </Button>
-                        )}
+                        </>
+                      )}
+                    </div>
+                    {!showPromptEditor && (
+                      <p className="text-xs text-gray-600 mt-2 text-center">
+                        ① まずプロンプトを生成 → ② 内容を確認・編集 → ③ AIにシフト生成を依頼
+                      </p>
+                    )}
+                  </div>
+
+                  {/* プロンプトエディター */}
+                  {showPromptEditor && (
+                    <div className="bg-gradient-to-r from-yellow-50 to-amber-50 p-4 rounded-lg border-2 border-yellow-400 shadow-md">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-gray-800 flex items-center gap-2">
+                          <FileText className="h-5 w-5 text-yellow-600" />
+                          生成されたプロンプト
+                        </h4>
                         <Button
-                          onClick={copyValidationResult}
+                          onClick={() => {
+                            setShowPromptEditor(false)
+                            setIsPromptEditable(false)
+                          }}
+                          size="sm"
+                          variant="ghost"
+                          className="h-7 text-xs hover:bg-yellow-100"
+                        >
+                          ✕ 閉じる
+                        </Button>
+                      </div>
+                      <textarea
+                        className={`w-full p-3 border-2 rounded-md text-sm font-mono resize-none transition-all ${
+                          isPromptEditable
+                            ? 'border-yellow-500 bg-white shadow-inner'
+                            : 'border-gray-300 bg-gray-50'
+                        }`}
+                        rows="10"
+                        value={generatedPrompt}
+                        onChange={e => setGeneratedPrompt(e.target.value)}
+                        readOnly={!isPromptEditable}
+                      />
+                      <div className="mt-2 p-2 bg-white rounded border border-yellow-300">
+                        <p className="text-xs text-gray-700">
+                          {isPromptEditable
+                            ? '✏️ 編集モード：内容を自由に変更できます。完了したら「シフトを生成」ボタンを押してください。'
+                            : '👁️ 閲覧モード：「編集」ボタンを押すと内容を変更できます。'}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {aiResponse && (
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-lg border-2 border-purple-300 shadow-md">
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-gray-800 flex items-center gap-2 text-base">
+                          <MessageSquare className="h-5 w-5 text-purple-600" />
+                          AI生成結果
+                        </h4>
+                        <Button
+                          onClick={copyAiResponse}
                           size="sm"
                           variant="outline"
-                          className="h-7 text-xs"
+                          className="h-8 text-xs hover:bg-purple-100"
                         >
-                          {copiedValidation ? (
+                          {copied ? (
                             <>
-                              <Check className="h-3 w-3 mr-1 text-green-600" />
+                              <Check className="h-4 w-4 mr-1 text-green-600" />
                               コピー済み
                             </>
                           ) : (
                             <>
-                              <Copy className="h-3 w-3 mr-1" />
+                              <Copy className="h-4 w-4 mr-1" />
                               コピー
                             </>
                           )}
                         </Button>
                       </div>
+                      <div className="bg-white p-4 rounded border border-purple-200 max-h-96 overflow-y-auto">
+                        <pre className="text-sm text-gray-800 whitespace-pre-wrap font-sans leading-relaxed">
+                          {aiResponse}
+                        </pre>
+                      </div>
                     </div>
+                  )}
+
+                  {/* バリデーション結果 */}
+                  {generatedShiftValidation && (
                     <div
-                      className={`p-3 rounded ${generatedShiftValidation.isValid ? 'bg-green-50' : 'bg-red-50'}`}
+                      className={`p-4 rounded-lg border-2 shadow-md ${
+                        generatedShiftValidation.isValid
+                          ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-400'
+                          : 'bg-gradient-to-r from-red-50 to-rose-50 border-red-400'
+                      }`}
                     >
-                      <div className="flex items-center gap-2 mb-2">
-                        <span
-                          className={`font-bold ${generatedShiftValidation.isValid ? 'text-green-800' : 'text-red-800'}`}
-                        >
-                          {generatedShiftValidation.isValid
-                            ? '✓ 全ての制約をクリア'
-                            : '✗ 制約違反あり'}
-                        </span>
-                      </div>
-                      <div className="grid grid-cols-2 gap-2 text-sm">
-                        <div className="flex items-center gap-1">
-                          <AlertCircle className="h-4 w-4 text-red-500" />
-                          <span>エラー: {generatedShiftValidation.errorCount}件</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <AlertTriangle className="h-4 w-4 text-orange-500" />
-                          <span>警告: {generatedShiftValidation.warningCount}件</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {generatedShiftValidation.errors.length > 0 && (
-                      <div className="mt-3">
-                        <h5 className="font-semibold text-red-700 mb-2">エラー詳細:</h5>
-                        <ul className="space-y-2 max-h-60 overflow-y-auto">
-                          {generatedShiftValidation.errors.map((error, idx) => (
-                            <li
-                              key={idx}
-                              className="text-sm bg-white p-2 rounded border-l-4 border-red-500"
-                            >
-                              <span className="font-mono text-xs bg-red-200 px-2 py-1 rounded">
-                                {error.rule_id}
-                              </span>
-                              <p className="mt-1">{error.message}</p>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-
-                    {generatedShiftValidation.warnings.length > 0 && (
-                      <div className="mt-3">
-                        <h5 className="font-semibold text-orange-700 mb-2">警告一覧:</h5>
-                        <ul className="space-y-2 max-h-40 overflow-y-auto">
-                          {generatedShiftValidation.warnings.slice(0, 5).map((warning, idx) => (
-                            <li
-                              key={idx}
-                              className="text-sm bg-white p-2 rounded border-l-4 border-orange-500"
-                            >
-                              <span className="font-mono text-xs bg-orange-200 px-2 py-1 rounded">
-                                {warning.rule_id}
-                              </span>
-                              <p className="mt-1">{warning.message}</p>
-                            </li>
-                          ))}
-                          {generatedShiftValidation.warnings.length > 5 && (
-                            <li className="text-sm text-gray-500">
-                              ...他 {generatedShiftValidation.warnings.length - 5} 件
-                            </li>
+                      <div className="flex items-center justify-between mb-3">
+                        <h4 className="font-semibold text-gray-800 flex items-center gap-2 text-base">
+                          {generatedShiftValidation.isValid ? (
+                            <CheckCircle2 className="h-6 w-6 text-green-600" />
+                          ) : (
+                            <AlertCircle className="h-6 w-6 text-red-600" />
                           )}
-                        </ul>
+                          検証結果
+                        </h4>
+                        <div className="flex gap-2">
+                          {(generatedShiftValidation.errorCount > 0 ||
+                            generatedShiftValidation.warningCount > 0) && (
+                            <Button
+                              onClick={generateImprovementPrompt}
+                              size="sm"
+                              variant="default"
+                              className="h-7 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+                              disabled={inputLoading}
+                            >
+                              {inputLoading ? (
+                                <>
+                                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                                  生成中...
+                                </>
+                              ) : (
+                                <>
+                                  <FileEdit className="h-3 w-3 mr-1" />
+                                  改善プロンプトを生成
+                                </>
+                              )}
+                            </Button>
+                          )}
+                          <Button
+                            onClick={copyValidationResult}
+                            size="sm"
+                            variant="outline"
+                            className="h-7 text-xs"
+                          >
+                            {copiedValidation ? (
+                              <>
+                                <Check className="h-3 w-3 mr-1 text-green-600" />
+                                コピー済み
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="h-3 w-3 mr-1" />
+                                コピー
+                              </>
+                            )}
+                          </Button>
+                        </div>
                       </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
+                      <div
+                        className={`p-3 rounded ${generatedShiftValidation.isValid ? 'bg-green-50' : 'bg-red-50'}`}
+                      >
+                        <div className="flex items-center gap-2 mb-2">
+                          <span
+                            className={`font-bold ${generatedShiftValidation.isValid ? 'text-green-800' : 'text-red-800'}`}
+                          >
+                            {generatedShiftValidation.isValid
+                              ? '✓ 全ての制約をクリア'
+                              : '✗ 制約違反あり'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-2 text-sm">
+                          <div className="flex items-center gap-1">
+                            <AlertCircle className="h-4 w-4 text-red-500" />
+                            <span>エラー: {generatedShiftValidation.errorCount}件</span>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <AlertTriangle className="h-4 w-4 text-orange-500" />
+                            <span>警告: {generatedShiftValidation.warningCount}件</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {generatedShiftValidation.errors.length > 0 && (
+                        <div className="mt-3">
+                          <h5 className="font-semibold text-red-700 mb-2">エラー詳細:</h5>
+                          <ul className="space-y-2 max-h-60 overflow-y-auto">
+                            {generatedShiftValidation.errors.map((error, idx) => (
+                              <li
+                                key={idx}
+                                className="text-sm bg-white p-2 rounded border-l-4 border-red-500"
+                              >
+                                <span className="font-mono text-xs bg-red-200 px-2 py-1 rounded">
+                                  {error.rule_id}
+                                </span>
+                                <p className="mt-1">{error.message}</p>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {generatedShiftValidation.warnings.length > 0 && (
+                        <div className="mt-3">
+                          <h5 className="font-semibold text-orange-700 mb-2">警告一覧:</h5>
+                          <ul className="space-y-2 max-h-40 overflow-y-auto">
+                            {generatedShiftValidation.warnings.slice(0, 5).map((warning, idx) => (
+                              <li
+                                key={idx}
+                                className="text-sm bg-white p-2 rounded border-l-4 border-orange-500"
+                              >
+                                <span className="font-mono text-xs bg-orange-200 px-2 py-1 rounded">
+                                  {warning.rule_id}
+                                </span>
+                                <p className="mt-1">{warning.message}</p>
+                              </li>
+                            ))}
+                            {generatedShiftValidation.warnings.length > 5 && (
+                              <li className="text-sm text-gray-500">
+                                ...他 {generatedShiftValidation.warnings.length - 5} 件
+                              </li>
+                            )}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
 
           {/* 右側：プレビュー＆ログエリア */}
@@ -2103,7 +2111,11 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                           <div
                             key={day}
                             className={`text-center text-xs font-semibold py-1 ${
-                              idx === 0 ? 'text-red-600' : idx === 6 ? 'text-blue-600' : 'text-gray-600'
+                              idx === 0
+                                ? 'text-red-600'
+                                : idx === 6
+                                  ? 'text-blue-600'
+                                  : 'text-gray-600'
                             }`}
                           >
                             {day}
@@ -2111,25 +2123,33 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                         ))}
                       </div>
                       <div className="grid grid-cols-7 gap-1">
-                        {Array.from({ length: new Date(targetYear, targetMonth, 0).getDate() }, (_, i) => {
-                          const date = i + 1
-                          const dayOfWeek = new Date(targetYear, targetMonth - 1, date).getDay()
-                          return (
-                            <div
-                              key={date}
-                              className={`text-center text-xs p-1 rounded ${
-                                dayOfWeek === 0
-                                  ? 'bg-red-50 text-red-700'
-                                  : dayOfWeek === 6
-                                    ? 'bg-blue-50 text-blue-700'
-                                    : 'bg-gray-50 text-gray-700'
-                              }`}
-                              style={{ gridColumnStart: i === 0 ? new Date(targetYear, targetMonth - 1, 1).getDay() + 1 : 'auto' }}
-                            >
-                              {date}
-                            </div>
-                          )
-                        })}
+                        {Array.from(
+                          { length: new Date(targetYear, targetMonth, 0).getDate() },
+                          (_, i) => {
+                            const date = i + 1
+                            const dayOfWeek = new Date(targetYear, targetMonth - 1, date).getDay()
+                            return (
+                              <div
+                                key={date}
+                                className={`text-center text-xs p-1 rounded ${
+                                  dayOfWeek === 0
+                                    ? 'bg-red-50 text-red-700'
+                                    : dayOfWeek === 6
+                                      ? 'bg-blue-50 text-blue-700'
+                                      : 'bg-gray-50 text-gray-700'
+                                }`}
+                                style={{
+                                  gridColumnStart:
+                                    i === 0
+                                      ? new Date(targetYear, targetMonth - 1, 1).getDay() + 1
+                                      : 'auto',
+                                }}
+                              >
+                                {date}
+                              </div>
+                            )
+                          }
+                        )}
                       </div>
                     </div>
                     <div className="mt-3 text-xs text-gray-600 text-center">
@@ -2148,221 +2168,230 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
                   ログ
                 </h3>
                 <div className="space-y-4">
-
-                {/* 対話ログ管理 */}
-                <div>
-                  <div
-                    className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => setShowLogs(!showLogs)}
-                  >
-                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <MessageSquare className="h-4 w-4 text-blue-600" />
-                      対話ログ ({conversationLog.length})
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      {conversationLog.length > 0 && (
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            downloadLogsManually()
-                          }}
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs hover:bg-blue-100"
-                        >
-                          <Download className="h-3 w-3 mr-1" />
-                          保存
-                        </Button>
-                      )}
-                      {showLogs ? (
-                        <ChevronUp className="h-4 w-4 text-gray-600" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-gray-600" />
-                      )}
+                  {/* 対話ログ管理 */}
+                  <div>
+                    <div
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => setShowLogs(!showLogs)}
+                    >
+                      <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-blue-600" />
+                        対話ログ ({conversationLog.length})
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        {conversationLog.length > 0 && (
+                          <Button
+                            onClick={e => {
+                              e.stopPropagation()
+                              downloadLogsManually()
+                            }}
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs hover:bg-blue-100"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            保存
+                          </Button>
+                        )}
+                        {showLogs ? (
+                          <ChevronUp className="h-4 w-4 text-gray-600" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-gray-600" />
+                        )}
+                      </div>
                     </div>
+
+                    {/* ログ一覧表示（折りたたみ） */}
+                    {showLogs && conversationLog.length > 0 && (
+                      <div className="mt-3 space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                        {conversationLog
+                          .slice()
+                          .reverse()
+                          .map((log, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow text-xs"
+                            >
+                              <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-100">
+                                <span className="font-semibold text-blue-700 text-xs">
+                                  #{conversationLog.length - idx}
+                                </span>
+                                <div className="text-right">
+                                  <div className="text-gray-700 text-[10px] font-medium">
+                                    {new Date(log.timestamp).toLocaleDateString('ja-JP', {
+                                      month: '2-digit',
+                                      day: '2-digit',
+                                    })}
+                                  </div>
+                                  <div className="text-gray-500 text-[10px]">
+                                    {new Date(log.timestamp).toLocaleTimeString('ja-JP', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      second: '2-digit',
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <div>
+                                  <div className="text-[10px] text-gray-500 mb-1">入力</div>
+                                  <div className="bg-blue-50 p-2 rounded text-[11px] text-gray-700 max-h-20 overflow-y-auto">
+                                    {log.userInput.length > 200
+                                      ? log.userInput.substring(0, 200) + '...'
+                                      : log.userInput}
+                                  </div>
+                                </div>
+                                <div>
+                                  <div className="text-[10px] text-gray-500 mb-1">
+                                    応答 ({log.responseLength}文字)
+                                  </div>
+                                  <div className="bg-green-50 p-2 rounded text-[11px] text-gray-700 max-h-20 overflow-y-auto">
+                                    {log.aiResponse.length > 200
+                                      ? log.aiResponse.substring(0, 200) + '...'
+                                      : log.aiResponse}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
                   </div>
 
-                  {/* ログ一覧表示（折りたたみ） */}
-                  {showLogs && conversationLog.length > 0 && (
-                    <div className="mt-3 space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                      {conversationLog
-                        .slice()
-                        .reverse()
-                        .map((log, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow text-xs"
+                  {/* バリデーションログ管理セクション */}
+                  <div>
+                    <div
+                      className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200 cursor-pointer hover:shadow-md transition-shadow"
+                      onClick={() => setShowValidationLogs(!showValidationLogs)}
+                    >
+                      <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-purple-600" />
+                        検証ログ ({validationLog.length})
+                      </h4>
+                      <div className="flex items-center gap-2">
+                        {validationLog.length > 0 && (
+                          <Button
+                            onClick={e => {
+                              e.stopPropagation()
+                              downloadValidationLogsManually()
+                            }}
+                            size="sm"
+                            variant="ghost"
+                            className="h-7 text-xs hover:bg-purple-100"
                           >
-                            <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-100">
-                              <span className="font-semibold text-blue-700 text-xs">
-                                #{conversationLog.length - idx}
-                              </span>
-                              <div className="text-right">
-                                <div className="text-gray-700 text-[10px] font-medium">
-                                  {new Date(log.timestamp).toLocaleDateString('ja-JP', {
-                                    month: '2-digit',
-                                    day: '2-digit'
-                                  })}
-                                </div>
-                                <div className="text-gray-500 text-[10px]">
-                                  {new Date(log.timestamp).toLocaleTimeString('ja-JP', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    second: '2-digit'
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <div>
-                                <div className="text-[10px] text-gray-500 mb-1">入力</div>
-                                <div className="bg-blue-50 p-2 rounded text-[11px] text-gray-700 max-h-20 overflow-y-auto">
-                                  {log.userInput.length > 200
-                                    ? log.userInput.substring(0, 200) + '...'
-                                    : log.userInput}
-                                </div>
-                              </div>
-                              <div>
-                                <div className="text-[10px] text-gray-500 mb-1">
-                                  応答 ({log.responseLength}文字)
-                                </div>
-                                <div className="bg-green-50 p-2 rounded text-[11px] text-gray-700 max-h-20 overflow-y-auto">
-                                  {log.aiResponse.length > 200
-                                    ? log.aiResponse.substring(0, 200) + '...'
-                                    : log.aiResponse}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+                            <Download className="h-3 w-3 mr-1" />
+                            保存
+                          </Button>
+                        )}
+                        {showValidationLogs ? (
+                          <ChevronUp className="h-4 w-4 text-gray-600" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-gray-600" />
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
 
-                {/* バリデーションログ管理セクション */}
-                <div>
-                  <div
-                    className="flex items-center justify-between p-3 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200 cursor-pointer hover:shadow-md transition-shadow"
-                    onClick={() => setShowValidationLogs(!showValidationLogs)}
-                  >
-                    <h4 className="text-sm font-semibold text-gray-700 flex items-center gap-2">
-                      <CheckCircle2 className="h-4 w-4 text-purple-600" />
-                      検証ログ ({validationLog.length})
-                    </h4>
-                    <div className="flex items-center gap-2">
-                      {validationLog.length > 0 && (
-                        <Button
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            downloadValidationLogsManually()
-                          }}
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs hover:bg-purple-100"
-                        >
-                          <Download className="h-3 w-3 mr-1" />
-                          保存
-                        </Button>
-                      )}
-                      {showValidationLogs ? (
-                        <ChevronUp className="h-4 w-4 text-gray-600" />
-                      ) : (
-                        <ChevronDown className="h-4 w-4 text-gray-600" />
-                      )}
-                    </div>
+                    {/* バリデーションログ一覧表示（折りたたみ） */}
+                    {showValidationLogs && validationLog.length > 0 && (
+                      <div className="mt-3 space-y-2 max-h-[400px] overflow-y-auto pr-2">
+                        {validationLog
+                          .slice()
+                          .reverse()
+                          .map((log, idx) => (
+                            <div
+                              key={idx}
+                              className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow text-xs"
+                            >
+                              <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-100">
+                                <span className="font-semibold text-purple-700 text-xs">
+                                  #{validationLog.length - idx}
+                                </span>
+                                <div className="text-right">
+                                  <div className="text-gray-700 text-[10px] font-medium">
+                                    {new Date(log.timestamp).toLocaleDateString('ja-JP', {
+                                      month: '2-digit',
+                                      day: '2-digit',
+                                    })}
+                                  </div>
+                                  <div className="text-gray-500 text-[10px]">
+                                    {new Date(log.timestamp).toLocaleTimeString('ja-JP', {
+                                      hour: '2-digit',
+                                      minute: '2-digit',
+                                      second: '2-digit',
+                                    })}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <div
+                                  className={`p-2 rounded-lg ${log.isValid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}
+                                >
+                                  <div className="flex items-center justify-between mb-1">
+                                    <span
+                                      className={`font-semibold text-xs ${log.isValid ? 'text-green-700' : 'text-red-700'}`}
+                                    >
+                                      {log.isValid ? '✓ 合格' : '✗ 不合格'}
+                                    </span>
+                                    <div className="text-[10px] text-gray-600">
+                                      エラー: {log.errorCount} / 警告: {log.warningCount}
+                                    </div>
+                                  </div>
+                                </div>
+                                {log.errors.length > 0 && (
+                                  <div>
+                                    <div className="text-[10px] text-red-700 font-semibold mb-1">
+                                      エラー詳細:
+                                    </div>
+                                    <div className="space-y-1 max-h-24 overflow-y-auto">
+                                      {log.errors.slice(0, 2).map((error, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="text-[10px] bg-red-50 p-1.5 rounded text-red-800"
+                                        >
+                                          {error.message}
+                                        </div>
+                                      ))}
+                                      {log.errors.length > 2 && (
+                                        <div className="text-[10px] text-gray-500 text-center">
+                                          +{log.errors.length - 2}件
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                                {log.warnings.length > 0 && (
+                                  <div>
+                                    <div className="text-[10px] text-orange-700 font-semibold mb-1">
+                                      警告:
+                                    </div>
+                                    <div className="space-y-1 max-h-16 overflow-y-auto">
+                                      {log.warnings.slice(0, 1).map((warning, idx) => (
+                                        <div
+                                          key={idx}
+                                          className="text-[10px] bg-orange-50 p-1.5 rounded text-orange-800"
+                                        >
+                                          {warning.message}
+                                        </div>
+                                      ))}
+                                      {log.warnings.length > 1 && (
+                                        <div className="text-[10px] text-gray-500 text-center">
+                                          +{log.warnings.length - 1}件
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
                   </div>
-
-                  {/* バリデーションログ一覧表示（折りたたみ） */}
-                  {showValidationLogs && validationLog.length > 0 && (
-                    <div className="mt-3 space-y-2 max-h-[400px] overflow-y-auto pr-2">
-                      {validationLog
-                        .slice()
-                        .reverse()
-                        .map((log, idx) => (
-                          <div
-                            key={idx}
-                            className="bg-white p-3 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow text-xs"
-                          >
-                            <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-100">
-                              <span className="font-semibold text-purple-700 text-xs">
-                                #{validationLog.length - idx}
-                              </span>
-                              <div className="text-right">
-                                <div className="text-gray-700 text-[10px] font-medium">
-                                  {new Date(log.timestamp).toLocaleDateString('ja-JP', {
-                                    month: '2-digit',
-                                    day: '2-digit'
-                                  })}
-                                </div>
-                                <div className="text-gray-500 text-[10px]">
-                                  {new Date(log.timestamp).toLocaleTimeString('ja-JP', {
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                    second: '2-digit'
-                                  })}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="space-y-2">
-                              <div
-                                className={`p-2 rounded-lg ${log.isValid ? 'bg-green-50 border border-green-200' : 'bg-red-50 border border-red-200'}`}
-                              >
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className={`font-semibold text-xs ${log.isValid ? 'text-green-700' : 'text-red-700'}`}>
-                                    {log.isValid ? '✓ 合格' : '✗ 不合格'}
-                                  </span>
-                                  <div className="text-[10px] text-gray-600">
-                                    エラー: {log.errorCount} / 警告: {log.warningCount}
-                                  </div>
-                                </div>
-                              </div>
-                              {log.errors.length > 0 && (
-                                <div>
-                                  <div className="text-[10px] text-red-700 font-semibold mb-1">エラー詳細:</div>
-                                  <div className="space-y-1 max-h-24 overflow-y-auto">
-                                    {log.errors.slice(0, 2).map((error, idx) => (
-                                      <div key={idx} className="text-[10px] bg-red-50 p-1.5 rounded text-red-800">
-                                        {error.message}
-                                      </div>
-                                    ))}
-                                    {log.errors.length > 2 && (
-                                      <div className="text-[10px] text-gray-500 text-center">
-                                        +{log.errors.length - 2}件
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                              {log.warnings.length > 0 && (
-                                <div>
-                                  <div className="text-[10px] text-orange-700 font-semibold mb-1">警告:</div>
-                                  <div className="space-y-1 max-h-16 overflow-y-auto">
-                                    {log.warnings.slice(0, 1).map((warning, idx) => (
-                                      <div key={idx} className="text-[10px] bg-orange-50 p-1.5 rounded text-orange-800">
-                                        {warning.message}
-                                      </div>
-                                    ))}
-                                    {log.warnings.length > 1 && (
-                                      <div className="text-[10px] text-gray-500 text-center">
-                                        +{log.warnings.length - 1}件
-                                      </div>
-                                    )}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                    </div>
-                  )}
-                </div>
-
                 </div>
               </CardContent>
             </Card>
           </div>
         </div>
-
       </div>
 
       {/* AI対話チャットボット */}
