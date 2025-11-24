@@ -1,16 +1,22 @@
 import { describe, it, expect, beforeAll } from 'vitest'
-import { openai, getOpenAIHeaders, OPENAI_API_BASE } from '../../src/services/openaiService.js'
+import { openai, getOpenAIHeaders, OPENAI_API_BASE, isOpenAIAvailable } from '../../src/services/openaiService.js'
 
 describe('openaiService', () => {
   describe('openai client', () => {
     it('should export openai client instance', () => {
       expect(openai).toBeDefined()
-      expect(openai.apiKey).toBeDefined()
+      if (isOpenAIAvailable()) {
+        expect(openai.apiKey).toBeDefined()
+      }
     })
 
     it('should have apiKey configured', () => {
-      expect(openai.apiKey).toBeTruthy()
-      expect(typeof openai.apiKey).toBe('string')
+      if (isOpenAIAvailable()) {
+        expect(openai.apiKey).toBeTruthy()
+        expect(typeof openai.apiKey).toBe('string')
+      } else {
+        expect(openai).toBeNull()
+      }
     })
   })
 
