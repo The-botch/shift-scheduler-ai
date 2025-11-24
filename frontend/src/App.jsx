@@ -21,6 +21,8 @@ import History from './components/screens/shift/History'
 import ShiftManagement from './components/screens/shift/ShiftManagement'
 import BudgetActualManagement from './components/screens/BudgetActualManagement'
 import MasterDataManagement from './components/screens/MasterDataManagement'
+
+// CI test: pre-commit hook verification
 import DevTools from './dev/DevTools'
 
 // UI Components
