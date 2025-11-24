@@ -1,6 +1,11 @@
+import path from 'path'
+
 export default {
   'frontend/**/*.{js,jsx}': (filenames) => {
-    const frontendFiles = filenames.map(f => f.replace('frontend/', '')).map(f => `"${f}"`)
+    const frontendFiles = filenames.map(f => {
+      const relative = path.relative('frontend', f)
+      return `"${relative}"`
+    })
     return [
       `cd frontend && npx eslint --fix ${frontendFiles.join(' ')}`,
       `cd frontend && npx prettier --write ${frontendFiles.join(' ')}`,
