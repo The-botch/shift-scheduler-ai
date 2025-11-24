@@ -221,7 +221,9 @@ const ConstraintManagement = () => {
                             </div>
 
                             <div className="mb-3">
-                              <div className="text-sm md:text-xs text-gray-500 mb-2">制約ルール</div>
+                              <div className="text-sm md:text-xs text-gray-500 mb-2">
+                                制約ルール
+                              </div>
                               {formatConstraintRule(law.constraint_rule)}
                             </div>
 

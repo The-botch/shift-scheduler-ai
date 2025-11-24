@@ -116,13 +116,7 @@ export class ShiftRepository {
    */
   async getPlans(filters = {}) {
     try {
-      const {
-        tenantId = null,
-        storeId,
-        year,
-        month,
-        status,
-      } = filters
+      const { tenantId = null, storeId, year, month, status } = filters
 
       const actualTenantId = tenantId ?? getCurrentTenantId()
 
@@ -193,13 +187,7 @@ export class ShiftRepository {
    */
   async getSummary(filters = {}) {
     try {
-      const {
-        tenantId = null,
-        storeId,
-        year,
-        month,
-        plan_type,
-      } = filters
+      const { tenantId = null, storeId, year, month, plan_type } = filters
 
       const actualTenantId = tenantId ?? getCurrentTenantId()
 
@@ -243,12 +231,7 @@ export class ShiftRepository {
    */
   async getPreferences(filters = {}) {
     try {
-      const {
-        tenantId = null,
-        staffId,
-        year,
-        month,
-      } = filters
+      const { tenantId = null, staffId, year, month } = filters
 
       const actualTenantId = tenantId ?? getCurrentTenantId()
 
@@ -434,13 +417,7 @@ export class ShiftRepository {
    */
   async copyFromPreviousMonth(data) {
     try {
-      const {
-        store_id,
-        target_year,
-        target_month,
-        created_by,
-        tenantId = null,
-      } = data
+      const { store_id, target_year, target_month, created_by, tenantId = null } = data
 
       const actualTenantId = tenantId ?? getCurrentTenantId()
 
@@ -488,12 +465,7 @@ export class ShiftRepository {
    */
   async copyFromPreviousAllStores(data) {
     try {
-      const {
-        target_year,
-        target_month,
-        created_by,
-        tenantId = null,
-      } = data
+      const { target_year, target_month, created_by, tenantId = null } = data
 
       const actualTenantId = tenantId ?? getCurrentTenantId()
 
@@ -539,11 +511,7 @@ export class ShiftRepository {
    */
   async fetchPreviousDataAllStores(data) {
     try {
-      const {
-        target_year,
-        target_month,
-        tenantId = null,
-      } = data
+      const { target_year, target_month, tenantId = null } = data
 
       const actualTenantId = tenantId ?? getCurrentTenantId()
 
@@ -590,13 +558,7 @@ export class ShiftRepository {
    */
   async createPlansWithShifts(data) {
     try {
-      const {
-        target_year,
-        target_month,
-        created_by,
-        stores,
-        tenantId = null,
-      } = data
+      const { target_year, target_month, created_by, stores, tenantId = null } = data
 
       const actualTenantId = tenantId ?? getCurrentTenantId()
 

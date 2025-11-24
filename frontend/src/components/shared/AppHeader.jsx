@@ -58,7 +58,7 @@ const AppHeader = () => {
     fetchHealthInfo()
   }, [])
 
-  const handleTenantChange = (e) => {
+  const handleTenantChange = e => {
     const selectedTenantId = parseInt(e.target.value)
     const selectedTenant = availableTenants.find(t => t.tenant_id === selectedTenantId)
     if (selectedTenant) {
@@ -74,7 +74,10 @@ const AppHeader = () => {
 
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return { name: 'LOCAL', label: 'ローカル', color: 'blue' }
-    } else if (hostname.includes('vercel.app') && !hostname.includes('shift-scheduler-ai.vercel.app')) {
+    } else if (
+      hostname.includes('vercel.app') &&
+      !hostname.includes('shift-scheduler-ai.vercel.app')
+    ) {
       // プレビューデプロイ（xxxxx-username.vercel.app）
       return { name: 'DEV', label: '開発', color: 'amber' }
     } else {
@@ -104,7 +107,7 @@ const AppHeader = () => {
     { label: 'マスター管理', icon: Database, path: '/master' },
   ]
 
-  const handleMenuItemClick = (path) => {
+  const handleMenuItemClick = path => {
     navigate(path)
     setIsMobileMenuOpen(false)
   }
@@ -122,7 +125,9 @@ const AppHeader = () => {
               className="app-logo"
             >
               <BarChart3 className="h-6 w-6 text-slate-700" />
-              <span className="font-bold text-base md:text-lg text-slate-900 hidden sm:inline">Shift Scheduler</span>
+              <span className="font-bold text-base md:text-lg text-slate-900 hidden sm:inline">
+                Shift Scheduler
+              </span>
             </button>
             <div className="text-xs text-slate-500 items-center gap-1 hidden sm:flex whitespace-nowrap">
               <CalendarIcon className="h-3 w-3 flex-shrink-0" />
@@ -168,27 +173,29 @@ const AppHeader = () => {
 
           {/* 右側：環境表示インジケーター */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <div className={`flex items-center gap-1.5 px-2 md:px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap ${
-              environment.color === 'green'
-                ? 'bg-green-50 text-green-700 border border-green-200'
-                : environment.color === 'amber'
-                ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                : 'bg-blue-50 text-blue-700 border border-blue-200'
-            }`}>
-              <div className={`h-2 w-2 rounded-full flex-shrink-0 ${
+            <div
+              className={`flex items-center gap-1.5 px-2 md:px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap ${
                 environment.color === 'green'
-                  ? 'bg-green-500'
+                  ? 'bg-green-50 text-green-700 border border-green-200'
                   : environment.color === 'amber'
-                  ? 'bg-amber-500'
-                  : 'bg-blue-500'
-              }`} />
+                    ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                    : 'bg-blue-50 text-blue-700 border border-blue-200'
+              }`}
+            >
+              <div
+                className={`h-2 w-2 rounded-full flex-shrink-0 ${
+                  environment.color === 'green'
+                    ? 'bg-green-500'
+                    : environment.color === 'amber'
+                      ? 'bg-amber-500'
+                      : 'bg-blue-500'
+                }`}
+              />
               <div className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-1.5 whitespace-nowrap">
                   <span className="font-semibold">{environment.name}</span>
                   {!loading && tenantId && (
-                    <span className="text-[10px] opacity-70">
-                      (ID:{tenantId})
-                    </span>
+                    <span className="text-[10px] opacity-70">(ID:{tenantId})</span>
                   )}
                 </div>
                 <div className="text-[10px] opacity-60 hidden md:block whitespace-nowrap">

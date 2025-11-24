@@ -154,7 +154,7 @@ function AppContent() {
     showDevTools,
     showTenantSettings,
     currentStep,
-    navigate
+    navigate,
   ])
 
   const nextStep = () => {
@@ -357,7 +357,6 @@ function AppContent() {
     setIsMenuOpen(false)
   }
 
-
   const goToTenantSettings = () => {
     if (hasUnsavedChanges) {
       if (!window.confirm('変更が保存されていません。テナント設定に移動しますか？')) {
@@ -445,7 +444,7 @@ function AppContent() {
     setShowShiftManagement(false)
   }
 
-  const goToFirstPlanFromShiftMgmt = async (shift) => {
+  const goToFirstPlanFromShiftMgmt = async shift => {
     // shiftオブジェクトから情報を取得
     const status = shift?.status || 'not_started'
     const year = shift?.year || getCurrentYear()
@@ -497,7 +496,7 @@ function AppContent() {
     setShowShiftManagement(true)
   }
 
-  const handleSelectCreationMethod = async (methodId) => {
+  const handleSelectCreationMethod = async methodId => {
     // 作成方法選択後の処理
     if (methodId === 'copy') {
       // 前月コピー（曜日ベース）を実行
@@ -564,8 +563,12 @@ function AppContent() {
             // 主な違反内容を表示
             if (validation.violations && validation.violations.length > 0) {
               message += `\n\n主な違反内容:`
-              const errorViolations = validation.violations.filter(v => v.level === 'ERROR').slice(0, 3)
-              const warningViolations = validation.violations.filter(v => v.level === 'WARNING').slice(0, 3)
+              const errorViolations = validation.violations
+                .filter(v => v.level === 'ERROR')
+                .slice(0, 3)
+              const warningViolations = validation.violations
+                .filter(v => v.level === 'WARNING')
+                .slice(0, 3)
 
               errorViolations.forEach(v => {
                 message += `\n❌ ${v.message}`
@@ -726,19 +729,14 @@ function AppContent() {
     }
 
     if (showMasterDataManagement) {
-      return (
-        <MasterDataManagement
-          onPrev={goToShiftManagement}
-        />
-      )
+      return <MasterDataManagement onPrev={goToShiftManagement} />
     }
-
 
     if (showDevTools) {
       return (
         <DevTools
-          targetYear={selectedShiftForSecondPlan?.year || getCurrentYear()}
-          targetMonth={selectedShiftForSecondPlan?.month || getCurrentMonth()}
+          targetYear={getCurrentYear()}
+          targetMonth={getCurrentMonth()}
           onHome={goToShiftManagement}
           onShiftManagement={goToShiftManagement}
           onLineMessages={goToLineMessages}
@@ -829,18 +827,18 @@ function AppContent() {
   }
 
   return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col overflow-x-hidden w-full max-w-full">
-        <AppHeader
-          onHome={goToShiftManagement}
-          onShiftManagement={goToShiftManagement}
-          onLineMessages={goToLineMessages}
-          onMonitoring={goToMonitoring}
-          onStaffManagement={goToStaffManagement}
-          onStoreManagement={goToStoreManagement}
-          onConstraintManagement={goToConstraintManagement}
-          onBudgetActualManagement={goToBudgetActualManagement}
-          onMasterDataManagement={goToMasterDataManagement}
-        />
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col overflow-x-hidden w-full max-w-full">
+      <AppHeader
+        onHome={goToShiftManagement}
+        onShiftManagement={goToShiftManagement}
+        onLineMessages={goToLineMessages}
+        onMonitoring={goToMonitoring}
+        onStaffManagement={goToStaffManagement}
+        onStoreManagement={goToStoreManagement}
+        onConstraintManagement={goToConstraintManagement}
+        onBudgetActualManagement={goToBudgetActualManagement}
+        onMasterDataManagement={goToMasterDataManagement}
+      />
       <div className="flex-1 overflow-x-hidden w-full max-w-full">
         <AnimatePresence mode="wait">
           <div
@@ -870,7 +868,7 @@ function AppContent() {
           </div>
         </AnimatePresence>
       </div>
-      </div>
+    </div>
   )
 }
 

@@ -27,11 +27,11 @@ export class Staff {
     const birth = new Date(this.birthDate)
     let age = baseDate.getFullYear() - birth.getFullYear()
     const monthDiff = baseDate.getMonth() - birth.getMonth()
-    
+
     if (monthDiff < 0 || (monthDiff === 0 && baseDate.getDate() < birth.getDate())) {
       age--
     }
-    
+
     return age
   }
 

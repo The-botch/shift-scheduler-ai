@@ -72,7 +72,9 @@ export const TenantProvider = ({ children }) => {
   }
 
   return (
-    <TenantContext.Provider value={{ tenantId, tenantName, changeTenant, availableTenants, loading }}>
+    <TenantContext.Provider
+      value={{ tenantId, tenantName, changeTenant, availableTenants, loading }}
+    >
       {children}
     </TenantContext.Provider>
   )

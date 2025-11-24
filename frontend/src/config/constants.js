@@ -2,7 +2,7 @@
 import {
   getCurrentYear as getYear,
   getCurrentMonth as getMonth,
-  getCurrentYearMonth as getYearMonth
+  getCurrentYearMonth as getYearMonth,
 } from '../utils/dateUtils'
 
 // システム基本定数

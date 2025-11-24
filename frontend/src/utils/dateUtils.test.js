@@ -1,10 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  formatDate,
-  generateTimestamp,
-  getCurrentYearMonth,
-  getDaysInMonth,
-} from './dateUtils'
+import { formatDate, generateTimestamp, getCurrentYearMonth, getDaysInMonth } from './dateUtils'
 
 describe('dateUtils', () => {
   describe('formatDate', () => {

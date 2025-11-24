@@ -41,7 +41,11 @@ async function getHolidays() {
   const now = Date.now()
 
   // キャッシュが有効な場合はキャッシュを返す
-  if (cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION) && Object.keys(holidaysCache).length > 0) {
+  if (
+    cacheTimestamp &&
+    now - cacheTimestamp < CACHE_DURATION &&
+    Object.keys(holidaysCache).length > 0
+  ) {
     return holidaysCache
   }
 

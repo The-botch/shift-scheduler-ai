@@ -129,7 +129,11 @@ export const setupVectorStore = async (tenantId, storeId, onProgress) => {
 
     const result = await response.json()
 
-    onProgress?.(`セットアップ完了！${result.filesUploaded}件のファイルをアップロードしました`, 2, 2)
+    onProgress?.(
+      `セットアップ完了！${result.filesUploaded}件のファイルをアップロードしました`,
+      2,
+      2
+    )
 
     return result.vectorStoreId
   } catch (error) {
@@ -424,12 +428,7 @@ export const downloadFile = async fileId => {
  * @returns {Promise<Object>} 生成結果
  */
 export const generateShiftWithAssistant = async params => {
-  const {
-    vectorStoreId,
-    assistantId: existingAssistantId,
-    customPrompt,
-    onProgress,
-  } = params
+  const { vectorStoreId, assistantId: existingAssistantId, customPrompt, onProgress } = params
 
   try {
     // 1. Assistant作成または再利用

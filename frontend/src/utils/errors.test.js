@@ -1,11 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import {
-  AppError,
-  ValidationError,
-  APIError,
-  NotFoundError,
-  handleError,
-} from './errors'
+import { AppError, ValidationError, APIError, NotFoundError, handleError } from './errors'
 
 describe('Error Classes', () => {
   describe('AppError', () => {

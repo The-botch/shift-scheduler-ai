@@ -7,9 +7,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { ROLE_COLORS, getRoleColor } from '../../config/colors'
 import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
 
-const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, onUpdate, onDelete, storeName }) => {
+const ShiftTimeline = ({
+  date,
+  shifts,
+  onClose,
+  year,
+  month,
+  editable = false,
+  onUpdate,
+  onDelete,
+  storeName,
+}) => {
   // 時刻をHH:MM形式にフォーマット
-  const formatTime = (time) => {
+  const formatTime = time => {
     if (!time) return ''
     return time.substring(0, 5)
   }
@@ -200,7 +210,7 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
     if (newStartTime !== shift.start_time || newEndTime !== shift.end_time) {
       onUpdate(shift.shift_id, {
         start_time: newStartTime,
-        end_time: newEndTime
+        end_time: newEndTime,
       })
     }
 
@@ -209,10 +219,14 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
   }
 
   // 削除ハンドラー
-  const handleDelete = (shift) => {
+  const handleDelete = shift => {
     if (!editable || !onDelete) return
 
-    if (confirm(`${shift.staff_name}のシフト（${shift.start_time}-${shift.end_time}）を削除しますか？`)) {
+    if (
+      confirm(
+        `${shift.staff_name}のシフト（${shift.start_time}-${shift.end_time}）を削除しますか？`
+      )
+    ) {
       onDelete(shift.shift_id)
     }
   }
@@ -337,7 +351,7 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
                   return (
                     <motion.div
                       key={shift.shift_id || index}
-                      drag={editable ? "y" : false}
+                      drag={editable ? 'y' : false}
                       dragConstraints={{ top: 0, bottom: 0 }}
                       dragElastic={0}
                       dragMomentum={false}
@@ -359,7 +373,9 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
                       whileDrag={{ scale: 1.05, zIndex: 50 }}
                     >
                       <div className="px-1 py-0.5 h-full text-white relative">
-                        <div className="font-bold text-[0.5rem] leading-tight mb-0.5 truncate">{shift.staff_name}</div>
+                        <div className="font-bold text-[0.5rem] leading-tight mb-0.5 truncate">
+                          {shift.staff_name}
+                        </div>
                         <div className="text-[0.45rem] leading-tight opacity-90">{shift.role}</div>
                         <div className="text-[0.45rem] leading-tight mt-0.5 font-medium">
                           {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
@@ -374,7 +390,7 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
                         )}
                         {editable && onDelete && (
                           <button
-                            onClick={(e) => {
+                            onClick={e => {
                               e.stopPropagation()
                               handleDelete(shift)
                             }}

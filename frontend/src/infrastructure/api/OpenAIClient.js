@@ -13,11 +13,7 @@ export class OpenAIClient {
    * ChatGPT APIを呼び出す
    */
   async sendChatCompletion(messages, options = {}) {
-    const {
-      model = 'gpt-4',
-      maxTokens = 2000,
-      temperature = 0.7,
-    } = options
+    const { model = 'gpt-4', maxTokens = 2000, temperature = 0.7 } = options
 
     return postJSON(`${this.backendUrl}/api/openai/chat/completions`, {
       model,

@@ -22,15 +22,39 @@ const DataImpactDocumentation = ({ onPrev }) => {
   const [expandedSection, setExpandedSection] = useState(null)
   const [selectedCategory, setSelectedCategory] = useState('overview')
 
-  const toggleSection = (sectionId) => {
+  const toggleSection = sectionId => {
     setExpandedSection(expandedSection === sectionId ? null : sectionId)
   }
 
   const impactLevels = {
-    low: { icon: CheckCircle, color: 'text-green-600', bg: 'bg-green-50', border: 'border-green-200', label: '低影響' },
-    medium: { icon: Info, color: 'text-yellow-600', bg: 'bg-yellow-50', border: 'border-yellow-200', label: '中影響' },
-    high: { icon: AlertTriangle, color: 'text-orange-600', bg: 'bg-orange-50', border: 'border-orange-200', label: '高影響' },
-    critical: { icon: XCircle, color: 'text-red-600', bg: 'bg-red-50', border: 'border-red-200', label: '最高影響' },
+    low: {
+      icon: CheckCircle,
+      color: 'text-green-600',
+      bg: 'bg-green-50',
+      border: 'border-green-200',
+      label: '低影響',
+    },
+    medium: {
+      icon: Info,
+      color: 'text-yellow-600',
+      bg: 'bg-yellow-50',
+      border: 'border-yellow-200',
+      label: '中影響',
+    },
+    high: {
+      icon: AlertTriangle,
+      color: 'text-orange-600',
+      bg: 'bg-orange-50',
+      border: 'border-orange-200',
+      label: '高影響',
+    },
+    critical: {
+      icon: XCircle,
+      color: 'text-red-600',
+      bg: 'bg-red-50',
+      border: 'border-red-200',
+      label: '最高影響',
+    },
   }
 
   const masterDataItems = [
@@ -39,10 +63,27 @@ const DataImpactDocumentation = ({ onPrev }) => {
       name: 'テナント（企業）',
       icon: Database,
       fields: [
-        { name: 'テナント名', impact: 'low', description: '表示のみに影響。システム動作に影響なし。' },
-        { name: '契約プラン', impact: 'medium', description: '機能制限に影響。上位プランへの変更は安全、下位プランへの変更は機能制限が発生。' },
-        { name: '上限値（店舗数/スタッフ数）', impact: 'high', description: '既存データが上限を超える場合はエラー。必ず既存データ数を確認してから変更。' },
-        { name: 'テナント削除', impact: 'critical', description: '⚠️ 全関連データが削除されます。絶対に実行しないでください。' },
+        {
+          name: 'テナント名',
+          impact: 'low',
+          description: '表示のみに影響。システム動作に影響なし。',
+        },
+        {
+          name: '契約プラン',
+          impact: 'medium',
+          description:
+            '機能制限に影響。上位プランへの変更は安全、下位プランへの変更は機能制限が発生。',
+        },
+        {
+          name: '上限値（店舗数/スタッフ数）',
+          impact: 'high',
+          description: '既存データが上限を超える場合はエラー。必ず既存データ数を確認してから変更。',
+        },
+        {
+          name: 'テナント削除',
+          impact: 'critical',
+          description: '⚠️ 全関連データが削除されます。絶対に実行しないでください。',
+        },
       ],
       relatedTables: ['全テーブル'],
       relatedScreens: ['全画面'],
@@ -54,9 +95,17 @@ const DataImpactDocumentation = ({ onPrev }) => {
       fields: [
         { name: '店舗名', impact: 'low', description: '表示のみに影響。' },
         { name: '店舗コード', impact: 'low', description: '表示・検索に影響。' },
-        { name: '営業時間', impact: 'medium', description: 'シフトパターンとの整合性チェックが必要。矛盾がある場合は警告表示。' },
+        {
+          name: '営業時間',
+          impact: 'medium',
+          description: 'シフトパターンとの整合性チェックが必要。矛盾がある場合は警告表示。',
+        },
         { name: '住所・連絡先', impact: 'low', description: '表示のみに影響。' },
-        { name: '店舗削除', impact: 'critical', description: '⚠️ 所属スタッフとシフトデータの再配置が必要。削除前に必ず確認。' },
+        {
+          name: '店舗削除',
+          impact: 'critical',
+          description: '⚠️ 所属スタッフとシフトデータの再配置が必要。削除前に必ず確認。',
+        },
       ],
       relatedTables: ['hr.staff', 'ops.shift_plans', 'ops.shifts', 'core.shift_patterns'],
       relatedScreens: ['シフト管理', 'スタッフ管理', 'ダッシュボード'],
@@ -72,12 +121,37 @@ const DataImpactDocumentation = ({ onPrev }) => {
       fields: [
         { name: '氏名・連絡先', impact: 'low', description: '表示のみに影響。' },
         { name: 'スタッフコード', impact: 'low', description: '検索に影響。' },
-        { name: '時給', impact: 'high', description: '⚠️ 既存シフトの人件費再計算が必要。変更後は必ずシフト計画の人件費を確認。' },
-        { name: '月給', impact: 'high', description: '⚠️ 給与計算に影響。変更後は給与データを確認。' },
-        { name: '雇用形態', impact: 'high', description: '⚠️ 労働時間制約が変更されます。既存シフトが制約違反になる可能性あり。' },
-        { name: '所属店舗', impact: 'critical', description: '⚠️ 既存のシフト割当を見直す必要があります。変更前に必ずシフト状況を確認。' },
-        { name: '退職日', impact: 'critical', description: '⚠️ 未来のシフトから自動削除されます。シフトに穴が開くため、管理者に通知が必要。' },
-        { name: 'スタッフ削除', impact: 'critical', description: '⚠️ シフトデータとの関連削除が必要。論理削除を推奨。' },
+        {
+          name: '時給',
+          impact: 'high',
+          description: '⚠️ 既存シフトの人件費再計算が必要。変更後は必ずシフト計画の人件費を確認。',
+        },
+        {
+          name: '月給',
+          impact: 'high',
+          description: '⚠️ 給与計算に影響。変更後は給与データを確認。',
+        },
+        {
+          name: '雇用形態',
+          impact: 'high',
+          description: '⚠️ 労働時間制約が変更されます。既存シフトが制約違反になる可能性あり。',
+        },
+        {
+          name: '所属店舗',
+          impact: 'critical',
+          description: '⚠️ 既存のシフト割当を見直す必要があります。変更前に必ずシフト状況を確認。',
+        },
+        {
+          name: '退職日',
+          impact: 'critical',
+          description:
+            '⚠️ 未来のシフトから自動削除されます。シフトに穴が開くため、管理者に通知が必要。',
+        },
+        {
+          name: 'スタッフ削除',
+          impact: 'critical',
+          description: '⚠️ シフトデータとの関連削除が必要。論理削除を推奨。',
+        },
       ],
       relatedTables: ['ops.shifts', 'ops.shift_preferences', 'hr.staff_skills', 'hr.payroll'],
       relatedScreens: ['シフト管理', 'スタッフ管理', 'ダッシュボード', '予実管理'],
@@ -115,13 +189,15 @@ const DataImpactDocumentation = ({ onPrev }) => {
       fields: [
         { name: '役職名', impact: 'low', description: '表示のみに影響。' },
         { name: '表示順序', impact: 'low', description: 'ソート順に影響。' },
-        { name: '役職削除', impact: 'medium', description: '使用中のスタッフがいる場合は削除不可。未使用の場合のみ論理削除可能。' },
+        {
+          name: '役職削除',
+          impact: 'medium',
+          description: '使用中のスタッフがいる場合は削除不可。未使用の場合のみ論理削除可能。',
+        },
       ],
       relatedTables: ['hr.staff'],
       relatedScreens: ['スタッフ管理', 'マスター管理'],
-      warnings: [
-        '削除前に、その役職を使用しているスタッフがいないか確認してください。',
-      ],
+      warnings: ['削除前に、その役職を使用しているスタッフがいないか確認してください。'],
     },
     {
       id: 'skill',
@@ -130,7 +206,11 @@ const DataImpactDocumentation = ({ onPrev }) => {
       fields: [
         { name: 'スキル名', impact: 'low', description: '表示のみに影響。' },
         { name: 'カテゴリ', impact: 'low', description: 'グルーピング表示に影響。' },
-        { name: 'スキル削除', impact: 'medium', description: 'スタッフスキルとの関連削除が必要。AI生成時のスキルマッチングに影響。' },
+        {
+          name: 'スキル削除',
+          impact: 'medium',
+          description: 'スタッフスキルとの関連削除が必要。AI生成時のスキルマッチングに影響。',
+        },
       ],
       relatedTables: ['hr.staff_skills', 'ops.shifts.assigned_skills'],
       relatedScreens: ['スタッフ管理', 'マスター管理', 'AI生成'],
@@ -145,8 +225,16 @@ const DataImpactDocumentation = ({ onPrev }) => {
       icon: Users,
       fields: [
         { name: '雇用形態名', impact: 'low', description: '表示のみに影響。' },
-        { name: '給与タイプ（時給/月給）', impact: 'high', description: '⚠️ 給与計算ロジックに影響。変更は慎重に。' },
-        { name: '雇用形態削除', impact: 'medium', description: '使用中のスタッフがいる場合は削除不可。' },
+        {
+          name: '給与タイプ（時給/月給）',
+          impact: 'high',
+          description: '⚠️ 給与計算ロジックに影響。変更は慎重に。',
+        },
+        {
+          name: '雇用形態削除',
+          impact: 'medium',
+          description: '使用中のスタッフがいる場合は削除不可。',
+        },
       ],
       relatedTables: ['hr.staff', 'hr.payroll'],
       relatedScreens: ['スタッフ管理', '給与計算'],
@@ -161,9 +249,22 @@ const DataImpactDocumentation = ({ onPrev }) => {
       fields: [
         { name: 'パターン名（早番/遅番等）', impact: 'low', description: '表示のみに影響。' },
         { name: 'パターンコード', impact: 'low', description: '表示のみに影響。' },
-        { name: '開始時間・終了時間', impact: 'medium', description: '既存シフトには影響なし。新規登録時のみ適用。店舗営業時間との整合性確認が必要。' },
-        { name: '休憩時間', impact: 'medium', description: '既存シフトには影響なし。新規登録時のみ適用。' },
-        { name: 'パターン削除', impact: 'medium', description: '使用中のシフトがある場合は削除不可。' },
+        {
+          name: '開始時間・終了時間',
+          impact: 'medium',
+          description:
+            '既存シフトには影響なし。新規登録時のみ適用。店舗営業時間との整合性確認が必要。',
+        },
+        {
+          name: '休憩時間',
+          impact: 'medium',
+          description: '既存シフトには影響なし。新規登録時のみ適用。',
+        },
+        {
+          name: 'パターン削除',
+          impact: 'medium',
+          description: '使用中のシフトがある場合は削除不可。',
+        },
       ],
       relatedTables: ['ops.shifts'],
       relatedScreens: ['シフト管理', 'マスター管理'],
@@ -179,8 +280,16 @@ const DataImpactDocumentation = ({ onPrev }) => {
       fields: [
         { name: '計画名', impact: 'low', description: '表示のみに影響。' },
         { name: 'ステータス', impact: 'medium', description: 'UI表示とボタン制御に影響。' },
-        { name: '年月', impact: 'critical', description: '⚠️ 絶対に変更しないでください。日付整合性が破綻します。' },
-        { name: '計画削除', impact: 'critical', description: '⚠️ 全シフトデータが削除されます。実行前に必ず確認。' },
+        {
+          name: '年月',
+          impact: 'critical',
+          description: '⚠️ 絶対に変更しないでください。日付整合性が破綻します。',
+        },
+        {
+          name: '計画削除',
+          impact: 'critical',
+          description: '⚠️ 全シフトデータが削除されます。実行前に必ず確認。',
+        },
       ],
       relatedTables: ['ops.shifts', 'ops.shift_issues'],
       relatedScreens: ['シフト管理', 'ダッシュボード', '履歴'],
@@ -194,11 +303,27 @@ const DataImpactDocumentation = ({ onPrev }) => {
       name: 'シフト（実績/計画）',
       icon: Calendar,
       fields: [
-        { name: 'シフト日付', impact: 'critical', description: '⚠️ 月別集計が狂います。基本的に変更不可。' },
-        { name: '開始時間・終了時間', impact: 'high', description: '⚠️ 労働時間と人件費の再計算が必要。' },
+        {
+          name: 'シフト日付',
+          impact: 'critical',
+          description: '⚠️ 月別集計が狂います。基本的に変更不可。',
+        },
+        {
+          name: '開始時間・終了時間',
+          impact: 'high',
+          description: '⚠️ 労働時間と人件費の再計算が必要。',
+        },
         { name: '休憩時間', impact: 'high', description: '⚠️ 実労働時間の再計算が必要。' },
-        { name: '割当スタッフ', impact: 'high', description: '⚠️ スキル要件との整合性チェックが必要。' },
-        { name: 'シフト削除', impact: 'high', description: '⚠️ カバレッジスコアの再計算が必要。シフトの穴が開きます。' },
+        {
+          name: '割当スタッフ',
+          impact: 'high',
+          description: '⚠️ スキル要件との整合性チェックが必要。',
+        },
+        {
+          name: 'シフト削除',
+          impact: 'high',
+          description: '⚠️ カバレッジスコアの再計算が必要。シフトの穴が開きます。',
+        },
       ],
       relatedTables: ['hr.staff', 'ops.shift_plans', 'core.shift_patterns'],
       relatedScreens: ['シフト管理', 'ダッシュボード', 'モニタリング'],
@@ -225,7 +350,8 @@ const DataImpactDocumentation = ({ onPrev }) => {
         '雇用形態名変更',
         'シフトパターン名変更',
       ],
-      description: 'これらの変更は表示にのみ影響し、システムの動作や計算には影響しません。安全に変更できます。',
+      description:
+        'これらの変更は表示にのみ影響し、システムの動作や計算には影響しません。安全に変更できます。',
     },
     {
       id: 'medium',
@@ -252,7 +378,8 @@ const DataImpactDocumentation = ({ onPrev }) => {
         'シフト削除 → カバレッジスコア再計算',
         '店舗削除 → スタッフ・シフトの再配置',
       ],
-      description: '重要なデータに影響があります。変更前に影響範囲を確認し、変更後は必ず再計算してください。',
+      description:
+        '重要なデータに影響があります。変更前に影響範囲を確認し、変更後は必ず再計算してください。',
     },
     {
       id: 'critical',
@@ -266,15 +393,18 @@ const DataImpactDocumentation = ({ onPrev }) => {
         'シフト計画の年月変更 → 日付整合性の破綻（非推奨）',
         'テナント削除 → 全関連データのカスケード削除',
       ],
-      description: 'データ整合性に重大な影響があります。実行前に必ず管理者に確認し、バックアップを取ってください。',
+      description:
+        'データ整合性に重大な影響があります。実行前に必ず管理者に確認し、バックアップを取ってください。',
     },
   ]
 
-  const renderImpactBadge = (impact) => {
+  const renderImpactBadge = impact => {
     const level = impactLevels[impact]
     const Icon = level.icon
     return (
-      <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${level.bg} ${level.color} ${level.border} border`}>
+      <span
+        className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium ${level.bg} ${level.color} ${level.border} border`}
+      >
         <Icon className="h-3 w-3" />
         {level.label}
       </span>
@@ -296,10 +426,13 @@ const DataImpactDocumentation = ({ onPrev }) => {
         </div>
       </div>
 
-      {impactCategories.map((category) => {
+      {impactCategories.map(category => {
         const Icon = category.icon
         return (
-          <div key={category.id} className={`bg-${category.color}-50 border border-${category.color}-200 rounded-lg p-4`}>
+          <div
+            key={category.id}
+            className={`bg-${category.color}-50 border border-${category.color}-200 rounded-lg p-4`}
+          >
             <div className="flex items-start gap-3 mb-3">
               <Icon className={`h-5 w-5 text-${category.color}-600 mt-0.5`} />
               <div>
@@ -309,7 +442,9 @@ const DataImpactDocumentation = ({ onPrev }) => {
             </div>
             <ul className="space-y-1 ml-8">
               {category.items.map((item, idx) => (
-                <li key={idx} className={`text-sm text-${category.color}-700`}>• {item}</li>
+                <li key={idx} className={`text-sm text-${category.color}-700`}>
+                  • {item}
+                </li>
               ))}
             </ul>
           </div>
@@ -339,7 +474,10 @@ const DataImpactDocumentation = ({ onPrev }) => {
               <h3 className="text-sm font-semibold text-slate-700 mb-2">影響するテーブル</h3>
               <div className="flex flex-wrap gap-2">
                 {selectedItem.relatedTables.map((table, idx) => (
-                  <span key={idx} className="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded-md font-mono">
+                  <span
+                    key={idx}
+                    className="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded-md font-mono"
+                  >
                     {table}
                   </span>
                 ))}
@@ -382,7 +520,9 @@ const DataImpactDocumentation = ({ onPrev }) => {
             </div>
             <ul className="space-y-2 ml-8">
               {selectedItem.warnings.map((warning, idx) => (
-                <li key={idx} className="text-sm text-yellow-800">⚠️ {warning}</li>
+                <li key={idx} className="text-sm text-yellow-800">
+                  ⚠️ {warning}
+                </li>
               ))}
             </ul>
           </div>
@@ -454,7 +594,7 @@ const DataImpactDocumentation = ({ onPrev }) => {
                       概要
                     </div>
                   </button>
-                  {masterDataItems.map((item) => {
+                  {masterDataItems.map(item => {
                     const Icon = item.icon
                     return (
                       <button

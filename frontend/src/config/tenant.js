@@ -18,7 +18,7 @@ export const getCurrentTenantId = () => {
 /**
  * テナントIDを設定
  */
-export const setCurrentTenantId = (tenantId) => {
+export const setCurrentTenantId = tenantId => {
   localStorage.setItem(TENANT_KEY, tenantId.toString())
   // ページをリロードして変更を反映
   window.location.reload()

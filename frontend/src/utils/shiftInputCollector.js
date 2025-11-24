@@ -410,7 +410,10 @@ export const collectStaffData = async (year, month) => {
                 staffId: pref.staff_id,
                 date: date,
                 shift: 'preferred', // APIにはシフトパターン情報がないため固定値
-                priority: pref.status === SHIFT_PREFERENCE_STATUS.APPROVED ? PRIORITY.HIGH : PRIORITY.MEDIUM,
+                priority:
+                  pref.status === SHIFT_PREFERENCE_STATUS.APPROVED
+                    ? PRIORITY.HIGH
+                    : PRIORITY.MEDIUM,
               })
             })
           }
@@ -523,7 +526,9 @@ export const collectJapaneseEvents = async (year, month) => {
         dataSource = '内閣府公式CSV (via Backend API)'
       }
     } else {
-      console.warn(`祝日API呼び出し失敗 (${response.status}): バックエンドから祝日データを取得できませんでした`)
+      console.warn(
+        `祝日API呼び出し失敗 (${response.status}): バックエンドから祝日データを取得できませんでした`
+      )
     }
   } catch (error) {
     console.error('祝日データ取得エラー:', error)

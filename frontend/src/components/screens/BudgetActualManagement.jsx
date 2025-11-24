@@ -125,10 +125,11 @@ const BudgetActualManagement = () => {
 
   // 画面離脱時の警告
   useEffect(() => {
-    const handleBeforeUnload = (e) => {
+    const handleBeforeUnload = e => {
       if (isImportingRef.current) {
         e.preventDefault()
-        e.returnValue = 'データのインポート中です。このページを離れると処理が中断される可能性があります。'
+        e.returnValue =
+          'データのインポート中です。このページを離れると処理が中断される可能性があります。'
         return e.returnValue
       }
     }
@@ -153,26 +154,34 @@ const BudgetActualManagement = () => {
     try {
       // バックエンドAPIからデータを取得
       const [payrollResponse, salesActualResponse, salesForecastResponse] = await Promise.all([
-        fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_PAYROLL}?tenant_id=${tenantId}&year=${selectedYear}`),
-        fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_SALES_ACTUAL}?tenant_id=${tenantId}&year=${selectedYear}`),
-        fetch(`${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_SALES_FORECAST}?tenant_id=${tenantId}&year=${selectedYear}`)
-      ]);
+        fetch(
+          `${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_PAYROLL}?tenant_id=${tenantId}&year=${selectedYear}`
+        ),
+        fetch(
+          `${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_SALES_ACTUAL}?tenant_id=${tenantId}&year=${selectedYear}`
+        ),
+        fetch(
+          `${BACKEND_API_URL}${API_ENDPOINTS.ANALYTICS_SALES_FORECAST}?tenant_id=${tenantId}&year=${selectedYear}`
+        ),
+      ])
 
-      const payrollData = await payrollResponse.json();
-      const salesActualData = await salesActualResponse.json();
-      const salesForecastData = await salesForecastResponse.json();
+      const payrollData = await payrollResponse.json()
+      const salesActualData = await salesActualResponse.json()
+      const salesForecastData = await salesForecastResponse.json()
 
-      const allPayroll = payrollData.success ? payrollData.data : [];
-      const allSalesActual = salesActualData.success ? salesActualData.data : [];
-      const forecastData = salesForecastData.success ? salesForecastData.data : [];
+      const allPayroll = payrollData.success ? payrollData.data : []
+      const allSalesActual = salesActualData.success ? salesActualData.data : []
+      const forecastData = salesForecastData.success ? salesForecastData.data : []
 
       // 月ごとのステータスとPLデータを生成
       const months = []
       const plData = []
 
       for (let month = 1; month <= 12; month++) {
-        const monthPayroll = allPayroll.filter(p => p.year === selectedYear && p.month === month);
-        const monthSalesActual = allSalesActual.filter(s => s.year === selectedYear && s.month === month);
+        const monthPayroll = allPayroll.filter(p => p.year === selectedYear && p.month === month)
+        const monthSalesActual = allSalesActual.filter(
+          s => s.year === selectedYear && s.month === month
+        )
         const monthForecast = forecastData.filter(f => f.year === selectedYear && f.month === month)
 
         months.push({
@@ -339,12 +348,14 @@ const BudgetActualManagement = () => {
       const currentMonth = 10
 
       // CSVRepositoryを使用してAPI経由で読み込み
-      const [workHoursResult, payrollResult, salesActualResult, forecastResult] = await Promise.all([
-        csvRepository.loadCSV(`data/actual/work_hours_${currentYear}.csv`),
-        csvRepository.loadCSV(`data/actual/payroll_${currentYear}.csv`),
-        csvRepository.loadCSV(`data/actual/sales_actual_${currentYear}.csv`),
-        csvRepository.loadCSV(`data/forecast/sales_forecast_${currentYear}.csv`)
-      ])
+      const [workHoursResult, payrollResult, salesActualResult, forecastResult] = await Promise.all(
+        [
+          csvRepository.loadCSV(`data/actual/work_hours_${currentYear}.csv`),
+          csvRepository.loadCSV(`data/actual/payroll_${currentYear}.csv`),
+          csvRepository.loadCSV(`data/actual/sales_actual_${currentYear}.csv`),
+          csvRepository.loadCSV(`data/forecast/sales_forecast_${currentYear}.csv`),
+        ]
+      )
 
       // 労働時間実績データ処理
       const workHoursFiltered = workHoursResult.filter(row => {
@@ -441,7 +452,9 @@ const BudgetActualManagement = () => {
         const storeId = staffIdToStoreIdMap[staffId]
 
         if (!storeId) {
-          throw new Error(`行${index + 1}: スタッフID "${staffId}" に対応する店舗が見つかりません。マスターデータに存在しないスタッフです。`)
+          throw new Error(
+            `行${index + 1}: スタッフID "${staffId}" に対応する店舗が見つかりません。マスターデータに存在しないスタッフです。`
+          )
         }
 
         return {
@@ -489,7 +502,7 @@ const BudgetActualManagement = () => {
           ...prev,
           workHours: {
             status: 'loading',
-            message: `インポート中... (${i + 1}/${batches.length} バッチ, ${totalImported}/${formattedData.length}件)`
+            message: `インポート中... (${i + 1}/${batches.length} バッチ, ${totalImported}/${formattedData.length}件)`,
           },
         }))
 
@@ -498,8 +511,8 @@ const BudgetActualManagement = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             tenant_id: tenantId,
-            data: batches[i]
-          })
+            data: batches[i],
+          }),
         })
 
         const result = await response.json()
@@ -578,14 +591,16 @@ const BudgetActualManagement = () => {
         const storeId = staffIdToStoreIdMap[staffId]
 
         if (!storeId) {
-          throw new Error(`行${index + 1}: スタッフID "${staffId}" に対応する店舗が見つかりません。マスターデータに存在しないスタッフです。`)
+          throw new Error(
+            `行${index + 1}: スタッフID "${staffId}" に対応する店舗が見つかりません。マスターデータに存在しないスタッフです。`
+          )
         }
 
         // payment_statusを大文字に変換（データベースのCHECK制約に適合）
-        let paymentStatus = (row.payment_status || 'PENDING').toUpperCase();
+        let paymentStatus = (row.payment_status || 'PENDING').toUpperCase()
         // 有効な値でない場合はPENDINGにフォールバック
         if (!['PENDING', 'PROCESSING', 'PAID', 'FAILED'].includes(paymentStatus)) {
-          paymentStatus = 'PENDING';
+          paymentStatus = 'PENDING'
         }
 
         return {
@@ -610,7 +625,7 @@ const BudgetActualManagement = () => {
           net_salary: parseInt(row.net_salary),
           payment_date: row.payment_date,
           payment_status: paymentStatus,
-        };
+        }
       })
 
       // バックエンドAPIに送信
@@ -619,8 +634,8 @@ const BudgetActualManagement = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tenant_id: tenantId,
-          data: formattedData
-        })
+          data: formattedData,
+        }),
       })
 
       const result = await response.json()
@@ -696,7 +711,9 @@ const BudgetActualManagement = () => {
         if (row.store_code) {
           storeId = storeCodeToIdMap[row.store_code]
           if (!storeId) {
-            throw new Error(`行${index + 1}: 不明な店舗コード "${row.store_code}" が見つかりました。マスターデータに存在しません。`)
+            throw new Error(
+              `行${index + 1}: 不明な店舗コード "${row.store_code}" が見つかりました。マスターデータに存在しません。`
+            )
           }
         } else {
           storeId = parseInt(row.store_id)
@@ -721,8 +738,8 @@ const BudgetActualManagement = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tenant_id: tenantId,
-          data: formattedData
-        })
+          data: formattedData,
+        }),
       })
 
       const result = await response.json()
@@ -776,7 +793,9 @@ const BudgetActualManagement = () => {
         if (row.store_code) {
           storeId = storeCodeToIdMap[row.store_code]
           if (!storeId) {
-            throw new Error(`行${index + 1}: 不明な店舗コード "${row.store_code}" が見つかりました。マスターデータに存在しません。`)
+            throw new Error(
+              `行${index + 1}: 不明な店舗コード "${row.store_code}" が見つかりました。マスターデータに存在しません。`
+            )
           }
         } else {
           storeId = parseInt(row.store_id)
@@ -802,8 +821,8 @@ const BudgetActualManagement = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           tenant_id: tenantId,
-          data: formattedData
-        })
+          data: formattedData,
+        }),
       })
 
       const result = await response.json()
@@ -961,7 +980,7 @@ const BudgetActualManagement = () => {
   const loadSalesForecast = async (year, month) => {
     try {
       // CSVRepositoryを使用してAPI経由で読み込み
-      const data = await csvRepository.loadCSV(`data/forecast/sales_forecast_${currentYear}.csv`)
+      const data = await csvRepository.loadCSV(`data/forecast/sales_forecast_${year}.csv`)
 
       // 該当月のデータをフィルタ
       return data.filter(f => parseInt(f.year) === year && parseInt(f.month) === month)
@@ -1303,944 +1322,966 @@ const BudgetActualManagement = () => {
       />
 
       {/* データインポート機能 */}
-    <div className="min-h-screen bg-slate-50 pt-16">
-      <motion.div
-        variants={PAGE_VARIANTS}
-        initial="initial"
-        animate="in"
-        exit="out"
-        transition={PAGE_TRANSITION}
-        className="app-container"
-      >
-        <div className="max-w-7xl mx-auto space-y-6">
-          {/* ヘッダー */}
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">データインポート</h1>
-              <p className="text-gray-600 mt-1">売上予測・実績データをインポートします</p>
+      <div className="min-h-screen bg-slate-50 pt-16">
+        <motion.div
+          variants={PAGE_VARIANTS}
+          initial="initial"
+          animate="in"
+          exit="out"
+          transition={PAGE_TRANSITION}
+          className="app-container"
+        >
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* ヘッダー */}
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">データインポート</h1>
+                <p className="text-gray-600 mt-1">売上予測・実績データをインポートします</p>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={loadSampleData}
+                  disabled={importing}
+                  className="text-blue-600 border-blue-600"
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  サンプルデータをロード
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={clearAllData}
+                  className="text-red-600 border-red-600"
+                >
+                  <Database className="h-4 w-4 mr-2" />
+                  データクリア
+                </Button>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={loadSampleData}
-                disabled={importing}
-                className="text-blue-600 border-blue-600"
-              >
-                <Download className="h-4 w-4 mr-2" />
-                サンプルデータをロード
+
+            {/* 年選択 */}
+            <div className="flex items-center justify-center gap-4">
+              <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear - 1)}>
+                <ChevronLeft className="h-4 w-4" />
               </Button>
-              <Button
-                variant="outline"
-                onClick={clearAllData}
-                className="text-red-600 border-red-600"
-              >
-                <Database className="h-4 w-4 mr-2" />
-                データクリア
+              <div className="text-2xl font-bold">{selectedYear}年</div>
+              <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear + 1)}>
+                <ChevronRight className="h-4 w-4" />
               </Button>
             </div>
-          </div>
 
-          {/* 年選択 */}
-          <div className="flex items-center justify-center gap-4">
-            <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear - 1)}>
-              <ChevronLeft className="h-4 w-4" />
-            </Button>
-            <div className="text-2xl font-bold">{selectedYear}年</div>
-            <Button variant="outline" size="sm" onClick={() => setSelectedYear(selectedYear + 1)}>
-              <ChevronRight className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {/* インポートセクション */}
-          <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
-            {/* 労働時間実績 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-blue-600" />
-                  労働時間実績
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    CSVファイルを選択
-                  </label>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={e => handleFileSelect(e, 'workHours')}
-                    className="block w-full text-sm text-gray-500
+            {/* インポートセクション */}
+            <div className="grid grid-cols-1 sm:grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-6">
+              {/* 労働時間実績 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <FileText className="h-5 w-5 text-blue-600" />
+                    労働時間実績
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      CSVファイルを選択
+                    </label>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={e => handleFileSelect(e, 'workHours')}
+                      className="block w-full text-sm text-gray-500
                     file:mr-4 file:py-2 file:px-4
                     file:rounded-full file:border-0
                     file:text-sm file:font-semibold
                     file:bg-blue-50 file:text-blue-700
                     hover:file:bg-blue-100"
-                  />
-                </div>
-
-                {workHoursFile && (
-                  <div className="bg-blue-50 p-4 md:p-3 rounded-lg">
-                    <p className="text-sm font-medium text-blue-900">{workHoursFile.name}</p>
-                    <p className="text-sm md:text-xs text-blue-700 mt-1">{workHoursData.length}件のレコード</p>
+                    />
                   </div>
-                )}
 
-                {workHoursPreview.length > 0 && (
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 border-b">
-                      <p className="text-sm md:text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
+                  {workHoursFile && (
+                    <div className="bg-blue-50 p-4 md:p-3 rounded-lg">
+                      <p className="text-sm font-medium text-blue-900">{workHoursFile.name}</p>
+                      <p className="text-sm md:text-xs text-blue-700 mt-1">
+                        {workHoursData.length}件のレコード
+                      </p>
                     </div>
-                    <div className="overflow-x-auto max-h-48">
-                      <table className="w-full text-sm md:text-xs">
-                        <thead className="bg-gray-100">
-                          <tr>
-                            <th className="px-2 py-1 text-left">スタッフ名</th>
-                            <th className="px-2 py-1 text-left">日付</th>
-                            <th className="px-2 py-1 text-left">実働時間</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {workHoursPreview.map((row, i) => (
-                            <tr key={i} className="border-t">
-                              <td className="px-2 py-1">{row.staff_name}</td>
-                              <td className="px-2 py-1">
-                                {row.month}/{row.date}
-                              </td>
-                              <td className="px-2 py-1">{row.actual_hours}h</td>
+                  )}
+
+                  {workHoursPreview.length > 0 && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-3 py-2 border-b">
+                        <p className="text-sm md:text-xs font-medium text-gray-700">
+                          プレビュー（最初の5件）
+                        </p>
+                      </div>
+                      <div className="overflow-x-auto max-h-48">
+                        <table className="w-full text-sm md:text-xs">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-2 py-1 text-left">スタッフ名</th>
+                              <th className="px-2 py-1 text-left">日付</th>
+                              <th className="px-2 py-1 text-left">実働時間</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {workHoursPreview.map((row, i) => (
+                              <tr key={i} className="border-t">
+                                <td className="px-2 py-1">{row.staff_name}</td>
+                                <td className="px-2 py-1">
+                                  {row.month}/{row.date}
+                                </td>
+                                <td className="px-2 py-1">{row.actual_hours}h</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <Button
-                  onClick={importWorkHours}
-                  disabled={!workHoursData.length || importing}
-                  className="w-full"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  インポート
-                </Button>
+                  <Button
+                    onClick={importWorkHours}
+                    disabled={!workHoursData.length || importing}
+                    className="w-full"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    インポート
+                  </Button>
 
-                {importStatus.workHours.status !== 'idle' && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                    {getStatusIcon(importStatus.workHours.status)}
-                    <span className="text-sm">{importStatus.workHours.message}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  {importStatus.workHours.status !== 'idle' && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                      {getStatusIcon(importStatus.workHours.status)}
+                      <span className="text-sm">{importStatus.workHours.message}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-            {/* 給与明細 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-green-600" />
-                  給与明細
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    CSVファイルを選択
-                  </label>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={e => handleFileSelect(e, 'payroll')}
-                    className="block w-full text-sm text-gray-500
+              {/* 給与明細 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <DollarSign className="h-5 w-5 text-green-600" />
+                    給与明細
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      CSVファイルを選択
+                    </label>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={e => handleFileSelect(e, 'payroll')}
+                      className="block w-full text-sm text-gray-500
                     file:mr-4 file:py-2 file:px-4
                     file:rounded-full file:border-0
                     file:text-sm file:font-semibold
                     file:bg-green-50 file:text-green-700
                     hover:file:bg-green-100"
-                  />
-                </div>
-
-                {payrollFile && (
-                  <div className="bg-green-50 p-4 md:p-3 rounded-lg">
-                    <p className="text-sm font-medium text-green-900">{payrollFile.name}</p>
-                    <p className="text-sm md:text-xs text-green-700 mt-1">{payrollData.length}件のレコード</p>
+                    />
                   </div>
-                )}
 
-                {payrollPreview.length > 0 && (
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 border-b">
-                      <p className="text-sm md:text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
+                  {payrollFile && (
+                    <div className="bg-green-50 p-4 md:p-3 rounded-lg">
+                      <p className="text-sm font-medium text-green-900">{payrollFile.name}</p>
+                      <p className="text-sm md:text-xs text-green-700 mt-1">
+                        {payrollData.length}件のレコード
+                      </p>
                     </div>
-                    <div className="overflow-x-auto max-h-48">
-                      <table className="w-full text-sm md:text-xs">
-                        <thead className="bg-gray-100">
-                          <tr>
-                            <th className="px-2 py-1 text-left">スタッフ名</th>
-                            <th className="px-2 py-1 text-left">年月</th>
-                            <th className="px-2 py-1 text-right">支給額</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {payrollPreview.map((row, i) => (
-                            <tr key={i} className="border-t">
-                              <td className="px-2 py-1">{row.staff_name}</td>
-                              <td className="px-2 py-1">
-                                {row.year}/{row.month}
-                              </td>
-                              <td className="px-2 py-1 text-right">
-                                ¥{parseInt(row.net_salary).toLocaleString()}
-                              </td>
+                  )}
+
+                  {payrollPreview.length > 0 && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-3 py-2 border-b">
+                        <p className="text-sm md:text-xs font-medium text-gray-700">
+                          プレビュー（最初の5件）
+                        </p>
+                      </div>
+                      <div className="overflow-x-auto max-h-48">
+                        <table className="w-full text-sm md:text-xs">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-2 py-1 text-left">スタッフ名</th>
+                              <th className="px-2 py-1 text-left">年月</th>
+                              <th className="px-2 py-1 text-right">支給額</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {payrollPreview.map((row, i) => (
+                              <tr key={i} className="border-t">
+                                <td className="px-2 py-1">{row.staff_name}</td>
+                                <td className="px-2 py-1">
+                                  {row.year}/{row.month}
+                                </td>
+                                <td className="px-2 py-1 text-right">
+                                  ¥{parseInt(row.net_salary).toLocaleString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <Button
-                  onClick={importPayroll}
-                  disabled={!payrollData.length || importing}
-                  className="w-full"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  インポート
-                </Button>
+                  <Button
+                    onClick={importPayroll}
+                    disabled={!payrollData.length || importing}
+                    className="w-full"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    インポート
+                  </Button>
 
-                {importStatus.payroll.status !== 'idle' && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                    {getStatusIcon(importStatus.payroll.status)}
-                    <span className="text-sm">{importStatus.payroll.message}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  {importStatus.payroll.status !== 'idle' && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                      {getStatusIcon(importStatus.payroll.status)}
+                      <span className="text-sm">{importStatus.payroll.message}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-            {/* 売上実績 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-purple-600" />
-                  売上実績
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    CSVファイルを選択
-                  </label>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={e => handleFileSelect(e, 'salesActual')}
-                    className="block w-full text-sm text-gray-500
+              {/* 売上実績 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-purple-600" />
+                    売上実績
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      CSVファイルを選択
+                    </label>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={e => handleFileSelect(e, 'salesActual')}
+                      className="block w-full text-sm text-gray-500
                     file:mr-4 file:py-2 file:px-4
                     file:rounded-full file:border-0
                     file:text-sm file:font-semibold
                     file:bg-purple-50 file:text-purple-700
                     hover:file:bg-purple-100"
-                  />
-                </div>
-
-                {salesActualFile && (
-                  <div className="bg-purple-50 p-4 md:p-3 rounded-lg">
-                    <p className="text-sm font-medium text-purple-900">{salesActualFile.name}</p>
-                    <p className="text-sm md:text-xs text-purple-700 mt-1">
-                      {salesActualData.length}件のレコード
-                    </p>
+                    />
                   </div>
-                )}
 
-                {salesActualPreview.length > 0 && (
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 border-b">
-                      <p className="text-sm md:text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
+                  {salesActualFile && (
+                    <div className="bg-purple-50 p-4 md:p-3 rounded-lg">
+                      <p className="text-sm font-medium text-purple-900">{salesActualFile.name}</p>
+                      <p className="text-sm md:text-xs text-purple-700 mt-1">
+                        {salesActualData.length}件のレコード
+                      </p>
                     </div>
-                    <div className="overflow-x-auto max-h-48">
-                      <table className="w-full text-sm md:text-xs">
-                        <thead className="bg-gray-100">
-                          <tr>
-                            <th className="px-2 py-1 text-left">年月</th>
-                            <th className="px-2 py-1 text-right">売上</th>
-                            <th className="px-2 py-1 text-left">備考</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {salesActualPreview.map((row, i) => (
-                            <tr key={i} className="border-t">
-                              <td className="px-2 py-1">
-                                {row.year}/{row.month}
-                              </td>
-                              <td className="px-2 py-1 text-right">
-                                ¥{parseInt(row.actual_sales).toLocaleString()}
-                              </td>
-                              <td className="px-2 py-1 text-xs text-gray-600">{row.notes}</td>
+                  )}
+
+                  {salesActualPreview.length > 0 && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-3 py-2 border-b">
+                        <p className="text-sm md:text-xs font-medium text-gray-700">
+                          プレビュー（最初の5件）
+                        </p>
+                      </div>
+                      <div className="overflow-x-auto max-h-48">
+                        <table className="w-full text-sm md:text-xs">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-2 py-1 text-left">年月</th>
+                              <th className="px-2 py-1 text-right">売上</th>
+                              <th className="px-2 py-1 text-left">備考</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {salesActualPreview.map((row, i) => (
+                              <tr key={i} className="border-t">
+                                <td className="px-2 py-1">
+                                  {row.year}/{row.month}
+                                </td>
+                                <td className="px-2 py-1 text-right">
+                                  ¥{parseInt(row.actual_sales).toLocaleString()}
+                                </td>
+                                <td className="px-2 py-1 text-xs text-gray-600">{row.notes}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <Button
-                  onClick={importSalesActual}
-                  disabled={!salesActualData.length || importing}
-                  className="w-full"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  インポート
-                </Button>
+                  <Button
+                    onClick={importSalesActual}
+                    disabled={!salesActualData.length || importing}
+                    className="w-full"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    インポート
+                  </Button>
 
-                {importStatus.salesActual.status !== 'idle' && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                    {getStatusIcon(importStatus.salesActual.status)}
-                    <span className="text-sm">{importStatus.salesActual.message}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+                  {importStatus.salesActual.status !== 'idle' && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                      {getStatusIcon(importStatus.salesActual.status)}
+                      <span className="text-sm">{importStatus.salesActual.message}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
 
-            {/* 売上予測 */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-orange-600" />
-                  売上予測
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    CSVファイルを選択
-                  </label>
-                  <input
-                    type="file"
-                    accept=".csv"
-                    onChange={e => handleFileSelect(e, 'forecast')}
-                    className="block w-full text-sm text-gray-500
+              {/* 売上予測 */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <TrendingUp className="h-5 w-5 text-orange-600" />
+                    売上予測
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      CSVファイルを選択
+                    </label>
+                    <input
+                      type="file"
+                      accept=".csv"
+                      onChange={e => handleFileSelect(e, 'forecast')}
+                      className="block w-full text-sm text-gray-500
                     file:mr-4 file:py-2 file:px-4
                     file:rounded-full file:border-0
                     file:text-sm file:font-semibold
                     file:bg-orange-50 file:text-orange-700
                     hover:file:bg-orange-100"
-                  />
-                </div>
-
-                {forecastFile && (
-                  <div className="bg-orange-50 p-4 md:p-3 rounded-lg">
-                    <p className="text-sm font-medium text-orange-900">{forecastFile.name}</p>
-                    <p className="text-sm md:text-xs text-orange-700 mt-1">
-                      {forecastData.length}件のレコード
-                    </p>
+                    />
                   </div>
-                )}
 
-                {forecastPreview.length > 0 && (
-                  <div className="border rounded-lg overflow-hidden">
-                    <div className="bg-gray-50 px-3 py-2 border-b">
-                      <p className="text-sm md:text-xs font-medium text-gray-700">プレビュー（最初の5件）</p>
+                  {forecastFile && (
+                    <div className="bg-orange-50 p-4 md:p-3 rounded-lg">
+                      <p className="text-sm font-medium text-orange-900">{forecastFile.name}</p>
+                      <p className="text-sm md:text-xs text-orange-700 mt-1">
+                        {forecastData.length}件のレコード
+                      </p>
                     </div>
-                    <div className="overflow-x-auto max-h-48">
-                      <table className="w-full text-sm md:text-xs">
-                        <thead className="bg-gray-100">
-                          <tr>
-                            <th className="px-2 py-1 text-left">年月</th>
-                            <th className="px-2 py-1 text-right">売上予測</th>
-                            <th className="px-2 py-1 text-right">人件費</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {forecastPreview.map((row, i) => (
-                            <tr key={i} className="border-t">
-                              <td className="px-2 py-1">
-                                {row.year}/{row.month}
-                              </td>
-                              <td className="px-2 py-1 text-right">
-                                ¥{parseInt(row.forecasted_sales).toLocaleString()}
-                              </td>
-                              <td className="px-2 py-1 text-right">
-                                ¥{parseInt(row.required_labor_cost).toLocaleString()}
-                              </td>
+                  )}
+
+                  {forecastPreview.length > 0 && (
+                    <div className="border rounded-lg overflow-hidden">
+                      <div className="bg-gray-50 px-3 py-2 border-b">
+                        <p className="text-sm md:text-xs font-medium text-gray-700">
+                          プレビュー（最初の5件）
+                        </p>
+                      </div>
+                      <div className="overflow-x-auto max-h-48">
+                        <table className="w-full text-sm md:text-xs">
+                          <thead className="bg-gray-100">
+                            <tr>
+                              <th className="px-2 py-1 text-left">年月</th>
+                              <th className="px-2 py-1 text-right">売上予測</th>
+                              <th className="px-2 py-1 text-right">人件費</th>
                             </tr>
-                          ))}
-                        </tbody>
-                      </table>
+                          </thead>
+                          <tbody>
+                            {forecastPreview.map((row, i) => (
+                              <tr key={i} className="border-t">
+                                <td className="px-2 py-1">
+                                  {row.year}/{row.month}
+                                </td>
+                                <td className="px-2 py-1 text-right">
+                                  ¥{parseInt(row.forecasted_sales).toLocaleString()}
+                                </td>
+                                <td className="px-2 py-1 text-right">
+                                  ¥{parseInt(row.required_labor_cost).toLocaleString()}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <Button
-                  onClick={importForecast}
-                  disabled={!forecastData.length || importing}
-                  className="w-full"
-                >
-                  <Upload className="h-4 w-4 mr-2" />
-                  インポート
-                </Button>
+                  <Button
+                    onClick={importForecast}
+                    disabled={!forecastData.length || importing}
+                    className="w-full"
+                  >
+                    <Upload className="h-4 w-4 mr-2" />
+                    インポート
+                  </Button>
 
-                {importStatus.forecast.status !== 'idle' && (
-                  <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
-                    {getStatusIcon(importStatus.forecast.status)}
-                    <span className="text-sm">{importStatus.forecast.message}</span>
-                  </div>
-                )}
+                  {importStatus.forecast.status !== 'idle' && (
+                    <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+                      {getStatusIcon(importStatus.forecast.status)}
+                      <span className="text-sm">{importStatus.forecast.message}</span>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* 月別PL表 */}
+            <Card className="shadow-lg">
+              <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-700 text-white">
+                <div className="flex items-center gap-3">
+                  <TrendingUp className="h-6 w-6" />
+                  <CardTitle className="text-xl">月別損益計算書（{selectedYear}年）</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="p-6">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm border-collapse">
+                    <thead>
+                      <tr className="border-b-2 border-gray-300">
+                        <th className="sticky left-0 bg-white px-4 py-3 text-left font-bold border-r-2 border-gray-300 min-w-[120px]">
+                          項目
+                        </th>
+                        {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => (
+                          <th
+                            key={month}
+                            className="px-3 py-3 text-center font-semibold border-r border-gray-200 min-w-[100px]"
+                          >
+                            {month}月
+                          </th>
+                        ))}
+                        <th className="px-4 py-3 text-center font-bold bg-blue-50 border-l-2 border-gray-300 min-w-[120px]">
+                          年間合計
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {/* 売上 */}
+                      <tr className="border-b-2 border-gray-300 hover:bg-gray-50">
+                        <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300">
+                          売上
+                        </td>
+                        {monthlyPL.map(pl => {
+                          const hasActual = pl.salesActual > 0
+                          const displayValue = hasActual ? pl.salesActual : pl.salesForecast
+                          const diff = pl.salesActual - pl.salesForecast
+                          const bgColor = !hasActual
+                            ? 'bg-gray-50'
+                            : diff > 0
+                              ? 'bg-green-50'
+                              : diff < 0
+                                ? 'bg-red-50'
+                                : 'bg-white'
+
+                          return (
+                            <td
+                              key={pl.month}
+                              className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
+                            >
+                              {displayValue > 0 ? (
+                                <>
+                                  <span className={!hasActual ? 'text-gray-500' : ''}>
+                                    {!hasActual && '(予) '}¥{displayValue.toLocaleString()}
+                                  </span>
+                                  {hasActual && (
+                                    <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                      予測: ¥{pl.salesForecast.toLocaleString()}
+                                      <br />
+                                      差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()} (
+                                      {pl.salesDiffPercent >= 0 ? '+' : ''}
+                                      {pl.salesDiffPercent.toFixed(1)}%)
+                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                          )
+                        })}
+                        <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                          ¥
+                          {monthlyPL
+                            .reduce(
+                              (sum, pl) =>
+                                sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast),
+                              0
+                            )
+                            .toLocaleString()}
+                        </td>
+                      </tr>
+
+                      {/* 人件費 */}
+                      <tr className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300">
+                          人件費
+                        </td>
+                        {monthlyPL.map(pl => {
+                          const hasActual = pl.laborCostActual > 0
+                          const displayValue = hasActual ? pl.laborCostActual : pl.laborCostForecast
+                          const diff = pl.laborCostActual - pl.laborCostForecast
+                          const bgColor = !hasActual
+                            ? 'bg-gray-50'
+                            : diff > 0
+                              ? 'bg-red-50'
+                              : diff < 0
+                                ? 'bg-green-50'
+                                : 'bg-white'
+
+                          return (
+                            <td
+                              key={pl.month}
+                              className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
+                            >
+                              {displayValue > 0 ? (
+                                <>
+                                  <span className={!hasActual ? 'text-gray-500' : ''}>
+                                    {!hasActual && '(予) '}¥{displayValue.toLocaleString()}
+                                  </span>
+                                  {hasActual && (
+                                    <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                      予測: ¥{pl.laborCostForecast.toLocaleString()}
+                                      <br />
+                                      差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()} (
+                                      {pl.laborCostDiffPercent >= 0 ? '+' : ''}
+                                      {pl.laborCostDiffPercent.toFixed(1)}%)
+                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                          )
+                        })}
+                        <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                          ¥
+                          {monthlyPL
+                            .reduce(
+                              (sum, pl) =>
+                                sum +
+                                (pl.laborCostActual > 0
+                                  ? pl.laborCostActual
+                                  : pl.laborCostForecast),
+                              0
+                            )
+                            .toLocaleString()}
+                        </td>
+                      </tr>
+
+                      {/* 人件費率 */}
+                      <tr className="border-b-2 border-gray-300 hover:bg-gray-50">
+                        <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs">
+                          人件費率
+                        </td>
+                        {monthlyPL.map(pl => {
+                          const hasActual = pl.laborRateActual !== 0 || pl.salesActual > 0
+                          const displayValue = hasActual ? pl.laborRateActual : pl.laborRateForecast
+                          const diff = pl.laborRateActual - pl.laborRateForecast
+                          const bgColor = !hasActual
+                            ? 'bg-gray-50'
+                            : diff > 0
+                              ? 'bg-red-50'
+                              : diff < 0
+                                ? 'bg-green-50'
+                                : 'bg-white'
+
+                          return (
+                            <td
+                              key={pl.month}
+                              className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
+                            >
+                              {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
+                                <>
+                                  <span className={!hasActual ? 'text-gray-500' : ''}>
+                                    {!hasActual && '(予) '}
+                                    {displayValue.toFixed(1)}%
+                                  </span>
+                                  {hasActual && (
+                                    <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                      予測: {pl.laborRateForecast.toFixed(1)}%<br />
+                                      差分: {diff >= 0 ? '+' : ''}
+                                      {diff.toFixed(1)}pt
+                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                          )
+                        })}
+                        <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                          {(() => {
+                            const totalSales = monthlyPL.reduce(
+                              (sum, pl) =>
+                                sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast),
+                              0
+                            )
+                            const totalLabor = monthlyPL.reduce(
+                              (sum, pl) =>
+                                sum +
+                                (pl.laborCostActual > 0
+                                  ? pl.laborCostActual
+                                  : pl.laborCostForecast),
+                              0
+                            )
+                            return totalSales > 0
+                              ? `${((totalLabor / totalSales) * 100).toFixed(1)}%`
+                              : '-'
+                          })()}
+                        </td>
+                      </tr>
+
+                      {/* 交通費 */}
+                      <tr className="border-b border-gray-200 hover:bg-gray-50">
+                        <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300">
+                          交通費
+                        </td>
+                        {monthlyPL.map(pl => {
+                          const hasActual = pl.commuteActual > 0
+                          const displayValue = hasActual ? pl.commuteActual : pl.commuteForecast
+                          const diff = pl.commuteActual - pl.commuteForecast
+                          const bgColor = !hasActual
+                            ? 'bg-gray-50'
+                            : diff > 0
+                              ? 'bg-red-50'
+                              : diff < 0
+                                ? 'bg-green-50'
+                                : 'bg-white'
+
+                          return (
+                            <td
+                              key={pl.month}
+                              className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
+                            >
+                              {displayValue > 0 ? (
+                                <>
+                                  <span className={!hasActual ? 'text-gray-500' : ''}>
+                                    {!hasActual && '(予) '}¥{displayValue.toLocaleString()}
+                                  </span>
+                                  {hasActual && (
+                                    <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                      予測: ¥{pl.commuteForecast.toLocaleString()}
+                                      <br />
+                                      差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()} (
+                                      {pl.commuteDiffPercent >= 0 ? '+' : ''}
+                                      {pl.commuteDiffPercent.toFixed(1)}%)
+                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                          )
+                        })}
+                        <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                          ¥
+                          {monthlyPL
+                            .reduce(
+                              (sum, pl) =>
+                                sum +
+                                (pl.commuteActual > 0 ? pl.commuteActual : pl.commuteForecast),
+                              0
+                            )
+                            .toLocaleString()}
+                        </td>
+                      </tr>
+
+                      {/* 交通費率 */}
+                      <tr className="border-b-2 border-gray-300 hover:bg-gray-50">
+                        <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs">
+                          交通費率
+                        </td>
+                        {monthlyPL.map(pl => {
+                          const hasActual = pl.commuteRateActual !== 0 || pl.salesActual > 0
+                          const displayValue = hasActual
+                            ? pl.commuteRateActual
+                            : pl.commuteRateForecast
+                          const diff = pl.commuteRateActual - pl.commuteRateForecast
+                          const bgColor = !hasActual
+                            ? 'bg-gray-50'
+                            : diff > 0
+                              ? 'bg-red-50'
+                              : diff < 0
+                                ? 'bg-green-50'
+                                : 'bg-white'
+
+                          return (
+                            <td
+                              key={pl.month}
+                              className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
+                            >
+                              {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
+                                <>
+                                  <span className={!hasActual ? 'text-gray-500' : ''}>
+                                    {!hasActual && '(予) '}
+                                    {displayValue.toFixed(1)}%
+                                  </span>
+                                  {hasActual && (
+                                    <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                      予測: {pl.commuteRateForecast.toFixed(1)}%<br />
+                                      差分: {diff >= 0 ? '+' : ''}
+                                      {diff.toFixed(1)}pt
+                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                          )
+                        })}
+                        <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                          {(() => {
+                            const totalSales = monthlyPL.reduce(
+                              (sum, pl) =>
+                                sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast),
+                              0
+                            )
+                            const totalCommute = monthlyPL.reduce(
+                              (sum, pl) =>
+                                sum +
+                                (pl.commuteActual > 0 ? pl.commuteActual : pl.commuteForecast),
+                              0
+                            )
+                            return totalSales > 0
+                              ? `${((totalCommute / totalSales) * 100).toFixed(1)}%`
+                              : '-'
+                          })()}
+                        </td>
+                      </tr>
+
+                      {/* 営業利益 */}
+                      <tr className="border-b border-gray-200 bg-yellow-50 hover:bg-yellow-100">
+                        <td className="sticky left-0 bg-yellow-50 px-4 py-2 font-bold border-r-2 border-gray-300">
+                          営業利益
+                        </td>
+                        {monthlyPL.map(pl => {
+                          const hasActual = pl.profitActual !== 0 || pl.salesActual > 0
+                          const displayValue = hasActual ? pl.profitActual : pl.profitForecast
+                          const diff = pl.profitActual - pl.profitForecast
+                          let bgColor = 'bg-yellow-50'
+                          if (hasActual) {
+                            bgColor =
+                              diff > 0 ? 'bg-green-100' : diff < 0 ? 'bg-red-100' : 'bg-yellow-50'
+                          }
+                          const textColor = displayValue >= 0 ? 'text-green-700' : 'text-red-700'
+
+                          return (
+                            <td
+                              key={pl.month}
+                              className={`px-3 py-2 text-right border-r border-gray-100 font-semibold ${bgColor} ${textColor} relative group ${hasActual ? 'cursor-help' : ''}`}
+                            >
+                              {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
+                                <>
+                                  <span>
+                                    {!hasActual && <span className="text-gray-500">(予) </span>}¥
+                                    {displayValue.toLocaleString()}
+                                  </span>
+                                  {hasActual && (
+                                    <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                      予測: ¥{pl.profitForecast.toLocaleString()}
+                                      <br />
+                                      差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()}
+                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                          )
+                        })}
+                        <td className="px-4 py-2 text-right font-bold bg-blue-100 border-l-2 border-gray-300 text-green-800">
+                          ¥
+                          {monthlyPL
+                            .reduce(
+                              (sum, pl) =>
+                                sum +
+                                (pl.profitActual !== 0 || pl.salesActual > 0
+                                  ? pl.profitActual
+                                  : pl.profitForecast),
+                              0
+                            )
+                            .toLocaleString()}
+                        </td>
+                      </tr>
+
+                      {/* 営業利益率 */}
+                      <tr className="hover:bg-gray-50">
+                        <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs whitespace-nowrap">
+                          利益率
+                        </td>
+                        {monthlyPL.map(pl => {
+                          const hasActual = pl.profitRateActual !== 0 || pl.salesActual > 0
+                          const displayValue = hasActual
+                            ? pl.profitRateActual
+                            : pl.profitRateForecast
+                          const diff = pl.profitRateActual - pl.profitRateForecast
+                          const bgColor = !hasActual
+                            ? 'bg-gray-50'
+                            : diff > 0
+                              ? 'bg-green-50'
+                              : diff < 0
+                                ? 'bg-red-50'
+                                : 'bg-white'
+
+                          return (
+                            <td
+                              key={pl.month}
+                              className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
+                            >
+                              {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
+                                <>
+                                  <span className={!hasActual ? 'text-gray-500' : ''}>
+                                    {!hasActual && '(予) '}
+                                    {displayValue.toFixed(1)}%
+                                  </span>
+                                  {hasActual && (
+                                    <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
+                                      予測: {pl.profitRateForecast.toFixed(1)}%<br />
+                                      差分: {diff >= 0 ? '+' : ''}
+                                      {diff.toFixed(1)}pt
+                                      <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
+                                    </div>
+                                  )}
+                                </>
+                              ) : (
+                                '-'
+                              )}
+                            </td>
+                          )
+                        })}
+                        <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
+                          {(() => {
+                            const totalSales = monthlyPL.reduce(
+                              (sum, pl) =>
+                                sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast),
+                              0
+                            )
+                            const totalProfit = monthlyPL.reduce(
+                              (sum, pl) =>
+                                sum +
+                                (pl.profitActual !== 0 || pl.salesActual > 0
+                                  ? pl.profitActual
+                                  : pl.profitForecast),
+                              0
+                            )
+                            return totalSales > 0
+                              ? `${((totalProfit / totalSales) * 100).toFixed(1)}%`
+                              : '-'
+                          })()}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                  <p className="text-sm text-green-800">
+                    <span className="font-bold">凡例:</span>
+                    <span className="ml-4 inline-block px-2 py-1 bg-green-50 border border-green-200 text-xs">
+                      緑背景
+                    </span>{' '}
+                    = 実績が予測より良好
+                    <span className="ml-2 inline-block px-2 py-1 bg-red-50 border border-red-200 text-xs">
+                      赤背景
+                    </span>{' '}
+                    = 実績が予測より悪化
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* 月別インポートステータス */}
+            <Card>
+              <CardHeader>
+                <CardTitle>月別インポートステータス（{selectedYear}年）</CardTitle>
+                <p className="text-sm text-gray-600 mt-2">
+                  データが揃っている月をクリックすると予実差分を確認できます
+                </p>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                  {monthlyStatus.map(month => (
+                    <div
+                      key={month.month}
+                      onClick={() => handleMonthClick(month)}
+                      className={`border rounded-lg p-4 md:p-3 text-center transition-all ${
+                        month.hasForecast &&
+                        month.hasWorkHours &&
+                        month.hasPayroll &&
+                        month.hasSalesActual
+                          ? 'cursor-pointer hover:shadow-lg hover:border-blue-500 bg-blue-50'
+                          : 'opacity-60 cursor-not-allowed'
+                      }`}
+                    >
+                      <p className="font-bold text-lg mb-2">{month.month}月</p>
+                      <div className="space-y-1">
+                        <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
+                          {month.hasForecast ? (
+                            <CheckCircle className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <XCircle className="h-3 w-3 text-gray-300" />
+                          )}
+                          <span className={month.hasForecast ? 'text-green-700' : 'text-gray-400'}>
+                            予測 {month.forecastCount}件
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
+                          {month.hasWorkHours ? (
+                            <CheckCircle className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <XCircle className="h-3 w-3 text-gray-300" />
+                          )}
+                          <span className={month.hasWorkHours ? 'text-green-700' : 'text-gray-400'}>
+                            実績 {month.workHoursCount}件
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
+                          {month.hasPayroll ? (
+                            <CheckCircle className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <XCircle className="h-3 w-3 text-gray-300" />
+                          )}
+                          <span className={month.hasPayroll ? 'text-green-700' : 'text-gray-400'}>
+                            給与 {month.payrollCount}件
+                          </span>
+                        </div>
+                        <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
+                          {month.hasSalesActual ? (
+                            <CheckCircle className="h-3 w-3 text-green-500" />
+                          ) : (
+                            <XCircle className="h-3 w-3 text-gray-300" />
+                          )}
+                          <span
+                            className={month.hasSalesActual ? 'text-green-700' : 'text-gray-400'}
+                          >
+                            売上 {month.salesActualCount}件
+                          </span>
+                        </div>
+                      </div>
+                      {month.hasForecast &&
+                        month.hasWorkHours &&
+                        month.hasPayroll &&
+                        month.hasSalesActual && (
+                          <div className="mt-2 pt-2 border-t border-blue-200">
+                            <span className="text-sm md:text-xs text-blue-700 font-medium flex items-center justify-center gap-1">
+                              <TrendingUp className="h-3 w-3" />
+                              差分を見る
+                            </span>
+                          </div>
+                        )}
+                    </div>
+                  ))}
+                </div>
               </CardContent>
             </Card>
           </div>
-
-          {/* 月別PL表 */}
-          <Card className="shadow-lg">
-            <CardHeader className="bg-gradient-to-r from-green-600 to-emerald-700 text-white">
-              <div className="flex items-center gap-3">
-                <TrendingUp className="h-6 w-6" />
-                <CardTitle className="text-xl">月別損益計算書（{selectedYear}年）</CardTitle>
-              </div>
-            </CardHeader>
-            <CardContent className="p-6">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm border-collapse">
-                  <thead>
-                    <tr className="border-b-2 border-gray-300">
-                      <th className="sticky left-0 bg-white px-4 py-3 text-left font-bold border-r-2 border-gray-300 min-w-[120px]">
-                        項目
-                      </th>
-                      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].map(month => (
-                        <th
-                          key={month}
-                          className="px-3 py-3 text-center font-semibold border-r border-gray-200 min-w-[100px]"
-                        >
-                          {month}月
-                        </th>
-                      ))}
-                      <th className="px-4 py-3 text-center font-bold bg-blue-50 border-l-2 border-gray-300 min-w-[120px]">
-                        年間合計
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {/* 売上 */}
-                    <tr className="border-b-2 border-gray-300 hover:bg-gray-50">
-                      <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300">
-                        売上
-                      </td>
-                      {monthlyPL.map(pl => {
-                        const hasActual = pl.salesActual > 0
-                        const displayValue = hasActual ? pl.salesActual : pl.salesForecast
-                        const diff = pl.salesActual - pl.salesForecast
-                        const bgColor = !hasActual
-                          ? 'bg-gray-50'
-                          : diff > 0
-                            ? 'bg-green-50'
-                            : diff < 0
-                              ? 'bg-red-50'
-                              : 'bg-white'
-
-                        return (
-                          <td
-                            key={pl.month}
-                            className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
-                          >
-                            {displayValue > 0 ? (
-                              <>
-                                <span className={!hasActual ? 'text-gray-500' : ''}>
-                                  {!hasActual && '(予) '}¥{displayValue.toLocaleString()}
-                                </span>
-                                {hasActual && (
-                                  <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
-                                    予測: ¥{pl.salesForecast.toLocaleString()}
-                                    <br />
-                                    差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()} (
-                                    {pl.salesDiffPercent >= 0 ? '+' : ''}
-                                    {pl.salesDiffPercent.toFixed(1)}%)
-                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
-                        ¥
-                        {monthlyPL
-                          .reduce(
-                            (sum, pl) =>
-                              sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast),
-                            0
-                          )
-                          .toLocaleString()}
-                      </td>
-                    </tr>
-
-                    {/* 人件費 */}
-                    <tr className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300">
-                        人件費
-                      </td>
-                      {monthlyPL.map(pl => {
-                        const hasActual = pl.laborCostActual > 0
-                        const displayValue = hasActual ? pl.laborCostActual : pl.laborCostForecast
-                        const diff = pl.laborCostActual - pl.laborCostForecast
-                        const bgColor = !hasActual
-                          ? 'bg-gray-50'
-                          : diff > 0
-                            ? 'bg-red-50'
-                            : diff < 0
-                              ? 'bg-green-50'
-                              : 'bg-white'
-
-                        return (
-                          <td
-                            key={pl.month}
-                            className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
-                          >
-                            {displayValue > 0 ? (
-                              <>
-                                <span className={!hasActual ? 'text-gray-500' : ''}>
-                                  {!hasActual && '(予) '}¥{displayValue.toLocaleString()}
-                                </span>
-                                {hasActual && (
-                                  <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
-                                    予測: ¥{pl.laborCostForecast.toLocaleString()}
-                                    <br />
-                                    差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()} (
-                                    {pl.laborCostDiffPercent >= 0 ? '+' : ''}
-                                    {pl.laborCostDiffPercent.toFixed(1)}%)
-                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
-                        ¥
-                        {monthlyPL
-                          .reduce(
-                            (sum, pl) =>
-                              sum +
-                              (pl.laborCostActual > 0 ? pl.laborCostActual : pl.laborCostForecast),
-                            0
-                          )
-                          .toLocaleString()}
-                      </td>
-                    </tr>
-
-                    {/* 人件費率 */}
-                    <tr className="border-b-2 border-gray-300 hover:bg-gray-50">
-                      <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs">
-                        人件費率
-                      </td>
-                      {monthlyPL.map(pl => {
-                        const hasActual = pl.laborRateActual !== 0 || pl.salesActual > 0
-                        const displayValue = hasActual ? pl.laborRateActual : pl.laborRateForecast
-                        const diff = pl.laborRateActual - pl.laborRateForecast
-                        const bgColor = !hasActual
-                          ? 'bg-gray-50'
-                          : diff > 0
-                            ? 'bg-red-50'
-                            : diff < 0
-                              ? 'bg-green-50'
-                              : 'bg-white'
-
-                        return (
-                          <td
-                            key={pl.month}
-                            className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
-                          >
-                            {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
-                              <>
-                                <span className={!hasActual ? 'text-gray-500' : ''}>
-                                  {!hasActual && '(予) '}
-                                  {displayValue.toFixed(1)}%
-                                </span>
-                                {hasActual && (
-                                  <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
-                                    予測: {pl.laborRateForecast.toFixed(1)}%<br />
-                                    差分: {diff >= 0 ? '+' : ''}
-                                    {diff.toFixed(1)}pt
-                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
-                        {(() => {
-                          const totalSales = monthlyPL.reduce(
-                            (sum, pl) =>
-                              sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast),
-                            0
-                          )
-                          const totalLabor = monthlyPL.reduce(
-                            (sum, pl) =>
-                              sum +
-                              (pl.laborCostActual > 0 ? pl.laborCostActual : pl.laborCostForecast),
-                            0
-                          )
-                          return totalSales > 0
-                            ? `${((totalLabor / totalSales) * 100).toFixed(1)}%`
-                            : '-'
-                        })()}
-                      </td>
-                    </tr>
-
-                    {/* 交通費 */}
-                    <tr className="border-b border-gray-200 hover:bg-gray-50">
-                      <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300">
-                        交通費
-                      </td>
-                      {monthlyPL.map(pl => {
-                        const hasActual = pl.commuteActual > 0
-                        const displayValue = hasActual ? pl.commuteActual : pl.commuteForecast
-                        const diff = pl.commuteActual - pl.commuteForecast
-                        const bgColor = !hasActual
-                          ? 'bg-gray-50'
-                          : diff > 0
-                            ? 'bg-red-50'
-                            : diff < 0
-                              ? 'bg-green-50'
-                              : 'bg-white'
-
-                        return (
-                          <td
-                            key={pl.month}
-                            className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
-                          >
-                            {displayValue > 0 ? (
-                              <>
-                                <span className={!hasActual ? 'text-gray-500' : ''}>
-                                  {!hasActual && '(予) '}¥{displayValue.toLocaleString()}
-                                </span>
-                                {hasActual && (
-                                  <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
-                                    予測: ¥{pl.commuteForecast.toLocaleString()}
-                                    <br />
-                                    差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()} (
-                                    {pl.commuteDiffPercent >= 0 ? '+' : ''}
-                                    {pl.commuteDiffPercent.toFixed(1)}%)
-                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
-                        ¥
-                        {monthlyPL
-                          .reduce(
-                            (sum, pl) =>
-                              sum + (pl.commuteActual > 0 ? pl.commuteActual : pl.commuteForecast),
-                            0
-                          )
-                          .toLocaleString()}
-                      </td>
-                    </tr>
-
-                    {/* 交通費率 */}
-                    <tr className="border-b-2 border-gray-300 hover:bg-gray-50">
-                      <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs">
-                        交通費率
-                      </td>
-                      {monthlyPL.map(pl => {
-                        const hasActual = pl.commuteRateActual !== 0 || pl.salesActual > 0
-                        const displayValue = hasActual
-                          ? pl.commuteRateActual
-                          : pl.commuteRateForecast
-                        const diff = pl.commuteRateActual - pl.commuteRateForecast
-                        const bgColor = !hasActual
-                          ? 'bg-gray-50'
-                          : diff > 0
-                            ? 'bg-red-50'
-                            : diff < 0
-                              ? 'bg-green-50'
-                              : 'bg-white'
-
-                        return (
-                          <td
-                            key={pl.month}
-                            className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
-                          >
-                            {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
-                              <>
-                                <span className={!hasActual ? 'text-gray-500' : ''}>
-                                  {!hasActual && '(予) '}
-                                  {displayValue.toFixed(1)}%
-                                </span>
-                                {hasActual && (
-                                  <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
-                                    予測: {pl.commuteRateForecast.toFixed(1)}%<br />
-                                    差分: {diff >= 0 ? '+' : ''}
-                                    {diff.toFixed(1)}pt
-                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
-                        {(() => {
-                          const totalSales = monthlyPL.reduce(
-                            (sum, pl) =>
-                              sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast),
-                            0
-                          )
-                          const totalCommute = monthlyPL.reduce(
-                            (sum, pl) =>
-                              sum + (pl.commuteActual > 0 ? pl.commuteActual : pl.commuteForecast),
-                            0
-                          )
-                          return totalSales > 0
-                            ? `${((totalCommute / totalSales) * 100).toFixed(1)}%`
-                            : '-'
-                        })()}
-                      </td>
-                    </tr>
-
-                    {/* 営業利益 */}
-                    <tr className="border-b border-gray-200 bg-yellow-50 hover:bg-yellow-100">
-                      <td className="sticky left-0 bg-yellow-50 px-4 py-2 font-bold border-r-2 border-gray-300">
-                        営業利益
-                      </td>
-                      {monthlyPL.map(pl => {
-                        const hasActual = pl.profitActual !== 0 || pl.salesActual > 0
-                        const displayValue = hasActual ? pl.profitActual : pl.profitForecast
-                        const diff = pl.profitActual - pl.profitForecast
-                        let bgColor = 'bg-yellow-50'
-                        if (hasActual) {
-                          bgColor =
-                            diff > 0 ? 'bg-green-100' : diff < 0 ? 'bg-red-100' : 'bg-yellow-50'
-                        }
-                        const textColor = displayValue >= 0 ? 'text-green-700' : 'text-red-700'
-
-                        return (
-                          <td
-                            key={pl.month}
-                            className={`px-3 py-2 text-right border-r border-gray-100 font-semibold ${bgColor} ${textColor} relative group ${hasActual ? 'cursor-help' : ''}`}
-                          >
-                            {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
-                              <>
-                                <span>
-                                  {!hasActual && <span className="text-gray-500">(予) </span>}¥
-                                  {displayValue.toLocaleString()}
-                                </span>
-                                {hasActual && (
-                                  <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
-                                    予測: ¥{pl.profitForecast.toLocaleString()}
-                                    <br />
-                                    差分: {diff >= 0 ? '+' : ''}¥{diff.toLocaleString()}
-                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="px-4 py-2 text-right font-bold bg-blue-100 border-l-2 border-gray-300 text-green-800">
-                        ¥
-                        {monthlyPL
-                          .reduce(
-                            (sum, pl) =>
-                              sum +
-                              (pl.profitActual !== 0 || pl.salesActual > 0
-                                ? pl.profitActual
-                                : pl.profitForecast),
-                            0
-                          )
-                          .toLocaleString()}
-                      </td>
-                    </tr>
-
-                    {/* 営業利益率 */}
-                    <tr className="hover:bg-gray-50">
-                      <td className="sticky left-0 bg-white px-4 py-2 font-medium border-r-2 border-gray-300 pl-8 text-xs whitespace-nowrap">
-                        利益率
-                      </td>
-                      {monthlyPL.map(pl => {
-                        const hasActual = pl.profitRateActual !== 0 || pl.salesActual > 0
-                        const displayValue = hasActual ? pl.profitRateActual : pl.profitRateForecast
-                        const diff = pl.profitRateActual - pl.profitRateForecast
-                        const bgColor = !hasActual
-                          ? 'bg-gray-50'
-                          : diff > 0
-                            ? 'bg-green-50'
-                            : diff < 0
-                              ? 'bg-red-50'
-                              : 'bg-white'
-
-                        return (
-                          <td
-                            key={pl.month}
-                            className={`px-3 py-2 text-right border-r border-gray-100 ${bgColor} relative group ${hasActual ? 'cursor-help' : ''}`}
-                          >
-                            {displayValue !== 0 || pl.salesForecast > 0 || pl.salesActual > 0 ? (
-                              <>
-                                <span className={!hasActual ? 'text-gray-500' : ''}>
-                                  {!hasActual && '(予) '}
-                                  {displayValue.toFixed(1)}%
-                                </span>
-                                {hasActual && (
-                                  <div className="invisible group-hover:visible absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded shadow-lg whitespace-nowrap z-10">
-                                    予測: {pl.profitRateForecast.toFixed(1)}%<br />
-                                    差分: {diff >= 0 ? '+' : ''}
-                                    {diff.toFixed(1)}pt
-                                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900"></div>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              '-'
-                            )}
-                          </td>
-                        )
-                      })}
-                      <td className="px-4 py-2 text-right font-bold bg-blue-50 border-l-2 border-gray-300">
-                        {(() => {
-                          const totalSales = monthlyPL.reduce(
-                            (sum, pl) =>
-                              sum + (pl.salesActual > 0 ? pl.salesActual : pl.salesForecast),
-                            0
-                          )
-                          const totalProfit = monthlyPL.reduce(
-                            (sum, pl) =>
-                              sum +
-                              (pl.profitActual !== 0 || pl.salesActual > 0
-                                ? pl.profitActual
-                                : pl.profitForecast),
-                            0
-                          )
-                          return totalSales > 0
-                            ? `${((totalProfit / totalSales) * 100).toFixed(1)}%`
-                            : '-'
-                        })()}
-                      </td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
-              <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg">
-                <p className="text-sm text-green-800">
-                  <span className="font-bold">凡例:</span>
-                  <span className="ml-4 inline-block px-2 py-1 bg-green-50 border border-green-200 text-xs">
-                    緑背景
-                  </span>{' '}
-                  = 実績が予測より良好
-                  <span className="ml-2 inline-block px-2 py-1 bg-red-50 border border-red-200 text-xs">
-                    赤背景
-                  </span>{' '}
-                  = 実績が予測より悪化
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 月別インポートステータス */}
-          <Card>
-            <CardHeader>
-              <CardTitle>月別インポートステータス（{selectedYear}年）</CardTitle>
-              <p className="text-sm text-gray-600 mt-2">
-                データが揃っている月をクリックすると予実差分を確認できます
-              </p>
-            </CardHeader>
-            <CardContent>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                {monthlyStatus.map(month => (
-                  <div
-                    key={month.month}
-                    onClick={() => handleMonthClick(month)}
-                    className={`border rounded-lg p-4 md:p-3 text-center transition-all ${
-                      month.hasForecast &&
-                      month.hasWorkHours &&
-                      month.hasPayroll &&
-                      month.hasSalesActual
-                        ? 'cursor-pointer hover:shadow-lg hover:border-blue-500 bg-blue-50'
-                        : 'opacity-60 cursor-not-allowed'
-                    }`}
-                  >
-                    <p className="font-bold text-lg mb-2">{month.month}月</p>
-                    <div className="space-y-1">
-                      <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
-                        {month.hasForecast ? (
-                          <CheckCircle className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <XCircle className="h-3 w-3 text-gray-300" />
-                        )}
-                        <span className={month.hasForecast ? 'text-green-700' : 'text-gray-400'}>
-                          予測 {month.forecastCount}件
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
-                        {month.hasWorkHours ? (
-                          <CheckCircle className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <XCircle className="h-3 w-3 text-gray-300" />
-                        )}
-                        <span className={month.hasWorkHours ? 'text-green-700' : 'text-gray-400'}>
-                          実績 {month.workHoursCount}件
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
-                        {month.hasPayroll ? (
-                          <CheckCircle className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <XCircle className="h-3 w-3 text-gray-300" />
-                        )}
-                        <span className={month.hasPayroll ? 'text-green-700' : 'text-gray-400'}>
-                          給与 {month.payrollCount}件
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-center gap-1 text-sm md:text-xs">
-                        {month.hasSalesActual ? (
-                          <CheckCircle className="h-3 w-3 text-green-500" />
-                        ) : (
-                          <XCircle className="h-3 w-3 text-gray-300" />
-                        )}
-                        <span className={month.hasSalesActual ? 'text-green-700' : 'text-gray-400'}>
-                          売上 {month.salesActualCount}件
-                        </span>
-                      </div>
-                    </div>
-                    {month.hasForecast &&
-                      month.hasWorkHours &&
-                      month.hasPayroll &&
-                      month.hasSalesActual && (
-                        <div className="mt-2 pt-2 border-t border-blue-200">
-                          <span className="text-sm md:text-xs text-blue-700 font-medium flex items-center justify-center gap-1">
-                            <TrendingUp className="h-3 w-3" />
-                            差分を見る
-                          </span>
-                        </div>
-                      )}
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      </motion.div>
-    </div>
+        </motion.div>
+      </div>
     </>
   )
 }

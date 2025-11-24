@@ -2,17 +2,14 @@ import { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { MessageSquare, X, Send, Minimize2, Maximize2, Loader2, User, Bot } from 'lucide-react'
 import {
-  MessageSquare,
-  X,
-  Send,
-  Minimize2,
-  Maximize2,
-  Loader2,
-  User,
-  Bot,
-} from 'lucide-react'
-import { createThread, addMessage, createRun, getRunStatus, getMessages } from '../../utils/assistantClient'
+  createThread,
+  addMessage,
+  createRun,
+  getRunStatus,
+  getMessages,
+} from '../../utils/assistantClient'
 
 /**
  * AI対話チャットボット（右下固定表示）
