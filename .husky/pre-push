@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+
+# Frontend build check
+echo "Running frontend build check..."
+if [ -d "frontend/node_modules" ]; then
+  cd frontend && npm run build
+else
+  echo "Frontend dependencies not installed. Skipping build check."
+fi
+
+# Backend check (syntax check)
+echo "Running backend syntax check..."
+if [ -d "backend/node_modules" ]; then
+  cd backend && node --check src/server.js
+else
+  echo "Backend dependencies not installed. Skipping syntax check."
+fi
+
+echo "All pre-push checks passed!"

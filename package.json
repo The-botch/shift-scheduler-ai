@@ -11,7 +11,8 @@
     "test:schema": "node scripts/test_schema_crud.mjs",
     "test:schema:keep": "node scripts/test_schema_crud_no_cleanup.mjs",
     "db:cleanup": "node scripts/cleanup_test_data.mjs",
-    "db:setup": "node scripts/run_db_setup.mjs"
+    "db:setup": "node scripts/run_db_setup.mjs",
+    "prepare": "husky"
   },
   "dependencies": {
     "csv-parse": "^6.1.0",
@@ -20,5 +21,9 @@
   },
   "engines": {
     "node": ">=18.0.0"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7"
   }
 }
