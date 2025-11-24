@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
+import { Card, CardContent } from '../ui/card'
 import { Store, Clock, MapPin, Phone, Briefcase, ChevronRight } from 'lucide-react'
-import { validateStoreCSV } from '../../utils/csvHelper'
-import CSVActions from '../shared/CSVActions'
-import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { useTenant } from '../../contexts/TenantContext'
 
-const csvRepository = new CSVRepository()
 const masterRepository = new MasterRepository()
 
 const StoreManagement = () => {
@@ -73,7 +69,7 @@ const StoreManagement = () => {
         return `目標: ¥${value.target_cost?.toLocaleString()} / 上限: ¥${value.max_labor_cost?.toLocaleString()}`
       }
       return JSON.stringify(value)
-    } catch (e) {
+    } catch {
       return constraint.constraint_value
     }
   }

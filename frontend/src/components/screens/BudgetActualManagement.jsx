@@ -14,10 +14,8 @@ import {
   TrendingUp,
   ArrowLeft,
   Users,
-  Clock,
   ChevronLeft,
   ChevronRight,
-  BarChart3,
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -25,11 +23,10 @@ import {
   getActualShifts,
   getPayroll,
   getSalesActual,
-  getCount,
   clearStore,
 } from '../../utils/indexedDB'
 import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
-import { INDEXED_DB, STORAGE_KEYS } from '../../config'
+import { INDEXED_DB } from '../../config'
 import { PAGE_VARIANTS, PAGE_TRANSITION } from '../../config/display'
 import { getCurrentYear } from '../../config/constants'
 import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
@@ -121,7 +118,7 @@ const BudgetActualManagement = () => {
   // IndexedDB内のデータ件数を取得
   useEffect(() => {
     loadImportStatus()
-  }, [selectedYear])
+  }, [selectedYear, loadImportStatus])
 
   // 画面離脱時の警告
   useEffect(() => {

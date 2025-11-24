@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { MESSAGES } from '../../constants/messages'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -73,7 +73,7 @@ const ConstraintManagement = () => {
           ))}
         </ul>
       )
-    } catch (e) {
+    } catch {
       return <div className="text-sm text-gray-700">{ruleStr}</div>
     }
   }

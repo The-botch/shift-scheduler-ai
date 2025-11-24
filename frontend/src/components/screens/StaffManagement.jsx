@@ -1,31 +1,21 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import {
   Users,
   X,
-  DollarSign,
-  Clock,
   TrendingUp,
-  Calendar,
   Award,
   FileText,
-  Edit3,
   Database,
-  Store,
   Filter,
 } from 'lucide-react'
-import { validateStaffCSV } from '../../utils/csvHelper'
 import { calculatePayslip } from '../../utils/salaryCalculator'
-import { getStaffWorkHistory, getStaffPayrollHistory } from '../../utils/indexedDB'
-import CSVActions from '../shared/CSVActions'
-import { CSVRepository } from '../../infrastructure/repositories/CSVRepository'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
 import { useTenant } from '../../contexts/TenantContext'
 
-const csvRepository = new CSVRepository()
 const masterRepository = new MasterRepository()
 
 const StaffManagement = () => {

@@ -5,26 +5,18 @@ import {
   CheckCircle,
   Info,
   XCircle,
-  ChevronDown,
-  ChevronRight,
   BookOpen,
   Database,
   Users,
   Store,
   Calendar,
-  DollarSign,
   Settings,
   ShieldAlert,
 } from 'lucide-react'
 import { Button } from '../ui/button'
 
 const DataImpactDocumentation = ({ onPrev }) => {
-  const [expandedSection, setExpandedSection] = useState(null)
   const [selectedCategory, setSelectedCategory] = useState('overview')
-
-  const toggleSection = sectionId => {
-    setExpandedSection(expandedSection === sectionId ? null : sectionId)
-  }
 
   const impactLevels = {
     low: {
