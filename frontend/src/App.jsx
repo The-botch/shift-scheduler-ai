@@ -9,7 +9,6 @@ import './App.css'
 import { TenantProvider, useTenant } from './contexts/TenantContext'
 
 // Screen Components
-import Dashboard from './components/screens/Dashboard'
 import FirstPlanEditor from './components/screens/shift/FirstPlanEditor'
 import ShiftCreationMethodSelector from './components/screens/shift/ShiftCreationMethodSelector'
 import LineShiftInput from './components/screens/shift/LineShiftInput'
@@ -24,7 +23,6 @@ import MasterDataManagement from './components/screens/MasterDataManagement'
 import DevTools from './dev/DevTools'
 
 // UI Components
-import { Button } from './components/ui/button'
 import AppHeader from './components/shared/AppHeader'
 
 function AppContent() {
@@ -52,7 +50,6 @@ function AppContent() {
   const [showTenantSettings, setShowTenantSettings] = useState(false)
   const [selectedShiftForEdit, setSelectedShiftForEdit] = useState(null)
   const [shiftManagementKey, setShiftManagementKey] = useState(0) // 再マウント用
-  const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [monitoringInitialMonth, setMonitoringInitialMonth] = useState(null) // Monitoring画面に渡す初期月
   const [monitoringInitialStoreId, setMonitoringInitialStoreId] = useState(null) // Monitoring画面に渡す初期店舗ID
 
@@ -91,7 +88,7 @@ function AppContent() {
     } else if (path === '/tenant-settings') {
       setShowTenantSettings(true)
     }
-  }, [])
+  }, [location.pathname])
 
   // ステートが変更されたらURLを更新
   useEffect(() => {
@@ -157,35 +154,6 @@ function AppContent() {
     navigate,
   ])
 
-  const nextStep = () => {
-    if (currentStep < 3) {
-      setCurrentStep(currentStep + 1)
-    }
-  }
-
-  const prevStep = () => {
-    if (hasUnsavedChanges) {
-      if (!window.confirm('変更が保存されていません。前の画面に戻りますか？')) {
-        return
-      }
-      setHasUnsavedChanges(false)
-    }
-
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1)
-    }
-  }
-
-  const goToStep = step => {
-    if (hasUnsavedChanges) {
-      if (!window.confirm('変更が保存されていません。画面を移動しますか？')) {
-        return
-      }
-      setHasUnsavedChanges(false)
-    }
-    setCurrentStep(step)
-  }
-
   const goToStaffManagement = () => {
     if (hasUnsavedChanges) {
       if (!window.confirm('変更が保存されていません。スタッフ管理に移動しますか？')) {
@@ -206,7 +174,6 @@ function AppContent() {
     setShowBudgetActualManagement(false)
     setShowMasterDataManagement(false)
     setShowTenantSettings(false)
-    setIsMenuOpen(false)
   }
 
   const goToStoreManagement = () => {
@@ -226,7 +193,6 @@ function AppContent() {
     setShowBudgetActualManagement(false)
     setShowMasterDataManagement(false)
     setShowTenantSettings(false)
-    setIsMenuOpen(false)
   }
 
   const goToConstraintManagement = () => {
@@ -246,26 +212,6 @@ function AppContent() {
     setShowBudgetActualManagement(false)
     setShowMasterDataManagement(false)
     setShowTenantSettings(false)
-    setIsMenuOpen(false)
-  }
-
-  const goToHistory = () => {
-    if (hasUnsavedChanges) {
-      if (!window.confirm('変更が保存されていません。履歴画面に移動しますか？')) {
-        return
-      }
-      setHasUnsavedChanges(false)
-    }
-    setShowHistory(true)
-    setShowShiftManagement(false)
-    setShowStaffManagement(false)
-    setShowStoreManagement(false)
-    setShowConstraintManagement(false)
-    setShowLineMessages(false)
-    setShowMonitoring(false)
-    setShowBudgetActualManagement(false)
-    setShowMasterDataManagement(false)
-    setIsMenuOpen(false)
   }
 
   const goToLineMessages = () => {
@@ -284,7 +230,6 @@ function AppContent() {
     setShowMonitoring(false)
     setShowBudgetActualManagement(false)
     setShowMasterDataManagement(false)
-    setIsMenuOpen(false)
   }
 
   const goToMonitoring = (initialData = null) => {
@@ -312,7 +257,6 @@ function AppContent() {
     setShowLineMessages(false)
     setShowBudgetActualManagement(false)
     setShowMasterDataManagement(false)
-    setIsMenuOpen(false)
   }
 
   const goToBudgetActualManagement = () => {
@@ -333,7 +277,6 @@ function AppContent() {
     setShowMasterDataManagement(false)
     setShowDevTools(false)
     setShowTenantSettings(false)
-    setIsMenuOpen(false)
   }
 
   const goToMasterDataManagement = () => {
@@ -354,48 +297,6 @@ function AppContent() {
     setShowLineMessages(false)
     setShowDevTools(false)
     setShowTenantSettings(false)
-    setIsMenuOpen(false)
-  }
-
-  const goToTenantSettings = () => {
-    if (hasUnsavedChanges) {
-      if (!window.confirm('変更が保存されていません。テナント設定に移動しますか？')) {
-        return
-      }
-      setHasUnsavedChanges(false)
-    }
-    setShowTenantSettings(true)
-    setShowBudgetActualManagement(false)
-    setShowMonitoring(false)
-    setShowShiftManagement(false)
-    setShowStaffManagement(false)
-    setShowStoreManagement(false)
-    setShowConstraintManagement(false)
-    setShowHistory(false)
-    setShowLineMessages(false)
-    setShowMasterDataManagement(false)
-    setShowDevTools(false)
-    setIsMenuOpen(false)
-  }
-
-  const goToDevTools = () => {
-    if (hasUnsavedChanges) {
-      if (!window.confirm('変更が保存されていません。開発者ツールに移動しますか？')) {
-        return
-      }
-      setHasUnsavedChanges(false)
-    }
-    setShowDevTools(true)
-    setShowBudgetActualManagement(false)
-    setShowMonitoring(false)
-    setShowShiftManagement(false)
-    setShowStaffManagement(false)
-    setShowStoreManagement(false)
-    setShowConstraintManagement(false)
-    setShowHistory(false)
-    setShowLineMessages(false)
-    setShowMasterDataManagement(false)
-    setIsMenuOpen(false)
   }
 
   const backFromHistory = () => {
@@ -425,7 +326,6 @@ function AppContent() {
     setShowMasterDataManagement(false)
     setShowDevTools(false)
     setShowTenantSettings(false)
-    setIsMenuOpen(false)
 
     // ステップもリセット（SecondPlan画面から戻る場合のため）
     setCurrentStep(1)
@@ -447,8 +347,6 @@ function AppContent() {
   const goToFirstPlanFromShiftMgmt = async shift => {
     // shiftオブジェクトから情報を取得
     const status = shift?.status || 'not_started'
-    const year = shift?.year || getCurrentYear()
-    const month = shift?.month || getCurrentMonth()
 
     if (status === 'completed') {
       // 確定済みの場合は閲覧のみ

@@ -20,7 +20,7 @@ const ShiftCalendar = ({
         ))}
       </div>
       <div className="grid grid-cols-7 gap-2">
-        {shiftData.map((dayData, index) => (
+        {shiftData.map((dayData, _index) => (
           <motion.div
             key={dayData.date}
             className={`p-3 border-2 rounded-lg min-h-[120px] transition-all duration-500 ${

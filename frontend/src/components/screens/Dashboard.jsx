@@ -37,17 +37,7 @@ const pageTransition = {
   duration: 0.5,
 }
 
-const Dashboard = ({
-  onNext,
-  onShiftManagement,
-  onMonitoring,
-  onStaffManagement,
-  onStoreManagement,
-  onConstraintManagement,
-  onLineMessages,
-  onBudgetActualManagement,
-  onDevTools,
-}) => {
+const Dashboard = ({ onBudgetActualManagement }) => {
   const { tenantId } = useTenant()
   const [annualSummary, setAnnualSummary] = useState(null)
   const [loadingAnnualSummary, setLoadingAnnualSummary] = useState(true)
