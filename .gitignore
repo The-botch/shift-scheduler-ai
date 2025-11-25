@@ -7,11 +7,10 @@ dist-ssr
 *.local
 
 # Environment variables
-# 注意: 開発環境では.envをコミットしています（全員が同じRailway接続情報を使用するため）
-# .env は開発環境用の接続情報を含んでいます
+# .env.local: ローカル開発用（個人のシークレット含む）
+# .env.staging, .env.production: チーム共有の参考ファイル（コミットOK）
 .env.local
 .env.*.local
-.env.production
 
 # OS
 .DS_Store
@@ -48,7 +47,8 @@ frontend/public/data/generated/*
 coverage
 .nyc_output
 
-# 個人のシークレットを含むため除外
+# 個人のシークレットを含むため除外（廃止予定）
+# 新しい環境管理方式では .env.local を使用
 .env
 frontend/.env
 backend/.env
