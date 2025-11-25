@@ -101,7 +101,7 @@ const FirstPlanEditor = ({
 
   // シフトデータ
   const [shiftData, setShiftData] = useState([])
-  const [storeId, setStoreId] = useState(null)
+  const [planIdState, setPlanIdState] = useState(null) // 状態として保持するplanId
   const [defaultPatternId, setDefaultPatternId] = useState(null)
   const [preferences, setPreferences] = useState([]) // 希望シフト
 
@@ -115,15 +115,8 @@ const FirstPlanEditor = ({
 
   const year = selectedShift?.year || new Date().getFullYear()
   const month = selectedShift?.month || new Date().getMonth() + 1
-  const planId = selectedShift?.planId || selectedShift?.plan_id
+  const planId = selectedShift?.planId || selectedShift?.plan_id || planIdState
   const planType = selectedShift?.planType || 'FIRST'
-
-  // デバッグ用：selectedShiftの内容を確認
-  useEffect(() => {
-    console.log('DraftShiftEditor - selectedShift:', selectedShift)
-    console.log('DraftShiftEditor - planId:', planId)
-    console.log('DraftShiftEditor - planType:', planType)
-  }, [selectedShift, planId, planType])
 
   useEffect(() => {
     // initialDataがある場合はそれを使用、ない場合はDBからロード
@@ -145,8 +138,13 @@ const FirstPlanEditor = ({
 
       // initialDataからシフトデータを抽出（全店舗分）
       const allShifts = []
+      let extractedPlanId = null
       initialData.stores.forEach(store => {
         store.shifts.forEach(shift => {
+          // 最初のシフトからplan_idを抽出
+          if (!extractedPlanId && shift.plan_id) {
+            extractedPlanId = shift.plan_id
+          }
           const staffInfo = staffMapping[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
           allShifts.push({
             ...shift,
@@ -156,6 +154,11 @@ const FirstPlanEditor = ({
           })
         })
       })
+
+      // plan_idを状態に保存
+      if (extractedPlanId) {
+        setPlanIdState(extractedPlanId)
+      }
 
       // 日付別にグループ化
       const shiftsByDate = {}
@@ -200,19 +203,16 @@ const FirstPlanEditor = ({
       setLoading(true)
 
       // まずシフトデータを取得
-      // 閲覧モードの場合は全店舗分を取得、編集モードの場合はplanIdで取得
-      const shiftsResult =
-        planId && isEditMode
-          ? await shiftRepository.getShifts({ planId })
-          : await shiftRepository.getShifts({ year, month, plan_type: planType })
+      // マルチストア環境では、常に全店舗のシフトを取得
+      const shiftsResult = await shiftRepository.getShifts({ year, month, plan_type: planType })
 
-      // シフトデータから店舗IDとpattern_idを取得（最初のシフトから使用）
-      const fetchedStoreId = shiftsResult.length > 0 ? shiftsResult[0].store_id : null
+      // シフトデータからpattern_id、plan_idを取得（最初のシフトから使用）
       const fetchedPatternId = shiftsResult.length > 0 ? shiftsResult[0].pattern_id : null
+      const fetchedPlanId = shiftsResult.length > 0 ? shiftsResult[0].plan_id : null
 
       // ステートに保存
-      setStoreId(fetchedStoreId)
       setDefaultPatternId(fetchedPatternId)
+      setPlanIdState(fetchedPlanId)
 
       // マスタデータを取得（カスタムhook経由）
       const { staffMapping } = await loadMasterData()
@@ -696,7 +696,7 @@ const FirstPlanEditor = ({
     const newShift = {
       shift_id: tempShiftId,
       tenant_id: getCurrentTenantId(), // 必須
-      store_id: newShiftData.store_id || storeId, // 必須（ポップアップから渡される）
+      store_id: newShiftData.store_id, // 必須（ポップアップから渡される）
       plan_id: planId, // 必須
       staff_id: newShiftData.staff_id, // 必須
       shift_date: newShiftData.date || newShiftData.shift_date, // 必須
@@ -769,9 +769,12 @@ const FirstPlanEditor = ({
         : `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
 
     if (mode === 'add') {
-      // 新規追加モード
+      // 新規追加モード - スタッフの所属店舗をデフォルトに設定
+      const staffStoreId = staffMap[staffId]?.store_id
       const storeData =
-        storesMap instanceof Map ? storesMap.get(parseInt(storeId)) : storesMap[parseInt(storeId)]
+        storesMap instanceof Map
+          ? storesMap.get(parseInt(staffStoreId))
+          : storesMap[parseInt(staffStoreId)]
 
       setModalState({
         isOpen: true,
@@ -779,7 +782,7 @@ const FirstPlanEditor = ({
         shift: {
           date: formattedDate,
           staff_id: staffId,
-          store_id: storeId,
+          store_id: staffStoreId, // スタッフの所属店舗ID
           staff_name: staffMap[staffId]?.name || '不明',
           store_name: storeData?.store_name || '不明',
         },
