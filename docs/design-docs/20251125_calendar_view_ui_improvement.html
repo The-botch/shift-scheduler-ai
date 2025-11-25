@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>カレンダービューUI改善 - 設計書</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+        }
+        h3 {
+            color: #555;
+            margin-top: 20px;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .problem-box {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .solution-box {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .important {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .code {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .metadata {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .metadata p {
+            margin: 5px 0;
+        }
+        .table-preview {
+            font-size: 0.75em;
+            border: 2px solid #3498db;
+            background: white;
+            padding: 10px;
+            margin: 15px 0;
+            overflow-x: auto;
+        }
+        .table-preview table {
+            font-size: 0.9em;
+        }
+        .table-preview th {
+            background-color: #5dade2;
+            font-size: 0.85em;
+        }
+        .table-preview .store-header {
+            background-color: #85c1e9;
+            font-weight: bold;
+        }
+        .update-note {
+            background: #e8f5e9;
+            border-left: 4px solid #4caf50;
+            padding: 10px 15px;
+            margin: 10px 0;
+            font-size: 0.9em;
+        }
+    </style>
+</head>
+<body>
+    <h1>カレンダービューUI改善 - 設計書</h1>
+
+    <div class="metadata">
+        <p><strong>作成日:</strong> 2025-11-25</p>
+        <p><strong>最終更新:</strong> 2025-11-25（テーブル転置版・店舗グルーピング追加・SecondPlanEditor対応）</p>
+        <p><strong>対象コンポーネント:</strong> FirstPlanEditor.jsx, SecondPlanEditor.jsx, ShiftTableView.jsx</p>
+        <p><strong>修正種別:</strong> UI/UX改善・テーブルレイアウト変更・店舗グルーピング</p>
+        <p><strong>優先度:</strong> 高</p>
+    </div>
+
+    <div class="update-note">
+        <strong>📝 更新履歴</strong>
+        <ul style="margin: 5px 0; padding-left: 20px;">
+            <li>テーブルの行列転置を採用（縦軸=スタッフ、横軸=時刻）</li>
+            <li>店舗グルーピング機能を追加（rowspan使用）</li>
+            <li>デフォルトウィンドウ幅の拡大</li>
+            <li>シフトクリック編集機能の改善</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>1. 現状の確認</h2>
+
+        <h3>1.1 実装済みの改善</h3>
+        <div class="solution-box">
+            <ul>
+                <li>✅ react-rndを使用したドラッグ・リサイズ可能なウィンドウ</li>
+                <li>✅ テーブルの行列転置（縦軸=スタッフ、横軸=時刻）</li>
+                <li>✅ 最大化/元に戻すボタン（トグル式）</li>
+                <li>✅ ウィンドウヘッダーでのドラッグ移動</li>
+                <li>✅ リサイズハンドル（角・辺）</li>
+                <li>✅ viewport外へのドラッグ可能（他モニターへ移動可能）</li>
+                <li>✅ onShiftClickの実装（コード上は存在）</li>
+            </ul>
+        </div>
+
+        <h3>1.2 残存する問題点</h3>
+        <div class="problem-box">
+            <h4>問題1: デフォルトウィンドウ幅が狭すぎる</h4>
+            <ul>
+                <li>現在のデフォルト幅: 800px</li>
+                <li>転置後のテーブル: 時刻列が約47列（05:00～04:00の30分刻み）+ スタッフ情報3列 = 合計約50列</li>
+                <li>結果: 横スクロールが必須で、全体像が見えない</li>
+            </ul>
+
+            <h4>問題2: 店舗でのグルーピングが不明確</h4>
+            <ul>
+                <li>現在: スタッフ名 | 店舗 | 役職 | 時刻...</li>
+                <li>問題: どのスタッフがどの店舗か分かりにくい</li>
+                <li>問題: 「店舗」列が所属店舗なのか稼働店舗なのか不明</li>
+            </ul>
+
+            <h4>問題3: 別ウィンドウ（別モニター）での表示問題</h4>
+            <ul>
+                <li>ドラッグで他モニターに移動はできる</li>
+                <li>しかし、表示が正しくされない可能性がある</li>
+                <li>原因: ブラウザ内のdiv要素のため、viewport外での描画に制限がある可能性</li>
+            </ul>
+
+            <h4>問題4: シフト編集がクリックできない（報告あり）</h4>
+            <ul>
+                <li>コード上はonShiftClickが実装されている（line 275-279）</li>
+                <li>しかし、ユーザー報告では動作していない</li>
+                <li>考えられる原因: 削除ボタンのクリックイベントが伝播している、またはz-indexの問題</li>
+            </ul>
+
+            <h4>問題5: 固定列の背景・罫線が半透明でコンテンツが透けて見える</h4>
+            <ul>
+                <li>固定列（稼働店舗、スタッフ名、役職）をstickyで固定している</li>
+                <li>スクロール時に、固定列の下を通過するセル内容（シフトバーなど）が透けて見える</li>
+                <li>原因: 固定列の背景色が完全に不透明になっていない、または罫線が半透明</li>
+                <li>結果: 固定列のテキストとスクロールするコンテンツが重なって見にくい</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. 解決策</h2>
+
+        <h3>2.1 デフォルトウィンドウ幅の拡大</h3>
+        <div class="solution-box">
+            <h4>方針:</h4>
+            <ul>
+                <li>転置後のテーブルは横に長いため、デフォルト幅を大幅に拡大</li>
+                <li>画面幅の90%をデフォルトとする（window.innerWidth * 0.9）</li>
+                <li>高さは従来通り画面の50-60%程度</li>
+                <li>最小幅: 1000px（時刻列を最低限表示できる幅）</li>
+            </ul>
+
+            <h4>修正内容:</h4>
+            <div class="code">
+// FirstPlanEditor.jsx - windowState初期値を変更
+const [windowState, setWindowState] = useState({
+  width: Math.max(window.innerWidth * 0.9, 1200), // 画面幅の90%、最低1200px
+  height: window.innerHeight * 0.6, // 画面高さの60%
+  x: 50,
+  y: 50,
+  isMaximized: false,
+})
+
+// handleMaximizeの元のサイズも調整
+const handleMaximize = () => {
+  if (windowState.isMaximized) {
+    setWindowState(prev => ({
+      ...prev,
+      width: Math.max(window.innerWidth * 0.9, 1200),
+      height: window.innerHeight * 0.6,
+      isMaximized: false
+    }))
+  } else {
+    setWindowState(prev => ({
+      ...prev,
+      width: window.innerWidth * 0.95,
+      height: window.innerHeight * 0.95,
+      isMaximized: true
+    }))
+  }
+}
+
+// Rnd コンポーネントの最小幅も調整
+&lt;Rnd
+  minWidth={1000} // 最小幅を1000pxに
+  minHeight={400}
+  ...
+&gt;
+            </div>
+        </div>
+
+        <h3>2.2 店舗グルーピング（rowspan使用）</h3>
+        <div class="solution-box">
+            <h4>方針:</h4>
+            <ul>
+                <li>店舗列をrowspanで結合し、店舗ごとにグループ化</li>
+                <li>列順: <strong>稼働店舗 | スタッフ名 | 役職 | 時刻...</strong></li>
+                <li>店舗セルはその店舗の全スタッフ分をrowspanで結合</li>
+                <li>店舗名の左側に sticky positioning を適用</li>
+            </ul>
+
+            <h4>テーブルレイアウト例:</h4>
+            <div class="table-preview">
+                <table style="min-width: 800px;">
+                    <thead>
+                        <tr style="background: #5dade2; color: white;">
+                            <th>稼働店舗</th>
+                            <th>スタッフ名</th>
+                            <th>役職</th>
+                            <th>05:00</th>
+                            <th>05:30</th>
+                            <th>06:00</th>
+                            <th>06:30</th>
+                            <th>07:00</th>
+                            <th>...</th>
+                        </tr>
+                        <tr style="background: #f0f8ff;">
+                            <th colspan="3">勤務人数 Σ</th>
+                            <td>2</td>
+                            <td>2</td>
+                            <td>3</td>
+                            <td>3</td>
+                            <td>4</td>
+                            <td>...</td>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td rowspan="3" class="store-header">店舗A</td>
+                            <td>田中 太郎</td>
+                            <td>正社員</td>
+                            <td colspan="4" style="background: #3498db; color: white; text-align: center;">05:00-07:00</td>
+                            <td></td>
+                            <td>...</td>
+                        </tr>
+                        <tr>
+                            <td>佐藤 花子</td>
+                            <td>アルバイト</td>
+                            <td></td>
+                            <td colspan="3" style="background: #2ecc71; color: white; text-align: center;">05:30-07:00</td>
+                            <td></td>
+                            <td>...</td>
+                        </tr>
+                        <tr>
+                            <td>鈴木 一郎</td>
+                            <td>正社員</td>
+                            <td></td>
+                            <td></td>
+                            <td></td>
+                            <td colspan="2" style="background: #3498db; color: white; text-align: center;">06:30-07:30</td>
+                            <td>...</td>
+                        </tr>
+                        <tr>
+                            <td rowspan="2" class="store-header">店舗B</td>
+                            <td>高橋 次郎</td>
+                            <td>正社員</td>
+                            <td colspan="3" style="background: #3498db; color: white; text-align: center;">05:00-06:30</td>
+                            <td></td>
+                            <td></td>
+                            <td>...</td>
+                        </tr>
+                        <tr>
+                            <td>山田 美咲</td>
+                            <td>アルバイト</td>
+                            <td></td>
+                            <td></td>
+                            <td colspan="3" style="background: #2ecc71; color: white; text-align: center;">06:00-07:30</td>
+                            <td>...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h4>実装コード:</h4>
+            <div class="code">
+// ShiftTableView.jsx の修正
+
+// 各店舗の最初のスタッフかどうかを判定する関数
+const isFirstStaffInStore = (staff) => {
+  return staffByStore[staff.store_id][0].staff_id === staff.staff_id
+}
+
+// テーブルヘッダーの変更
+&lt;thead className="sticky top-0 z-10"&gt;
+  &lt;tr className="bg-gray-200"&gt;
+    &lt;th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky left-0 z-20" style={{ minWidth: '100px' }}&gt;
+      稼働店舗
+    &lt;/th&gt;
+    &lt;th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky left-[100px] z-20" style={{ minWidth: '80px' }}&gt;
+      スタッフ名
+    &lt;/th&gt;
+    &lt;th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky left-[180px] z-20" style={{ minWidth: '60px' }}&gt;
+      役職
+    &lt;/th&gt;
+    {TIME_SLOTS.map((timeSlot) => (
+      &lt;th key={timeSlot} ...&gt;
+        {timeSlot}
+      &lt;/th&gt;
+    ))}
+  &lt;/tr&gt;
+  {/* 勤務人数サマリー行 */}
+  &lt;tr className="bg-yellow-50"&gt;
+    &lt;th className="border border-gray-300 px-1 py-0.5 bg-yellow-100 sticky left-0 z-20 text-[0.55rem]" colSpan="3"&gt;
+      勤務人数 Σ
+    &lt;/th&gt;
+    {TIME_SLOTS.map((timeSlot) => (
+      &lt;td key={timeSlot} ...&gt;
+        {getStaffCountAtTime(timeSlot)}
+      &lt;/td&gt;
+    ))}
+  &lt;/tr&gt;
+&lt;/thead&gt;
+
+// tbody部分の修正
+&lt;tbody&gt;
+  {allStaff.map((staff, staffIndex) => (
+    &lt;tr key={`${staff.store_id}-${staff.staff_id}`} className={staffIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'}&gt;
+      {/* 店舗名（rowspan） */}
+      {isFirstStaffInStore(staff) && (
+        &lt;td
+          rowSpan={staffByStore[staff.store_id].length}
+          className="border border-gray-300 px-2 py-1 sticky left-0 z-10 bg-blue-100 font-bold text-sm align-top"
+        &gt;
+          {storesMap[staff.store_id]?.store_name || `店舗${staff.store_id}`}
+        &lt;/td&gt;
+      )}
+
+      {/* スタッフ名 */}
+      &lt;td className="border border-gray-300 px-1 py-1 sticky left-[100px] z-10 bg-inherit font-medium text-[0.55rem]"&gt;
+        {staff.staff_name}
+      &lt;/td&gt;
+
+      {/* 役職 */}
+      &lt;td className="border border-gray-300 px-1 py-1 sticky left-[180px] z-10 bg-inherit text-[0.5rem] text-gray-600"&gt;
+        {staff.role}
+      &lt;/td&gt;
+
+      {/* 時刻列（既存のコード）*/}
+      {TIME_SLOTS.map((timeSlot) => {
+        // 既存のシフト表示ロジック...
+      })}
+    &lt;/tr&gt;
+  ))}
+&lt;/tbody&gt;
+            </div>
+        </div>
+
+        <h3>2.3 別ウィンドウ表示の改善</h3>
+        <div class="important">
+            <h4>現状の制約:</h4>
+            <ul>
+                <li>react-rndは同一ページ内のdiv要素のドラッグ・リサイズを提供</li>
+                <li>viewport外（他モニター）への移動は可能だが、ブラウザウィンドウの範囲内に限定</li>
+                <li>真の「別ウィンドウ」（window.open()）ではない</li>
+            </ul>
+
+            <h4>対応方針:</h4>
+            <p><strong>選択肢A: 現状維持（推奨）</strong></p>
+            <ul>
+                <li>ドラッグで他モニターに移動可能（ブラウザウィンドウを他モニターに表示している場合）</li>
+                <li>z-indexを高めに設定することで前面表示を保証</li>
+                <li>実装コストなし</li>
+            </ul>
+
+            <p><strong>選択肢B: window.open()で真の別ウィンドウを実装</strong></p>
+            <ul>
+                <li>完全に独立したブラウザウィンドウとして開く</li>
+                <li>他モニターへの移動が完全に自由</li>
+                <li>ただし、実装が複雑（state共有、イベント通信など）</li>
+                <li>ポップアップブロッカーの影響を受ける可能性</li>
+            </ul>
+
+            <p><strong>推奨: 選択肢A（現状維持）</strong> - ブラウザウィンドウ自体を他モニターに移動すれば、カレンダービューウィンドウも一緒に移動できる。</p>
+        </div>
+
+        <h3>2.4 シフトクリック編集機能の修正</h3>
+        <div class="solution-box">
+            <h4>問題の原因調査:</h4>
+            <ul>
+                <li>コード上はonShiftClickが実装されている（ShiftTableView.jsx line 275-279）</li>
+                <li>考えられる原因:
+                    <ol>
+                        <li>削除ボタンのクリックイベントがバブリングしている</li>
+                        <li>シフトセル内の子要素（時刻表示、警告アイコン）がクリックを妨げている</li>
+                        <li>editable && onShiftClickの条件が満たされていない</li>
+                    </ol>
+                </li>
+            </ul>
+
+            <h4>修正方針:</h4>
+            <ul>
+                <li>削除ボタンのe.stopPropagation()は既に実装済み → OK</li>
+                <li>シフトセル全体がクリック可能であることを確認</li>
+                <li>デバッグログを追加して、クリックイベントが発火しているか確認</li>
+                <li>cursor-pointerスタイルが適用されているか確認</li>
+            </ul>
+
+            <h4>修正コード:</h4>
+            <div class="code">
+// ShiftTableView.jsx - シフトセルのonClick部分にデバッグ追加
+&lt;td
+  key={`${staff.staff_id}-${timeSlot}`}
+  className={`border border-gray-300 px-0.5 py-1 ${roleColor.bg} text-white text-center ${editable && onShiftClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
+  colSpan={colSpan}
+  onClick={(e) => {
+    console.log('🖱️ Shift cell clicked:', { shift, editable, hasOnShiftClick: !!onShiftClick })
+    if (editable && onShiftClick) {
+      console.log('✅ Calling onShiftClick')
+      onShiftClick(shift)
+    } else {
+      console.log('❌ Click ignored - editable:', editable, 'onShiftClick:', !!onShiftClick)
+    }
+  }}
+&gt;
+  {/* シフト内容 */}
+&lt;/td&gt;
+            </div>
+        </div>
+
+        <h3>2.5 固定列の背景・罫線の不透明化</h3>
+        <div class="solution-box">
+            <h4>問題の詳細:</h4>
+            <ul>
+                <li>固定列（sticky columns）のセルが半透明のため、スクロール時に下層のコンテンツが透けて見える</li>
+                <li>特に罫線（border）が半透明で、シフトバーなどの色が透過してしまう</li>
+                <li>視認性が低下し、固定列のテキストが読みにくくなる</li>
+            </ul>
+
+            <h4>解決策:</h4>
+            <ul>
+                <li>固定列のセルに完全不透明な背景色を設定</li>
+                <li>bg-inheritを使用している箇所を、明示的な背景色に変更</li>
+                <li>偶数行・奇数行で異なる背景色を維持しつつ、完全不透明にする</li>
+                <li>罫線（border）も完全不透明の色を使用</li>
+            </ul>
+
+            <h4>修正コード:</h4>
+            <div class="code">
+// ShiftTableView.jsx - 固定列の背景を完全不透明に
+
+// thead部分 - ヘッダーセルの背景
+&lt;th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky left-0 z-20" style={{ minWidth: '100px' }}&gt;
+  稼働店舗
+&lt;/th&gt;
+&lt;th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky left-[100px] z-20" style={{ minWidth: '80px' }}&gt;
+  スタッフ名
+&lt;/th&gt;
+&lt;th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky left-[180px] z-20" style={{ minWidth: '60px' }}&gt;
+  役職
+&lt;/th&gt;
+
+// tbody部分 - 固定列の背景を行の色に合わせる
+{allStaff.map((staff, staffIndex) => {
+  // 偶数行・奇数行の背景色を決定
+  const rowBgClass = staffIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
+
+  return (
+    &lt;tr key={`${staff.store_id}-${staff.staff_id}`} className={rowBgClass}&gt;
+      {/* 店舗名（rowspan） - bg-inheritではなく明示的な色 */}
+      {isFirstStaffInStore(staff) && (
+        &lt;td
+          rowSpan={staffByStore[staff.store_id].length}
+          className={`border border-gray-300 px-2 py-1 sticky left-0 z-10 bg-blue-100 font-bold text-sm align-top`}
+        &gt;
+          {storesMap[staff.store_id]?.store_name || `店舗${staff.store_id}`}
+        &lt;/td&gt;
+      )}
+
+      {/* スタッフ名 - bg-inheritから明示的な背景色に変更 */}
+      &lt;td className={`border border-gray-300 px-1 py-1 sticky left-[100px] z-10 ${rowBgClass} font-medium text-[0.55rem]`}&gt;
+        {staff.staff_name}
+      &lt;/td&gt;
+
+      {/* 役職 - bg-inheritから明示的な背景色に変更 */}
+      &lt;td className={`border border-gray-300 px-1 py-1 sticky left-[180px] z-10 ${rowBgClass} text-[0.5rem] text-gray-600`}&gt;
+        {staff.role}
+      &lt;/td&gt;
+
+      {/* 時刻列... */}
+    &lt;/tr&gt;
+  )
+})}
+            </div>
+
+            <h4>重要なポイント:</h4>
+            <ul>
+                <li><strong>bg-inherit を使わない</strong>: 親要素の背景を継承すると透明になる可能性がある</li>
+                <li><strong>明示的な背景色を指定</strong>: bg-white, bg-gray-50, bg-blue-100 など</li>
+                <li><strong>偶数行・奇数行で背景色を統一</strong>: 固定列とスクロール列で同じ背景色を使用</li>
+                <li><strong>z-indexを適切に設定</strong>: 固定列がスクロール列の上に表示されるようにする</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>3. 実装手順</h2>
+
+        <ol>
+            <li><strong>FirstPlanEditor.jsxの修正（デフォルトウィンドウサイズ）</strong>
+                <ul>
+                    <li>windowState初期値の変更（width: Math.max(window.innerWidth * 0.9, 1200)）</li>
+                    <li>handleMaximizeの元サイズ調整</li>
+                    <li>RndコンポーネントのminWidthを1000pxに変更</li>
+                </ul>
+            </li>
+
+            <li><strong>SecondPlanEditor.jsxの修正（ウィンドウ化）</strong>
+                <ul>
+                    <li>FirstPlanEditorと同じRnd実装を適用</li>
+                    <li>react-rndとアイコンのインポート追加</li>
+                    <li>windowState状態管理の追加</li>
+                    <li>handleMaximizeハンドラーの実装</li>
+                    <li>AnimatePresenceからRndコンポーネントへの変更</li>
+                    <li>ウィンドウヘッダーの実装</li>
+                </ul>
+            </li>
+
+            <li><strong>ShiftTableView.jsxの修正（店舗グルーピング）</strong>
+                <ul>
+                    <li>isFirstStaffInStore関数の追加</li>
+                    <li>thead内のヘッダー列を変更（スタッフ名 | 店舗 | 役職 → 稼働店舗 | スタッフ名 | 役職）</li>
+                    <li>tbody内で店舗セルをrowspanで結合</li>
+                    <li>店舗セルにstickyスタイル適用（left: 0）</li>
+                    <li>スタッフ名、役職のstickyスタイル位置調整（left値を店舗列の幅に合わせる）</li>
+                </ul>
+            </li>
+
+            <li><strong>ShiftTableView.jsxの修正（シフトクリック）</strong>
+                <ul>
+                    <li>onClickハンドラーにデバッグログ追加</li>
+                    <li>cursor-pointerスタイルの確認</li>
+                    <li>ブラウザコンソールでクリックイベントを確認</li>
+                </ul>
+            </li>
+
+            <li><strong>ShiftTableView.jsxの修正（固定列の不透明化）</strong>
+                <ul>
+                    <li>bg-inheritを使用している固定列のセルを、明示的な背景色に変更</li>
+                    <li>偶数行・奇数行の背景色を決定するロジックを追加（rowBgClass）</li>
+                    <li>スタッフ名、役職列のクラス名をbg-inheritから${rowBgClass}に変更</li>
+                    <li>店舗列はbg-blue-100を維持（強調表示）</li>
+                </ul>
+            </li>
+
+            <li><strong>動作確認</strong>
+                <ul>
+                    <li>✅ デフォルト表示で全時刻列が見えるか（横スクロールが少ないか）</li>
+                    <li>✅ 店舗ごとにスタッフがグループ化されているか</li>
+                    <li>✅ 店舗列がrowspanで結合されているか</li>
+                    <li>✅ 稼働店舗、スタッフ名、役職列が横スクロール時に固定されるか</li>
+                    <li>✅ 固定列の背景が完全に不透明で、スクロール時にコンテンツが透けて見えないか</li>
+                    <li>✅ 固定列のテキストが明確に読めるか（背景とコンテンツが重ならないか）</li>
+                    <li>✅ シフトセルをクリックして編集ダイアログが開くか</li>
+                    <li>✅ 削除ボタンをクリックしても編集ダイアログが開かないか</li>
+                    <li>✅ ウィンドウのリサイズ、ドラッグが正常に動作するか</li>
+                </ul>
+            </li>
+        </ol>
+    </div>
+
+    <div class="section">
+        <h2>4. 影響範囲</h2>
+
+        <h3>4.1 変更対象ファイル</h3>
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>変更内容</th>
+                <th>行数</th>
+            </tr>
+            <tr>
+                <td>frontend/src/components/screens/shift/FirstPlanEditor.jsx</td>
+                <td>
+                    <ul>
+                        <li>windowState初期値の変更</li>
+                        <li>handleMaximizeの調整</li>
+                        <li>RndコンポーネントのminWidth変更</li>
+                    </ul>
+                </td>
+                <td>約10行</td>
+            </tr>
+            <tr>
+                <td>frontend/src/components/screens/shift/SecondPlanEditor.jsx</td>
+                <td>
+                    <ul>
+                        <li>react-rndとアイコンのインポート追加</li>
+                        <li>windowState状態管理の追加</li>
+                        <li>handleMaximizeハンドラーの実装</li>
+                        <li>AnimatePresenceからRndへの変更</li>
+                        <li>ウィンドウヘッダーの実装</li>
+                    </ul>
+                </td>
+                <td>約60行</td>
+            </tr>
+            <tr>
+                <td>frontend/src/components/shared/ShiftTableView.jsx</td>
+                <td>
+                    <ul>
+                        <li>店舗グルーピング機能の追加（rowspan）</li>
+                        <li>列ヘッダーの変更（店舗 → 稼働店舗）</li>
+                        <li>stickyスタイルの位置調整</li>
+                        <li>固定列の背景色を不透明に変更（bg-inheritから明示的な色へ）</li>
+                        <li>onClickハンドラーのデバッグログ追加</li>
+                    </ul>
+                </td>
+                <td>約40行</td>
+            </tr>
+        </table>
+
+        <h3>4.2 後方互換性</h3>
+        <p>完全に保持されます。既存の動作を改善するのみで、破壊的変更はありません。</p>
+    </div>
+
+    <div class="section">
+        <h2>5. まとめ</h2>
+
+        <h3>現状の問題点</h3>
+        <ul>
+            <li>❌ デフォルトウィンドウ幅が狭く、横スクロールが必須</li>
+            <li>❌ 店舗グルーピングが不明確</li>
+            <li>❌ 固定列の背景・罫線が半透明で、スクロール時にコンテンツが透けて見える</li>
+            <li>❌ シフトクリック編集が動作しない（報告あり）</li>
+            <li>⚠️ 別ウィンドウ表示の仕様が不明確</li>
+        </ul>
+
+        <h3>解決策</h3>
+        <div class="solution-box">
+            <ul>
+                <li>✅ デフォルトウィンドウ幅を画面の90%に拡大（最低1200px）</li>
+                <li>✅ 店舗列をrowspanで結合してグループ化</li>
+                <li>✅ 列順を「稼働店舗 | スタッフ名 | 役職 | 時刻...」に変更</li>
+                <li>✅ 固定列の背景を完全不透明に（bg-inheritから明示的な色へ変更）</li>
+                <li>✅ onClickハンドラーにデバッグログを追加して原因調査</li>
+                <li>✅ 別ウィンドウ表示は現状維持（ブラウザウィンドウの移動で対応）</li>
+            </ul>
+        </div>
+
+        <h3>期待される効果</h3>
+        <div class="solution-box">
+            <ul>
+                <li>📊 初期表示で全時刻列が見える（横スクロールが最小限）</li>
+                <li>🏪 店舗ごとにスタッフが明確にグループ化される</li>
+                <li>👤 どのスタッフがどの店舗で働いているか一目瞭然</li>
+                <li>👁️ 固定列が完全不透明で、スクロール時も明確に読める</li>
+                <li>🖱️ シフトクリック編集が正常に動作する</li>
+                <li>🪟 ウィンドウ操作（ドラッグ、リサイズ）が快適</li>
+            </ul>
+        </div>
+    </div>
+
+</body>
+</html>

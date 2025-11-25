@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>退職者表示とシフトコピーの改善 - 設計書</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 4px solid #e74c3c;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 5px solid #e74c3c;
+            padding-left: 15px;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .problem-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .solution-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .example-box {
+            background: #f8f9fa;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            padding: 30px;
+            margin: 25px 0;
+        }
+
+        .visual-example {
+            background: white;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .staff-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .staff-table th,
+        .staff-table td {
+            border: 1px solid #dee2e6;
+            padding: 12px;
+            text-align: center;
+        }
+
+        .staff-table th {
+            background: #3498db;
+            color: white;
+            font-weight: bold;
+        }
+
+        .staff-table .retired-col {
+            background: #e0e0e0;
+            color: #757575;
+        }
+
+        .staff-table .retired-header {
+            background: #bdbdbd;
+            color: #424242;
+        }
+
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .code-block pre {
+            margin: 0;
+        }
+
+        .flow-diagram {
+            background: #f8f9fa;
+            border: 2px solid #3498db;
+            border-radius: 8px;
+            padding: 30px;
+            margin: 25px 0;
+        }
+
+        .flow-step {
+            background: white;
+            border-left: 4px solid #3498db;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+
+        .badge.active {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge.retired {
+            background: #dc3545;
+            color: white;
+        }
+
+        .badge.warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        table th {
+            background: #3498db;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        table tr:hover {
+            background: #f8f9fa;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        .calendar-day {
+            display: inline-block;
+            padding: 10px 15px;
+            margin: 5px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .calendar-day.normal {
+            background: #e3f2fd;
+            border: 2px solid #2196f3;
+        }
+
+        .calendar-day.has-retired {
+            background: #fff3e0;
+            border: 2px solid #ff9800;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 退職者表示とシフトコピーの改善 - 設計書</h1>
+
+        <h2>1. 現状の問題点</h2>
+
+        <div class="problem-box">
+            <h3>❌ 問題の背景</h3>
+            <p><strong>シナリオ:</strong> 11月のシフトに実際にいた人が、12月時点で退職した場合</p>
+
+            <ul>
+                <li><strong>スタッフビュー:</strong> 退職者を列ごと表示しないため、見えない</li>
+                <li><strong>カレンダービュー:</strong> 実際のシフトデータには退職者が含まれているため、人数が多く表示される</li>
+                <li><strong>結果:</strong> スタッフビューとカレンダービューで人数が合わず、ユーザーが混乱する</li>
+            </ul>
+        </div>
+
+        <div class="example-box">
+            <h3>具体例: 11月→12月の移行</h3>
+
+            <p><strong>11月のシフト（作成時点）:</strong></p>
+            <table class="staff-table">
+                <thead>
+                    <tr>
+                        <th>日付</th>
+                        <th>A</th>
+                        <th>B</th>
+                        <th>C</th>
+                        <th>D</th>
+                        <th>E</th>
+                        <th>合計</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>11/1</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td>5名</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p><strong>12月時点でスタッフEが退職:</strong></p>
+
+            <p><strong>スタッフビュー（12月から見た11月）:</strong></p>
+            <table class="staff-table">
+                <thead>
+                    <tr>
+                        <th>日付</th>
+                        <th>A</th>
+                        <th>B</th>
+                        <th>C</th>
+                        <th>D</th>
+                        <th>合計（見た目）</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>11/1</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td>4名 ⚠️</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>→ Eの列が表示されないため、4名に見える</p>
+
+            <p><strong>カレンダービュー:</strong></p>
+            <div class="calendar-day normal">
+                11/1: 5名
+            </div>
+            <p>→ 実データには退職者Eも含まれているため、5名と表示</p>
+
+            <p style="margin-top: 20px; color: #dc3545; font-weight: bold;">
+                ❌ 4名 vs 5名 → 数が合わない！
+            </p>
+        </div>
+
+        <h2>2. 課題と要件</h2>
+
+        <h3>2-1. シフトコピー時の課題</h3>
+
+        <div class="problem-box">
+            <p><strong>ジレンマ:</strong> 翌月のシフトを作る時に前月をコピーする</p>
+
+            <ul>
+                <li>✅ <strong>実績に合わせたい:</strong> 5人で働いていたら5人のシフトを作りたい</li>
+                <li>❌ <strong>退職者はコピーしたくない:</strong> すでに退職した人がコピーされるのは避けたい</li>
+                <li>❌ <strong>人数が減るのも避けたい:</strong> 本来5人必要なのに4人で作ってしまう</li>
+            </ul>
+        </div>
+
+        <h3>2-2. 要件の整理</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>項目</th>
+                    <th>要件</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>過去シフトの用途</strong></td>
+                    <td>翌月のシフトを作る時にコピーして使う</td>
+                </tr>
+                <tr>
+                    <td><strong>退職者の情報</strong></td>
+                    <td>見たいケースはほとんどない</td>
+                </tr>
+                <tr>
+                    <td><strong>スタッフビューの用途</strong></td>
+                    <td>現在・未来のシフト編集が中心</td>
+                </tr>
+                <tr>
+                    <td><strong>実績保存</strong></td>
+                    <td>過去のシフト実績は保存しておく必要がある</td>
+                </tr>
+                <tr>
+                    <td><strong>視覚的明確性</strong></td>
+                    <td>退職者がどこにいるかわかるようにする</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>3. 解決策の設計</h2>
+
+        <div class="solution-box">
+            <h3>✅ 採用する解決策</h3>
+
+            <p><strong>基本方針:</strong> シンプルに視覚的な警告で退職者の存在を明示する</p>
+
+            <ol>
+                <li><strong>スタッフビュー:</strong> その月のシフトに実際に入っている退職者のみ表示（グレーアウト）</li>
+                <li><strong>カレンダービュー:</strong> 退職者を含む日を色分け表示</li>
+                <li><strong>コピー機能:</strong> アラートは不要（コピー後に視覚的にわかる）</li>
+            </ol>
+        </div>
+
+        <h3>3-1. スタッフビューの表示ルール</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>スタッフのステータス</th>
+                    <th>表示条件</th>
+                    <th>表示方法</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="badge active">在籍中</span></td>
+                    <td>常に表示</td>
+                    <td>通常表示</td>
+                </tr>
+                <tr>
+                    <td><span class="badge retired">退職済み</span></td>
+                    <td>その月のシフトに実際に含まれている場合のみ表示</td>
+                    <td>グレーアウト + 「(退職)」マーク</td>
+                </tr>
+                <tr>
+                    <td><span class="badge retired">退職済み</span></td>
+                    <td>その月のシフトに含まれていない場合</td>
+                    <td>非表示</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>3-2. 実装ロジック</h3>
+
+        <div class="code-block">
+<pre>/**
+ * その月のスタッフビューに表示するスタッフを取得
+ * @param {number} year - 年
+ * @param {number} month - 月（0-11）
+ * @returns {Array} 表示対象のスタッフリスト
+ */
+function getVisibleStaffForMonth(year, month) {
+  // 1. 在籍中のスタッフ（常に表示）
+  const activeStaff = allStaff.filter(staff =>
+    staff.status === 'active'
+  )
+
+  // 2. その月のシフトデータを取得
+  const shiftsInMonth = getShiftsForMonth(year, month)
+
+  // 3. シフトに含まれている退職者を抽出（重複除去）
+  const retiredStaffIds = new Set(
+    shiftsInMonth
+      .map(shift => shift.staff_id)
+      .filter(staffId => {
+        const staff = getStaff(staffId)
+        return staff && staff.status === 'retired'
+      })
+  )
+
+  const retiredStaffInShifts = Array.from(retiredStaffIds)
+    .map(staffId => ({
+      ...getStaff(staffId),
+      isRetiredInView: true  // グレーアウト用フラグ
+    }))
+
+  // 4. 結合して返す
+  return [...activeStaff, ...retiredStaffInShifts]
+}
+</pre>
+        </div>
+
+        <h3>3-3. UI表示の実装</h3>
+
+        <div class="code-block">
+<pre>// スタッフビューのヘッダー（React例）
+{visibleStaff.map(staff => (
+  &lt;th
+    key={staff.id}
+    className={staff.isRetiredInView
+      ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+      : 'bg-blue-500 text-white'
+    }
+  &gt;
+    {staff.name}
+    {staff.isRetiredInView && (
+      &lt;span className="ml-2 px-2 py-1 text-xs bg-red-500 text-white rounded"&gt;
+        退職
+      &lt;/span&gt;
+    )}
+  &lt;/th&gt;
+))}
+
+// セルの表示
+&lt;td
+  className={staff.isRetiredInView ? 'bg-gray-100 text-gray-400' : ''}
+&gt;
+  {shift ? '○' : ''}
+&lt;/td&gt;
+</pre>
+        </div>
+
+        <h2>4. 視覚的表示の例</h2>
+
+        <h3>4-1. 11月のシフト（12月時点で閲覧）</h3>
+
+        <div class="visual-example">
+            <p><strong>スタッフE: 11月末に退職</strong></p>
+            <p>→ 11月のシフトにはEが含まれているため、表示する</p>
+
+            <table class="staff-table">
+                <thead>
+                    <tr>
+                        <th>日付</th>
+                        <th>A</th>
+                        <th>B</th>
+                        <th>C</th>
+                        <th>D</th>
+                        <th class="retired-header">E <span class="badge retired">退職</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>11/1</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td class="retired-col">○</td>
+                    </tr>
+                    <tr>
+                        <td>11/15</td>
+                        <td>○</td>
+                        <td></td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td class="retired-col">○</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>→ E列全体がグレーアウト、ヘッダーに「退職」マーク</p>
+        </div>
+
+        <h3>4-2. 12月のシフト（12月時点で閲覧）</h3>
+
+        <div class="visual-example">
+            <p><strong>スタッフE: 11月末に退職</strong></p>
+            <p>→ 12月のシフトにはEが含まれていないため、非表示</p>
+
+            <table class="staff-table">
+                <thead>
+                    <tr>
+                        <th>日付</th>
+                        <th>A</th>
+                        <th>B</th>
+                        <th>C</th>
+                        <th>D</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>12/1</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td>○</td>
+                        <td>○</td>
+                    </tr>
+                </tbody>
+            </table>
+            <p>→ E列は表示されない（シフトに含まれていないため）</p>
+        </div>
+
+        <h3>4-3. カレンダービュー（サマリー）</h3>
+
+        <div class="visual-example">
+            <p><strong>退職者を含む日を色分け表示:</strong></p>
+
+            <div style="margin: 20px 0;">
+                <div class="calendar-day normal">
+                    11/10: 4名
+                </div>
+                <p style="margin-left: 20px; color: #666;">通常の日（退職者なし）</p>
+            </div>
+
+            <div style="margin: 20px 0;">
+                <div class="calendar-day has-retired">
+                    11/15: 5名 ⚠️
+                </div>
+                <p style="margin-left: 20px; color: #ff9800;">退職者を含む日（オレンジ色）</p>
+                <p style="margin-left: 20px; color: #666; font-size: 0.9em;">
+                    ツールチップ: 「退職者1名を含みます（スタッフE）」
+                </p>
+            </div>
+        </div>
+
+        <div class="code-block">
+<pre>// カレンダービューの実装
+function CalendarDay({ date, shifts }) {
+  const retiredStaff = shifts.filter(shift =>
+    getStaff(shift.staff_id).status === 'retired'
+  )
+
+  const hasRetired = retiredStaff.length > 0
+
+  return (
+    &lt;div
+      className={hasRetired
+        ? 'bg-orange-50 border-l-4 border-orange-400'
+        : 'bg-white border-l-4 border-blue-400'
+      }
+      title={hasRetired
+        ? `退職者${retiredStaff.length}名を含みます（${retiredStaff.map(s => getStaff(s.staff_id).name).join(', ')}）`
+        : ''
+      }
+    &gt;
+      {shifts.length}名 {hasRetired && '⚠️'}
+    &lt;/div&gt;
+  )
+}
+</pre>
+        </div>
+
+        <h2>5. シフトコピー機能の動作</h2>
+
+        <div class="flow-diagram">
+            <h3>シフトコピーの流れ</h3>
+
+            <div class="flow-step">
+                <strong>Step 1: コピー実行</strong>
+                <p>「11月のシフトをコピー」ボタンをクリック</p>
+            </div>
+
+            <div class="flow-step">
+                <strong>Step 2: データコピー</strong>
+                <p>11月のシフトデータをそのまま12月にコピー（退職者も含む）</p>
+                <div class="code-block" style="margin-top: 10px;">
+<pre>// シンプルなコピー処理
+function copyShift(sourceMonth, targetMonth) {
+  const sourceShifts = getShiftsForMonth(sourceMonth.year, sourceMonth.month)
+  const targetShifts = sourceShifts.map(shift => ({
+    ...shift,
+    year: targetMonth.year,
+    month: targetMonth.month
+  }))
+
+  saveShifts(targetShifts)
+}
+</pre>
+                </div>
+            </div>
+
+            <div class="flow-step">
+                <strong>Step 3: 12月のスタッフビューが開く</strong>
+                <p>退職者Eが11月のシフトに含まれていたため、E列が表示される（グレーアウト）</p>
+                <p style="margin-top: 10px; color: #e74c3c;">
+                    ✓ 視覚的に退職者がわかる<br>
+                    ✓ 人数の枠（5人）が維持される
+                </p>
+            </div>
+
+            <div class="flow-step">
+                <strong>Step 4: 手動で編集</strong>
+                <p>Eのシフトを削除、または他のスタッフに変更する</p>
+            </div>
+        </div>
+
+        <h2>6. 重要な設計判断</h2>
+
+        <h3>6-1. スタッフ列の動的変更は行わない</h3>
+
+        <div class="problem-box">
+            <p><strong>❌ 実装しない機能:</strong></p>
+            <ul>
+                <li>シフト編集時にスタッフ列を自動的に表示/非表示する</li>
+                <li>退職者のシフトをすべて削除したらE列を自動非表示にする</li>
+            </ul>
+
+            <p><strong>理由:</strong></p>
+            <ul>
+                <li>過去のシフトが修正されると、列の表示/非表示が頻繁に変わり混乱する</li>
+                <li>実装が複雑になる</li>
+                <li>パフォーマンス上の問題が発生する可能性</li>
+            </ul>
+
+            <p><strong>✅ 採用する方式:</strong></p>
+            <ul>
+                <li>月を表示する時点でスタッフ列を決定する（固定）</li>
+                <li>その後のシフト編集では列の表示/非表示は変わらない</li>
+            </ul>
+        </div>
+
+        <h3>6-2. コピー時のアラートは不要</h3>
+
+        <div class="solution-box">
+            <p><strong>理由:</strong></p>
+            <ul>
+                <li>アラートを出されても、ユーザーは対応方法がわからない</li>
+                <li>コピー後にスタッフビューで視覚的にわかるため、アラートは不要</li>
+                <li>シンプルなUXを維持できる</li>
+            </ul>
+
+            <p><strong>✅ 採用する方式:</strong></p>
+            <ul>
+                <li>コピー後、スタッフビューで退職者列がグレーアウトされる</li>
+                <li>カレンダービューで該当日がオレンジ色になる</li>
+                <li>ユーザーは視覚的に気づいて、手動で対応できる</li>
+            </ul>
+        </div>
+
+        <h2>7. 実装タスク</h2>
+
+        <h3>7-1. データ層</h3>
+        <ul>
+            <li><code>getVisibleStaffForMonth(year, month)</code> 関数の実装</li>
+            <li>スタッフの退職ステータス判定ロジック</li>
+        </ul>
+
+        <h3>7-2. スタッフビュー</h3>
+        <ul>
+            <li>退職者列のグレーアウト表示</li>
+            <li>ヘッダーに「(退職)」マークを表示</li>
+            <li>セルのスタイル調整</li>
+        </ul>
+
+        <h3>7-3. カレンダービュー</h3>
+        <ul>
+            <li>退職者を含む日の検出ロジック</li>
+            <li>色分け表示（オレンジ色）</li>
+            <li>ツールチップで退職者の詳細を表示</li>
+        </ul>
+
+        <h3>7-4. テスト</h3>
+        <ul>
+            <li>退職者が含まれる月のシフト表示</li>
+            <li>退職者が含まれない月のシフト表示</li>
+            <li>シフトコピー後の表示確認</li>
+            <li>カレンダービューの色分け確認</li>
+        </ul>
+
+        <h2>8. メリットとデメリット</h2>
+
+        <h3>8-1. メリット</h3>
+        <div class="solution-box">
+            <ul>
+                <li>✅ <strong>シンプル:</strong> 既存のデータ構造を変更せず、表示ロジックのみで実現</li>
+                <li>✅ <strong>視覚的明確性:</strong> 退職者の存在が一目でわかる</li>
+                <li>✅ <strong>人数の整合性:</strong> スタッフビューとカレンダービューで人数が一致する</li>
+                <li>✅ <strong>実績保存:</strong> 過去のシフト実績が正確に保存される</li>
+                <li>✅ <strong>柔軟性:</strong> 手動で編集できるため、特殊なケースにも対応可能</li>
+            </ul>
+        </div>
+
+        <h3>8-2. デメリット（軽減策あり）</h3>
+        <div class="problem-box">
+            <ul>
+                <li>⚠️ <strong>手動対応が必要:</strong> 退職者のシフトは自動的に削除されない
+                    <br>→ <em>軽減策: 視覚的に目立たせることで気づきやすくする</em>
+                </li>
+                <li>⚠️ <strong>退職者が多いと列が増える:</strong> 横スクロールが必要になる可能性
+                    <br>→ <em>軽減策: その月のシフトに含まれる退職者のみ表示（最小限）</em>
+                </li>
+            </ul>
+        </div>
+
+        <h2>9. まとめ</h2>
+
+        <div class="solution-box">
+            <h3>✅ 採用する仕様</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>項目</th>
+                        <th>仕様</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>スタッフビュー</strong></td>
+                        <td>その月のシフトに含まれる退職者のみ表示（グレーアウト）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>カレンダービュー</strong></td>
+                        <td>退職者を含む日を色分け表示（オレンジ色 + ⚠️マーク）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>シフトコピー</strong></td>
+                        <td>退職者も含めてコピー（アラートなし、視覚的に明示）</td>
+                    </tr>
+                    <tr>
+                        <td><strong>列の動的変更</strong></td>
+                        <td>行わない（月表示時に固定）</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <p style="margin-top: 20px;"><strong>期待される効果:</strong></p>
+            <ul>
+                <li>スタッフビューとカレンダービューの人数が一致する</li>
+                <li>退職者の存在が視覚的にわかる</li>
+                <li>シフトコピー時に人数の枠が維持される</li>
+                <li>過去のシフト実績が正確に保存される</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タイムラインビュー改善設計書</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .section {
+            margin-bottom: 3rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #e5e7eb;
+        }
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+        pre {
+            background-color: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        code {
+            font-family: 'Courier New', monospace;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-6xl mx-auto p-8 bg-white shadow-lg my-8 rounded-lg">
+        <!-- ヘッダー -->
+        <header class="mb-8 pb-6 border-b-2 border-gray-200">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">タイムラインビュー改善設計書</h1>
+            <p class="text-gray-600">バージョン 1.0 | 作成日: 2025-01-19</p>
+            <div class="mt-4 bg-blue-50 border-l-4 border-blue-500 p-4">
+                <p class="text-sm font-semibold text-blue-800">📌 設計の目的</p>
+                <p class="text-sm text-blue-700 mt-1">タイムラインビューの店舗表示、編集権限制御、シフト編集ポップアップの改善</p>
+            </div>
+        </header>
+
+        <!-- 1. 現状の問題 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">❌</span> 1. 現状の問題
+            </h2>
+
+            <div class="space-y-4">
+                <div class="bg-red-50 border-l-4 border-red-500 p-4">
+                    <h3 class="text-lg font-bold text-red-900 mb-2">問題1: 店舗情報が表示されない</h3>
+                    <p class="text-sm text-red-800 mb-2">
+                        タイムラインに各シフトがどの店舗のものか表示されない。
+                        個別店舗をクリックした場合でも、全店舗をクリックした場合でも、
+                        店舗名が分からないと混乱する。
+                    </p>
+                    <p class="text-sm text-red-700 font-semibold">
+                        → 店舗名の列を常に表示して、どこの店舗で働いているか明示する
+                    </p>
+                </div>
+
+                <div class="bg-red-50 border-l-4 border-red-500 p-4">
+                    <h3 class="text-lg font-bold text-red-900 mb-2">問題1-2: MultiStoreShiftTableの集計ロジックが間違っている</h3>
+                    <p class="text-sm text-red-800 mb-2">
+                        <strong>全店舗Σ列:</strong> 現在はチェックボックスで選択されている店舗のみの合計を表示している。
+                        そのため、1店舗しかチェックしていない場合、全店舗Σとその店舗のΣが同じになってしまう。
+                    </p>
+                    <p class="text-sm text-red-800 mb-2">
+                        <strong>各店舗Σセル:</strong> その店舗で「その日に働く人」ではなく、
+                        間違ったデータを表示・返している可能性がある。
+                    </p>
+                    <p class="text-sm text-red-700 font-semibold">
+                        → 全店舗Σ列は常に全店舗（チェックの有無に関わらず）の合計を表示すべき<br>
+                        → 全店舗Σセルをクリックした場合も、全店舗のシフトを表示すべき<br>
+                        → 各店舗Σセルをクリックした場合は、その日その店舗で働く人のみを正確に表示すべき
+                    </p>
+                </div>
+
+                <div class="bg-red-50 border-l-4 border-red-500 p-4">
+                    <h3 class="text-lg font-bold text-red-900 mb-2">問題2: 閲覧モードでも編集UIが表示される</h3>
+                    <p class="text-sm text-red-800 mb-2">
+                        閲覧画面（isViewMode）でタイムラインを開くと、編集ボタンや削除ボタンが表示される。
+                        閲覧権限しかないユーザーには混乱を招く。
+                    </p>
+                    <p class="text-sm text-red-700 font-semibold">
+                        → editableフラグを渡して、閲覧モードでは編集UIを非表示にする
+                    </p>
+                </div>
+
+                <div class="bg-red-50 border-l-4 border-red-500 p-4">
+                    <h3 class="text-lg font-bold text-red-900 mb-2">問題3: シフトカードをクリックしても編集ポップアップが出ない</h3>
+                    <p class="text-sm text-red-800 mb-2">
+                        タイムライン内のシフトカードをクリックしても、
+                        シフト作成画面で使われている追加・編集・削除ポップアップが表示されない。
+                    </p>
+                    <p class="text-sm text-red-700 font-semibold">
+                        → シフトカードにクリックハンドラーを追加し、編集ポップアップを表示する
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. 改善内容 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">✅</span> 2. 改善内容
+            </h2>
+
+            <div class="space-y-6">
+                <!-- 改善1 -->
+                <div class="bg-green-50 border border-green-200 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-green-900 mb-3">改善1: 店舗名列の常時表示</h3>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-green-800 mb-2">対象:</h4>
+                        <p class="text-sm text-gray-700">全てのタイムライン表示で店舗名列を表示（個別店舗クリック時も全店舗クリック時も）</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-green-800 mb-2">実装方法:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                            <li>ShiftTimelineコンポーネントに店舗名列を常に表示</li>
+                            <li>各シフトの<code>store_id</code>から店舗名を表示</li>
+                            <li><code>showStoreColumn</code>フラグは不要（常にtrue）</li>
+                            <li>個別店舗の場合でも店舗列を表示（コンポーネント共通化）</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-white p-4 rounded border border-green-300">
+                        <h4 class="font-semibold text-green-800 mb-2">表示例:</h4>
+                        <table class="text-xs">
+                            <thead>
+                                <tr class="bg-green-100">
+                                    <th>スタッフ名</th>
+                                    <th>店舗</th>
+                                    <th>役職</th>
+                                    <th>時間</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>田中太郎</td>
+                                    <td class="font-semibold text-blue-600">SHIBUYA</td>
+                                    <td>店長</td>
+                                    <td>09:00-17:00</td>
+                                </tr>
+                                <tr>
+                                    <td>佐藤花子</td>
+                                    <td class="font-semibold text-blue-600">SHINJUKU</td>
+                                    <td>スタッフ</td>
+                                    <td>10:00-18:00</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- 改善2 -->
+                <div class="bg-blue-50 border border-blue-200 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-blue-900 mb-3">改善2: 編集権限の制御</h3>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-blue-800 mb-2">対象:</h4>
+                        <p class="text-sm text-gray-700">閲覧モード（isViewMode）でタイムラインを開いた場合</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-blue-800 mb-2">実装方法:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                            <li>ShiftTimelineコンポーネントの<code>editable</code>プロップを適切に設定</li>
+                            <li>FirstPlanEditor: editable={isEditMode}（現在は常にtrue）</li>
+                            <li>SecondPlanEditor: editable={true}（編集可能）</li>
+                            <li>editable={false}の場合、ドラッグ無効化・削除ボタン非表示</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-white p-4 rounded border border-blue-300">
+                        <h4 class="font-semibold text-blue-800 mb-2">動作:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                            <li><strong>編集モード:</strong> ドラッグ可能、削除ボタン表示、シフトカードクリックで編集ポップアップ</li>
+                            <li><strong>閲覧モード:</strong> ドラッグ不可、削除ボタン非表示、シフトカードクリックで詳細表示のみ</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 改善3 -->
+                <div class="bg-yellow-50 border border-yellow-200 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-yellow-900 mb-3">改善3: MultiStoreShiftTableの集計ロジック修正</h3>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-yellow-800 mb-2">対象:</h4>
+                        <p class="text-sm text-gray-700">MultiStoreShiftTableコンポーネントの全店舗Σ列と各店舗Σセルのクリック処理</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-yellow-800 mb-2">修正内容:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                            <li><strong>全店舗Σ列の表示:</strong> チェックボックスの選択状態に関わらず、常に全店舗の合計を表示</li>
+                            <li><strong>全店舗Σセルのクリック:</strong> 全店舗のシフトをタイムラインに表示（storeId = null）</li>
+                            <li><strong>各店舗Σセルのクリック:</strong> その日その店舗で働く人のみをタイムラインに表示（storeId指定）</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-white p-4 rounded border border-yellow-300">
+                        <h4 class="font-semibold text-yellow-800 mb-2">修正箇所:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                            <li><code>getOverallDailySummary()</code>: selectedStoresに関わらず全店舗の合計を計算</li>
+                            <li>全店舗ΣセルのonClick: <code>onDayClick(date, null)</code>で全店舗データを渡す</li>
+                            <li>各店舗ΣセルのonClick: <code>onDayClick(date, storeId)</code>でその店舗のみのデータを渡す</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- 改善4 -->
+                <div class="bg-purple-50 border border-purple-200 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-purple-900 mb-3">改善4: シフトカードクリックで編集ポップアップ表示</h3>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-purple-800 mb-2">対象:</h4>
+                        <p class="text-sm text-gray-700">タイムライン内のシフトカード</p>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-purple-800 mb-2">実装方法:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                            <li>ShiftTimelineコンポーネントに<code>onShiftClick</code>プロップを追加</li>
+                            <li>シフトカードにonClickハンドラーを設定</li>
+                            <li>編集モードの場合: 編集ポップアップを表示（追加・編集・削除）</li>
+                            <li>閲覧モードの場合: 詳細表示のみ（または何もしない）</li>
+                        </ul>
+                    </div>
+
+                    <div class="bg-white p-4 rounded border border-purple-300">
+                        <h4 class="font-semibold text-purple-800 mb-2">ポップアップ内容:</h4>
+                        <ul class="list-disc list-inside space-y-1 text-sm text-gray-700 ml-4">
+                            <li>スタッフ名、日付、開始時間、終了時間</li>
+                            <li>編集ボタン: 時間変更</li>
+                            <li>削除ボタン: シフト削除</li>
+                            <li>閉じるボタン</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 技術的な実装 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">⚙️</span> 3. 技術的な実装
+            </h2>
+
+            <div class="space-y-6">
+                <!-- ShiftTimeline.jsxの修正 -->
+                <div class="bg-gray-50 border border-gray-300 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-gray-800 mb-4">3.1 ShiftTimeline.jsxの修正</h3>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-gray-700 mb-2">プロップの追加:</h4>
+                        <pre><code>const ShiftTimeline = ({
+  date,
+  shifts,
+  onClose,
+  year,
+  month,
+  editable = false,
+  onUpdate,
+  onDelete,
+  storeName,
+  onShiftClick, // 👈 新規追加
+  storesMap = {}, // 👈 新規追加（店舗情報）
+}) => {</code></pre>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-gray-700 mb-2">店舗名列の表示（常に表示）:</h4>
+                        <pre><code>// タイムラインヘッダー内（常に表示）
+&lt;div className="w-24 flex-shrink-0 border-r bg-gray-50"&gt;
+  &lt;div className="font-bold text-xs text-gray-700 p-2"&gt;店舗&lt;/div&gt;
+&lt;/div&gt;
+
+// シフトカード横に店舗名表示（常に表示）
+&lt;div className="w-24 flex-shrink-0 border-r bg-white"&gt;
+  &lt;div className="text-xs text-gray-700 p-2"&gt;
+    {storesMap[shift.store_id]?.store_code || '不明'}
+  &lt;/div&gt;
+&lt;/div&gt;</code></pre>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-gray-700 mb-2">シフトカードクリックハンドラー:</h4>
+                        <pre><code>&lt;motion.div
+  key={shift.shift_id || index}
+  drag={editable ? "y" : false}
+  onClick={(e) => {
+    e.stopPropagation()
+    if (onShiftClick && editable) {
+      onShiftClick(shift, e)
+    }
+  }}
+  className={`absolute rounded-lg shadow-md border-2 overflow-hidden ${
+    editable ? 'cursor-move hover:shadow-lg' : 'cursor-default'
+  }`}
+  // ...
+&gt;</code></pre>
+                    </div>
+                </div>
+
+                <!-- FirstPlanEditor.jsxの修正 -->
+                <div class="bg-blue-50 border border-blue-300 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-blue-900 mb-4">3.2 FirstPlanEditor.jsxの修正</h3>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-blue-800 mb-2">handleDayClickの修正:</h4>
+                        <pre><code>const handleDayClick = (date, storeId = null) => {
+  // その日のシフトを取得
+  let dayShiftsData = calendarData.shiftsByDate[date] || []
+
+  // storeIdが指定されている場合は、その店舗のシフトのみにフィルタリング
+  // storeId === null の場合は全店舗のシフトを表示
+  if (storeId !== null) {
+    dayShiftsData = dayShiftsData.filter(shift => shift.store_id === storeId)
+  }
+
+  setSelectedStoreId(storeId)
+  setDayShifts(dayShiftsData)
+  setSelectedDay(date)
+}</code></pre>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-blue-800 mb-2">ShiftTimelineコンポーネントの呼び出し:</h4>
+                        <pre><code>&lt;ShiftTimeline
+  date={selectedDay}
+  year={year}
+  month={month}
+  shifts={dayShifts}
+  onClose={closeDayView}
+  editable={isEditMode} // 👈 修正（現在は常にtrue）
+  onUpdate={isEditMode ? handleUpdateShift : undefined}
+  onDelete={isEditMode ? handleDeleteShift : undefined}
+  onShiftClick={isEditMode ? handleShiftClick : undefined} // 👈 新規追加
+  storeName={selectedStoreId ? storesMap[selectedStoreId]?.store_name : '全店舗'}
+  storesMap={storesMap} // 👈 新規追加
+/&gt;</code></pre>
+                    </div>
+                </div>
+
+                <!-- SecondPlanEditor.jsxの修正 -->
+                <div class="bg-green-50 border border-green-300 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-green-900 mb-4">3.3 SecondPlanEditor.jsxの修正</h3>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-green-800 mb-2">stateの追加:</h4>
+                        <pre><code>const [selectedStoreId, setSelectedStoreId] = useState(null)</code></pre>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-green-800 mb-2">handleDayClickの修正:</h4>
+                        <pre><code>const handleDayClick = (date, storeId = null) => {
+  const year = selectedShift?.year || new Date().getFullYear()
+  const month = selectedShift?.month || new Date().getMonth() + 1
+  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+
+  // CSVデータから該当日のシフトを取得
+  let dayShiftsData = csvShifts.filter(s => {
+    if (typeof s.date === 'number') {
+      return s.date === date
+    } else if (typeof s.shift_date === 'string') {
+      return s.shift_date.startsWith(dateStr)
+    }
+    return s.date === date
+  })
+
+  // storeIdが指定されている場合は、その店舗のシフトのみにフィルタリング
+  // storeId === null の場合は全店舗のシフトを表示
+  if (storeId !== null) {
+    dayShiftsData = dayShiftsData.filter(s => s.store_id === storeId)
+  }
+
+  // ShiftTimelineコンポーネント用のフォーマットに変換
+  const formattedShifts = dayShiftsData.map(shift => {
+    const staffInfo = staffMap[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
+    return {
+      shift_id: shift.shift_id,
+      staff_id: shift.staff_id,
+      staff_name: staffInfo.name,
+      role: staffInfo.role_name,
+      start_time: shift.start_time,
+      end_time: shift.end_time,
+      skill_level: shift.skill_level,
+      modified_flag: shift.is_modified,
+      store_id: shift.store_id, // 👈 店舗ID追加（店舗名表示用）
+    }
+  })
+
+  setSelectedStoreId(storeId)
+  setDayShifts(formattedShifts)
+  setSelectedDate(date)
+}</code></pre>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-green-800 mb-2">ShiftTimelineコンポーネントの呼び出し:</h4>
+                        <pre><code>&lt;ShiftTimeline
+  date={selectedDate}
+  year={selectedShift?.year || new Date().getFullYear()}
+  month={selectedShift?.month || new Date().getMonth() + 1}
+  shifts={dayShifts}
+  onClose={closeDayView}
+  editable={true}
+  onUpdate={handleUpdateShift}
+  onDelete={handleDeleteShift}
+  onShiftClick={handleShiftClick} // 👈 新規追加
+  storeName={selectedStoreId ? storesMap[selectedStoreId]?.store_name : '全店舗'}
+  storesMap={storesMap} // 👈 新規追加
+/&gt;</code></pre>
+                    </div>
+                </div>
+
+                <!-- MultiStoreShiftTable.jsxの修正 -->
+                <div class="bg-orange-50 border border-orange-300 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-orange-900 mb-4">3.4 MultiStoreShiftTable.jsxの修正</h3>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-orange-800 mb-2">getOverallDailySummaryの修正:</h4>
+                        <pre><code>// 現在の実装（間違い）: selectedStoresでフィルタリングしている
+const getOverallDailySummary = (date) => {
+  const filteredShifts = shiftData.filter(shift =>
+    shift.date === date && selectedStores.has(shift.store_id) // ❌ 間違い
+  )
+  // 集計処理...
+}
+
+// 修正後: 全店舗のシフトを対象にする
+const getOverallDailySummary = (date) => {
+  const allShifts = shiftData.filter(shift => shift.date === date) // ✅ 正しい
+  // 全店舗のシフトから集計...
+  return {
+    total_count: allShifts.length,
+    // その他の集計...
+  }
+}</code></pre>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-orange-800 mb-2">全店舗Σセルのクリック処理:</h4>
+                        <pre><code>// 全店舗Σセルをクリックした場合
+&lt;td
+  onClick={() => onDayClick(date, null)} // storeId = null で全店舗を表示
+  className="cursor-pointer hover:bg-blue-100"
+&gt;
+  {getOverallDailySummary(date).total_count}
+&lt;/td&gt;</code></pre>
+                    </div>
+
+                    <div class="mb-4">
+                        <h4 class="font-semibold text-orange-800 mb-2">各店舗Σセルのクリック処理:</h4>
+                        <pre><code>// 各店舗のΣセルをクリックした場合
+&lt;td
+  onClick={() => onDayClick(date, storeId)} // storeIdを指定
+  className="cursor-pointer hover:bg-blue-100"
+&gt;
+  {getStoreDailySummary(date, storeId).total_count}
+&lt;/td&gt;
+
+// getStoreDailySummary: その店舗でその日働く人のみを集計
+const getStoreDailySummary = (date, storeId) => {
+  const storeShifts = shiftData.filter(shift =>
+    shift.date === date && shift.store_id === storeId
+  )
+  return {
+    total_count: storeShifts.length,
+    // その他の集計...
+  }
+}</code></pre>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 4. 実装手順 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">🚀</span> 4. 実装手順
+            </h2>
+
+            <div class="space-y-6">
+                <div class="border-l-4 border-blue-500 pl-4 py-2 bg-blue-50">
+                    <h3 class="text-xl font-bold text-blue-900 mb-2">Step 1: ShiftTimeline.jsxの修正</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                        <li>onShiftClick、storesMapプロップを追加</li>
+                        <li>店舗名列を常に表示するUIを実装</li>
+                        <li>シフトカードにonClickハンドラーを追加</li>
+                        <li>editableフラグに応じてドラッグ・削除ボタンを制御</li>
+                    </ol>
+                </div>
+
+                <div class="border-l-4 border-green-500 pl-4 py-2 bg-green-50">
+                    <h3 class="text-xl font-bold text-green-900 mb-2">Step 2: FirstPlanEditor.jsxの修正</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                        <li>selectedStoreIdのstateを追加</li>
+                        <li>handleDayClickでstoreIdによるフィルタリングを実装</li>
+                        <li>ShiftTimelineにeditable={isEditMode}を渡す（現在は常にtrue）</li>
+                        <li>ShiftTimelineにonShiftClick、storesMapを渡す</li>
+                    </ol>
+                </div>
+
+                <div class="border-l-4 border-purple-500 pl-4 py-2 bg-purple-50">
+                    <h3 class="text-xl font-bold text-purple-900 mb-2">Step 3: SecondPlanEditor.jsxの修正</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                        <li>selectedStoreIdのstateを追加</li>
+                        <li>handleDayClickでstoreIdによるフィルタリングを実装</li>
+                        <li>formattedShiftsにstore_idを追加</li>
+                        <li>ShiftTimelineにonShiftClick、storesMapを渡す</li>
+                    </ol>
+                </div>
+
+                <div class="border-l-4 border-orange-500 pl-4 py-2 bg-orange-50">
+                    <h3 class="text-xl font-bold text-orange-900 mb-2">Step 4: MultiStoreShiftTable.jsxの修正</h3>
+                    <ol class="list-decimal list-inside space-y-2 text-sm text-gray-700">
+                        <li>getOverallDailySummaryを修正: selectedStoresを無視して全店舗の合計を計算</li>
+                        <li>全店舗Σセルのクリック処理: onDayClick(date, null)を呼ぶ</li>
+                        <li>各店舗Σセルのクリック処理: onDayClick(date, storeId)を呼ぶ</li>
+                        <li>getStoreDailySummaryで正確にその店舗のシフトのみを集計</li>
+                    </ol>
+                </div>
+
+                <div class="border-l-4 border-amber-500 pl-4 py-2 bg-amber-50">
+                    <h3 class="text-xl font-bold text-amber-900 mb-2">Step 5: 動作確認</h3>
+                    <ul class="list-disc list-inside space-y-2 text-sm text-gray-700">
+                        <li>全店舗Σセル: 常に全店舗の合計が表示され、クリックすると全店舗のシフトがタイムラインに表示</li>
+                        <li>各店舗Σセル: その店舗のみの合計が表示され、クリックするとその店舗のシフトのみがタイムラインに表示</li>
+                        <li>タイムライン: 店舗名列が常に表示される（個別店舗でも全店舗でも）</li>
+                        <li>閲覧モード: ドラッグ・削除ボタンが表示されないことを確認</li>
+                        <li>編集モード: シフトカードクリックでポップアップが表示されることを確認</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. カレンダービュー修正後イメージ -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">🎨</span> 5. カレンダービュー修正後イメージ
+            </h2>
+
+            <div class="mb-4 bg-yellow-50 border-l-4 border-yellow-500 p-4">
+                <h4 class="font-semibold text-yellow-900 mb-2">📐 基本構造（スタッフビューと同じ）</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-yellow-800">
+                    <li><strong>横軸(列):</strong> 時刻 | 全店舗合計Σ | 各店舗(店舗Σ + スタッフ列...)</li>
+                    <li><strong>縦軸(行):</strong> 時間帯（30分刻み: 09:00, 09:30, 10:00...）</li>
+                    <li><strong>セルの値:</strong> シフトバー（rowspanで縦に結合してバー表示）</li>
+                    <li><strong>店舗行:</strong> 店舗名のヘッダー行で各スタッフがどの店舗に所属しているか表示</li>
+                    <li><strong>列の並び例:</strong> 時刻 | 全店舗Σ | SHIBUYAΣ | 田中太郎 | 佐藤花子 | SHINJUKUΣ | 鈴木一郎 | ...</li>
+                </ul>
+            </div>
+
+            <div class="space-y-6">
+                <!-- 個別店舗Σクリック時 -->
+                <div class="bg-green-50 border border-green-300 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-green-900 mb-4">5.1 個別店舗Σセルクリック時のカレンダービュー</h3>
+                    <p class="text-sm text-gray-700 mb-4">例: SHIBUYA店の1月15日のΣセルをクリック</p>
+
+                    <div class="bg-white border-2 border-green-400 rounded-lg p-4 shadow-lg overflow-x-auto">
+                        <div class="flex items-center justify-between mb-4 pb-3 border-b-2">
+                            <h4 class="text-lg font-bold text-gray-800">📅 2025年1月15日 - SHIBUYA店</h4>
+                            <button class="text-gray-500 hover:text-gray-700">✕</button>
+                        </div>
+
+                        <table class="text-xs border-collapse w-full">
+                            <thead>
+                                <!-- 店舗行 -->
+                                <tr class="bg-gray-200">
+                                    <th class="border p-2" rowspan="2">時刻</th>
+                                    <th class="border p-2 bg-blue-100" colspan="4">SHIBUYA</th>
+                                </tr>
+                                <!-- スタッフ名行 -->
+                                <tr class="bg-gray-100">
+                                    <th class="border p-2 bg-blue-50">Σ</th>
+                                    <th class="border p-2">田中太郎</th>
+                                    <th class="border p-2">佐藤花子</th>
+                                    <th class="border p-2">山田次郎</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- 田中太郎: 09:00-13:00 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">09:00</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <td class="border p-1 bg-blue-400 text-white text-center" rowspan="8">
+                                        <div class="writing-mode-vertical">09:00-13:00</div>
+                                    </td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-1 bg-blue-400 text-white text-center" rowspan="4">
+                                        <div class="writing-mode-vertical">09:00-11:00</div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">09:30</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <td class="border p-2"></td>
+                                </tr>
+                                <!-- 佐藤花子: 10:00-13:00 開始 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">10:00</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">3</td>
+                                    <td class="border p-1 bg-blue-400 text-white text-center" rowspan="6">
+                                        <div class="writing-mode-vertical">10:00-13:00</div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">10:30</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">3</td>
+                                </tr>
+                                <!-- 山田次郎終了 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">11:00</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <td class="border p-2"></td>
+                                </tr>
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">11:30</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <td class="border p-2"></td>
+                                </tr>
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">12:00</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <td class="border p-2"></td>
+                                </tr>
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">12:30</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <td class="border p-2"></td>
+                                </tr>
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">13:00</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">0</td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2"></td>
+                                </tr>
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="mt-4 text-xs text-gray-600">
+                            ✅ SHIBUYA店のスタッフのみ表示<br>
+                            ✅ 店舗行に「SHIBUYA」が表示され、スタッフ名がその下に配置<br>
+                            ✅ 時間帯が縦に並び、シフトバーは時間帯に応じてセルを縦に結合(rowspan)して表示<br>
+                            ✅ シフトバーには時間範囲(例: 09:00-13:00)を表示<br>
+                            ✅ 時刻の右隣にSHIBUYA店の各時間帯の人数合計列を配置（スタッフビューと同じ構造）
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 全店舗Σクリック時 -->
+                <div class="bg-blue-50 border border-blue-300 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-blue-900 mb-4">5.2 全店舗Σセルクリック時のカレンダービュー</h3>
+                    <p class="text-sm text-gray-700 mb-4">例: 1月15日の全店舗Σセルをクリック</p>
+
+                    <div class="bg-white border-2 border-blue-400 rounded-lg p-4 shadow-lg overflow-x-auto">
+                        <div class="flex items-center justify-between mb-4 pb-3 border-b-2">
+                            <h4 class="text-lg font-bold text-gray-800">📅 2025年1月15日 - 全店舗</h4>
+                            <button class="text-gray-500 hover:text-gray-700">✕</button>
+                        </div>
+
+                        <table class="text-xs border-collapse w-full">
+                            <thead>
+                                <!-- 店舗行 -->
+                                <tr class="bg-gray-200">
+                                    <th class="border p-2" rowspan="2">時刻</th>
+                                    <th class="border p-2 bg-yellow-100" rowspan="2">全店舗 Σ</th>
+                                    <th class="border p-2 bg-blue-100" colspan="4">SHIBUYA</th>
+                                    <th class="border p-2 bg-green-100" colspan="3">SHINJUKU</th>
+                                    <th class="border p-2 bg-purple-100" colspan="3">IKEBUKURO</th>
+                                </tr>
+                                <!-- スタッフ名行 -->
+                                <tr class="bg-gray-100">
+                                    <th class="border p-2 bg-blue-50">Σ</th>
+                                    <th class="border p-2">田中太郎</th>
+                                    <th class="border p-2">佐藤花子</th>
+                                    <th class="border p-2">山田次郎</th>
+                                    <th class="border p-2 bg-green-50">Σ</th>
+                                    <th class="border p-2">鈴木一郎</th>
+                                    <th class="border p-2">伊藤健太</th>
+                                    <th class="border p-2 bg-purple-50">Σ</th>
+                                    <th class="border p-2">高橋美咲</th>
+                                    <th class="border p-2">渡辺誠</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- 09:00 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">09:00</td>
+                                    <td class="border p-2 text-center font-bold bg-yellow-50">4</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <!-- 田中太郎: 09:00-13:00 -->
+                                    <td class="border p-1 bg-blue-400 text-white text-center" rowspan="8">
+                                        <div class="writing-mode-vertical">09:00-13:00</div>
+                                    </td>
+                                    <td class="border p-2"></td>
+                                    <!-- 山田次郎: 09:00-11:00 -->
+                                    <td class="border p-1 bg-blue-400 text-white text-center" rowspan="4">
+                                        <div class="writing-mode-vertical">09:00-11:00</div>
+                                    </td>
+                                    <td class="border p-2 text-center font-semibold bg-green-50">1</td>
+                                    <!-- 鈴木一郎: 09:00-12:30 -->
+                                    <td class="border p-1 bg-green-400 text-white text-center" rowspan="7">
+                                        <div class="writing-mode-vertical">09:00-12:30</div>
+                                    </td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2 text-center font-semibold bg-purple-50">1</td>
+                                    <!-- 高橋美咲: 09:00-12:00 -->
+                                    <td class="border p-1 bg-purple-400 text-white text-center" rowspan="6">
+                                        <div class="writing-mode-vertical">09:00-12:00</div>
+                                    </td>
+                                    <td class="border p-2"></td>
+                                </tr>
+                                <!-- 09:30 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">09:30</td>
+                                    <td class="border p-2 text-center font-bold bg-yellow-50">5</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2 text-center font-semibold bg-green-50">2</td>
+                                    <!-- 伊藤健太: 09:30-13:00 -->
+                                    <td class="border p-1 bg-green-400 text-white text-center" rowspan="7">
+                                        <div class="writing-mode-vertical">09:30-13:00</div>
+                                    </td>
+                                    <td class="border p-2 text-center font-semibold bg-purple-50">1</td>
+                                    <td class="border p-2"></td>
+                                </tr>
+                                <!-- 10:00 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">10:00</td>
+                                    <td class="border p-2 text-center font-bold bg-yellow-50">6</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">3</td>
+                                    <!-- 佐藤花子: 10:00-13:00 -->
+                                    <td class="border p-1 bg-blue-400 text-white text-center" rowspan="6">
+                                        <div class="writing-mode-vertical">10:00-13:00</div>
+                                    </td>
+                                    <td class="border p-2 text-center font-semibold bg-green-50">2</td>
+                                    <td class="border p-2 text-center font-semibold bg-purple-50">1</td>
+                                    <td class="border p-2"></td>
+                                </tr>
+                                <!-- 10:30 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">10:30</td>
+                                    <td class="border p-2 text-center font-bold bg-yellow-50">7</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">3</td>
+                                    <td class="border p-2 text-center font-semibold bg-green-50">2</td>
+                                    <td class="border p-2 text-center font-semibold bg-purple-50">2</td>
+                                    <!-- 渡辺誠: 10:30-13:00 -->
+                                    <td class="border p-1 bg-purple-400 text-white text-center" rowspan="5">
+                                        <div class="writing-mode-vertical">10:30-13:00</div>
+                                    </td>
+                                </tr>
+                                <!-- 11:00 山田次郎終了 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">11:00</td>
+                                    <td class="border p-2 text-center font-bold bg-yellow-50">6</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2 text-center font-semibold bg-green-50">2</td>
+                                    <td class="border p-2 text-center font-semibold bg-purple-50">2</td>
+                                </tr>
+                                <!-- 11:30 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">11:30</td>
+                                    <td class="border p-2 text-center font-bold bg-yellow-50">6</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2 text-center font-semibold bg-green-50">2</td>
+                                    <td class="border p-2 text-center font-semibold bg-purple-50">2</td>
+                                </tr>
+                                <!-- 12:00 高橋美咲終了 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">12:00</td>
+                                    <td class="border p-2 text-center font-bold bg-yellow-50">5</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2 text-center font-semibold bg-green-50">2</td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2 text-center font-semibold bg-purple-50">1</td>
+                                </tr>
+                                <!-- 12:30 鈴木一郎終了 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">12:30</td>
+                                    <td class="border p-2 text-center font-bold bg-yellow-50">4</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">2</td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2 text-center font-semibold bg-green-50">1</td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2 text-center font-semibold bg-purple-50">1</td>
+                                </tr>
+                                <!-- 13:00 全員終了 -->
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">13:00</td>
+                                    <td class="border p-2 text-center font-bold bg-yellow-50">0</td>
+                                    <td class="border p-2 text-center font-semibold bg-blue-50">0</td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2 text-center font-semibold bg-green-50">0</td>
+                                    <td class="border p-2"></td>
+                                    <td class="border p-2 text-center font-semibold bg-purple-50">0</td>
+                                    <td class="border p-2"></td>
+                                </tr>
+                                <tr>
+                                    <td class="border p-2 bg-gray-50 font-semibold">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                    <td class="border p-2">...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <div class="mt-4 text-xs text-gray-600">
+                            ✅ 全店舗のスタッフが店舗別にグループ化されて横に並ぶ<br>
+                            ✅ 店舗行で各スタッフの所属店舗が一目で分かる<br>
+                            ✅ 時間帯が縦に並び、シフトバーは時間帯に応じてセルを縦に結合(rowspan)して表示<br>
+                            ✅ シフトバーには時間範囲(例: 09:00-13:00)を表示<br>
+                            ✅ 時刻の右隣に全店舗合計列、各店舗グループの先頭に店舗別人数集計列を配置（スタッフビューと同じ構造）<br>
+                            ✅ チェックボックスの選択状態に関わらず全店舗のデータを表示
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 編集モードと閲覧モードの違い -->
+                <div class="bg-purple-50 border border-purple-300 p-6 rounded-lg">
+                    <h3 class="text-xl font-bold text-purple-900 mb-4">5.3 編集モードと閲覧モードの違い</h3>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <!-- 編集モード -->
+                        <div class="bg-white border border-purple-300 rounded p-4">
+                            <h4 class="font-bold text-purple-800 mb-3">✏️ 編集モード</h4>
+                            <div class="space-y-2 text-xs">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-green-600 font-bold">✓</span>
+                                    <span>シフトバーにドラッグハンドル表示</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-green-600 font-bold">✓</span>
+                                    <span>シフトバーをドラッグで時間変更可能</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-green-600 font-bold">✓</span>
+                                    <span>削除ボタン（×）が表示される</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-green-600 font-bold">✓</span>
+                                    <span>シフトバークリックで編集ポップアップ</span>
+                                </div>
+                            </div>
+                            <div class="mt-3 p-2 bg-purple-100 rounded">
+                                <div class="text-xs font-bold mb-1">例: シフトバー</div>
+                                <div class="bg-blue-400 text-white rounded px-2 py-1 text-xs flex items-center justify-between cursor-move hover:shadow-lg">
+                                    <span>⋮⋮</span>
+                                    <span>09:00-17:00</span>
+                                    <button class="hover:bg-red-500 rounded-full w-4 h-4 flex items-center justify-center">×</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 閲覧モード -->
+                        <div class="bg-white border border-gray-300 rounded p-4">
+                            <h4 class="font-bold text-gray-800 mb-3">👁️ 閲覧モード</h4>
+                            <div class="space-y-2 text-xs">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-red-600 font-bold">✗</span>
+                                    <span>ドラッグハンドル非表示</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-red-600 font-bold">✗</span>
+                                    <span>ドラッグ操作不可</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-red-600 font-bold">✗</span>
+                                    <span>削除ボタン非表示</span>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-gray-600 font-bold">-</span>
+                                    <span>シフトバークリックは反応なし</span>
+                                </div>
+                            </div>
+                            <div class="mt-3 p-2 bg-gray-100 rounded">
+                                <div class="text-xs font-bold mb-1">例: シフトバー</div>
+                                <div class="bg-blue-400 text-white rounded px-2 py-1 text-xs flex items-center justify-center cursor-default">
+                                    <span>09:00-17:00</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 6. 期待される動作 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">✅</span> 6. 期待される動作
+            </h2>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>クリック対象</th>
+                        <th>モード</th>
+                        <th>表示データ</th>
+                        <th>店舗名列</th>
+                        <th>編集UI</th>
+                        <th>シフトカードクリック</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="bg-blue-50">
+                        <td>全店舗Σセル</td>
+                        <td>編集</td>
+                        <td>全店舗のシフト</td>
+                        <td class="text-green-600 font-semibold">✅ 表示</td>
+                        <td class="text-green-600 font-semibold">✅ 表示</td>
+                        <td>編集ポップアップ</td>
+                    </tr>
+                    <tr class="bg-blue-50">
+                        <td>全店舗Σセル</td>
+                        <td>閲覧</td>
+                        <td>全店舗のシフト</td>
+                        <td class="text-green-600 font-semibold">✅ 表示</td>
+                        <td class="text-red-600 font-semibold">❌ 非表示</td>
+                        <td>反応なし</td>
+                    </tr>
+                    <tr class="bg-green-50">
+                        <td>店舗Σセル</td>
+                        <td>編集</td>
+                        <td>その店舗のみ</td>
+                        <td class="text-green-600 font-semibold">✅ 表示</td>
+                        <td class="text-green-600 font-semibold">✅ 表示</td>
+                        <td>編集ポップアップ</td>
+                    </tr>
+                    <tr class="bg-green-50">
+                        <td>店舗Σセル</td>
+                        <td>閲覧</td>
+                        <td>その店舗のみ</td>
+                        <td class="text-green-600 font-semibold">✅ 表示</td>
+                        <td class="text-red-600 font-semibold">❌ 非表示</td>
+                        <td>反応なし</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="mt-6 bg-yellow-50 border-l-4 border-yellow-500 p-4">
+                <h4 class="font-semibold text-yellow-900 mb-2">重要な注意点</h4>
+                <ul class="list-disc list-inside space-y-1 text-sm text-yellow-800 ml-4">
+                    <li><strong>全店舗Σ列の表示:</strong> チェックボックスの選択に関わらず、常に全店舗の合計を表示</li>
+                    <li><strong>店舗名列:</strong> 個別店舗クリック時も全店舗クリック時も常に表示</li>
+                    <li><strong>データフィルタリング:</strong> storeId === null が全店舗、storeId !== null が特定店舗</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- フッター -->
+        <footer class="mt-12 pt-6 border-t-2 border-gray-200 text-center text-gray-600 text-sm">
+            <p>© 2025 Shift Scheduler AI - Design Documentation</p>
+            <p class="mt-2">バージョン 1.0 | 作成日: 2025-01-19</p>
+            <div class="mt-4 bg-blue-50 border border-blue-200 rounded p-4 text-left max-w-2xl mx-auto">
+                <h4 class="font-semibold text-blue-900 mb-2">📝 まとめ</h4>
+                <p class="text-xs text-blue-800 mb-2">
+                    本設計書では以下の改善を行います:
+                </p>
+                <ul class="text-xs text-blue-800 list-disc list-inside space-y-1 ml-2">
+                    <li><strong>店舗名列の常時表示:</strong> タイムラインに店舗名列を常に表示し、どの店舗のシフトか明確にする</li>
+                    <li><strong>編集権限の制御:</strong> 閲覧モードでは編集UIを非表示にし、適切な権限管理を実現</li>
+                    <li><strong>集計ロジックの修正:</strong> 全店舗Σ列は常に全店舗の合計を表示、各店舗Σセルはその店舗のみを表示</li>
+                    <li><strong>シフトカードクリック機能:</strong> 編集モードでシフトカードをクリックすると編集ポップアップを表示</li>
+                </ul>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
