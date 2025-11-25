@@ -3,7 +3,8 @@ import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent } from '../../ui/card'
 import { Button } from '../../ui/button'
-import { ArrowLeft, CheckCircle, Loader2, Save, Trash2, Download } from 'lucide-react'
+import { ArrowLeft, CheckCircle, Loader2, Save, Trash2, Download, Maximize2, Minimize2, X } from 'lucide-react'
+import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import ShiftTimeline from '../../shared/ShiftTimeline'
 import ShiftTableView from '../../shared/ShiftTableView'
@@ -73,6 +74,15 @@ const FirstPlanEditor = ({
   const [dayShifts, setDayShifts] = useState([])
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [hasSavedDraft, setHasSavedDraft] = useState(false) // 下書き保存を押したかどうか
+
+  // カレンダービューのウィンドウ状態
+  const [windowState, setWindowState] = useState({
+    width: Math.max(window.innerWidth * 0.9, 1200),
+    height: window.innerHeight * 0.6,
+    x: 50,
+    y: 50,
+    isMaximized: false,
+  })
 
   // ローカルで保持する変更
   const [modifiedShifts, setModifiedShifts] = useState({}) // { shiftId: { start_time, end_time, ... } }
@@ -259,6 +269,7 @@ const FirstPlanEditor = ({
       dayShiftsData = dayShiftsData.filter(shift => shift.store_id === storeId)
     }
 
+    console.log('🔍 handleDayClick called:', { day, storeId, shiftsCount: dayShiftsData.length })
     setSelectedDay(day)
     setSelectedStoreId(storeId)
     setDayShifts(dayShiftsData)
@@ -268,6 +279,27 @@ const FirstPlanEditor = ({
     setSelectedDay(null)
     setSelectedStoreId(null)
     setDayShifts([])
+  }
+
+  // ウィンドウ操作ハンドラー
+  const handleMaximize = () => {
+    if (windowState.isMaximized) {
+      // 元のサイズに戻す
+      setWindowState(prev => ({
+        ...prev,
+        width: Math.max(window.innerWidth * 0.9, 1200),
+        height: window.innerHeight * 0.6,
+        isMaximized: false
+      }))
+    } else {
+      // 最大化
+      setWindowState(prev => ({
+        ...prev,
+        width: window.innerWidth * 0.95,
+        height: window.innerHeight * 0.95,
+        isMaximized: true
+      }))
+    }
   }
 
   // 下書き保存ハンドラー（ステータスを変更せずに保存）
@@ -1022,7 +1054,7 @@ const FirstPlanEditor = ({
         position: 'fixed',
         left: `${popupPosition.x}px`,
         top: `${popupPosition.y}px`,
-        zIndex: 1000,
+        zIndex: 10000,
         cursor: isDragging ? 'move' : 'default',
       })
     }, [popupPosition, isDragging])
@@ -1432,24 +1464,81 @@ const FirstPlanEditor = ({
         />
       </div>
 
-      {/* タイムライン表示（表形式） */}
-      <AnimatePresence>
-        {selectedDay && (
-          <ShiftTableView
-            date={selectedDay}
-            year={year}
-            month={month}
-            shifts={dayShifts}
-            onClose={closeDayView}
-            editable={isEditMode}
-            onUpdate={isEditMode ? handleUpdateShift : undefined}
-            onDelete={isEditMode ? handleDeleteShift : undefined}
-            onShiftClick={isEditMode ? handleShiftClick : undefined}
-            storesMap={storesMap}
-            storeName={selectedStoreId === null ? undefined : storesMap[selectedStoreId]?.store_name}
-          />
-        )}
-      </AnimatePresence>
+      {/* タイムライン表示（ドラッグ・リサイズ可能なウィンドウ） */}
+      {selectedDay && (() => {
+        console.log('📅 Rendering Rnd window:', { selectedDay, windowState })
+        return (
+          <Rnd
+            size={{ width: windowState.width, height: windowState.height }}
+            position={{ x: windowState.x, y: windowState.y }}
+            onDragStop={(e, d) => {
+              setWindowState(prev => ({ ...prev, x: d.x, y: d.y }))
+            }}
+            onResizeStop={(e, direction, ref, delta, position) => {
+              setWindowState(prev => ({
+                ...prev,
+                width: parseInt(ref.style.width),
+                height: parseInt(ref.style.height),
+                ...position
+              }))
+            }}
+            minWidth={1000}
+            minHeight={400}
+            dragHandleClassName="window-header"
+            style={{ zIndex: 9999 }}
+            resizeHandleStyles={{
+              bottom: { cursor: 'ns-resize', height: '8px' },
+              right: { cursor: 'ew-resize', width: '8px' },
+              bottomRight: { cursor: 'nwse-resize', width: '16px', height: '16px' },
+              bottomLeft: { cursor: 'nesw-resize', width: '16px', height: '16px' },
+              topRight: { cursor: 'nesw-resize', width: '16px', height: '16px' },
+              topLeft: { cursor: 'nwse-resize', width: '16px', height: '16px' },
+            }}
+          >
+            <div className="flex flex-col h-full bg-white rounded-lg shadow-2xl border border-gray-300 overflow-hidden">
+              {/* ウィンドウヘッダー */}
+              <div className="window-header bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 flex justify-between items-center cursor-move select-none">
+                <div className="font-semibold text-sm">
+                  📅 {month}月{selectedDay}日 - {selectedStoreId === null ? '全店舗' : storesMap[selectedStoreId]?.store_name || ''}
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleMaximize}
+                    className="hover:bg-blue-700 p-1 rounded transition-colors"
+                    title={windowState.isMaximized ? '元のサイズに戻す' : '最大化'}
+                  >
+                    {windowState.isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                  </button>
+                  <button
+                    onClick={closeDayView}
+                    className="hover:bg-red-600 p-1 rounded transition-colors"
+                    title="閉じる"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* ウィンドウコンテンツ */}
+              <div className="flex-1 overflow-auto">
+                <ShiftTableView
+                  date={selectedDay}
+                  year={year}
+                  month={month}
+                  shifts={dayShifts}
+                  onClose={closeDayView}
+                  editable={isEditMode}
+                  onUpdate={isEditMode ? handleUpdateShift : undefined}
+                  onDelete={isEditMode ? handleDeleteShift : undefined}
+                  onShiftClick={isEditMode ? handleShiftClick : undefined}
+                  storesMap={storesMap}
+                  storeName={selectedStoreId === null ? undefined : storesMap[selectedStoreId]?.store_name}
+                />
+              </div>
+            </div>
+          </Rnd>
+        )
+      })()}
 
       {/* シフト編集ポップアップ */}
       <ShiftEditModal

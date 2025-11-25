@@ -1,16 +1,13 @@
-import React, { useState, useEffect } from 'react'
-import { createPortal } from 'react-dom'
-import { motion } from 'framer-motion'
-import { X, Trash2 } from 'lucide-react'
-import { Button } from '../ui/button'
+import React, { useEffect } from 'react'
+import { Trash2 } from 'lucide-react'
 import { ROLE_COLORS, getRoleColor } from '../../config/colors'
 import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
 
 /**
- * 表形式のシフトカレンダービュー
- * - 縦軸: 時間帯（30分刻み）
- * - 横軸: 時刻 | 全店舗Σ | 各店舗（店舗Σ + スタッフ列...）
- * - セルの値: rowspanで縦に結合したシフトバー
+ * 表形式のシフトカレンダービュー（転置版）
+ * - 縦軸: スタッフ（店舗ごとにグループ化）
+ * - 横軸: 稼働店舗 | スタッフ名 | 役職 | 時間帯（30分刻み）
+ * - セルの値: colspanで横に結合したシフトバー
  */
 const ShiftTableView = ({
   date,
@@ -34,10 +31,10 @@ const ShiftTableView = ({
   const isDayHoliday = isHoliday(year, month, date)
   const holidayName = getHolidayName(year, month, date)
 
-  // 時間範囲（5:00 - 翌4:00 = 28:00）
-  const START_HOUR = 5
-  const END_HOUR = 28
-  const TIME_SLOTS = [] // ['05:00', '05:30', '06:00', ...]
+  // 時間範囲（7:00 - 翌6:30 = 30:30）
+  const START_HOUR = 7
+  const END_HOUR = 31
+  const TIME_SLOTS = [] // ['07:00', '07:30', '08:00', ...]
 
   for (let h = START_HOUR; h <= END_HOUR; h++) {
     if (h <= END_HOUR - 1) {
@@ -74,6 +71,7 @@ const ShiftTableView = ({
           staff_id: shift.staff_id,
           staff_name: shift.staff_name,
           role: shift.role,
+          store_id: storeId,
         })
       }
     })
@@ -83,14 +81,37 @@ const ShiftTableView = ({
 
   const staffByStore = groupStaffByStore()
   const storeIds = Object.keys(staffByStore).sort()
-  const showAllStoresColumn = !storeName && storeIds.length > 1
 
-  // 各時間帯の勤務人数を計算
-  const getStaffCountAtTime = (timeSlot, storeId = null) => {
+  // 全スタッフのリスト（店舗順）
+  const allStaff = []
+  storeIds.forEach((storeId) => {
+    allStaff.push(...staffByStore[storeId])
+  })
+
+  // 各店舗の最初のスタッフかどうかを判定する関数（rowspan用）
+  const isFirstStaffInStore = (staff) => {
+    return staffByStore[staff.store_id][0].staff_id === staff.staff_id
+  }
+
+  // 各時間帯の勤務人数を計算（全店舗）
+  const getStaffCountAtTime = (timeSlot) => {
     const slotMinutes = timeToMinutes(timeSlot)
 
     return shifts.filter((shift) => {
-      if (storeId && shift.store_id !== parseInt(storeId)) return false
+      const startMinutes = timeToMinutes(shift.start_time)
+      const endMinutes = timeToMinutes(shift.end_time)
+
+      // その時刻がシフトの範囲内にあればカウント
+      return slotMinutes >= startMinutes && slotMinutes < endMinutes
+    }).length
+  }
+
+  // 各時間帯の店舗別勤務人数を計算
+  const getStoreStaffCountAtTime = (timeSlot, storeId) => {
+    const slotMinutes = timeToMinutes(timeSlot)
+
+    return shifts.filter((shift) => {
+      if (shift.store_id !== parseInt(storeId)) return false
 
       const startMinutes = timeToMinutes(shift.start_time)
       const endMinutes = timeToMinutes(shift.end_time)
@@ -117,15 +138,15 @@ const ShiftTableView = ({
     })
   }
 
-  // シフトの長さ（30分単位の数）を計算
-  const getShiftRowSpan = (shift) => {
+  // シフトの長さ（30分単位の数）を計算 → colSpanに使用
+  const getShiftColSpan = (shift) => {
     const startMinutes = timeToMinutes(shift.start_time)
     const endMinutes = timeToMinutes(shift.end_time)
     const durationMinutes = endMinutes - startMinutes
     return Math.ceil(durationMinutes / 30)
   }
 
-  // 指定時刻が既存シフトの途中かチェック（rowspanでスキップすべきか）
+  // 指定時刻が既存シフトの途中かチェック（colspanでスキップすべきか）
   const isTimeSlotOccupied = (timeSlot, staffId, storeId) => {
     const slotMinutes = timeToMinutes(timeSlot)
 
@@ -156,48 +177,18 @@ const ShiftTableView = ({
     }
   }
 
-  // 凡例用の役職リスト
-  const roleLegend = Object.keys(ROLE_COLORS).map((roleName) => ({
-    name: roleName,
-    color: ROLE_COLORS[roleName].bg,
-  }))
-
-  const modalContent = (
-    <div className="fixed inset-0 flex items-center justify-center z-50 p-2" onClick={onClose}>
-      <motion.div
-        initial={{ scale: 0.9, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.9, opacity: 0 }}
-        className="bg-white rounded-lg shadow-2xl w-full max-w-[95vw] h-[95vh] flex flex-col mx-auto"
-        onClick={(e) => e.stopPropagation()}
-      >
+  return (
+    <div className="w-full h-full flex flex-col p-2">
+      <div className="bg-white w-full h-full flex flex-col">
         {/* ヘッダー */}
-        <div className="border-b bg-gray-50 px-2 py-1 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-bold">
-                {year}年{month}月{date}日 {storeName && `- ${storeName}`}
-              </h2>
-              {isDayHoliday && (
-                <div className="text-[0.6rem] text-red-600 font-medium">{holidayName}</div>
-              )}
-            </div>
-            <Button variant="ghost" size="sm" onClick={onClose} className="h-6 w-6 p-0">
-              <X className="h-3 w-3" />
-            </Button>
-          </div>
-          <div className="flex items-center justify-between mt-1">
-            <p className="text-[0.6rem] text-gray-600">{shifts.length}名勤務</p>
-            {/* 凡例 */}
-            <div className="flex items-center gap-1">
-              <span className="text-[0.55rem] text-gray-500 font-medium">役職:</span>
-              {roleLegend.map((role) => (
-                <div key={role.name} className="flex items-center gap-0.5">
-                  <div className={`w-2 h-2 rounded ${role.color}`}></div>
-                  <span className="text-[0.55rem] text-gray-700">{role.name}</span>
-                </div>
-              ))}
-            </div>
+        <div className="border-b bg-gray-50 px-4 py-2 flex-shrink-0">
+          <div>
+            <h2 className="text-sm font-bold">
+              {year}年{month}月{date}日 {storeName && `- ${storeName}`}
+            </h2>
+            {isDayHoliday && (
+              <div className="text-[0.6rem] text-red-600 font-medium">{holidayName}</div>
+            )}
           </div>
         </div>
 
@@ -205,145 +196,170 @@ const ShiftTableView = ({
         <div className="flex-1 overflow-auto">
           <table className="border-collapse text-[0.55rem]">
             <thead className="sticky top-0 z-10">
-              {/* 店舗行 */}
+              {/* 時刻ヘッダー行 */}
               <tr className="bg-gray-200">
-                <th className="border border-gray-300 px-0.5 py-0.5 bg-gray-100 w-10" rowSpan="2">
-                  時刻
+                <th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky left-0 z-20" style={{ minWidth: '100px' }}>
+                  稼働店舗
                 </th>
-                {showAllStoresColumn && (
-                  <th className="border border-gray-300 px-0.5 py-0.5 bg-yellow-100 w-6" rowSpan="2">
-                    Σ
+                <th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky z-20" style={{ minWidth: '80px', left: '100px' }}>
+                  スタッフ名
+                </th>
+                <th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky z-20" style={{ minWidth: '60px', left: '180px' }}>
+                  役職
+                </th>
+                {TIME_SLOTS.map((timeSlot) => (
+                  <th
+                    key={timeSlot}
+                    className="border border-gray-300 px-0.5 py-0.5 bg-blue-100 text-[0.55rem] font-semibold"
+                    style={{ minWidth: '32px' }}
+                  >
+                    <div className="writing-mode-vertical text-center">{timeSlot}</div>
                   </th>
-                )}
-                {storeIds.map((storeId) => {
-                  const staffCount = staffByStore[storeId].length
-                  const storeName = storesMap[storeId]?.store_name || `店舗${storeId}`
-                  return (
-                    <th
-                      key={storeId}
-                      className="border border-gray-300 px-0.5 py-0.5 bg-blue-100 text-[0.6rem]"
-                      colSpan={staffCount + 1}
-                    >
-                      {storeName}
-                    </th>
-                  )
-                })}
+                ))}
               </tr>
-              {/* スタッフ名行 */}
-              <tr className="bg-gray-100">
-                {storeIds.map((storeId) => {
-                  const staffList = staffByStore[storeId]
-                  return (
-                    <React.Fragment key={`staff-${storeId}`}>
-                      <th className="border border-gray-300 px-0.5 py-0.5 bg-blue-50 font-semibold w-6">Σ</th>
-                      {staffList.map((staff) => (
-                        <th key={staff.staff_id} className="border border-gray-300 px-0.5 py-0.5 w-12 max-w-12">
-                          <div className="font-medium text-[0.55rem] truncate" title={staff.staff_name}>{staff.staff_name}</div>
-                          <div className="text-[0.45rem] text-gray-600 truncate">{staff.role}</div>
-                        </th>
-                      ))}
-                    </React.Fragment>
-                  )
-                })}
+              {/* 勤務人数サマリー行 */}
+              <tr className="bg-yellow-50">
+                <th className="border border-gray-300 px-1 py-0.5 bg-yellow-100 sticky left-0 z-20 text-[0.55rem]" colSpan="3">
+                  勤務人数 Σ
+                </th>
+                {TIME_SLOTS.map((timeSlot) => (
+                  <td
+                    key={timeSlot}
+                    className="border border-gray-300 px-0.5 py-0.5 text-center font-semibold text-[0.55rem]"
+                  >
+                    {getStaffCountAtTime(timeSlot)}
+                  </td>
+                ))}
               </tr>
             </thead>
             <tbody>
-              {TIME_SLOTS.map((timeSlot, index) => (
-                <tr key={timeSlot} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  {/* 時刻セル */}
-                  <td className="border border-gray-300 px-0.5 py-0.5 bg-gray-50 font-semibold text-center text-[0.55rem]">
-                    {timeSlot}
-                  </td>
+              {storeIds.map((storeId, storeIndex) => {
+                const storeStaff = staffByStore[storeId]
+                const storeRows = []
 
-                  {/* 全店舗合計Σセル */}
-                  {showAllStoresColumn && (
-                    <td className="border border-gray-300 px-0.5 py-0.5 text-center font-semibold bg-yellow-50 text-[0.55rem]">
-                      {getStaffCountAtTime(timeSlot)}
+                // 店舗合計行を先頭に追加
+                storeRows.push(
+                  <tr key={`store-sum-${storeId}`} className="bg-blue-50 border-b-2 border-blue-300">
+                    <td colSpan="3" className="border border-gray-300 px-1 py-0.5 sticky left-0 z-10 bg-blue-50 font-bold text-[0.55rem] text-center">
+                      {storesMap[storeId]?.store_name || `店舗${storeId}`} 合計 Σ
                     </td>
-                  )}
+                    {TIME_SLOTS.map((timeSlot) => (
+                      <td
+                        key={timeSlot}
+                        className="border border-gray-300 px-0.5 py-0.5 text-center font-semibold bg-blue-50 text-[0.55rem]"
+                      >
+                        {getStoreStaffCountAtTime(timeSlot, storeId)}
+                      </td>
+                    ))}
+                  </tr>
+                )
 
-                  {/* 各店舗のセル */}
-                  {storeIds.map((storeId) => {
-                    const staffList = staffByStore[storeId]
-                    return (
-                      <React.Fragment key={`cells-${storeId}-${timeSlot}`}>
-                        {/* 店舗合計Σセル */}
-                        <td className="border border-gray-300 px-0.5 py-0.5 text-center font-semibold bg-blue-50 text-[0.55rem]">
-                          {getStaffCountAtTime(timeSlot, storeId)}
-                        </td>
+                // 各スタッフの行を追加
+                storeStaff.forEach((staff, staffIndex) => {
+                  const rowBgClass = staffIndex % 2 === 0 ? 'bg-white' : 'bg-gray-50'
 
-                        {/* 各スタッフのセル */}
-                        {staffList.map((staff) => {
-                          // このタイムスロットが既存シフトの途中ならスキップ
-                          if (isTimeSlotOccupied(timeSlot, staff.staff_id, storeId)) {
-                            return null
-                          }
+                  storeRows.push(
+                    <tr key={`${staff.store_id}-${staff.staff_id}`} className={rowBgClass}>
+                    {/* 店舗名（rowspan） */}
+                    {isFirstStaffInStore(staff) && (
+                      <td
+                        rowSpan={staffByStore[staff.store_id].length}
+                        className="border border-gray-300 px-2 py-1 sticky left-0 z-10 bg-blue-100 font-bold text-sm align-top"
+                      >
+                        {storesMap[staff.store_id]?.store_name || `店舗${staff.store_id}`}
+                      </td>
+                    )}
 
-                          // このタイムスロットで開始するシフトがあるか確認
-                          const shift = getShiftStartingAt(timeSlot, staff.staff_id, storeId)
+                    {/* スタッフ名 */}
+                    <td className={`border border-gray-300 px-1 py-1 sticky z-10 ${rowBgClass} font-medium text-[0.55rem]`} style={{ left: '100px' }}>
+                      {staff.staff_name}
+                    </td>
 
-                          if (shift) {
-                            const rowSpan = getShiftRowSpan(shift)
-                            const roleColor = getRoleColor(shift.role)
+                    {/* 役職 */}
+                    <td className={`border border-gray-300 px-1 py-1 sticky z-10 ${rowBgClass} text-[0.5rem] text-gray-600`} style={{ left: '180px' }}>
+                      {staff.role}
+                    </td>
 
-                            return (
-                              <td
-                                key={`${staff.staff_id}-${timeSlot}`}
-                                className={`border border-gray-300 px-0.5 py-0.5 ${roleColor.bg} text-white text-center cursor-pointer hover:opacity-90 transition-opacity max-w-12`}
-                                rowSpan={rowSpan}
-                                onClick={() => {
-                                  if (editable && onShiftClick) {
-                                    onShiftClick(shift)
-                                  }
-                                }}
-                              >
-                                <div className="flex flex-col items-center justify-center h-full gap-0.5">
-                                  <div className="font-semibold text-[0.5rem]">
-                                    {formatTime(shift.start_time)}<br/>{formatTime(shift.end_time)}
-                                  </div>
-                                  {shift.modified_flag && (
-                                    <div className="text-[0.45rem] bg-yellow-400 text-yellow-900 px-0.5 rounded">
-                                      ⚠️
-                                    </div>
-                                  )}
-                                  {editable && onDelete && (
-                                    <button
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleDelete(shift)
-                                      }}
-                                      className="p-0.5 bg-red-500 hover:bg-red-600 rounded text-white opacity-0 hover:opacity-100 transition-opacity"
-                                      title="削除"
-                                    >
-                                      <Trash2 className="h-2 w-2" />
-                                    </button>
-                                  )}
+                    {/* 各タイムスロット */}
+                    {TIME_SLOTS.map((timeSlot) => {
+                      // このタイムスロットが既存シフトの途中ならスキップ
+                      if (isTimeSlotOccupied(timeSlot, staff.staff_id, staff.store_id)) {
+                        return null
+                      }
+
+                      // このタイムスロットで開始するシフトがあるか確認
+                      const shift = getShiftStartingAt(timeSlot, staff.staff_id, staff.store_id)
+
+                      if (shift) {
+                        const colSpan = getShiftColSpan(shift)
+                        const roleColor = getRoleColor(shift.role)
+
+                        return (
+                          <td
+                            key={`${staff.staff_id}-${timeSlot}`}
+                            className={`border border-gray-300 px-0.5 py-1 ${roleColor.bg} text-white text-center ${editable && onShiftClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
+                            colSpan={colSpan}
+                            onClick={(e) => {
+                              console.log('🖱️ Shift cell clicked:', { shift, editable, hasOnShiftClick: !!onShiftClick })
+                              if (editable && onShiftClick) {
+                                console.log('✅ Calling onShiftClick')
+                                onShiftClick({
+                                  mode: 'edit',
+                                  shift: shift,
+                                  date: date,
+                                  event: e
+                                })
+                              } else {
+                                console.log('❌ Click ignored - editable:', editable, 'onShiftClick:', !!onShiftClick)
+                              }
+                            }}
+                          >
+                            <div className="flex flex-row items-center justify-center gap-1">
+                              <div className="font-semibold text-[0.5rem] whitespace-nowrap">
+                                {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
+                              </div>
+                              {shift.modified_flag && (
+                                <div className="text-[0.45rem] bg-yellow-400 text-yellow-900 px-0.5 rounded">
+                                  ⚠️
                                 </div>
-                              </td>
-                            )
-                          }
+                              )}
+                              {editable && onDelete && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation()
+                                    handleDelete(shift)
+                                  }}
+                                  className="p-0.5 bg-red-500 hover:bg-red-600 rounded text-white opacity-0 hover:opacity-100 transition-opacity"
+                                  title="削除"
+                                >
+                                  <Trash2 className="h-2 w-2" />
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )
+                      }
 
-                          // シフトがない場合は空セル
-                          return (
-                            <td
-                              key={`${staff.staff_id}-${timeSlot}`}
-                              className="border border-gray-300 px-0.5 py-0.5"
-                            ></td>
-                          )
-                        })}
-                      </React.Fragment>
-                    )
-                  })}
-                </tr>
-              ))}
+                      // シフトがない場合は空セル
+                      return (
+                        <td
+                          key={`${staff.staff_id}-${timeSlot}`}
+                          className="border border-gray-300 px-0.5 py-1"
+                        ></td>
+                      )
+                    })}
+                  </tr>
+                  )
+                })
+
+                return storeRows
+              })}
             </tbody>
           </table>
         </div>
-      </motion.div>
+      </div>
     </div>
   )
-
-  return createPortal(modalContent, document.body)
 }
 
 export default ShiftTableView
