@@ -41,8 +41,10 @@ const AppHeader = () => {
   useEffect(() => {
     const fetchHealthInfo = async () => {
       try {
+        console.log('🔍 BACKEND_API_URL:', BACKEND_API_URL)
         const response = await fetch(`${BACKEND_API_URL}/api/health`)
         const data = await response.json()
+        console.log('🔍 Health Response:', data)
 
         if (data.success) {
           setBackendEnv(data.backend.environment)
