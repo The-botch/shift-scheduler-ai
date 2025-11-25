@@ -17,6 +17,8 @@ const ShiftTimeline = ({
   onUpdate,
   onDelete,
   storeName,
+  storesMap = {},
+  onShiftClick,
 }) => {
   // 時刻をHH:MM形式にフォーマット
   const formatTime = time => {
@@ -360,7 +362,7 @@ const ShiftTimeline = ({
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
                       className={`absolute rounded-lg shadow-md border-2 overflow-hidden ${
-                        editable ? 'cursor-move hover:shadow-lg' : ''
+                        editable ? 'hover:shadow-lg' : ''
                       } ${shift.modified_flag ? 'border-yellow-400' : 'border-white'} ${getRoleColor(shift.role).bg}`}
                       style={{
                         top: style.top,
@@ -368,14 +370,26 @@ const ShiftTimeline = ({
                         left: `${left}px`,
                         width: `${columnWidth - 4}px`,
                         minHeight: '30px',
+                        cursor:
+                          editable && onShiftClick ? 'pointer' : editable ? 'move' : 'default',
                       }}
                       whileHover={editable ? { scale: 1.02 } : {}}
                       whileDrag={{ scale: 1.05, zIndex: 50 }}
+                      onClick={() => {
+                        if (editable && onShiftClick) {
+                          onShiftClick(shift)
+                        }
+                      }}
                     >
                       <div className="px-1 py-0.5 h-full text-white relative">
                         <div className="font-bold text-[0.5rem] leading-tight mb-0.5 truncate">
                           {shift.staff_name}
                         </div>
+                        {shift.store_id && storesMap[shift.store_id] && (
+                          <div className="text-[0.4rem] leading-tight opacity-90 bg-white bg-opacity-20 px-0.5 py-0.5 rounded inline-block mb-0.5">
+                            🏪 {storesMap[shift.store_id].store_name}
+                          </div>
+                        )}
                         <div className="text-[0.45rem] leading-tight opacity-90">{shift.role}</div>
                         <div className="text-[0.45rem] leading-tight mt-0.5 font-medium">
                           {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
