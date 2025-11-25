@@ -1,0 +1,913 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>店舗ID管理の整理と設計 - 設計書</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+        }
+        h3 {
+            color: #555;
+            margin-top: 20px;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .problem-box {
+            background-color: #f8d7da;
+            border-left: 4px solid #dc3545;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .solution-box {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .important {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .code {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            overflow-x: auto;
+            font-size: 14px;
+        }
+        .diff-remove {
+            background-color: #ffebee;
+            color: #c62828;
+            padding: 2px 4px;
+        }
+        .diff-add {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+            padding: 2px 4px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .metadata {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .metadata p {
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>店舗ID管理の整理と設計</h1>
+
+    <div class="metadata">
+        <p><strong>作成日:</strong> 2025-11-25</p>
+        <p><strong>対象コンポーネント:</strong> FirstPlanEditor.jsx</p>
+        <p><strong>問題:</strong> 下書き保存後、画面再読み込み時に特定の店舗のシフトのみが表示される</p>
+        <p><strong>優先度:</strong> 高（データが正しく表示されない重大なバグ）</p>
+    </div>
+
+    <div class="section">
+        <h2>1. 問題の概要</h2>
+        <div class="problem-box">
+            <h3>発生した問題</h3>
+            <p>planIdバグ修正（Issue #80）の実装後、以下の問題が発生：</p>
+            <ul>
+                <li>✅ 下書き保存は正常に動作するようになった</li>
+                <li>❌ 下書き保存後、画面を再読み込みすると「COME麻布台」以外のシフトが表示されなくなった</li>
+                <li>❌ マルチストア環境で、全店舗のシフトが表示されるべきなのに、特定の店舗のみが表示される</li>
+            </ul>
+        </div>
+
+        <h3>ユーザーの要件整理</h3>
+        <div class="important">
+            <p>店舗IDには複数の意味・用途があり、それらを明確に分離する必要がある：</p>
+            <ol>
+                <li><strong>表示フィルタ用の店舗ID</strong>
+                    <ul>
+                        <li>「どの店舗を表示するか」を制御</li>
+                        <li>カレンダービューやシフト一覧で使用</li>
+                        <li>デフォルト店舗や所属店舗のID</li>
+                        <li>nullable（null = 全店舗表示）</li>
+                    </ul>
+                </li>
+                <li><strong>稼働店舗ID（シフト登録時）</strong>
+                    <ul>
+                        <li>「どの店舗で稼働するか」「どの店舗で人を登録するか」</li>
+                        <li>新規シフト作成時に使用</li>
+                        <li>シフトデータの `store_id` フィールドに保存される</li>
+                    </ul>
+                </li>
+            </ol>
+            <p><strong>重要:</strong> 登録するときは「稼働店舗のID」を使い、見るときは「デフォルト店舗や所属店舗のID」を使う。</p>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>2. 現状の実装分析</h2>
+
+        <h3>2.1 状態変数の定義</h3>
+        <table>
+            <tr>
+                <th>変数名</th>
+                <th>行番号</th>
+                <th>初期値</th>
+                <th>用途（コメントより）</th>
+            </tr>
+            <tr>
+                <td><code>selectedStoreId</code></td>
+                <td>83</td>
+                <td>null</td>
+                <td>クリックされた店舗ID（nullは全店舗）</td>
+            </tr>
+            <tr>
+                <td><code>storeId</code></td>
+                <td>104</td>
+                <td>null</td>
+                <td>（コメントなし）</td>
+            </tr>
+        </table>
+
+        <h3>2.2 storeIdの使用箇所</h3>
+        <table>
+            <tr>
+                <th>行番号</th>
+                <th>処理内容</th>
+                <th>用途</th>
+            </tr>
+            <tr>
+                <td>221</td>
+                <td><code>const fetchedStoreId = shiftsResult[0].store_id</code></td>
+                <td>loadShiftData内で最初のシフトから店舗IDを取得</td>
+            </tr>
+            <tr>
+                <td>224</td>
+                <td><code>setStoreId(fetchedStoreId)</code></td>
+                <td>取得した店舗IDを状態に保存</td>
+            </tr>
+            <tr>
+                <td>287</td>
+                <td><code>handleDayClick(day, storeId = null)</code></td>
+                <td>関数の引数として使用</td>
+            </tr>
+            <tr>
+                <td>291-292</td>
+                <td><code>if (storeId !== null) dayShiftsData = dayShiftsData.filter(...)</code></td>
+                <td>引数storeIdでフィルタリング</td>
+            </tr>
+            <tr>
+                <td>297</td>
+                <td><code>setSelectedStoreId(storeId)</code></td>
+                <td>引数storeIdをselectedStoreIdに設定</td>
+            </tr>
+            <tr>
+                <td>712</td>
+                <td><code>store_id: newShiftData.store_id || storeId</code></td>
+                <td>新規シフト作成時のデフォルト店舗ID</td>
+            </tr>
+        </table>
+
+        <h3>2.3 selectedStoreIdの使用箇所</h3>
+        <table>
+            <tr>
+                <th>行番号</th>
+                <th>処理内容</th>
+                <th>用途</th>
+            </tr>
+            <tr>
+                <td>83</td>
+                <td><code>useState(null)</code></td>
+                <td>初期化</td>
+            </tr>
+            <tr>
+                <td>297</td>
+                <td><code>setSelectedStoreId(storeId)</code></td>
+                <td>handleDayClick内で更新</td>
+            </tr>
+            <tr>
+                <td>1527-1563</td>
+                <td>カレンダービュー表示</td>
+                <td>選択された店舗名を表示</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>3. 問題の原因分析</h2>
+
+        <h3>3.1 問題発生のメカニズム</h3>
+        <div class="problem-box">
+            <h4>Step 1: loadShiftData実行時</h4>
+            <div class="code">
+// Line 221-224
+const fetchedStoreId = shiftsResult.length > 0 ? shiftsResult[0].store_id : null
+// ...
+setStoreId(fetchedStoreId) // ← ここで最初のシフトの店舗ID（COME麻布台）を設定
+            </div>
+            <p>最初に取得したシフトがCOME麻布台のものだった場合、<code>storeId</code>にCOME麻布台のIDが設定される。</p>
+
+            <h4>Step 2: ??? （影響範囲が不明）</h4>
+            <p><code>storeId</code>状態変数が設定されることで、何らかの形でフィルタリングに影響している可能性がある。</p>
+            <p><strong>調査が必要:</strong> <code>storeId</code>状態変数がどこで参照されているか</p>
+        </div>
+
+        <h3>3.2 変数の役割の混同</h3>
+        <div class="important">
+            <p>現在の実装では、以下の混同が発生している可能性：</p>
+            <ul>
+                <li><code>storeId</code>（状態変数）: 本来はデフォルト稼働店舗IDとして使うべき</li>
+                <li><code>storeId</code>（引数）: handleDayClickの引数として、表示フィルタ用に使われている</li>
+                <li>同じ名前<code>storeId</code>が異なるスコープで異なる用途に使われている</li>
+            </ul>
+        </div>
+
+        <h3>3.3 元々の動作との比較</h3>
+        <p>planIdバグ修正前は、<code>setStoreId(fetchedStoreId)</code>が実行されていたにもかかわらず、問題が発生していなかった。</p>
+        <p><strong>考えられる理由:</strong></p>
+        <ul>
+            <li>以前は<code>storeId</code>が別の目的で使われていた</li>
+            <li>フィルタリングロジックが異なっていた</li>
+            <li>または、問題が顕在化していなかっただけ</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>4. 解決策の設計</h2>
+
+        <h3>4.1 店舗ID変数の明確な分離</h3>
+        <div class="solution-box">
+            <p>店舗IDには3つの異なる用途があることが判明：</p>
+            <table>
+                <tr>
+                    <th>用途</th>
+                    <th>データソース</th>
+                    <th>使用箇所</th>
+                </tr>
+                <tr>
+                    <td><strong>表示フィルタ用</strong></td>
+                    <td>ユーザーの選択</td>
+                    <td><code>selectedStoreId</code> - カレンダービューの表示制御</td>
+                </tr>
+                <tr>
+                    <td><strong>スタッフビュー列表示用</strong></td>
+                    <td>スタッフマスタ</td>
+                    <td><code>staff.store_id</code> - スタッフの所属店舗</td>
+                </tr>
+                <tr>
+                    <td><strong>シフト稼働店舗</strong></td>
+                    <td>シフトデータ / ユーザー入力</td>
+                    <td><code>shift.store_id</code> - 実際に稼働する店舗</td>
+                </tr>
+            </table>
+        </div>
+
+        <h3>4.2 問題の本質（3つの原因）</h3>
+
+        <h4>原因1: 状態変数 storeId（修正完了）</h4>
+        <div class="problem-box">
+            <ul>
+                <li><strong>表示フィルタバグの原因:</strong> 状態変数 <code>storeId</code> に最初のシフトの店舗IDが設定され、これが表示に影響していた（FirstPlanEditor.jsx:104, 226）</li>
+                <li><strong>実際には使われない:</strong> ShiftEditModalでバリデーションがあり、必ず店舗が選択される（FirstPlanEditor.jsx:1120-1123）ため、フォールバック値として機能しない</li>
+                <li><strong>意味が不明確:</strong> 「最初のシフトの店舗ID」は何のための値か不明</li>
+                <li><strong>UXの問題:</strong> 新規シフト作成時、ポップアップの店舗ドロップダウンが空で表示される</li>
+            </ul>
+            <p><strong>結論:</strong> 状態変数 <code>storeId</code> は完全に不要であり、削除すべき</p>
+        </div>
+
+        <h4>原因2: useShiftEditorBase の初期化ロジック（修正完了）</h4>
+        <div class="problem-box">
+            <p><strong>ファイル:</strong> <code>frontend/src/hooks/useShiftEditorBase.js</code></p>
+            <p><strong>問題箇所:</strong> Line 93-98 <code>initializeSelectedStores</code> 関数</p>
+            <div class="code">
+// Line 93-103
+const initializeSelectedStores = stores => {
+  const initialStoreId = selectedShift?.storeId || selectedShift?.store_id
+
+  if (initialStoreId) {
+    // 個別店舗指定の場合
+    setSelectedStores(new Set([parseInt(initialStoreId)]))  // ← ここで1店舗だけ選択
+  } else {
+    // 一括作成などで店舗指定がない場合は全店舗を選択
+    setSelectedStores(new Set(stores.map(s => parseInt(s.store_id))))
+  }
+}
+            </div>
+            <ul>
+                <li><strong>問題:</strong> <code>selectedShift</code> に <code>storeId</code> または <code>store_id</code> が含まれている場合、その店舗だけが選択され、他の店舗が表示されない</li>
+                <li><strong>影響:</strong> 下書き保存後、画面再読み込み時に <code>selectedShift</code> に店舗IDが含まれるため、COME麻布台（最初のシフトの店舗）だけが表示される</li>
+                <li><strong>根本原因:</strong> 「個別店舗指定」の判断に <code>selectedShift.storeId/store_id</code> を使用しているが、これはシフトデータに含まれる店舗IDであり、表示フィルタの意図とは異なる</li>
+            </ul>
+        </div>
+
+        <div class="important">
+            <h4>storeId vs store_id の違い</h4>
+            <p><strong>命名規則:</strong></p>
+            <ul>
+                <li><code>store_id</code>: スネークケース（データベース/バックエンドの命名規則）</li>
+                <li><code>storeId</code>: キャメルケース（JavaScriptの命名規則）</li>
+            </ul>
+            <p><strong>使い分け:</strong></p>
+            <ul>
+                <li>データベースから取得したデータ: <code>store_id</code></li>
+                <li>JavaScriptオブジェクトのプロパティ: <code>storeId</code></li>
+            </ul>
+            <p><code>selectedShift?.storeId || selectedShift?.store_id</code> と両方チェックしているのは、どちらの形式でも対応するため。</p>
+            <p><strong>注:</strong> この命名の不統一は Issue #93 で追跡中。</p>
+        </div>
+
+        <h4>原因3: データロード処理でのフィルタリング（原因確定）</h4>
+        <div class="problem-box">
+            <p><strong>ファイル:</strong> <code>frontend/src/components/screens/shift/FirstPlanEditor.jsx</code></p>
+            <p><strong>問題箇所:</strong> Line 242-245 <code>loadShiftData</code> 関数のAPI呼び出しロジック</p>
+
+            <h5>調査で判明した事実</h5>
+            <ul>
+                <li><strong>症状:</strong> 原因1・2を修正しても、下書き保存後の再読み込みで特定店舗のシフトのみが表示される問題が解決しない</li>
+                <li><strong>調査結果:</strong> デバッグログにより、<code>selectedStores</code> は正しく5店舗すべてが選択されている（✅ 正常）</li>
+                <li><strong>重要な発見:</strong> <code>shiftData</code> の件数が、初回ロード時は557件だが、下書き保存後の再読み込み時には120件に減少</li>
+                <li><strong>結論:</strong> 表示フィルタリングの問題ではなく、データロード時点でデータが絞り込まれている</li>
+            </ul>
+
+            <h5>根本原因（確定）</h5>
+            <div class="code">
+// Line 242-245
+const usePlanId = planId && isEditMode
+const apiParams = usePlanId
+  ? { planId }  // ← ❌ この条件でAPIを呼ぶと120件しか返らない
+  : { year, month, plan_type: planType }
+            </div>
+
+            <p><strong>問題の詳細:</strong></p>
+            <ul>
+                <li>下書き保存後、<code>planId: 323</code> が設定される</li>
+                <li><code>isEditMode: true</code> のため、条件 <code>planId && isEditMode</code> が真になる</li>
+                <li>APIが <code>{ planId: 323 }</code> のみで呼ばれる</li>
+                <li>APIは <code>planId: 323</code> に紐づく120件のシフトのみを返す</li>
+                <li>このplanには特定の店舗のシフトしか含まれていない</li>
+            </ul>
+
+            <h5>デバッグログの証拠</h5>
+            <div class="code">
+// 下書き保存後の再ロード時
+🔍 loadShiftData - API呼び出し前: {
+  planId: 323,
+  isEditMode: true,
+  year: 2025,
+  month: 12,
+  planType: "FIRST"
+}
+
+🔍 loadShiftData - API呼び出しパラメータ: {
+  usePlanId: true,
+  apiParams: {planId: 323}  // ← ❌ planIdのみで呼び出し
+}
+
+🔍 loadShiftData - API応答: {
+  shiftsCount: 120,  // ← ❌ 557件から120件に減少！
+  firstShift: {store_id: 183, store_name: "COME 麻布台", ...}
+}
+
+📊 shiftData 店舗別件数: {
+  183 (COME 麻布台): 117件,
+  184 (Atelier): 3件
+  // ← ❌ 他の3店舗（SHIBUYA、Stand Banh Mi、Stand Bo Bun）が0件
+}
+            </div>
+
+            <h5>なぜこのロジックが存在するのか</h5>
+            <p>コメント: <code>// 閲覧モードの場合は全店舗分を取得、編集モードの場合はplanIdで取得</code></p>
+            <ul>
+                <li>意図: 編集モードで特定のプランを編集する場合、そのプランのシフトのみを取得する</li>
+                <li>問題: プラン（plan_id）は全店舗のシフトを含むべきだが、実際には一部の店舗のシフトしか含まれていない</li>
+                <li>根本的な問題: <strong>planIdに紐づくデータが不完全</strong>、または<strong>取得ロジックが不適切</strong></li>
+            </ul>
+
+            <h5>解決策</h5>
+            <p><strong>方針:</strong> マルチストア環境では、常に全店舗のシフトを取得すべき</p>
+            <div class="code">
+<span class="diff-remove">// 削除: planIdによる条件分岐
+const usePlanId = planId && isEditMode
+const apiParams = usePlanId
+  ? { planId }
+  : { year, month, plan_type: planType }</span>
+
+<span class="diff-add">// 追加: 常に年月・プランタイプで取得（全店舗）
+const apiParams = { year, month, plan_type: planType }</span>
+            </div>
+            <ul>
+                <li>✅ <code>planId</code> の有無に関わらず、常に <code>{ year, month, plan_type }</code> で取得</li>
+                <li>✅ これにより全店舗のシフトが常に取得される</li>
+                <li>✅ <code>planId</code> はトラッキング用の情報として保持（保存時に使用）</li>
+            </ul>
+        </div>
+
+        <h3>4.3 最終推奨案</h3>
+        <div class="solution-box">
+            <h4>シンプルで明確な設計</h4>
+            <ol>
+                <li><strong>状態変数 <code>storeId</code> を削除（完了）</strong>
+                    <ul>
+                        <li>表示フィルタバグの根本原因を除去</li>
+                        <li>不要な状態管理を削減</li>
+                    </ul>
+                </li>
+                <li><strong><code>selectedStoreId</code> はそのまま維持（完了）</strong>
+                    <ul>
+                        <li>カレンダービューの表示フィルタ用（既存）</li>
+                        <li>これだけで十分</li>
+                    </ul>
+                </li>
+                <li><strong>handleDayClickの引数はそのまま（完了）</strong>
+                    <ul>
+                        <li>引数 <code>storeId</code> はローカルスコープなので問題なし</li>
+                        <li>状態変数がなくなったので混同しない</li>
+                        <li>First/Second両方で同じ関数シグネチャを維持</li>
+                    </ul>
+                </li>
+                <li><strong>新規シフト作成時の初期値改善（完了）</strong>
+                    <ul>
+                        <li>handleShiftClickでスタッフの所属店舗（<code>staffMap[staffId]?.store_id</code>）を初期値に設定</li>
+                        <li>ポップアップを開いた時、所属店舗がデフォルト選択された状態</li>
+                    </ul>
+                </li>
+                <li><strong>handleAddShiftのフォールバックを削除（完了）</strong>
+                    <ul>
+                        <li><code>store_id: newShiftData.store_id</code> のみ（フォールバック不要）</li>
+                        <li>バリデーションで必ず値が入るため</li>
+                    </ul>
+                </li>
+                <li><strong>useShiftEditorBase の初期化ロジックを修正（完了）</strong>
+                    <ul>
+                        <li><code>initializeSelectedStores</code> を修正して、常に全店舗を選択</li>
+                        <li><code>selectedShift.storeId/store_id</code> による個別店舗指定ロジックを削除</li>
+                        <li>チェックボックスによる店舗選択機能は維持（ユーザーが手動で選択可能）</li>
+                    </ul>
+                </li>
+                <li><strong>データロード処理の調査と修正（必須・調査中）</strong>
+                    <ul>
+                        <li><code>loadShiftData</code> 関数がどのようにデータを取得しているか調査</li>
+                        <li>APIリクエストのパラメータに店舗IDが含まれているか確認</li>
+                        <li>121件にフィルタリングされる原因を特定</li>
+                        <li>全店舗のシフトデータが取得されるように修正</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>5. 実装の変更点</h2>
+
+        <h3>5.1 状態変数の削除</h3>
+        <div class="code">
+// Line 104
+<span class="diff-remove">const [storeId, setStoreId] = useState(null)</span>
+        </div>
+        <div class="important">
+            <p><strong>重要:</strong> 状態変数 <code>storeId</code> を完全に削除する。これが表示フィルタバグの原因。</p>
+            <p><code>selectedStoreId</code>（Line 83）は既に存在し、表示フィルタ用として機能するため、これだけで十分。</p>
+        </div>
+
+        <h3>5.2 loadShiftData関数</h3>
+        <div class="code">
+// Line 221-228
+<span class="diff-remove">const fetchedStoreId = shiftsResult.length > 0 ? shiftsResult[0].store_id : null</span>
+const fetchedPatternId = shiftsResult.length > 0 ? shiftsResult[0].pattern_id : null
+const fetchedPlanId = shiftsResult.length > 0 ? shiftsResult[0].plan_id : null
+
+// ステートに保存
+<span class="diff-remove">setStoreId(fetchedStoreId)</span>
+setDefaultPatternId(fetchedPatternId)
+setPlanIdState(fetchedPlanId)
+        </div>
+        <div class="important">
+            <p><strong>変更:</strong> <code>fetchedStoreId</code> の取得と <code>setStoreId</code> の呼び出しを削除。不要な処理を除去。</p>
+        </div>
+
+        <h3>5.3 handleDayClick関数</h3>
+        <div class="important">
+            <p><strong>変更なし</strong></p>
+            <p>引数 <code>storeId</code> はローカルスコープの変数なので問題なし。状態変数が削除されたため混同しない。</p>
+            <p>First/Second両方で同じ関数シグネチャを維持するため、このまま。</p>
+        </div>
+        <div class="code">
+// Line 287-299（変更なし）
+const handleDayClick = (day, storeId = null) => {
+  let dayShiftsData = calendarData.shiftsByDate[day] || []
+
+  // storeIdが指定されている場合は、その店舗のシフトのみをフィルタリング
+  if (storeId !== null) {
+    dayShiftsData = dayShiftsData.filter(shift => shift.store_id === storeId)
+  }
+
+  console.log('🔍 handleDayClick called:', { day, storeId, shiftsCount: dayShiftsData.length })
+  setSelectedDay(day)
+  setSelectedStoreId(storeId)
+  setDayShifts(dayShiftsData)
+}
+        </div>
+
+        <h3>5.4 handleShiftClick - 新規シフト作成時の初期値</h3>
+        <div class="code">
+// handleShiftClick内の新規追加モード（Line 784-798）
+if (mode === 'add') {
+  // 新規追加モード
+<span class="diff-add">  // スタッフの所属店舗をデフォルトに設定</span>
+<span class="diff-add">  const staffStoreId = staffMap[staffId]?.store_id</span>
+  const storeData = storesMap instanceof Map
+<span class="diff-remove">    ? storesMap.get(parseInt(storeId))</span>
+<span class="diff-remove">    : storesMap[parseInt(storeId)]</span>
+<span class="diff-add">    ? storesMap.get(parseInt(staffStoreId))</span>
+<span class="diff-add">    : storesMap[parseInt(staffStoreId)]</span>
+
+  setModalState({
+    isOpen: true,
+    mode: 'add',
+    shift: {
+      date: formattedDate,
+      staff_id: staffId,
+<span class="diff-remove">      store_id: storeId, // セルがクリックされた店舗ID</span>
+<span class="diff-add">      store_id: staffStoreId, // スタッフの所属店舗ID</span>
+      staff_name: staffMap[staffId]?.name || '不明',
+      store_name: storeData?.store_name || '不明',
+    },
+    position,
+  })
+}
+        </div>
+        <div class="solution-box">
+            <p><strong>改善効果:</strong></p>
+            <ul>
+                <li>ポップアップを開いた時、スタッフの所属店舗が最初から選択されている</li>
+                <li>多くの場合、スタッフは自分の所属店舗で勤務するため、選択の手間が省ける</li>
+                <li>応援勤務の場合は、ユーザーが手動で別の店舗を選択できる</li>
+            </ul>
+        </div>
+
+        <h3>5.5 handleAddShift - フォールバックの削除</h3>
+        <div class="code">
+// Line 712
+<span class="diff-remove">store_id: newShiftData.store_id || storeId, // 必須（ポップアップから渡される）</span>
+<span class="diff-add">store_id: newShiftData.store_id, // 必須（ポップアップから渡される）</span>
+        </div>
+        <div class="important">
+            <p><strong>理由:</strong> ShiftEditModalでバリデーションがあるため、<code>newShiftData.store_id</code> には必ず値が入る。フォールバック不要。</p>
+        </div>
+
+        <h3>5.6 useShiftEditorBase - 初期化ロジックの修正（必須）</h3>
+        <div class="code">
+// frontend/src/hooks/useShiftEditorBase.js
+// Line 93-103
+
+<span class="diff-remove">/**
+ * 選択された店舗の初期状態を設定
+ * selectedShiftにstoreIdが明示的に指定されている場合のみ、その店舗だけを選択
+ * それ以外（一括作成など）は全店舗を選択
+ */
+const initializeSelectedStores = stores => {
+  const initialStoreId = selectedShift?.storeId || selectedShift?.store_id
+
+  if (initialStoreId) {
+    // 個別店舗指定の場合
+    setSelectedStores(new Set([parseInt(initialStoreId)]))
+  } else {
+    // 一括作成などで店舗指定がない場合は全店舗を選択
+    setSelectedStores(new Set(stores.map(s => parseInt(s.store_id))))
+  }
+}</span>
+
+<span class="diff-add">/**
+ * 選択された店舗の初期状態を設定
+ * 常に全店舗を選択（マルチストア表示のため）
+ * ユーザーはチェックボックスで表示する店舗を選択できる
+ */
+const initializeSelectedStores = stores => {
+  // 常に全店舗を選択
+  setSelectedStores(new Set(stores.map(s => parseInt(s.store_id))))
+}</span>
+        </div>
+        <div class="solution-box">
+            <p><strong>変更内容:</strong></p>
+            <ul>
+                <li><code>selectedShift.storeId/store_id</code> による条件分岐を削除</li>
+                <li>常に全店舗を選択するシンプルなロジックに変更</li>
+            </ul>
+            <p><strong>効果:</strong></p>
+            <ul>
+                <li>初期表示で全店舗のシフトが表示される</li>
+                <li>下書き保存後の再読み込みでも全店舗が表示される</li>
+                <li>ユーザーはチェックボックスで表示する店舗を選択可能</li>
+            </ul>
+        </div>
+
+        <h3>5.7 loadShiftData - API呼び出しロジックの修正（必須）</h3>
+        <div class="code">
+// frontend/src/components/screens/shift/FirstPlanEditor.jsx
+// Line 240-252（修正前）
+
+<span class="diff-remove">// まずシフトデータを取得
+// 閲覧モードの場合は全店舗分を取得、編集モードの場合はplanIdで取得
+const usePlanId = planId && isEditMode
+const apiParams = usePlanId
+  ? { planId }
+  : { year, month, plan_type: planType }
+
+console.log('🔍 loadShiftData - API呼び出しパラメータ:', {
+  usePlanId,
+  apiParams,
+})
+
+const shiftsResult = await shiftRepository.getShifts(apiParams)</span>
+
+<span class="diff-add">// まずシフトデータを取得
+// マルチストア環境では、常に全店舗のシフトを取得
+const apiParams = { year, month, plan_type: planType }
+
+console.log('🔍 loadShiftData - API呼び出しパラメータ:', {
+  apiParams,
+})
+
+const shiftsResult = await shiftRepository.getShifts(apiParams)</span>
+        </div>
+        <div class="solution-box">
+            <p><strong>変更内容:</strong></p>
+            <ul>
+                <li><code>planId && isEditMode</code> による条件分岐を削除</li>
+                <li>常に <code>{ year, month, plan_type }</code> でAPIを呼び出し</li>
+                <li><code>usePlanId</code> 変数を削除（不要になった）</li>
+            </ul>
+            <p><strong>効果:</strong></p>
+            <ul>
+                <li>下書き保存後の再読み込みでも、全店舗のシフト（557件）が正しく取得される</li>
+                <li>planIdに紐づく一部のシフト（120件）だけが取得される問題が解消</li>
+                <li>COME麻布台以外の店舗のシフトも正しく表示される</li>
+            </ul>
+            <p><strong>注意:</strong></p>
+            <ul>
+                <li><code>planId</code> は引き続きトラッキング用として保持される（保存時に使用）</li>
+                <li><code>planId</code> の設定・取得ロジックは変更しない（Line 260-264）</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>6. テスト観点</h2>
+
+        <table>
+            <tr>
+                <th>テストケース</th>
+                <th>確認内容</th>
+                <th>期待結果</th>
+            </tr>
+            <tr>
+                <td>マルチストア表示</td>
+                <td>画面を開いた時、全店舗のシフトが表示されるか</td>
+                <td>✅ 全店舗のシフトが表示される</td>
+            </tr>
+            <tr>
+                <td>下書き保存後の再読み込み</td>
+                <td>下書き保存 → 画面リロード → 全店舗のシフトが表示されるか</td>
+                <td>✅ COME麻布台以外のシフトも表示される（本Issue対応）</td>
+            </tr>
+            <tr>
+                <td>店舗フィルタ</td>
+                <td>特定の店舗を選択した時、その店舗のシフトのみが表示されるか</td>
+                <td>✅ 選択した店舗のシフトのみ表示</td>
+            </tr>
+            <tr>
+                <td>新規シフト作成（ポップアップ初期値）</td>
+                <td>スタッフのセルをクリックしてポップアップを開く</td>
+                <td>✅ 勤務店舗ドロップダウンに、そのスタッフの所属店舗がデフォルトで選択されている（追加提案）</td>
+            </tr>
+            <tr>
+                <td>新規シフト作成（所属店舗で勤務）</td>
+                <td>ポップアップでデフォルトのまま保存</td>
+                <td>✅ スタッフの所属店舗でシフトが作成される</td>
+            </tr>
+            <tr>
+                <td>新規シフト作成（応援勤務）</td>
+                <td>ポップアップで店舗を変更して保存</td>
+                <td>✅ 選択した店舗でシフトが作成される（応援勤務）</td>
+            </tr>
+            <tr>
+                <td>新規シフト作成（バリデーション）</td>
+                <td>ポップアップで店舗を未選択のまま保存を試みる</td>
+                <td>✅ 「勤務店舗を選択してください」とアラートが表示され、保存できない</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h2>7. 将来的な改善提案</h2>
+
+        <h3>7.1 TypeScript化</h3>
+        <div class="important">
+            <p>型定義により、変数の用途を明確化：</p>
+            <div class="code">
+// 表示フィルタ用（nullable）
+type DisplayFilterStoreId = number | null
+
+// 稼働店舗ID（nullable）
+type WorkingStoreId = number | null
+
+interface FirstPlanEditorState {
+  selectedStoreId: DisplayFilterStoreId  // カレンダービュー表示フィルタ
+  defaultWorkingStoreId: WorkingStoreId  // 新規シフトのデフォルト稼働店舗
+}
+            </div>
+        </div>
+
+        <h3>7.2 所属店舗の概念追加</h3>
+        <p>将来的には、スタッフの「所属店舗」という概念も追加する可能性がある：</p>
+        <ul>
+            <li><code>belongingStoreId</code>: スタッフが所属する店舗</li>
+            <li>所属店舗をデフォルトの表示フィルタとして使用</li>
+        </ul>
+    </div>
+
+    <div class="section">
+        <h2>8. まとめ</h2>
+
+        <h3>問題</h3>
+        <p>下書き保存後の画面再読み込み時に、特定の店舗（COME麻布台）のシフトのみが表示される。</p>
+
+        <h3>原因（3つ）</h3>
+        <ol>
+            <li><strong>FirstPlanEditor内の状態変数 <code>storeId</code></strong>: 最初のシフトの店舗IDが設定され、表示に影響（修正完了）</li>
+            <li><strong>useShiftEditorBaseの初期化ロジック</strong>: <code>selectedShift.storeId/store_id</code> がある場合、その店舗だけを選択（修正完了）</li>
+            <li><strong>データロード処理</strong>: <code>loadShiftData</code> またはAPIレスポンスで、シフトデータが121件にフィルタリングされている（調査中）</li>
+        </ol>
+
+        <h3>解決策</h3>
+        <div class="solution-box">
+            <h4>1. 表示フィルタバグ修正（完了）</h4>
+            <ul>
+                <li>✅ 状態変数 <code>storeId</code> を完全に削除（FirstPlanEditor.jsx Line 104）</li>
+                <li>✅ <code>loadShiftData</code> 内の <code>fetchedStoreId</code> 取得と <code>setStoreId</code> 呼び出しを削除（Line 220, 225）</li>
+                <li>✅ 表示フィルタは既存の <code>selectedStoreId</code> のみを使用</li>
+                <li>✅ handleDayClickはそのまま（引数名変更不要）</li>
+            </ul>
+
+            <h4>2. 新規シフト作成時の初期値改善（完了）</h4>
+            <ul>
+                <li>✅ handleShiftClickでスタッフの所属店舗（<code>staffMap[staffId]?.store_id</code>）を初期値に設定</li>
+                <li>✅ ポップアップの勤務店舗ドロップダウンに、デフォルトで所属店舗が選択された状態で表示</li>
+                <li>✅ handleAddShiftのフォールバック（<code>|| storeId</code>）を削除</li>
+            </ul>
+
+            <h4>3. useShiftEditorBase の初期化ロジック修正（完了）</h4>
+            <ul>
+                <li>✅ <code>initializeSelectedStores</code> 関数を修正（useShiftEditorBase.js Line 93-98）</li>
+                <li>✅ <code>selectedShift.storeId/store_id</code> による条件分岐を削除</li>
+                <li>✅ 常に全店舗を選択するシンプルなロジックに変更</li>
+            </ul>
+
+            <h4>4. データロード処理の調査と修正（必須・未完了）</h4>
+            <ul>
+                <li>✅ <code>loadShiftData</code> 関数の実装を調査</li>
+                <li>✅ APIリクエストパラメータの確認（<code>{ planId }</code> で呼ばれて120件に絞られていることを確認）</li>
+                <li>✅ 120件にフィルタリングされる原因の特定（<code>planId && isEditMode</code> の条件分岐）</li>
+                <li>🔧 全店舗のシフトデータが正しく取得されるように修正（Line 240-252の条件分岐を削除）</li>
+            </ul>
+        </div>
+
+        <h3>期待される効果</h3>
+        <ul>
+            <li>✅ 全店舗のシフトが正しく表示される</li>
+            <li>✅ 不要な状態管理を削減、コードがシンプルになる</li>
+            <li>✅ 新規シフト作成時のUX向上（スタッフの所属店舗が自動選択）</li>
+            <li>✅ First/Second両方で同じ関数シグネチャを維持</li>
+        </ul>
+
+        <h3>実装ステータス</h3>
+        <table>
+            <tr>
+                <th>項目</th>
+                <th>ファイル</th>
+                <th>変更内容</th>
+                <th>ステータス</th>
+            </tr>
+            <tr>
+                <td>状態変数 storeId の削除</td>
+                <td>FirstPlanEditor.jsx</td>
+                <td>Line 104 削除</td>
+                <td>✅ 完了</td>
+            </tr>
+            <tr>
+                <td>loadShiftData の修正</td>
+                <td>FirstPlanEditor.jsx</td>
+                <td>Line 220, 225 削除</td>
+                <td>✅ 完了</td>
+            </tr>
+            <tr>
+                <td>handleShiftClick の修正</td>
+                <td>FirstPlanEditor.jsx</td>
+                <td>スタッフの所属店舗を初期値に</td>
+                <td>✅ 完了</td>
+            </tr>
+            <tr>
+                <td>handleAddShift の修正</td>
+                <td>FirstPlanEditor.jsx</td>
+                <td>フォールバック削除</td>
+                <td>✅ 完了</td>
+            </tr>
+            <tr>
+                <td>useShiftEditorBase 修正</td>
+                <td>useShiftEditorBase.js</td>
+                <td>Line 93-98 初期化ロジック修正</td>
+                <td>✅ 完了</td>
+            </tr>
+            <tr>
+                <td>データロード処理の調査</td>
+                <td>FirstPlanEditor.jsx</td>
+                <td>loadShiftData 関数の調査</td>
+                <td>✅ 完了</td>
+            </tr>
+            <tr>
+                <td>loadShiftData API呼び出し修正</td>
+                <td>FirstPlanEditor.jsx</td>
+                <td>Line 240-248 条件分岐削除</td>
+                <td>✅ 完了</td>
+            </tr>
+        </table>
+
+        <h3>重要な設計判断</h3>
+        <div class="important">
+            <ul>
+                <li><strong>handleDayClickの引数は変更しない:</strong> ローカルスコープなので問題なし。First/Secondで統一。</li>
+                <li><strong>defaultWorkingStoreIdは作らない:</strong> 不要な状態変数を増やさない。スタッフの所属店舗で十分。</li>
+                <li><strong>planIdによる条件分岐を削除:</strong> マルチストア環境では、常に全店舗のシフトを取得すべき。planIdはトラッキング用として保持するが、取得時のフィルタには使用しない。</li>
+                <li><strong>シンプルな設計:</strong> 最小限の変更で問題を解決。過度な抽象化を避ける。</li>
+            </ul>
+        </div>
+
+        <h3>planIdの役割の明確化</h3>
+        <div class="important">
+            <p><strong>planIdは何のために存在するのか：</strong></p>
+            <ul>
+                <li><strong>トラッキング用:</strong> どの下書きプランを編集しているかを追跡</li>
+                <li><strong>保存時の識別:</strong> 下書き保存・更新時に、どのプランを更新するかを指定</li>
+                <li><strong>ステータス管理:</strong> 下書き（DRAFT）、承認済み（APPROVED）などの状態を管理</li>
+            </ul>
+            <p><strong>planIdを使ってはいけない場面：</strong></p>
+            <ul>
+                <li>❌ <strong>シフトデータの取得時のフィルタ:</strong> マルチストア環境では、常に全店舗のシフトを取得すべき</li>
+                <li>❌ <strong>店舗単位の絞り込み:</strong> planIdは店舗を識別する情報ではない</li>
+            </ul>
+            <p><strong>正しい使い方:</strong></p>
+            <ul>
+                <li>✅ 取得: <code>{ year, month, plan_type }</code> で全店舗のシフトを取得</li>
+                <li>✅ 保存: <code>planId</code> を使って、どのプランを更新するか指定</li>
+                <li>✅ 表示: 取得した全店舗のシフトから、<code>selectedStores</code> でフィルタリング</li>
+            </ul>
+        </div>
+    </div>
+
+</body>
+</html>
