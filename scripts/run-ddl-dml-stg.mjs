@@ -49,7 +49,18 @@ async function runDDLandDML() {
     }
     console.log('✅ DML実行完了\n')
 
-    // 4. データ確認
+    // 4. テナント3のテストデータ投入（CSVから）
+    console.log('📝 テナント3のテストデータ投入中...')
+    try {
+      const { setupTenant3Data } = await import('./database/setup/setup_tenant3_test_data.mjs')
+      await setupTenant3Data(client)
+      console.log('✅ テストデータ投入完了\n')
+    } catch (error) {
+      console.error('⚠️  テストデータ投入でエラーが発生しました:', error.message)
+      console.error('   スキップして続行します...\n')
+    }
+
+    // 5. データ確認
     console.log('🔍 データ確認中...')
 
     const tenants = await client.query('SELECT tenant_id, tenant_name FROM core.tenants ORDER BY tenant_id')

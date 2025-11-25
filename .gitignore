@@ -7,8 +7,10 @@ dist-ssr
 *.local
 
 # Environment variables
-# .env.local: ローカル開発用（個人のシークレット含む）
-# .env.staging, .env.production: チーム共有の参考ファイル（コミットOK）
+# モダンな環境変数管理:
+#   .env, .env.example → デフォルト値・テンプレート（コミット可）
+#   .env.local → ローカル開発用シークレット（コミット不可）
+#   STG/PRD → クラウドプラットフォーム（Vercel/Railway）のUIで管理
 .env.local
 .env.*.local
 
@@ -46,9 +48,3 @@ frontend/public/data/generated/*
 # Test coverage
 coverage
 .nyc_output
-
-# 個人のシークレットを含むため除外（廃止予定）
-# 新しい環境管理方式では .env.local を使用
-.env
-frontend/.env
-backend/.env

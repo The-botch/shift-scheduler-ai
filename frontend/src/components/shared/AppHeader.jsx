@@ -70,10 +70,34 @@ const AppHeader = () => {
 
   // 環境判定
   const getEnvironment = () => {
+    // 環境変数で明示的に指定されている場合はそれを優先
+    const envVar = import.meta.env.VITE_ENV
+    console.log('🔍 VITE_ENV:', envVar)
+    console.log('🔍 All env vars:', import.meta.env)
+    if (envVar) {
+      console.log('✅ envVar exists, using envMap')
+      const envMap = {
+        local: { name: 'LOCAL', label: 'ローカル', color: 'blue' },
+        stg: { name: 'STG', label: 'ステージング', color: 'yellow' },
+        prd: { name: 'PRD', label: '本番', color: 'green' }
+      }
+      const key = envVar.toLowerCase()
+      console.log('🔑 Key:', key)
+      console.log('📦 envMap[key]:', envMap[key])
+      const result = envMap[key] || envMap.local
+      console.log('🎁 Returning:', result)
+      return result
+    }
+    console.log('⚠️ No envVar, using hostname detection')
+
+    // ホスト名から自動判定
     const hostname = window.location.hostname
 
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       return { name: 'LOCAL', label: 'ローカル', color: 'blue' }
+    } else if (hostname.includes('shift-scheduler-ai-stg.vercel.app')) {
+      // ステージング環境
+      return { name: 'STG', label: 'ステージング', color: 'yellow' }
     } else if (
       hostname.includes('vercel.app') &&
       !hostname.includes('shift-scheduler-ai.vercel.app')
@@ -87,6 +111,7 @@ const AppHeader = () => {
   }
 
   const environment = getEnvironment()
+  console.log('🎯 Returned environment:', environment)
 
   const formatDate = date => {
     const year = date.getFullYear()
