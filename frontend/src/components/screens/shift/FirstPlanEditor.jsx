@@ -600,15 +600,6 @@ const FirstPlanEditor = ({
 
   // シフト更新ハンドラー（ローカルステートのみ更新）
   const handleUpdateShift = (shiftId, updates) => {
-    console.log('=== handleUpdateShift START ===')
-    console.log('shiftId:', shiftId)
-    console.log('updates:', updates)
-    console.log('selectedShift status:', selectedShift?.status)
-    console.log('current shiftData length:', shiftData.length)
-    console.log(
-      'current calendarData:',
-      calendarData ? Object.keys(calendarData.shiftsByDate).length + ' days' : 'null'
-    )
     setHasUnsavedChanges(true)
 
     // ローカルの変更を保持
@@ -659,17 +650,20 @@ const FirstPlanEditor = ({
         )
       )
     }
-
-    console.log('=== handleUpdateShift END ===')
-    console.log('Updated successfully for shiftId:', shiftId)
   }
 
   // シフト削除ハンドラー（ローカルステートのみ更新）
   const handleDeleteShift = shiftId => {
     setHasUnsavedChanges(true)
 
-    // ローカルの削除リストに追加
-    setDeletedShiftIds(prev => new Set([...prev, shiftId]))
+    // Tempシフト（未保存）かどうかを判定
+    if (String(shiftId).startsWith('temp_')) {
+      // Tempシフトの場合：addedShiftsから削除（バックエンドへの削除リクエストは不要）
+      setAddedShifts(prev => prev.filter(shift => shift.shift_id !== shiftId))
+    } else {
+      // 既存シフト（DB保存済み）の場合：削除リストに追加（バックエンドで削除）
+      setDeletedShiftIds(prev => new Set([...prev, shiftId]))
+    }
 
     // UIから削除
     setCalendarData(prev => {
@@ -702,8 +696,6 @@ const FirstPlanEditor = ({
 
   // シフト追加ハンドラー（ローカルステートのみ更新）
   const handleAddShift = newShiftData => {
-    console.log('=== handleAddShift START ===')
-    console.log('newShiftData:', newShiftData)
     setHasUnsavedChanges(true)
 
     // 一時的なシフトIDを生成
@@ -768,16 +760,10 @@ const FirstPlanEditor = ({
     if (selectedDay === day) {
       setDayShifts(prev => [...prev, newShift])
     }
-
-    console.log('=== handleAddShift END ===')
   }
 
   // セルクリック時のハンドラー
   const handleShiftClick = ({ mode, shift, date, staffId, storeId, event }) => {
-    console.log('=== handleShiftClick ===')
-    console.log('mode:', mode)
-    console.log('shift:', shift)
-
     // クリック位置を取得
     const rect = event?.target.getBoundingClientRect()
     const position = rect
@@ -832,10 +818,6 @@ const FirstPlanEditor = ({
 
   // モーダルからの保存処理
   const handleModalSave = timeData => {
-    console.log('=== handleModalSave ===')
-    console.log('modalState:', modalState)
-    console.log('timeData:', timeData)
-
     if (modalState.mode === 'add') {
       handleAddShift({
         ...modalState.shift,
