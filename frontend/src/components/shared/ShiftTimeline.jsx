@@ -7,7 +7,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { ROLE_COLORS, getRoleColor } from '../../config/colors'
 import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
 
-const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, onUpdate, onDelete, storeName, storesMap = {}, onShiftClick }) => {
+const ShiftTimeline = ({
+  date,
+  shifts,
+  onClose,
+  year,
+  month,
+  editable = false,
+  onUpdate,
+  onDelete,
+  storeName,
+  storesMap = {},
+  onShiftClick,
+}) => {
   // 時刻をHH:MM形式にフォーマット
   const formatTime = time => {
     if (!time) return ''
@@ -358,7 +370,8 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
                         left: `${left}px`,
                         width: `${columnWidth - 4}px`,
                         minHeight: '30px',
-                        cursor: editable && onShiftClick ? 'pointer' : editable ? 'move' : 'default'
+                        cursor:
+                          editable && onShiftClick ? 'pointer' : editable ? 'move' : 'default',
                       }}
                       whileHover={editable ? { scale: 1.02 } : {}}
                       whileDrag={{ scale: 1.05, zIndex: 50 }}
@@ -369,7 +382,9 @@ const ShiftTimeline = ({ date, shifts, onClose, year, month, editable = false, o
                       }}
                     >
                       <div className="px-1 py-0.5 h-full text-white relative">
-                        <div className="font-bold text-[0.5rem] leading-tight mb-0.5 truncate">{shift.staff_name}</div>
+                        <div className="font-bold text-[0.5rem] leading-tight mb-0.5 truncate">
+                          {shift.staff_name}
+                        </div>
                         {shift.store_id && storesMap[shift.store_id] && (
                           <div className="text-[0.4rem] leading-tight opacity-90 bg-white bg-opacity-20 px-0.5 py-0.5 rounded inline-block mb-0.5">
                             🏪 {storesMap[shift.store_id].store_name}
