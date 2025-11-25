@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>退職者管理 - 全体設計書</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 4px solid #9b59b6;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 5px solid #9b59b6;
+            padding-left: 15px;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .overview-box {
+            background: #f3e5f5;
+            border-left: 4px solid #9b59b6;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .phase-box {
+            background: white;
+            border: 2px solid #9b59b6;
+            border-radius: 8px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+
+        .phase-header {
+            background: #9b59b6;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 15px;
+        }
+
+        .phase-status {
+            display: inline-block;
+            padding: 5px 12px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 10px;
+        }
+
+        .phase-status.completed {
+            background: #28a745;
+            color: white;
+        }
+
+        .phase-status.in-progress {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .phase-status.pending {
+            background: #6c757d;
+            color: white;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        table th {
+            background: #9b59b6;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        table td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        table tr:hover {
+            background: #f8f9fa;
+        }
+
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .code-block pre {
+            margin: 0;
+        }
+
+        ul, ol {
+            margin-left: 30px;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        li {
+            margin: 8px 0;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .diagram {
+            background: #f8f9fa;
+            border: 2px solid #9b59b6;
+            border-radius: 8px;
+            padding: 30px;
+            margin: 25px 0;
+            text-align: center;
+        }
+
+        .flow-item {
+            display: inline-block;
+            background: white;
+            border: 2px solid #9b59b6;
+            border-radius: 8px;
+            padding: 15px 25px;
+            margin: 10px;
+            font-weight: bold;
+        }
+
+        .arrow {
+            display: inline-block;
+            font-size: 2em;
+            color: #9b59b6;
+            margin: 0 10px;
+        }
+
+        .db-table {
+            background: #263238;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            margin: 15px 0;
+        }
+
+        .db-column {
+            padding: 5px 0;
+            border-bottom: 1px solid #546e7a;
+        }
+
+        .db-column:last-child {
+            border-bottom: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>👋 退職者管理 - 全体設計書</h1>
+
+        <div class="overview-box">
+            <h3>📋 設計の目的</h3>
+            <p>スタッフの退職に関連するすべての機能を包括的に設計し、一貫性のある退職者管理システムを構築する。</p>
+
+            <p style="margin-top: 15px;"><strong>対象範囲：</strong></p>
+            <ul>
+                <li>退職判定ロジック</li>
+                <li>退職処理のワークフロー</li>
+                <li>シフト表示とコピー機能</li>
+                <li>スタッフ選択肢のフィルタリング</li>
+                <li>アカウント・権限管理</li>
+                <li>レポート・集計</li>
+            </ul>
+        </div>
+
+        <h2>1. 現在のデータベース構造</h2>
+
+        <div class="db-table">
+<pre>CREATE TABLE hr.staff (
+    staff_id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL,
+    division_id INTEGER,
+    store_id INTEGER NOT NULL,
+    role_id INTEGER NOT NULL,
+    staff_code VARCHAR(50) NOT NULL,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(200),
+    phone_number VARCHAR(20),
+    employment_type VARCHAR(50) NOT NULL,
+    hire_date DATE NOT NULL,
+    <strong style="color: #ffc107;">resignation_date DATE,</strong>           -- 退職日（既存）
+    monthly_salary NUMERIC(10,2),
+    hourly_rate NUMERIC(8,2),
+    commute_distance_km NUMERIC(5,2),
+    has_social_insurance BOOLEAN DEFAULT false,
+    <strong style="color: #ffc107;">is_active BOOLEAN DEFAULT true,</strong>   -- アクティブフラグ（既存）
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+);</pre>
+        </div>
+
+        <div class="success-box">
+            <p><strong>✅ 既存のカラム:</strong></p>
+            <ul>
+                <li><code>resignation_date</code> - 退職日（DATE型、NULLABLE）</li>
+                <li><code>is_active</code> - アクティブフラグ（BOOLEAN型、デフォルト true）</li>
+            </ul>
+            <p style="margin-top: 10px;">基本的なデータ構造は既に整っている。追加のカラムは不要。</p>
+        </div>
+
+        <h2>2. 実装フェーズの全体像</h2>
+
+        <div class="diagram">
+            <h3>実装の流れ</h3>
+            <div style="margin: 30px 0;">
+                <div class="flow-item">Phase 1<br>退職判定ロジック</div>
+                <span class="arrow">→</span>
+                <div class="flow-item">Phase 2<br>退職処理UI</div>
+                <span class="arrow">→</span>
+                <div class="flow-item">Phase 3<br>シフト表示</div>
+                <span class="arrow">→</span>
+                <div class="flow-item">Phase 4<br>フィルタリング</div>
+                <span class="arrow">→</span>
+                <div class="flow-item">Phase 5<br>権限管理</div>
+                <span class="arrow">→</span>
+                <div class="flow-item">Phase 6<br>レポート</div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Phase</th>
+                    <th>内容</th>
+                    <th>優先度</th>
+                    <th>ステータス</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Phase 1</strong></td>
+                    <td>退職判定ロジックの統一</td>
+                    <td>高</td>
+                    <td><span class="phase-status pending">未着手</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 2</strong></td>
+                    <td>退職処理のワークフロー（UI/バリデーション）</td>
+                    <td>高</td>
+                    <td><span class="phase-status pending">未着手</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 3</strong></td>
+                    <td>退職者表示とシフトコピー</td>
+                    <td>高</td>
+                    <td><span class="phase-status completed">設計完了</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 4</strong></td>
+                    <td>スタッフ選択肢のフィルタリング</td>
+                    <td>中</td>
+                    <td><span class="phase-status pending">未着手</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 5</strong></td>
+                    <td>アカウント・権限管理</td>
+                    <td>中</td>
+                    <td><span class="phase-status pending">未着手</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 6</strong></td>
+                    <td>レポート・集計での退職者の扱い</td>
+                    <td>低</td>
+                    <td><span class="phase-status pending">未着手</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Phase 1: 退職判定ロジックの統一</h2>
+
+        <div class="phase-box">
+            <div class="phase-header">
+                Phase 1: 退職判定ロジック
+                <span class="phase-status pending">未着手</span>
+            </div>
+
+            <h3>目的</h3>
+            <p>システム全体で一貫した退職判定ロジックを確立する。</p>
+
+            <h3>検討事項</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>項目</th>
+                        <th>選択肢</th>
+                        <th>推奨</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>判定方法</strong></td>
+                        <td>
+                            1. <code>is_active</code> のみで判定<br>
+                            2. <code>resignation_date</code> のみで判定<br>
+                            3. 両方を組み合わせ
+                        </td>
+                        <td><strong>3. 両方を組み合わせ</strong></td>
+                    </tr>
+                    <tr>
+                        <td><strong>退職日の扱い</strong></td>
+                        <td>
+                            1. 退職日当日は「在籍中」<br>
+                            2. 退職日当日は「退職済み」
+                        </td>
+                        <td><strong>1. 退職日当日は在籍中</strong><br>（翌日から退職扱い）</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>推奨ロジック</h3>
+
+            <div class="code-block">
+<pre>/**
+ * スタッフが退職済みかどうかを判定
+ * @param {Object} staff - スタッフオブジェクト
+ * @param {Date} referenceDate - 基準日（デフォルト: 今日）
+ * @returns {boolean} 退職済みの場合 true
+ */
+function isRetired(staff, referenceDate = new Date()) {
+  // 1. is_active が false の場合は退職済み
+  if (!staff.is_active) {
+    return true
+  }
+
+  // 2. resignation_date が設定されており、基準日より前の場合は退職済み
+  if (staff.resignation_date) {
+    const resignationDate = new Date(staff.resignation_date)
+    // 退職日の翌日から退職扱い
+    const nextDay = new Date(resignationDate)
+    nextDay.setDate(nextDay.getDate() + 1)
+
+    if (referenceDate >= nextDay) {
+      return true
+    }
+  }
+
+  // それ以外は在籍中
+  return false
+}
+
+/**
+ * スタッフが退職予定かどうかを判定
+ * @param {Object} staff - スタッフオブジェクト
+ * @returns {boolean} 退職予定の場合 true
+ */
+function isPendingRetirement(staff) {
+  if (!staff.is_active) return false
+  if (!staff.resignation_date) return false
+
+  const resignationDate = new Date(staff.resignation_date)
+  const today = new Date()
+
+  // 退職日が未来の場合は退職予定
+  return resignationDate > today
+}
+
+/**
+ * スタッフのステータスを取得
+ * @param {Object} staff - スタッフオブジェクト
+ * @returns {string} 'active' | 'pending_retirement' | 'retired'
+ */
+function getStaffStatus(staff) {
+  if (isRetired(staff)) {
+    return 'retired'
+  }
+  if (isPendingRetirement(staff)) {
+    return 'pending_retirement'
+  }
+  return 'active'
+}
+</pre>
+            </div>
+
+            <h3>実装タスク</h3>
+            <ul>
+                <li>共通ユーティリティ関数の作成（上記のロジック）</li>
+                <li>既存コードの置き換え（システム全体で統一）</li>
+                <li>テストケースの作成</li>
+            </ul>
+        </div>
+
+        <h2>Phase 2: 退職処理のワークフロー</h2>
+
+        <div class="phase-box">
+            <div class="phase-header">
+                Phase 2: 退職処理のワークフロー
+                <span class="phase-status pending">未着手</span>
+            </div>
+
+            <h3>目的</h3>
+            <p>スタッフを退職させる操作のUI/UXと、退職日以降のシフトに対するバリデーションを実装する。</p>
+
+            <h3>2-1. 退職処理UI</h3>
+
+            <p><strong>スタッフ管理画面に追加:</strong></p>
+            <ul>
+                <li>「退職処理」ボタン</li>
+                <li>退職日の入力フォーム</li>
+                <li>確認ダイアログ</li>
+            </ul>
+
+            <h3>2-2. バリデーション</h3>
+
+            <div class="warning-box">
+                <p><strong>⚠️ 退職日設定時のチェック項目:</strong></p>
+                <ol>
+                    <li><strong>未来のシフトチェック:</strong> 退職日以降のシフトが存在するか？</li>
+                    <li><strong>警告表示:</strong> 「このスタッフは○月のシフトに○件含まれています」</li>
+                    <li><strong>対応選択:</strong>
+                        <ul>
+                            <li>そのまま退職処理を実行（手動で後から修正）</li>
+                            <li>キャンセルしてシフトを修正してから再実行</li>
+                        </ul>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="code-block">
+<pre>/**
+ * 退職日設定時のバリデーション
+ */
+async function validateRetirement(staffId, resignationDate) {
+  // 退職日以降のシフトを検索
+  const futureShifts = await getShiftsAfterDate(staffId, resignationDate)
+
+  if (futureShifts.length > 0) {
+    // 月ごとに集計
+    const shiftsByMonth = groupShiftsByMonth(futureShifts)
+
+    return {
+      valid: false,
+      warning: true,
+      message: `このスタッフは退職日以降のシフトに${futureShifts.length}件含まれています`,
+      details: shiftsByMonth.map(({ month, count }) =>
+        `${month}月: ${count}件`
+      ).join('\n')
+    }
+  }
+
+  return { valid: true }
+}
+
+/**
+ * 退職処理の実行
+ */
+async function executeRetirement(staffId, resignationDate, options = {}) {
+  // バリデーション
+  const validation = await validateRetirement(staffId, resignationDate)
+
+  if (validation.warning && !options.confirmed) {
+    throw new Error('未来のシフトが存在します。確認が必要です。')
+  }
+
+  // 退職日を設定
+  await updateStaff(staffId, {
+    resignation_date: resignationDate
+  })
+
+  // オプション: 退職日以降のシフトを自動削除
+  if (options.autoDeleteFutureShifts) {
+    await deleteShiftsAfterDate(staffId, resignationDate)
+  }
+}
+</pre>
+            </div>
+
+            <h3>実装タスク</h3>
+            <ul>
+                <li>スタッフ管理画面に「退職処理」機能を追加</li>
+                <li>退職日入力フォーム</li>
+                <li>未来のシフトチェックロジック</li>
+                <li>警告ダイアログ</li>
+                <li>退職処理API</li>
+            </ul>
+        </div>
+
+        <h2>Phase 3: 退職者表示とシフトコピー</h2>
+
+        <div class="phase-box">
+            <div class="phase-header">
+                Phase 3: 退職者表示とシフトコピー
+                <span class="phase-status completed">設計完了</span>
+            </div>
+
+            <h3>設計完了</h3>
+            <p>詳細設計は以下のドキュメントを参照してください：</p>
+            <ul>
+                <li>📄 <a href="RETIRED_STAFF_DISPLAY.html">退職者表示とシフトコピーの設計書</a></li>
+                <li>📝 Commit: <code>3eb4362</code> - docs: 退職者表示とシフトコピーの設計書を作成</li>
+            </ul>
+
+            <h3>概要</h3>
+            <ul>
+                <li><strong>スタッフビュー:</strong> その月のシフトに含まれる退職者のみ表示（グレーアウト）</li>
+                <li><strong>カレンダービュー:</strong> 退職者を含む日を色分け表示（オレンジ色 + ⚠️）</li>
+                <li><strong>シフトコピー:</strong> 退職者も含めてコピー（視覚的に明示、手動で対応）</li>
+            </ul>
+
+            <h3>実装タスク</h3>
+            <ul>
+                <li><code>getVisibleStaffForMonth()</code> 関数の実装</li>
+                <li>スタッフビューで退職者列のグレーアウト表示</li>
+                <li>カレンダービューで退職者を含む日の色分け</li>
+                <li>ツールチップで退職者の詳細を表示</li>
+            </ul>
+        </div>
+
+        <h2>Phase 4: スタッフ選択肢のフィルタリング</h2>
+
+        <div class="phase-box">
+            <div class="phase-header">
+                Phase 4: スタッフ選択肢のフィルタリング
+                <span class="phase-status pending">未着手</span>
+            </div>
+
+            <h3>目的</h3>
+            <p>新規シフト作成時やスタッフ一覧画面で、退職者の表示/非表示を適切に制御する。</p>
+
+            <h3>4-1. 新規シフト作成時</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>画面</th>
+                        <th>デフォルト表示</th>
+                        <th>オプション</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>スタッフ選択ドロップダウン</strong></td>
+                        <td>在籍者のみ</td>
+                        <td>☑ 退職者も表示</td>
+                    </tr>
+                    <tr>
+                        <td><strong>スタッフ一覧</strong></td>
+                        <td>在籍者のみ</td>
+                        <td>フィルタ: 全て / 在籍中 / 退職済み</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>4-2. 退職者へのシフト割り当て防止</h3>
+
+            <div class="code-block">
+<pre>/**
+ * シフト割り当て時のバリデーション
+ */
+function validateShiftAssignment(staffId, shiftDate) {
+  const staff = getStaff(staffId)
+
+  // 退職者チェック
+  if (isRetired(staff, shiftDate)) {
+    return {
+      valid: false,
+      error: `${staff.name} は ${shiftDate} 時点で退職済みです。`
+    }
+  }
+
+  // 退職予定者の警告
+  if (isPendingRetirement(staff)) {
+    const resignationDate = new Date(staff.resignation_date)
+    if (shiftDate > resignationDate) {
+      return {
+        valid: false,
+        warning: `${staff.name} は ${formatDate(resignationDate)} に退職予定です。`,
+        canOverride: true
+      }
+    }
+  }
+
+  return { valid: true }
+}
+</pre>
+            </div>
+
+            <h3>実装タスク</h3>
+            <ul>
+                <li>スタッフ選択ドロップダウンのフィルタリング</li>
+                <li>「退職者も表示」チェックボックス</li>
+                <li>スタッフ一覧のフィルタ機能</li>
+                <li>シフト割り当て時のバリデーション</li>
+                <li>警告ダイアログ</li>
+            </ul>
+        </div>
+
+        <h2>Phase 5: アカウント・権限管理</h2>
+
+        <div class="phase-box">
+            <div class="phase-header">
+                Phase 5: アカウント・権限管理
+                <span class="phase-status pending">未着手</span>
+            </div>
+
+            <h3>目的</h3>
+            <p>退職者のログインアカウントと権限を適切に管理する。</p>
+
+            <h3>5-1. ログイン制御</h3>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>ステータス</th>
+                        <th>ログイン可否</th>
+                        <th>権限</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>在籍中</strong></td>
+                        <td>✅ 可能</td>
+                        <td>通常権限</td>
+                    </tr>
+                    <tr>
+                        <td><strong>退職予定</strong></td>
+                        <td>✅ 可能（退職日まで）</td>
+                        <td>通常権限</td>
+                    </tr>
+                    <tr>
+                        <td><strong>退職済み</strong></td>
+                        <td>❌ 不可</td>
+                        <td>なし</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>5-2. 実装</h3>
+
+            <div class="code-block">
+<pre>/**
+ * ログイン時のチェック
+ */
+async function authenticateStaff(staffCode, password) {
+  const staff = await findStaffByCode(staffCode)
+
+  if (!staff) {
+    throw new Error('スタッフが見つかりません')
+  }
+
+  // 退職者はログイン不可
+  if (isRetired(staff)) {
+    throw new Error('このアカウントは無効化されています')
+  }
+
+  // パスワード検証
+  const valid = await verifyPassword(password, staff.password_hash)
+  if (!valid) {
+    throw new Error('パスワードが正しくありません')
+  }
+
+  return staff
+}
+</pre>
+            </div>
+
+            <h3>実装タスク</h3>
+            <ul>
+                <li>ログイン時の退職者チェック</li>
+                <li>エラーメッセージの表示</li>
+                <li>セッション管理の更新</li>
+            </ul>
+        </div>
+
+        <h2>Phase 6: レポート・集計</h2>
+
+        <div class="phase-box">
+            <div class="phase-header">
+                Phase 6: レポート・集計
+                <span class="phase-status pending">未着手</span>
+            </div>
+
+            <h3>目的</h3>
+            <p>勤務実績レポートや給与計算で、退職者を適切に扱う。</p>
+
+            <h3>6-1. フィルタオプション</h3>
+
+            <p><strong>レポート画面に追加:</strong></p>
+            <ul>
+                <li>☑ 退職者を含める</li>
+                <li>期間指定: その期間中に在籍していたスタッフのみ</li>
+            </ul>
+
+            <h3>6-2. 実装例</h3>
+
+            <div class="code-block">
+<pre>/**
+ * 勤務実績レポートの生成
+ */
+async function generateWorkReport(startDate, endDate, options = {}) {
+  let staff = await getAllStaff()
+
+  // 退職者を除外するオプション
+  if (!options.includeRetired) {
+    staff = staff.filter(s => !isRetired(s, endDate))
+  }
+
+  // その期間中に在籍していたスタッフのみ
+  if (options.activeDuringPeriod) {
+    staff = staff.filter(s => {
+      // 入社日が期間終了前
+      if (new Date(s.hire_date) > endDate) return false
+
+      // 退職日が期間開始後（または未設定）
+      if (s.resignation_date && new Date(s.resignation_date) < startDate) {
+        return false
+      }
+
+      return true
+    })
+  }
+
+  // レポート生成
+  return generateReport(staff, startDate, endDate)
+}
+</pre>
+            </div>
+
+            <h3>実装タスク</h3>
+            <ul>
+                <li>レポート画面にフィルタオプション追加</li>
+                <li>退職者を含める/除外するロジック</li>
+                <li>期間中の在籍者フィルタ</li>
+                <li>給与計算での退職者の扱い</li>
+            </ul>
+        </div>
+
+        <h2>実装の優先順位</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Phase</th>
+                    <th>内容</th>
+                    <th>依存関係</th>
+                    <th>推奨実装順</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Phase 1</strong></td>
+                    <td>退職判定ロジック</td>
+                    <td>-</td>
+                    <td>1番目（基盤）</td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 3</strong></td>
+                    <td>退職者表示とシフトコピー</td>
+                    <td>Phase 1</td>
+                    <td>2番目（重要）</td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 2</strong></td>
+                    <td>退職処理ワークフロー</td>
+                    <td>Phase 1, 3</td>
+                    <td>3番目</td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 4</strong></td>
+                    <td>スタッフ選択肢フィルタリング</td>
+                    <td>Phase 1</td>
+                    <td>4番目</td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 5</strong></td>
+                    <td>アカウント・権限管理</td>
+                    <td>Phase 1</td>
+                    <td>5番目</td>
+                </tr>
+                <tr>
+                    <td><strong>Phase 6</strong></td>
+                    <td>レポート・集計</td>
+                    <td>Phase 1</td>
+                    <td>6番目（低優先）</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>まとめ</h2>
+
+        <div class="success-box">
+            <h3>✅ 全体設計のメリット</h3>
+            <ul>
+                <li><strong>一貫性:</strong> システム全体で統一された退職者の扱い</li>
+                <li><strong>段階的実装:</strong> Phase単位で段階的に実装可能</li>
+                <li><strong>保守性:</strong> 共通ロジックを再利用し、保守が容易</li>
+                <li><strong>拡張性:</strong> 将来的な機能追加に対応しやすい</li>
+            </ul>
+
+            <p style="margin-top: 20px;"><strong>次のステップ:</strong></p>
+            <ol>
+                <li>Phase 1（退職判定ロジック）の実装</li>
+                <li>Phase 3（退職者表示）の実装</li>
+                <li>Phase 2（退職処理UI）の実装</li>
+            </ol>
+        </div>
+    </div>
+</body>
+</html>
