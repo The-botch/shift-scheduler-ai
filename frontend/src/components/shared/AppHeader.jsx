@@ -97,9 +97,12 @@ const AppHeader = () => {
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
       console.log('  → Result: LOCAL')
       return { name: 'LOCAL', label: 'ローカル', color: 'blue' }
-    } else if (hostname.includes('shift-scheduler-ai-stg.vercel.app')) {
+    } else if (
+      hostname.includes('shift-scheduler-ai-stg.vercel.app') ||
+      hostname.includes('staging-shift-scheduler-ai.vercel.app')
+    ) {
       // ステージング環境
-      console.log('  → Result: STG (matched shift-scheduler-ai-stg.vercel.app)')
+      console.log('  → Result: STG (matched staging hostname)')
       return { name: 'STG', label: 'ステージング', color: 'yellow' }
     } else if (
       hostname.includes('vercel.app') &&
