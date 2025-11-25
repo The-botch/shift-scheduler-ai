@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シフトパターン活用による pattern_id ハードコード問題の解決</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Meiryo, sans-serif;
+      line-height: 1.8;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+    }
+    .container {
+      background-color: white;
+      padding: 30px;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    h1 {
+      color: #2c3e50;
+      border-bottom: 3px solid #3498db;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #34495e;
+      border-left: 4px solid #3498db;
+      padding-left: 10px;
+      margin-top: 30px;
+    }
+    h3 {
+      color: #555;
+      margin-top: 20px;
+    }
+    .section {
+      margin: 20px 0;
+      padding: 15px;
+      background-color: #f8f9fa;
+      border-radius: 5px;
+    }
+    .problem {
+      background-color: #fee;
+      border-left: 4px solid #e74c3c;
+      padding: 15px;
+      margin: 10px 0;
+    }
+    .solution {
+      background-color: #efe;
+      border-left: 4px solid #27ae60;
+      padding: 15px;
+      margin: 10px 0;
+    }
+    .warning {
+      background-color: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin: 10px 0;
+    }
+    .info {
+      background-color: #e7f3ff;
+      border-left: 4px solid #2196F3;
+      padding: 15px;
+      margin: 10px 0;
+    }
+    pre {
+      background-color: #f4f4f4;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+      border: 1px solid #ddd;
+    }
+    code {
+      font-family: 'Courier New', monospace;
+      background-color: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 0.9em;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 12px;
+      text-align: left;
+    }
+    th {
+      background-color: #3498db;
+      color: white;
+    }
+    tr:nth-child(even) {
+      background-color: #f8f9fa;
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 0.85em;
+      font-weight: bold;
+    }
+    .badge-red { background-color: #e74c3c; color: white; }
+    .badge-green { background-color: #27ae60; color: white; }
+    .badge-blue { background-color: #3498db; color: white; }
+    .badge-yellow { background-color: #f39c12; color: white; }
+    ul {
+      padding-left: 25px;
+    }
+    li {
+      margin: 8px 0;
+    }
+    .flow-diagram {
+      background-color: #fff;
+      border: 2px solid #3498db;
+      padding: 20px;
+      margin: 20px 0;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🔧 シフトパターン活用による pattern_id ハードコード問題の解決</h1>
+
+    <div class="section">
+      <p><strong>作成日:</strong> 2025年11月25日</p>
+      <p><strong>作成者:</strong> Claude (with User)</p>
+      <p><strong>対象Issue:</strong> #71 Staging環境対応 / pattern_id ハードコード問題</p>
+    </div>
+
+    <!-- ========================================
+         1. 問題の背景
+    ======================================== -->
+    <h2>1. 問題の背景</h2>
+
+    <div class="problem">
+      <h3>🚨 発生した問題</h3>
+      <p>STG環境（テナント3）でシフト作成時に以下のエラーが発生：</p>
+      <pre>error: insert or update on table "shifts" violates foreign key constraint "shifts_pattern_id_fkey"
+detail: 'Key (pattern_id)=(1) is not present in table "shift_patterns".'</pre>
+      <p><strong>エラー箇所:</strong> SecondPlanEditor.jsx:1196, FirstPlanEditor.jsx:703</p>
+    </div>
+
+    <h3>1.1 根本原因</h3>
+    <div class="warning">
+      <p><strong>pattern_id=1 がハードコードされている</strong></p>
+      <pre>// SecondPlanEditor.jsx:1196
+pattern_id: 1, // デフォルトパターン（通常勤務）
+
+// FirstPlanEditor.jsx:703
+pattern_id: defaultPatternId || 1, // デフォルト値として1を使用</pre>
+    </div>
+
+    <h3>1.2 環境ごとのデータ状況</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>環境</th>
+          <th>テナントID</th>
+          <th>pattern_id 範囲</th>
+          <th>動作状況</th>
+          <th>理由</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="badge badge-green">PRD</span></td>
+          <td>1</td>
+          <td>1, 2, 3, 4</td>
+          <td>✅ 正常動作</td>
+          <td>pattern_id=1 が存在する</td>
+        </tr>
+        <tr>
+          <td><span class="badge badge-yellow">STG</span></td>
+          <td>3</td>
+          <td>5, 6, 7, 8</td>
+          <td>❌ エラー発生</td>
+          <td>pattern_id=1 が存在しない</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>1.3 なぜ pattern_id が異なるのか</h3>
+    <div class="info">
+      <p><strong>PostgreSQL のシーケンス自動採番が原因</strong></p>
+      <p>DMLファイルで pattern_id を明示的に指定していないため、挿入順序に応じて自動採番される：</p>
+      <pre>-- テナント1のデータ投入（最初）
+INSERT INTO core.shift_patterns (tenant_id, pattern_code, pattern_name, ...)
+VALUES (1, 'EARLY', '早番', ...);  -- pattern_id=1 (自動採番)
+
+-- テナント3のデータ投入（後から）
+INSERT INTO core.shift_patterns (tenant_id, pattern_code, pattern_name, ...)
+VALUES (3, 'EARLY', '早番', ...);  -- pattern_id=5 (自動採番・続きから)</pre>
+    </div>
+
+    <h3>1.4 現状の問題点</h3>
+    <ul>
+      <li>❌ <strong>マルチテナント対応が不完全</strong>: テナント1以外で動作しない</li>
+      <li>❌ <strong>新規テナント追加不可</strong>: テナント追加時に必ずエラーが発生</li>
+      <li>❌ <strong>STG環境でテスト不可</strong>: 開発・検証環境で動作しない</li>
+      <li>❌ <strong>pattern の定義が未活用</strong>: pattern_id は指定するが、start_time/end_time は使わない矛盾</li>
+    </ul>
+
+    <!-- ========================================
+         2. 現状の実装分析
+    ======================================== -->
+    <h2>2. 現状の実装分析</h2>
+
+    <h3>2.1 shift_patterns テーブルの設計</h3>
+    <pre>CREATE TABLE core.shift_patterns (
+  pattern_id SERIAL PRIMARY KEY,        -- 自動採番
+  tenant_id INT NOT NULL,               -- テナントID
+  pattern_code VARCHAR(50),             -- 'EARLY', 'LATE', 'MID', 'FULL'
+  pattern_name VARCHAR(100),            -- '早番', '遅番', '中番', '通し'
+  start_time TIME,                      -- 標準の開始時刻
+  end_time TIME,                        -- 標準の終了時刻
+  break_minutes INT,                    -- 標準の休憩時間
+  is_active BOOLEAN
+);</pre>
+
+    <h3>2.2 テナント3のパターンデータ</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>pattern_id</th>
+          <th>pattern_code</th>
+          <th>pattern_name</th>
+          <th>start_time</th>
+          <th>end_time</th>
+          <th>break_minutes</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>5</td>
+          <td>EARLY</td>
+          <td>早番</td>
+          <td>09:00</td>
+          <td>17:00</td>
+          <td>60</td>
+        </tr>
+        <tr>
+          <td>6</td>
+          <td>MID</td>
+          <td>中番</td>
+          <td>12:00</td>
+          <td>20:00</td>
+          <td>60</td>
+        </tr>
+        <tr>
+          <td>7</td>
+          <td>LATE</td>
+          <td>遅番</td>
+          <td>15:00</td>
+          <td>23:00</td>
+          <td>60</td>
+        </tr>
+        <tr>
+          <td>8</td>
+          <td>FULL</td>
+          <td>通し</td>
+          <td>09:00</td>
+          <td>22:00</td>
+          <td>90</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>2.3 現状のシフト作成フロー</h3>
+    <div class="flow-diagram">
+      <pre>
+ユーザー操作
+  ↓
+シフト作成モーダル表示
+  ↓
+スタッフ・日付・時間を入力
+  ↓
+<span style="color: red; font-weight: bold;">pattern_id: 1 (ハードコード)</span>  ← ❌ 問題箇所
+  ↓
+シフトデータ作成
+  ↓
+バックエンドAPI送信
+  ↓
+❌ エラー: pattern_id=1 が存在しない
+      </pre>
+    </div>
+
+    <h3>2.4 pattern_id の矛盾</h3>
+    <div class="problem">
+      <p><strong>pattern_id は指定されているが、その定義は使われていない</strong></p>
+      <pre>const newShift = {
+  pattern_id: 1,                          // パターンIDは指定
+  start_time: shiftData.start_time,       // でも時間はユーザー入力
+  end_time: shiftData.end_time,           // でも時間はユーザー入力
+  break_minutes: shiftData.break_minutes, // でも休憩もユーザー入力
+}</pre>
+      <p>→ pattern の start_time, end_time, break_minutes が全く活用されていない</p>
+    </div>
+
+    <!-- ========================================
+         3. 解決方針
+    ======================================== -->
+    <h2>3. 解決方針</h2>
+
+    <div class="solution">
+      <h3>✅ 採用する方針: pattern の定義を活用する</h3>
+      <p>ユーザーがパターンを選択 → 自動的に時間が設定される仕組みを実装</p>
+    </div>
+
+    <h3>3.1 新しいシフト作成フロー</h3>
+    <div class="flow-diagram">
+      <pre>
+ユーザー操作
+  ↓
+シフト作成モーダル表示
+  ↓
+<span style="color: green; font-weight: bold;">パターン選択 (早番/中番/遅番/通し)</span>  ← ✅ 新機能
+  ↓
+<span style="color: green; font-weight: bold;">自動的に時間が設定される</span>
+  - 早番 → 09:00-17:00, 休憩60分
+  - 中番 → 12:00-20:00, 休憩60分
+  - 遅番 → 15:00-23:00, 休憩60分
+  - 通し → 09:00-22:00, 休憩90分
+  ↓
+手動で時間を微調整可能 (オプション)
+  ↓
+シフトデータ作成
+  - pattern_id: 選択したパターンのID (5,6,7,8)
+  - start_time: パターンの start_time
+  - end_time: パターンの end_time
+  - break_minutes: パターンの break_minutes
+  ↓
+バックエンドAPI送信
+  ↓
+✅ 成功: 正しい pattern_id が使用される
+      </pre>
+    </div>
+
+    <h3>3.2 メリット</h3>
+    <ul>
+      <li>✅ <strong>マルチテナント対応</strong>: どのテナントでも動作する</li>
+      <li>✅ <strong>ユーザー体験の向上</strong>: パターン選択で時間を自動入力、入力の手間削減</li>
+      <li>✅ <strong>データ整合性</strong>: pattern の定義が実際に活用される</li>
+      <li>✅ <strong>メンテナンス性</strong>: パターンマスタで一括管理・変更可能</li>
+    </ul>
+
+    <!-- ========================================
+         4. 実装詳細
+    ======================================== -->
+    <h2>4. 実装詳細</h2>
+
+    <h3>4.1 フロントエンド実装</h3>
+
+    <h4>4.1.1 shift_patterns データの取得</h4>
+    <p><strong>対象ファイル:</strong> <code>SecondPlanEditor.jsx</code>, <code>FirstPlanEditor.jsx</code></p>
+
+    <pre>// ① state 追加
+const [shiftPatterns, setShiftPatterns] = useState([])
+
+// ② useEffect でマスタデータ取得
+useEffect(() => {
+  const fetchShiftPatterns = async () => {
+    try {
+      const patterns = await masterRepository.getShiftPatterns(tenantId)
+      setShiftPatterns(patterns)
+    } catch (error) {
+      console.error('シフトパターン取得エラー:', error)
+    }
+  }
+
+  if (tenantId) {
+    fetchShiftPatterns()
+  }
+}, [tenantId])</pre>
+
+    <h4>4.1.2 シフト作成モーダルの改修</h4>
+    <p><strong>追加する要素:</strong></p>
+    <ul>
+      <li>パターン選択ドロップダウン</li>
+      <li>選択したパターンの詳細表示（時間・休憩）</li>
+      <li>時間の手動編集機能（オプション）</li>
+    </ul>
+
+    <pre>// ③ モーダルの state 追加
+const [modalState, setModalState] = useState({
+  isOpen: false,
+  mode: 'add',
+  shift: null,
+  <span style="color: green; font-weight: bold;">selectedPattern: null, // 追加</span>
+  position: { x: 0, y: 0 },
+})</pre>
+
+    <h4>4.1.3 パターン選択時の処理</h4>
+    <pre>// ④ パターン選択ハンドラ
+const handlePatternSelect = (patternId) => {
+  const pattern = shiftPatterns.find(p => p.pattern_id === patternId)
+
+  if (pattern) {
+    setModalState(prev => ({
+      ...prev,
+      selectedPattern: pattern,
+      shift: {
+        ...prev.shift,
+        pattern_id: pattern.pattern_id,
+        start_time: pattern.start_time,
+        end_time: pattern.end_time,
+        break_minutes: pattern.break_minutes,
+      }
+    }))
+  }
+}</pre>
+
+    <h4>4.1.4 シフト作成時のデータ構造</h4>
+    <pre>// ⑤ handleAddShift の修正
+const newShift = {
+  shift_id: tempId,
+  tenant_id: tenantId,
+  store_id: shiftData.store_id,
+  plan_id: planId,
+  staff_id: shiftData.staff_id,
+  shift_date: shiftData.date,
+  <span style="color: green; font-weight: bold;">pattern_id: modalState.selectedPattern?.pattern_id || shiftPatterns[0]?.pattern_id,</span>
+  <span style="color: green; font-weight: bold;">start_time: modalState.shift.start_time,</span>
+  <span style="color: green; font-weight: bold;">end_time: modalState.shift.end_time,</span>
+  <span style="color: green; font-weight: bold;">break_minutes: modalState.shift.break_minutes,</span>
+  is_preferred: false,
+  is_modified: true,
+  year: year,
+  month: month,
+  plan_type: 'SECOND',
+  staff_name: shiftData.staff_name,
+  role: staffMap[shiftData.staff_id]?.role_name || 'スタッフ',
+  modified_flag: true,
+}</pre>
+
+    <h3>4.2 UI設計</h3>
+
+    <h4>4.2.1 パターン選択ドロップダウン</h4>
+    <pre>&lt;div className="pattern-select"&gt;
+  &lt;label&gt;シフトパターン&lt;/label&gt;
+  &lt;select
+    value={modalState.selectedPattern?.pattern_id || ''}
+    onChange={(e) => handlePatternSelect(Number(e.target.value))}
+  &gt;
+    &lt;option value=""&gt;パターンを選択&lt;/option&gt;
+    {shiftPatterns.map(pattern => (
+      &lt;option key={pattern.pattern_id} value={pattern.pattern_id}&gt;
+        {pattern.pattern_name} ({pattern.start_time}-{pattern.end_time})
+      &lt;/option&gt;
+    ))}
+  &lt;/select&gt;
+&lt;/div&gt;</pre>
+
+    <h4>4.2.2 パターン詳細表示</h4>
+    <pre>&lt;div className="pattern-details"&gt;
+  {modalState.selectedPattern && (
+    &lt;&gt;
+      &lt;p&gt;開始: {modalState.selectedPattern.start_time}&lt;/p&gt;
+      &lt;p&gt;終了: {modalState.selectedPattern.end_time}&lt;/p&gt;
+      &lt;p&gt;休憩: {modalState.selectedPattern.break_minutes}分&lt;/p&gt;
+    &lt;/&gt;
+  )}
+&lt;/div&gt;</pre>
+
+    <!-- ========================================
+         5. 影響範囲
+    ======================================== -->
+    <h2>5. 影響範囲</h2>
+
+    <h3>5.1 修正が必要なファイル</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>ファイル</th>
+          <th>修正内容</th>
+          <th>優先度</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>SecondPlanEditor.jsx</code></td>
+          <td>
+            - shift_patterns 取得<br>
+            - パターン選択UI追加<br>
+            - handleAddShift 修正
+          </td>
+          <td><span class="badge badge-red">HIGH</span></td>
+        </tr>
+        <tr>
+          <td><code>FirstPlanEditor.jsx</code></td>
+          <td>
+            - shift_patterns 取得<br>
+            - パターン選択UI追加<br>
+            - handleAddShift 修正
+          </td>
+          <td><span class="badge badge-red">HIGH</span></td>
+        </tr>
+        <tr>
+          <td><code>MasterRepository.js</code></td>
+          <td>確認のみ（既に実装済み）</td>
+          <td><span class="badge badge-green">DONE</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>5.2 既存機能への影響</h3>
+    <ul>
+      <li>✅ <strong>影響なし</strong>: 既存のシフトデータは変更不要</li>
+      <li>✅ <strong>後方互換性</strong>: 既存のシフトは引き続き表示・編集可能</li>
+      <li>⚠️ <strong>新規シフト作成のみ</strong>: 影響範囲は新規作成機能に限定</li>
+    </ul>
+
+    <!-- ========================================
+         6. テスト計画
+    ======================================== -->
+    <h2>6. テスト計画</h2>
+
+    <h3>6.1 単体テスト</h3>
+    <table>
+      <thead>
+        <tr>
+          <th>テスト項目</th>
+          <th>確認内容</th>
+          <th>期待結果</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>shift_patterns 取得</td>
+          <td>API呼び出しが成功するか</td>
+          <td>テナント3のパターン4件取得</td>
+        </tr>
+        <tr>
+          <td>パターン選択UI表示</td>
+          <td>ドロップダウンが表示されるか</td>
+          <td>4つの選択肢が表示される</td>
+        </tr>
+        <tr>
+          <td>パターン選択時の自動入力</td>
+          <td>時間が自動設定されるか</td>
+          <td>start_time, end_time, break_minutes が設定される</td>
+        </tr>
+        <tr>
+          <td>シフト作成成功</td>
+          <td>正しい pattern_id で作成されるか</td>
+          <td>エラーなく作成完了</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>6.2 統合テスト (STG環境)</h3>
+    <ol>
+      <li>✅ テナント3でログイン</li>
+      <li>✅ シフト作成画面を開く</li>
+      <li>✅ パターンドロップダウンから「早番」を選択</li>
+      <li>✅ 時間が自動入力されることを確認 (09:00-17:00, 休憩60分)</li>
+      <li>✅ スタッフ・日付を選択</li>
+      <li>✅ 保存ボタンクリック</li>
+      <li>✅ シフトが正常に作成されることを確認</li>
+      <li>✅ データベースで pattern_id=5 が設定されていることを確認</li>
+    </ol>
+
+    <h3>6.3 回帰テスト (PRD環境)</h3>
+    <ol>
+      <li>✅ テナント1でログイン</li>
+      <li>✅ 既存のシフトが正常に表示されるか</li>
+      <li>✅ 新規シフト作成が正常に動作するか</li>
+      <li>✅ パターン選択機能が正常に動作するか</li>
+    </ol>
+
+    <!-- ========================================
+         7. マイルストーン
+    ======================================== -->
+    <h2>7. 実装マイルストーン</h2>
+
+    <table>
+      <thead>
+        <tr>
+          <th>フェーズ</th>
+          <th>作業内容</th>
+          <th>担当</th>
+          <th>ステータス</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Phase 1</td>
+          <td>設計書作成</td>
+          <td>Claude + User</td>
+          <td><span class="badge badge-green">完了</span></td>
+        </tr>
+        <tr>
+          <td>Phase 2</td>
+          <td>SecondPlanEditor.jsx 実装</td>
+          <td>Claude</td>
+          <td><span class="badge badge-blue">待機中</span></td>
+        </tr>
+        <tr>
+          <td>Phase 3</td>
+          <td>FirstPlanEditor.jsx 実装</td>
+          <td>Claude</td>
+          <td><span class="badge badge-blue">待機中</span></td>
+        </tr>
+        <tr>
+          <td>Phase 4</td>
+          <td>STG環境での動作確認</td>
+          <td>User</td>
+          <td><span class="badge badge-blue">待機中</span></td>
+        </tr>
+        <tr>
+          <td>Phase 5</td>
+          <td>PRD環境での回帰テスト</td>
+          <td>User</td>
+          <td><span class="badge badge-blue">待機中</span></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- ========================================
+         8. 将来の改善案
+    ======================================== -->
+    <h2>8. 将来の改善案</h2>
+
+    <h3>8.1 パターン管理機能の強化</h3>
+    <ul>
+      <li>管理画面からパターンの追加・編集・削除</li>
+      <li>店舗ごとのパターン設定</li>
+      <li>パターンの並び順設定</li>
+    </ul>
+
+    <h3>8.2 UX改善</h3>
+    <ul>
+      <li>パターン選択のショートカット（キーボード操作）</li>
+      <li>よく使うパターンを上位表示</li>
+      <li>パターンのアイコン表示</li>
+    </ul>
+
+    <h3>8.3 データ分析</h3>
+    <ul>
+      <li>パターンごとの使用頻度分析</li>
+      <li>パターン別の労働コスト分析</li>
+      <li>パターンの最適化提案</li>
+    </ul>
+
+    <!-- ========================================
+         9. 参考情報
+    ======================================== -->
+    <h2>9. 参考情報</h2>
+
+    <h3>9.1 関連Issue</h3>
+    <ul>
+      <li>Issue #71: Staging環境対応</li>
+      <li>環境設定モダナイゼーション（前回対応済み）</li>
+    </ul>
+
+    <h3>9.2 関連ドキュメント</h3>
+    <ul>
+      <li><a href="ENVIRONMENT_CONFIGURATION.html">環境設定ドキュメント</a></li>
+      <li>データベーススキーマ定義 (schema.sql)</li>
+    </ul>
+
+    <h3>9.3 API仕様</h3>
+    <div class="info">
+      <p><strong>GET /api/master/shift-patterns</strong></p>
+      <p>パラメータ: <code>tenant_id</code> (必須)</p>
+      <p>レスポンス例:</p>
+      <pre>{
+  "success": true,
+  "data": [
+    {
+      "pattern_id": 5,
+      "pattern_code": "EARLY",
+      "pattern_name": "早番",
+      "start_time": "09:00:00",
+      "end_time": "17:00:00",
+      "break_minutes": 60,
+      "store_id": null
+    }
+  ]
+}</pre>
+    </div>
+
+    <!-- ========================================
+         10. まとめ
+    ======================================== -->
+    <h2>10. まとめ</h2>
+
+    <div class="solution">
+      <h3>✅ この設計により解決される問題</h3>
+      <ul>
+        <li>✅ pattern_id ハードコードの解消</li>
+        <li>✅ マルチテナント対応の実現</li>
+        <li>✅ STG環境での動作保証</li>
+        <li>✅ pattern 定義の有効活用</li>
+        <li>✅ ユーザー体験の向上</li>
+      </ul>
+    </div>
+
+    <div class="warning">
+      <h3>⚠️ 注意事項</h3>
+      <ul>
+        <li>既存のシフトデータには影響しない（新規作成のみ）</li>
+        <li>パターンが1件も登録されていない場合のフォールバック処理が必要</li>
+        <li>FirstPlanEditor.jsx と SecondPlanEditor.jsx の両方を修正する必要がある</li>
+      </ul>
+    </div>
+
+    <p style="text-align: center; margin-top: 40px; color: #7f8c8d;">
+      <em>この設計書に基づいて実装を進めてください。</em>
+    </p>
+  </div>
+</body>
+</html>
