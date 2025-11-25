@@ -1,9 +1,13 @@
 import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 export default {
   'frontend/**/*.{js,jsx}': (filenames) => {
+    const frontendDir = path.join(__dirname, 'frontend')
     const frontendFiles = filenames.map(f => {
-      const relative = path.relative('frontend', f)
+      const relative = path.relative(frontendDir, f)
       return `"${relative}"`
     })
     return [
