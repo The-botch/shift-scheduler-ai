@@ -207,7 +207,8 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
         console.log('✅ 既存の第2案を復元します（編集モード）')
 
         // plan_idを抽出して状態に保存
-        const extractedPlanId = secondPlanShiftsData.length > 0 ? secondPlanShiftsData[0].plan_id : null
+        const extractedPlanId =
+          secondPlanShiftsData.length > 0 ? secondPlanShiftsData[0].plan_id : null
         if (extractedPlanId) {
           setPlanIdState(extractedPlanId)
         }
@@ -249,7 +250,8 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
         )
 
         // plan_idを抽出して状態に保存（第1案から）
-        const extractedPlanId = firstPlanShiftsData.length > 0 ? firstPlanShiftsData[0].plan_id : null
+        const extractedPlanId =
+          firstPlanShiftsData.length > 0 ? firstPlanShiftsData[0].plan_id : null
         if (extractedPlanId) {
           setPlanIdState(extractedPlanId)
         }

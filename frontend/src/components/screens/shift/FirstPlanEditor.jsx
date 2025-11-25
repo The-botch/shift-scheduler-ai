@@ -772,7 +772,9 @@ const FirstPlanEditor = ({
       // 新規追加モード - スタッフの所属店舗をデフォルトに設定
       const staffStoreId = staffMap[staffId]?.store_id
       const storeData =
-        storesMap instanceof Map ? storesMap.get(parseInt(staffStoreId)) : storesMap[parseInt(staffStoreId)]
+        storesMap instanceof Map
+          ? storesMap.get(parseInt(staffStoreId))
+          : storesMap[parseInt(staffStoreId)]
 
       setModalState({
         isOpen: true,
