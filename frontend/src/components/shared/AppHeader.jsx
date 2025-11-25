@@ -76,7 +76,7 @@ const AppHeader = () => {
       const envMap = {
         local: { name: 'LOCAL', label: 'ローカル', color: 'blue' },
         stg: { name: 'STG', label: 'ステージング', color: 'yellow' },
-        prd: { name: 'PRD', label: '本番', color: 'green' }
+        prd: { name: 'PRD', label: '本番', color: 'green' },
       }
       return envMap[envVar.toLowerCase()] || envMap.local
     }
