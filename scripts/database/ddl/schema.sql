@@ -866,11 +866,11 @@ DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
-    WHERE conname = 'unique_shift_preference_per_staff_date'
+    WHERE conname = 'unique_shift_preference_per_staff_period'
   ) THEN
     ALTER TABLE ops.shift_preferences
-    ADD CONSTRAINT unique_shift_preference_per_staff_date
-    UNIQUE (tenant_id, staff_id, preference_date);
+    ADD CONSTRAINT unique_shift_preference_per_staff_period
+    UNIQUE (tenant_id, staff_id, year, month);
   END IF;
 END $$;
 
