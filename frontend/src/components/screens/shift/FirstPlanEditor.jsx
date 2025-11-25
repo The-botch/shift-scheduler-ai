@@ -101,7 +101,8 @@ const FirstPlanEditor = ({
 
   // シフトデータ
   const [shiftData, setShiftData] = useState([])
-  const [storeId, setStoreId] = useState(null)
+  const [defaultWorkingStoreId, setDefaultWorkingStoreId] = useState(null) // 新規シフトのデフォルト稼働店舗
+  const [planIdState, setPlanIdState] = useState(null) // 状態として保持するplanId
   const [defaultPatternId, setDefaultPatternId] = useState(null)
   const [preferences, setPreferences] = useState([]) // 希望シフト
 
@@ -115,7 +116,7 @@ const FirstPlanEditor = ({
 
   const year = selectedShift?.year || new Date().getFullYear()
   const month = selectedShift?.month || new Date().getMonth() + 1
-  const planId = selectedShift?.planId || selectedShift?.plan_id
+  const planId = selectedShift?.planId || selectedShift?.plan_id || planIdState
   const planType = selectedShift?.planType || 'FIRST'
 
   // デバッグ用：selectedShiftの内容を確認
@@ -145,8 +146,13 @@ const FirstPlanEditor = ({
 
       // initialDataからシフトデータを抽出（全店舗分）
       const allShifts = []
+      let extractedPlanId = null
       initialData.stores.forEach(store => {
         store.shifts.forEach(shift => {
+          // 最初のシフトからplan_idを抽出
+          if (!extractedPlanId && shift.plan_id) {
+            extractedPlanId = shift.plan_id
+          }
           const staffInfo = staffMapping[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
           allShifts.push({
             ...shift,
@@ -156,6 +162,11 @@ const FirstPlanEditor = ({
           })
         })
       })
+
+      // plan_idを状態に保存
+      if (extractedPlanId) {
+        setPlanIdState(extractedPlanId)
+      }
 
       // 日付別にグループ化
       const shiftsByDate = {}
@@ -206,13 +217,15 @@ const FirstPlanEditor = ({
           ? await shiftRepository.getShifts({ planId })
           : await shiftRepository.getShifts({ year, month, plan_type: planType })
 
-      // シフトデータから店舗IDとpattern_idを取得（最初のシフトから使用）
+      // シフトデータから店舗ID、pattern_id、plan_idを取得（最初のシフトから使用）
       const fetchedStoreId = shiftsResult.length > 0 ? shiftsResult[0].store_id : null
       const fetchedPatternId = shiftsResult.length > 0 ? shiftsResult[0].pattern_id : null
+      const fetchedPlanId = shiftsResult.length > 0 ? shiftsResult[0].plan_id : null
 
       // ステートに保存
-      setStoreId(fetchedStoreId)
+      setDefaultWorkingStoreId(fetchedStoreId) // デフォルト稼働店舗として保存
       setDefaultPatternId(fetchedPatternId)
+      setPlanIdState(fetchedPlanId)
 
       // マスタデータを取得（カスタムhook経由）
       const { staffMapping } = await loadMasterData()
@@ -271,17 +284,17 @@ const FirstPlanEditor = ({
     }
   }
 
-  const handleDayClick = (day, storeId = null) => {
+  const handleDayClick = (day, filterStoreId = null) => {
     let dayShiftsData = calendarData.shiftsByDate[day] || []
 
-    // storeIdが指定されている場合は、その店舗のシフトのみをフィルタリング
-    if (storeId !== null) {
-      dayShiftsData = dayShiftsData.filter(shift => shift.store_id === storeId)
+    // filterStoreIdが指定されている場合は、その店舗のシフトのみをフィルタリング
+    if (filterStoreId !== null) {
+      dayShiftsData = dayShiftsData.filter(shift => shift.store_id === filterStoreId)
     }
 
-    console.log('🔍 handleDayClick called:', { day, storeId, shiftsCount: dayShiftsData.length })
+    console.log('🔍 handleDayClick called:', { day, filterStoreId, shiftsCount: dayShiftsData.length })
     setSelectedDay(day)
-    setSelectedStoreId(storeId)
+    setSelectedStoreId(filterStoreId)
     setDayShifts(dayShiftsData)
   }
 
@@ -696,7 +709,7 @@ const FirstPlanEditor = ({
     const newShift = {
       shift_id: tempShiftId,
       tenant_id: getCurrentTenantId(), // 必須
-      store_id: newShiftData.store_id || storeId, // 必須（ポップアップから渡される）
+      store_id: newShiftData.store_id || defaultWorkingStoreId, // 必須（ポップアップから渡される、またはデフォルト稼働店舗）
       plan_id: planId, // 必須
       staff_id: newShiftData.staff_id, // 必須
       shift_date: newShiftData.date || newShiftData.shift_date, // 必須
