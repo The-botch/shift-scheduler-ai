@@ -6,6 +6,7 @@ import { Button } from '../../ui/button'
 import { ArrowLeft, CheckCircle, Loader2, Save, Trash2, Download } from 'lucide-react'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import ShiftTimeline from '../../shared/ShiftTimeline'
+import ShiftTableView from '../../shared/ShiftTableView'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
 import { BACKEND_API_URL } from '../../../config/api'
@@ -68,6 +69,7 @@ const FirstPlanEditor = ({
   const [saving, setSaving] = useState(false)
   const [calendarData, setCalendarData] = useState(null)
   const [selectedDay, setSelectedDay] = useState(null)
+  const [selectedStoreId, setSelectedStoreId] = useState(null) // クリックされた店舗ID（nullは全店舗）
   const [dayShifts, setDayShifts] = useState([])
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [hasSavedDraft, setHasSavedDraft] = useState(false) // 下書き保存を押したかどうか
@@ -249,13 +251,22 @@ const FirstPlanEditor = ({
     }
   }
 
-  const handleDayClick = day => {
+  const handleDayClick = (day, storeId = null) => {
+    let dayShiftsData = calendarData.shiftsByDate[day] || []
+
+    // storeIdが指定されている場合は、その店舗のシフトのみをフィルタリング
+    if (storeId !== null) {
+      dayShiftsData = dayShiftsData.filter(shift => shift.store_id === storeId)
+    }
+
     setSelectedDay(day)
-    setDayShifts(calendarData.shiftsByDate[day] || [])
+    setSelectedStoreId(storeId)
+    setDayShifts(dayShiftsData)
   }
 
   const closeDayView = () => {
     setSelectedDay(null)
+    setSelectedStoreId(null)
     setDayShifts([])
   }
 
@@ -1414,26 +1425,28 @@ const FirstPlanEditor = ({
           onAddShift={isEditMode ? handleAddShift : undefined}
           onUpdateShift={isEditMode ? handleUpdateShift : undefined}
           onDeleteShift={isEditMode ? handleDeleteShift : undefined}
-          onDayClick={isEditMode ? handleDayClick : undefined}
+          onDayClick={handleDayClick}
           onShiftClick={isEditMode ? handleShiftClick : undefined}
           preferences={preferences}
           showPreferenceColoring={false}
         />
       </div>
 
-      {/* タイムライン表示 */}
+      {/* タイムライン表示（表形式） */}
       <AnimatePresence>
         {selectedDay && (
-          <ShiftTimeline
+          <ShiftTableView
             date={selectedDay}
             year={year}
             month={month}
             shifts={dayShifts}
             onClose={closeDayView}
-            editable={true}
-            onUpdate={handleUpdateShift}
-            onDelete={handleDeleteShift}
-            storeName={selectedShift?.store_name}
+            editable={isEditMode}
+            onUpdate={isEditMode ? handleUpdateShift : undefined}
+            onDelete={isEditMode ? handleDeleteShift : undefined}
+            onShiftClick={isEditMode ? handleShiftClick : undefined}
+            storesMap={storesMap}
+            storeName={selectedStoreId === null ? undefined : storesMap[selectedStoreId]?.store_name}
           />
         )}
       </AnimatePresence>

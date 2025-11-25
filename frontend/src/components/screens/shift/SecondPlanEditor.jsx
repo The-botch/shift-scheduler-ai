@@ -25,6 +25,7 @@ import {
   Loader2,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'
+import ShiftTableView from '../../shared/ShiftTableView'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
@@ -71,6 +72,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
   const [generated, setGenerated] = useState(false)
   const [comparison, setComparison] = useState(null)
   const [selectedDate, setSelectedDate] = useState(null)
+  const [selectedStoreId, setSelectedStoreId] = useState(null) // クリックされた店舗ID（nullは全店舗）
   const [dayShifts, setDayShifts] = useState([])
   const [viewMode, setViewMode] = useState('second') // 'second', 'first', 'compare'
   const [messages, setMessages] = useState([
@@ -960,6 +962,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       return {
         shift_id: shift.shift_id,
         staff_id: shift.staff_id,
+        store_id: shift.store_id,
         staff_name: staffInfo.name,
         role: staffInfo.role_name,
         start_time: shift.start_time,
@@ -971,10 +974,12 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
 
     setDayShifts(formattedShifts)
     setSelectedDate(date)
+    setSelectedStoreId(storeId)
   }
 
   const closeDayView = () => {
     setSelectedDate(null)
+    setSelectedStoreId(null)
     setDayShifts([])
   }
 
@@ -2150,10 +2155,11 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
               </motion.div>
             ))}
 
-          {/* ShiftTimelineコンポーネント */}
+
+          {/* ShiftTableViewコンポーネント（表形式） */}
           <AnimatePresence>
             {selectedDate && (
-              <ShiftTimeline
+              <ShiftTableView
                 date={selectedDate}
                 year={selectedShift?.year || new Date().getFullYear()}
                 month={selectedShift?.month || new Date().getMonth() + 1}
@@ -2162,7 +2168,9 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
                 editable={true}
                 onUpdate={handleUpdateShift}
                 onDelete={handleDeleteShift}
-                storeName={selectedShift?.store_name}
+                onShiftClick={handleShiftClick}
+                storesMap={storesMap}
+                storeName={selectedStoreId === null ? undefined : storesMap[selectedStoreId]?.store_name}
               />
             )}
           </AnimatePresence>

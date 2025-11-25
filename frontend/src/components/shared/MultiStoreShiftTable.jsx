@@ -164,13 +164,8 @@ const MultiStoreShiftTable = ({
 
     allStaff.forEach(staff => {
       const shift = getShiftForDateAndStaff(date, staff.staff_id)
-      // シフトがあり、かつそのシフトの店舗が選択されている場合のみカウント
-      if (
-        shift &&
-        selectedStores &&
-        selectedStores.size > 0 &&
-        selectedStores.has(parseInt(shift.store_id))
-      ) {
+      // シフトがあればカウント（チェックボックスの選択状態に関係なく全店舗の合計を表示）
+      if (shift) {
         staffCount++
         totalHours += calculateHours(shift.start_time, shift.end_time)
       }
@@ -187,13 +182,8 @@ const MultiStoreShiftTable = ({
     dates.forEach(date => {
       allStaff.forEach(staff => {
         const shift = getShiftForDateAndStaff(date, staff.staff_id)
-        // シフトがあり、かつそのシフトの店舗が選択されている場合のみカウント
-        if (
-          shift &&
-          selectedStores &&
-          selectedStores.size > 0 &&
-          selectedStores.has(parseInt(shift.store_id))
-        ) {
+        // シフトがあればカウント（チェックボックスの選択状態に関係なく全店舗の合計を表示）
+        if (shift) {
           totalDays++
           totalHours += calculateHours(shift.start_time, shift.end_time)
         }
