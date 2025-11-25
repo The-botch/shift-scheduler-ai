@@ -100,6 +100,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
   const [isTyping, setIsTyping] = useState(false)
   const chatEndRef = useRef(null)
   const [shiftData, setShiftData] = useState([])
+  const [planIdState, setPlanIdState] = useState(null) // 状態として保持するplanId
   const [changedDates, setChangedDates] = useState(new Set())
   const [pendingChange, setPendingChange] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -205,6 +206,13 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
         // ========================================
         console.log('✅ 既存の第2案を復元します（編集モード）')
 
+        // plan_idを抽出して状態に保存
+        const extractedPlanId =
+          secondPlanShiftsData.length > 0 ? secondPlanShiftsData[0].plan_id : null
+        if (extractedPlanId) {
+          setPlanIdState(extractedPlanId)
+        }
+
         secondPlanWithStaffInfo = secondPlanShiftsData.map(shift => ({
           ...shift,
           staff_name: staffMapping[shift.staff_id]?.name || '不明',
@@ -240,6 +248,13 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
           `第1案シフト取得: ${firstPlanShiftsData.length}件`,
           firstPlanShiftsData.slice(0, 3)
         )
+
+        // plan_idを抽出して状態に保存（第1案から）
+        const extractedPlanId =
+          firstPlanShiftsData.length > 0 ? firstPlanShiftsData[0].plan_id : null
+        if (extractedPlanId) {
+          setPlanIdState(extractedPlanId)
+        }
 
         firstPlanWithStaffInfo = firstPlanShiftsData.map(shift => ({
           ...shift,
@@ -1165,7 +1180,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
 
     const year = selectedShift?.year || new Date().getFullYear()
     const month = selectedShift?.month || new Date().getMonth() + 1
-    const planId = selectedShift?.plan_id || selectedShift?.planId
+    const planId = selectedShift?.plan_id || selectedShift?.planId || planIdState
     const tenantId = selectedShift?.tenant_id || 3 // デフォルトでテナント3
 
     // 仮IDを生成
@@ -1326,7 +1341,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
   const handleApprove = async () => {
     try {
       // selectedShiftからplan_idを取得
-      const planId = selectedShift?.plan_id || selectedShift?.planId
+      const planId = selectedShift?.plan_id || selectedShift?.planId || planIdState
 
       if (!planId) {
         alert(MESSAGES.ERROR.NO_PLAN_ID)

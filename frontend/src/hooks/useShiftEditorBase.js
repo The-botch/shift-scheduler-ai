@@ -87,19 +87,13 @@ export const useShiftEditorBase = selectedShift => {
 
   /**
    * 選択された店舗の初期状態を設定
-   * selectedShiftにstoreIdが明示的に指定されている場合のみ、その店舗だけを選択
-   * それ以外（一括作成など）は全店舗を選択
+   * 常に全店舗を選択（マルチストア表示のため）
+   * ユーザーはチェックボックスで表示する店舗を選択できる
    */
   const initializeSelectedStores = stores => {
-    const initialStoreId = selectedShift?.storeId || selectedShift?.store_id
-
-    if (initialStoreId) {
-      // 個別店舗指定の場合
-      setSelectedStores(new Set([parseInt(initialStoreId)]))
-    } else {
-      // 一括作成などで店舗指定がない場合は全店舗を選択
-      setSelectedStores(new Set(stores.map(s => parseInt(s.store_id))))
-    }
+    // 常に全店舗を選択
+    const allStoreIds = stores.map(s => parseInt(s.store_id))
+    setSelectedStores(new Set(allStoreIds))
   }
 
   /**
