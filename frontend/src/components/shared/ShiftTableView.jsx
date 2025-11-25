@@ -46,7 +46,7 @@ const ShiftTableView = ({
   }
 
   // 時間を分に変換（深夜営業対応）
-  const timeToMinutes = (timeStr) => {
+  const timeToMinutes = timeStr => {
     const [hour, minute] = timeStr.split(':').map(Number)
     // 0-6時は翌日として扱う（24-30時として計算）
     let actualHour = hour
@@ -60,7 +60,7 @@ const ShiftTableView = ({
   const groupStaffByStore = () => {
     const staffByStore = {}
 
-    shifts.forEach((shift) => {
+    shifts.forEach(shift => {
       const storeId = shift.store_id
       if (!staffByStore[storeId]) {
         staffByStore[storeId] = []
@@ -84,20 +84,20 @@ const ShiftTableView = ({
 
   // 全スタッフのリスト（店舗順）
   const allStaff = []
-  storeIds.forEach((storeId) => {
+  storeIds.forEach(storeId => {
     allStaff.push(...staffByStore[storeId])
   })
 
   // 各店舗の最初のスタッフかどうかを判定する関数（rowspan用）
-  const isFirstStaffInStore = (staff) => {
+  const isFirstStaffInStore = staff => {
     return staffByStore[staff.store_id][0].staff_id === staff.staff_id
   }
 
   // 各時間帯の勤務人数を計算（全店舗）
-  const getStaffCountAtTime = (timeSlot) => {
+  const getStaffCountAtTime = timeSlot => {
     const slotMinutes = timeToMinutes(timeSlot)
 
-    return shifts.filter((shift) => {
+    return shifts.filter(shift => {
       const startMinutes = timeToMinutes(shift.start_time)
       const endMinutes = timeToMinutes(shift.end_time)
 
@@ -110,7 +110,7 @@ const ShiftTableView = ({
   const getStoreStaffCountAtTime = (timeSlot, storeId) => {
     const slotMinutes = timeToMinutes(timeSlot)
 
-    return shifts.filter((shift) => {
+    return shifts.filter(shift => {
       if (shift.store_id !== parseInt(storeId)) return false
 
       const startMinutes = timeToMinutes(shift.start_time)
@@ -122,14 +122,14 @@ const ShiftTableView = ({
   }
 
   // 時刻をHH:MM形式にフォーマット
-  const formatTime = (time) => {
+  const formatTime = time => {
     if (!time) return ''
     return time.substring(0, 5)
   }
 
   // 指定時刻にシフトが開始するかチェック
   const getShiftStartingAt = (timeSlot, staffId, storeId) => {
-    return shifts.find((shift) => {
+    return shifts.find(shift => {
       return (
         shift.staff_id === staffId &&
         shift.store_id === parseInt(storeId) &&
@@ -139,7 +139,7 @@ const ShiftTableView = ({
   }
 
   // シフトの長さ（30分単位の数）を計算 → colSpanに使用
-  const getShiftColSpan = (shift) => {
+  const getShiftColSpan = shift => {
     const startMinutes = timeToMinutes(shift.start_time)
     const endMinutes = timeToMinutes(shift.end_time)
     const durationMinutes = endMinutes - startMinutes
@@ -150,7 +150,7 @@ const ShiftTableView = ({
   const isTimeSlotOccupied = (timeSlot, staffId, storeId) => {
     const slotMinutes = timeToMinutes(timeSlot)
 
-    return shifts.some((shift) => {
+    return shifts.some(shift => {
       if (shift.staff_id !== staffId || shift.store_id !== parseInt(storeId)) {
         return false
       }
@@ -169,10 +169,14 @@ const ShiftTableView = ({
   }
 
   // シフト削除ハンドラー
-  const handleDelete = (shift) => {
+  const handleDelete = shift => {
     if (!editable || !onDelete) return
 
-    if (confirm(`${shift.staff_name}のシフト（${shift.start_time}-${shift.end_time}）を削除しますか？`)) {
+    if (
+      confirm(
+        `${shift.staff_name}のシフト（${shift.start_time}-${shift.end_time}）を削除しますか？`
+      )
+    ) {
       onDelete(shift.shift_id)
     }
   }
@@ -198,16 +202,25 @@ const ShiftTableView = ({
             <thead className="sticky top-0 z-10">
               {/* 時刻ヘッダー行 */}
               <tr className="bg-gray-200">
-                <th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky left-0 z-20" style={{ minWidth: '100px' }}>
+                <th
+                  className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky left-0 z-20"
+                  style={{ minWidth: '100px' }}
+                >
                   稼働店舗
                 </th>
-                <th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky z-20" style={{ minWidth: '80px', left: '100px' }}>
+                <th
+                  className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky z-20"
+                  style={{ minWidth: '80px', left: '100px' }}
+                >
                   スタッフ名
                 </th>
-                <th className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky z-20" style={{ minWidth: '60px', left: '180px' }}>
+                <th
+                  className="border border-gray-300 px-1 py-0.5 bg-gray-100 sticky z-20"
+                  style={{ minWidth: '60px', left: '180px' }}
+                >
                   役職
                 </th>
-                {TIME_SLOTS.map((timeSlot) => (
+                {TIME_SLOTS.map(timeSlot => (
                   <th
                     key={timeSlot}
                     className="border border-gray-300 px-0.5 py-0.5 bg-blue-100 text-[0.55rem] font-semibold"
@@ -219,10 +232,13 @@ const ShiftTableView = ({
               </tr>
               {/* 勤務人数サマリー行 */}
               <tr className="bg-yellow-50">
-                <th className="border border-gray-300 px-1 py-0.5 bg-yellow-100 sticky left-0 z-20 text-[0.55rem]" colSpan="3">
+                <th
+                  className="border border-gray-300 px-1 py-0.5 bg-yellow-100 sticky left-0 z-20 text-[0.55rem]"
+                  colSpan="3"
+                >
                   勤務人数 Σ
                 </th>
-                {TIME_SLOTS.map((timeSlot) => (
+                {TIME_SLOTS.map(timeSlot => (
                   <td
                     key={timeSlot}
                     className="border border-gray-300 px-0.5 py-0.5 text-center font-semibold text-[0.55rem]"
@@ -239,11 +255,17 @@ const ShiftTableView = ({
 
                 // 店舗合計行を先頭に追加
                 storeRows.push(
-                  <tr key={`store-sum-${storeId}`} className="bg-blue-50 border-b-2 border-blue-300">
-                    <td colSpan="3" className="border border-gray-300 px-1 py-0.5 sticky left-0 z-10 bg-blue-50 font-bold text-[0.55rem] text-center">
+                  <tr
+                    key={`store-sum-${storeId}`}
+                    className="bg-blue-50 border-b-2 border-blue-300"
+                  >
+                    <td
+                      colSpan="3"
+                      className="border border-gray-300 px-1 py-0.5 sticky left-0 z-10 bg-blue-50 font-bold text-[0.55rem] text-center"
+                    >
                       {storesMap[storeId]?.store_name || `店舗${storeId}`} 合計 Σ
                     </td>
-                    {TIME_SLOTS.map((timeSlot) => (
+                    {TIME_SLOTS.map(timeSlot => (
                       <td
                         key={timeSlot}
                         className="border border-gray-300 px-0.5 py-0.5 text-center font-semibold bg-blue-50 text-[0.55rem]"
@@ -260,95 +282,110 @@ const ShiftTableView = ({
 
                   storeRows.push(
                     <tr key={`${staff.store_id}-${staff.staff_id}`} className={rowBgClass}>
-                    {/* 店舗名（rowspan） */}
-                    {isFirstStaffInStore(staff) && (
+                      {/* 店舗名（rowspan） */}
+                      {isFirstStaffInStore(staff) && (
+                        <td
+                          rowSpan={staffByStore[staff.store_id].length}
+                          className="border border-gray-300 px-2 py-1 sticky left-0 z-10 bg-blue-100 font-bold text-sm align-top"
+                        >
+                          {storesMap[staff.store_id]?.store_name || `店舗${staff.store_id}`}
+                        </td>
+                      )}
+
+                      {/* スタッフ名 */}
                       <td
-                        rowSpan={staffByStore[staff.store_id].length}
-                        className="border border-gray-300 px-2 py-1 sticky left-0 z-10 bg-blue-100 font-bold text-sm align-top"
+                        className={`border border-gray-300 px-1 py-1 sticky z-10 ${rowBgClass} font-medium text-[0.55rem]`}
+                        style={{ left: '100px' }}
                       >
-                        {storesMap[staff.store_id]?.store_name || `店舗${staff.store_id}`}
+                        {staff.staff_name}
                       </td>
-                    )}
 
-                    {/* スタッフ名 */}
-                    <td className={`border border-gray-300 px-1 py-1 sticky z-10 ${rowBgClass} font-medium text-[0.55rem]`} style={{ left: '100px' }}>
-                      {staff.staff_name}
-                    </td>
+                      {/* 役職 */}
+                      <td
+                        className={`border border-gray-300 px-1 py-1 sticky z-10 ${rowBgClass} text-[0.5rem] text-gray-600`}
+                        style={{ left: '180px' }}
+                      >
+                        {staff.role}
+                      </td>
 
-                    {/* 役職 */}
-                    <td className={`border border-gray-300 px-1 py-1 sticky z-10 ${rowBgClass} text-[0.5rem] text-gray-600`} style={{ left: '180px' }}>
-                      {staff.role}
-                    </td>
+                      {/* 各タイムスロット */}
+                      {TIME_SLOTS.map(timeSlot => {
+                        // このタイムスロットが既存シフトの途中ならスキップ
+                        if (isTimeSlotOccupied(timeSlot, staff.staff_id, staff.store_id)) {
+                          return null
+                        }
 
-                    {/* 各タイムスロット */}
-                    {TIME_SLOTS.map((timeSlot) => {
-                      // このタイムスロットが既存シフトの途中ならスキップ
-                      if (isTimeSlotOccupied(timeSlot, staff.staff_id, staff.store_id)) {
-                        return null
-                      }
+                        // このタイムスロットで開始するシフトがあるか確認
+                        const shift = getShiftStartingAt(timeSlot, staff.staff_id, staff.store_id)
 
-                      // このタイムスロットで開始するシフトがあるか確認
-                      const shift = getShiftStartingAt(timeSlot, staff.staff_id, staff.store_id)
+                        if (shift) {
+                          const colSpan = getShiftColSpan(shift)
+                          const roleColor = getRoleColor(shift.role)
 
-                      if (shift) {
-                        const colSpan = getShiftColSpan(shift)
-                        const roleColor = getRoleColor(shift.role)
+                          return (
+                            <td
+                              key={`${staff.staff_id}-${timeSlot}`}
+                              className={`border border-gray-300 px-0.5 py-1 ${roleColor.bg} text-white text-center ${editable && onShiftClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
+                              colSpan={colSpan}
+                              onClick={e => {
+                                console.log('🖱️ Shift cell clicked:', {
+                                  shift,
+                                  editable,
+                                  hasOnShiftClick: !!onShiftClick,
+                                })
+                                if (editable && onShiftClick) {
+                                  console.log('✅ Calling onShiftClick')
+                                  onShiftClick({
+                                    mode: 'edit',
+                                    shift: shift,
+                                    date: date,
+                                    event: e,
+                                  })
+                                } else {
+                                  console.log(
+                                    '❌ Click ignored - editable:',
+                                    editable,
+                                    'onShiftClick:',
+                                    !!onShiftClick
+                                  )
+                                }
+                              }}
+                            >
+                              <div className="flex flex-row items-center justify-center gap-1">
+                                <div className="font-semibold text-[0.5rem] whitespace-nowrap">
+                                  {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
+                                </div>
+                                {shift.modified_flag && (
+                                  <div className="text-[0.45rem] bg-yellow-400 text-yellow-900 px-0.5 rounded">
+                                    ⚠️
+                                  </div>
+                                )}
+                                {editable && onDelete && (
+                                  <button
+                                    onClick={e => {
+                                      e.stopPropagation()
+                                      handleDelete(shift)
+                                    }}
+                                    className="p-0.5 bg-red-500 hover:bg-red-600 rounded text-white opacity-0 hover:opacity-100 transition-opacity"
+                                    title="削除"
+                                  >
+                                    <Trash2 className="h-2 w-2" />
+                                  </button>
+                                )}
+                              </div>
+                            </td>
+                          )
+                        }
 
+                        // シフトがない場合は空セル
                         return (
                           <td
                             key={`${staff.staff_id}-${timeSlot}`}
-                            className={`border border-gray-300 px-0.5 py-1 ${roleColor.bg} text-white text-center ${editable && onShiftClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
-                            colSpan={colSpan}
-                            onClick={(e) => {
-                              console.log('🖱️ Shift cell clicked:', { shift, editable, hasOnShiftClick: !!onShiftClick })
-                              if (editable && onShiftClick) {
-                                console.log('✅ Calling onShiftClick')
-                                onShiftClick({
-                                  mode: 'edit',
-                                  shift: shift,
-                                  date: date,
-                                  event: e
-                                })
-                              } else {
-                                console.log('❌ Click ignored - editable:', editable, 'onShiftClick:', !!onShiftClick)
-                              }
-                            }}
-                          >
-                            <div className="flex flex-row items-center justify-center gap-1">
-                              <div className="font-semibold text-[0.5rem] whitespace-nowrap">
-                                {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
-                              </div>
-                              {shift.modified_flag && (
-                                <div className="text-[0.45rem] bg-yellow-400 text-yellow-900 px-0.5 rounded">
-                                  ⚠️
-                                </div>
-                              )}
-                              {editable && onDelete && (
-                                <button
-                                  onClick={(e) => {
-                                    e.stopPropagation()
-                                    handleDelete(shift)
-                                  }}
-                                  className="p-0.5 bg-red-500 hover:bg-red-600 rounded text-white opacity-0 hover:opacity-100 transition-opacity"
-                                  title="削除"
-                                >
-                                  <Trash2 className="h-2 w-2" />
-                                </button>
-                              )}
-                            </div>
-                          </td>
+                            className="border border-gray-300 px-0.5 py-1"
+                          ></td>
                         )
-                      }
-
-                      // シフトがない場合は空セル
-                      return (
-                        <td
-                          key={`${staff.staff_id}-${timeSlot}`}
-                          className="border border-gray-300 px-0.5 py-1"
-                        ></td>
-                      )
-                    })}
-                  </tr>
+                      })}
+                    </tr>
                   )
                 })
 
