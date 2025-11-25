@@ -1,8 +1,6 @@
-import pkg from 'pg';
-const { Pool } = pkg;
-import dotenv from 'dotenv';
-
-dotenv.config();
+import pkg from 'pg'
+const { Pool } = pkg
+import './env.js' // 環境変数を読み込む
 
 // Railway PostgreSQL接続設定
 const pool = new Pool({

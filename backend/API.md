@@ -391,10 +391,26 @@ const messages = await client.getMessages(thread.id)
 
 ## 環境変数
 
-`.env`ファイルに以下を設定:
+`.env.local`ファイルに以下を設定:
 
 ```env
-VITE_OPENAI_API_KEY=sk-proj-...
+# サーバー設定
+PORT=3001
+
+# OpenAI API Key
+VITE_OPENAI_API_KEY=sk-proj-your-openai-api-key-here
+
+# Database URL
+# LOCAL環境（ローカル開発）: postgresql://user:password@localhost:5432/shift_scheduler
+# STG環境（ステージング）: Railway PostgreSQL URL
+# PRD環境（本番）: Production PostgreSQL URL
+DATABASE_URL=postgresql://user:password@localhost:5432/shift_scheduler
+
+# 環境設定
+NODE_ENV=development
+
+# CORS設定（フロントエンドのURL）
+CORS_ORIGIN=http://localhost:5173
 ```
 
 ---

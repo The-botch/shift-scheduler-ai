@@ -31,8 +31,9 @@ db.sqlite3-journal
 /media
 /staticfiles
 
-# Environment
-.env
+# Environment variables (モダンな管理方式)
+# .env, .env.example → コミット可（デフォルト値）
+# .env.local → コミット不可（シークレット）
 .env.local
 .env.*.local
 

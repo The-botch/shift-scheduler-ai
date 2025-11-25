@@ -104,12 +104,14 @@ const FirstPlanEditor = ({
   const [planIdState, setPlanIdState] = useState(null) // 状態として保持するplanId
   const [defaultPatternId, setDefaultPatternId] = useState(null)
   const [preferences, setPreferences] = useState([]) // 希望シフト
+  const [shiftPatterns, setShiftPatterns] = useState([]) // シフトパターンマスタ
 
   // シフト編集ポップアップの状態
   const [modalState, setModalState] = useState({
     isOpen: false,
     mode: 'add', // 'add' | 'edit'
     shift: null,
+    selectedPattern: null, // 選択されたシフトパターン
     position: { x: 0, y: 0 }, // ポップアップ表示位置
   })
 
@@ -190,6 +192,15 @@ const FirstPlanEditor = ({
 
       // 希望シフトは取得しない（第一案は前月コピーなので不要）
 
+      // シフトパターンマスタを取得
+      try {
+        const patterns = await masterRepository.getShiftPatterns()
+        setShiftPatterns(patterns)
+        console.log('シフトパターン取得完了:', patterns.length, '件')
+      } catch (error) {
+        console.error('シフトパターン取得エラー:', error)
+      }
+
       setLoading(false)
     } catch (err) {
       console.error('initialData読み込みエラー:', err)
@@ -262,6 +273,15 @@ const FirstPlanEditor = ({
       )
 
       // 希望シフトは取得しない（第一案は前月コピーなので不要）
+
+      // シフトパターンマスタを取得
+      try {
+        const patterns = await masterRepository.getShiftPatterns()
+        setShiftPatterns(patterns)
+        console.log('シフトパターン取得完了:', patterns.length, '件')
+      } catch (error) {
+        console.error('シフトパターン取得エラー:', error)
+      }
 
       setLoading(false)
     } catch (err) {
@@ -692,6 +712,14 @@ const FirstPlanEditor = ({
     // スタッフ情報を取得
     const staffInfo = staffMap[newShiftData.staff_id] || { name: '不明', role_name: 'スタッフ' }
 
+    // pattern_id を動的に取得（マルチテナント対応）
+    // 優先順位: 選択されたパターン > 既存シフトの最初のパターン > デフォルト
+    const dynamicPatternId =
+      modalState.selectedPattern?.pattern_id ||
+      defaultPatternId ||
+      (shiftData.length > 0 ? shiftData[0].pattern_id : null) ||
+      (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1)
+
     // 新しいシフトオブジェクトを作成（バックエンド保存用の必須フィールドを含む）
     const newShift = {
       shift_id: tempShiftId,
@@ -700,7 +728,7 @@ const FirstPlanEditor = ({
       plan_id: planId, // 必須
       staff_id: newShiftData.staff_id, // 必須
       shift_date: newShiftData.date || newShiftData.shift_date, // 必須
-      pattern_id: defaultPatternId || 1, // 必須（デフォルト値として1を使用）
+      pattern_id: dynamicPatternId, // 動的に取得（マルチテナント対応）
       start_time: newShiftData.start_time, // 必須
       end_time: newShiftData.end_time, // 必須
       break_minutes: newShiftData.break_minutes || 0, // 必須
@@ -969,11 +997,13 @@ const FirstPlanEditor = ({
     onDelete,
     position,
     availableStores,
+    shiftPatterns,
   }) => {
     const [startTime, setStartTime] = useState(shift?.start_time || '')
     const [endTime, setEndTime] = useState(shift?.end_time || '')
     const [breakMinutes, setBreakMinutes] = useState(shift?.break_minutes || 0)
     const [storeId, setStoreId] = useState(shift?.store_id || '')
+    const [selectedPatternId, setSelectedPatternId] = useState('')
     const [popupStyle, setPopupStyle] = useState({})
     const [isDragging, setIsDragging] = useState(false)
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -986,8 +1016,23 @@ const FirstPlanEditor = ({
         setEndTime(shift.end_time || '')
         setBreakMinutes(shift.break_minutes || 0)
         setStoreId(shift.store_id || '')
+        setSelectedPatternId('')
       }
     }, [shift])
+
+    // パターン選択ハンドラー（時刻を自動入力）
+    const handlePatternSelect = patternId => {
+      setSelectedPatternId(patternId)
+
+      if (patternId && shiftPatterns) {
+        const pattern = shiftPatterns.find(p => p.pattern_id === Number(patternId))
+        if (pattern) {
+          setStartTime(pattern.start_time)
+          setEndTime(pattern.end_time)
+          setBreakMinutes(pattern.break_minutes || 0)
+        }
+      }
+    }
 
     // ドラッグハンドラー
     const handleDragStart = e => {
@@ -1225,6 +1270,40 @@ const FirstPlanEditor = ({
                       ))}
                   </select>
                 </div>
+
+                {/* シフトパターン選択（店舗選択後に表示） */}
+                {storeId &&
+                  shiftPatterns &&
+                  shiftPatterns.length > 0 &&
+                  (() => {
+                    // 選択された店舗のパターン、またはテナント共通パターン（store_id=null）をフィルタリング
+                    const filteredPatterns = shiftPatterns.filter(
+                      pattern => pattern.store_id === null || pattern.store_id === Number(storeId)
+                    )
+
+                    if (filteredPatterns.length === 0) return null
+
+                    return (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          シフトパターン
+                        </label>
+                        <select
+                          value={selectedPatternId}
+                          onChange={e => handlePatternSelect(e.target.value)}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">-- パターンを選択 --</option>
+                          {filteredPatterns.map(pattern => (
+                            <option key={pattern.pattern_id} value={pattern.pattern_id}>
+                              {pattern.pattern_name} ({pattern.start_time}-{pattern.end_time})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )
+                  })()}
+
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     開始時刻 <span className="text-red-500">*</span>
@@ -1567,6 +1646,7 @@ const FirstPlanEditor = ({
         preferences={preferences}
         position={modalState.position}
         availableStores={availableStores}
+        shiftPatterns={shiftPatterns}
         onClose={() =>
           setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })
         }

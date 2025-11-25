@@ -6,24 +6,25 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const csvPath = join(__dirname, '../fixtures/shift_pdfs/csv_output/シフト.csv');
+const csvPath = join(__dirname, '../../fixtures/shift_pdfs/csv_output/shift_all_data_updated.csv');
 const csvContent = fs.readFileSync(csvPath, 'utf-8');
 const shifts = parse(csvContent, {
   columns: true,
-  skip_empty_lines: true
+  skip_empty_lines: true,
+  bom: true  // UTF-8 BOMを処理
 });
 
 // 武根太一さんのシフトを抽出
-const takeneShifts = shifts.filter(s => s.staff_name === '武根太一');
+const takeneShifts = shifts.filter(s => s['スタッフ名'] === '武根太一');
 
 console.log('=== 武根太一さんのシフトデータパース検証 ===\n');
 console.log(`総件数: ${takeneShifts.length}件\n`);
 
 takeneShifts.slice(0, 5).forEach((shift, idx) => {
   console.log(`--- ${idx + 1}件目 ---`);
-  console.log(`CSV上の shift_date: "${shift.shift_date}"`);
+  console.log(`CSV上の日付: "${shift['日付']}"`);
 
-  const date = new Date(shift.shift_date);
+  const date = new Date(shift['日付']);
   console.log(`new Date()でパース: ${date}`);
   console.log(`toISOString(): ${date.toISOString()}`);
   console.log(`toISOString().split('T')[0]: ${date.toISOString().split('T')[0]}`);
@@ -34,11 +35,11 @@ takeneShifts.slice(0, 5).forEach((shift, idx) => {
 });
 
 console.log('\n=== 問題分析 ===');
-const firstDate = new Date(takeneShifts[0].shift_date);
+const firstDate = new Date(takeneShifts[0]['日付']);
 const expectedDate = '2025-07-03';
 const actualDate = firstDate.toISOString().split('T')[0];
 
-console.log(`CSV上の最初の日付: ${takeneShifts[0].shift_date}`);
+console.log(`CSV上の最初の日付: ${takeneShifts[0]['日付']}`);
 console.log(`期待される日付: ${expectedDate}`);
 console.log(`実際にパースされた日付: ${actualDate}`);
 

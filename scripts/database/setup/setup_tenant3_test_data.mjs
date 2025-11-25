@@ -42,7 +42,7 @@ import { dirname, join } from 'path';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-dotenv.config({ path: join(__dirname, '../../backend/.env') });
+dotenv.config({ path: join(__dirname, '../../../backend/.env') });
 
 const { Pool } = pkg;
 
@@ -54,9 +54,16 @@ let pool = null;
 
 function getPool() {
   if (!pool) {
+    if (!process.env.DATABASE_URL) {
+      throw new Error('❌ DATABASE_URL が設定されていません');
+    }
+
+    const dbHost = process.env.DATABASE_URL.split('@')[1]?.split('/')[0] || 'Unknown';
+    console.log(`🔌 接続先: ${dbHost}`);
+
     pool = new Pool({
-      connectionString: process.env.DATABASE_URL || 'postgresql://postgres:FGJbfPvwLFlYWCyVgJRzCfWGczpmOzvP@autorack.proxy.rlwy.net:11738/railway',
-      ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
+      connectionString: process.env.DATABASE_URL,
+      ssl: { rejectUnauthorized: false },
       connectionTimeoutMillis: 10000,
       idleTimeoutMillis: 30000,
       max: 1
@@ -420,7 +427,7 @@ async function registerMasterData(client) {
   // 7. スタッフ登録（シフトCSVから抽出）
   console.log('\n7️⃣  スタッフ登録中...');
 
-  const csvPath = join(__dirname, '../../../fixtures/shift_pdfs/csv_output/シフト.csv');
+  const csvPath = join(__dirname, '../../../fixtures/shift_pdfs/csv_output/shift_all_data_updated.csv');
   if (!fs.existsSync(csvPath)) {
     console.log(`⚠️  シフトCSVが見つかりません: ${csvPath}`);
     console.log('   スタッフ登録をスキップします。');
@@ -428,7 +435,8 @@ async function registerMasterData(client) {
     const csvContent = fs.readFileSync(csvPath, 'utf-8');
     const shifts = parse(csvContent, {
       columns: true,
-      skip_empty_lines: true
+      skip_empty_lines: true,
+      bom: true  // UTF-8 BOMを処理
     });
 
     // スタッフ名の抽出と雇用形態判定、店舗別出勤回数の集計
@@ -436,16 +444,16 @@ async function registerMasterData(client) {
     const staffStoreCount = new Map(); // { staff_name: { store_name: count } }
 
     shifts.forEach(shift => {
-      const staffName = shift.staff_name;
-      const storeName = shift.store_name;
-      const empTypeFromCSV = shift.employment_type; // MONTHLY or HOURLY
+      const staffName = shift['スタッフ名'];
+      const storeName = shift['店舗名'];
+      const roleFromCSV = shift['役職']; // 社員 or アルバイト
 
       // スタッフ情報の収集
       if (!staffSet.has(staffName)) {
-        // CSVの雇用形態から判定
-        // MONTHLY → FULL_TIME (正社員), HOURLY → PART_TIME (アルバイト)
-        const empType = empTypeFromCSV === 'MONTHLY' ? 'FULL_TIME' : 'PART_TIME';
-        const role = empTypeFromCSV === 'MONTHLY' ? 'SENIOR' : 'STAFF';
+        // CSVの役職から判定
+        // 社員 → FULL_TIME (正社員), アルバイト → PART_TIME (アルバイト)
+        const empType = roleFromCSV === '社員' ? 'FULL_TIME' : 'PART_TIME';
+        const role = roleFromCSV === '社員' ? 'SENIOR' : 'STAFF';
 
         staffSet.set(staffName, {
           role,
@@ -463,7 +471,7 @@ async function registerMasterData(client) {
 
     // CSVの店舗名 → store_code マッピング
     const storeNameToCode = {
-      'COME': 'COME',
+      'COME 麻布台': 'COME',
       'Atelier': 'ATELIER',
       'SHIBUYA': 'SHIBUYA',
       'Stand Banh Mi': 'STAND_BANH_MI',
@@ -474,7 +482,7 @@ async function registerMasterData(client) {
     const staffDefaultStores = new Map();
     for (const [staffName, storeCounts] of staffStoreCount.entries()) {
       let maxCount = 0;
-      let mostFrequentStoreName = 'COME'; // デフォルト
+      let mostFrequentStoreName = 'COME 麻布台'; // デフォルト
 
       for (const [storeName, count] of storeCounts.entries()) {
         if (count > maxCount) {
@@ -584,9 +592,10 @@ async function registerMasterData(client) {
 
     // 10月・11月のシフトに出ているスタッフを抽出
     shifts.forEach(shift => {
-      const yearMonth = `${shift.plan_year}-${String(shift.plan_month).padStart(2, '0')}`;
+      const date = new Date(shift['日付']);
+      const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       if (yearMonth === '2025-10' || yearMonth === '2025-11') {
-        recentStaff.add(shift.staff_name);
+        recentStaff.add(shift['スタッフ名']);
       }
     });
 
@@ -1166,7 +1175,7 @@ async function registerMasterData(client) {
 async function registerShiftData(client, masterIds) {
   console.log('\n8️⃣  シフトデータ登録中...');
 
-  const csvPath = join(__dirname, '../../../fixtures/shift_pdfs/csv_output/シフト.csv');
+  const csvPath = join(__dirname, '../../../fixtures/shift_pdfs/csv_output/shift_all_data_updated.csv');
   if (!fs.existsSync(csvPath)) {
     console.log(`⚠️  シフトCSVが見つかりません: ${csvPath}`);
     console.log('   シフトデータ登録をスキップします。');
@@ -1176,14 +1185,15 @@ async function registerShiftData(client, masterIds) {
   const csvContent = fs.readFileSync(csvPath, 'utf-8');
   const shifts = parse(csvContent, {
     columns: true,
-    skip_empty_lines: true
+    skip_empty_lines: true,
+    bom: true  // UTF-8 BOMを処理
   });
 
   console.log(`   読み込んだシフト数: ${shifts.length}件`);
 
   // 店舗名 → store_id マッピング（先に定義）
   const storeNameMap = {
-    'COME': masterIds.storeIds['COME'],
+    'COME 麻布台': masterIds.storeIds['COME'],
     'Stand Banh Mi': masterIds.storeIds['STAND_BANH_MI'],
     'Stand Bo Bun': masterIds.storeIds['STAND_BO_BUN'],
     'Atelier': masterIds.storeIds['ATELIER'],
@@ -1193,16 +1203,16 @@ async function registerShiftData(client, masterIds) {
   // シフトを年月+店舗でグループ化
   const shiftsByMonthStore = {};
   shifts.forEach(shift => {
-    const date = new Date(shift.shift_date);
+    const date = new Date(shift['日付']);
     const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    const storeId = storeNameMap[shift.store_name] || masterIds.storeIds['COME'];
+    const storeId = storeNameMap[shift['店舗名']] || masterIds.storeIds['COME'];
     const key = `${yearMonth}_${storeId}`;
 
     if (!shiftsByMonthStore[key]) {
       shiftsByMonthStore[key] = {
         yearMonth,
         storeId,
-        storeName: shift.store_name,
+        storeName: shift['店舗名'],
         shifts: []
       };
     }
@@ -1286,7 +1296,7 @@ async function registerShiftData(client, masterIds) {
   let skipped = 0;
 
   for (const shift of shifts) {
-    const staffName = shift.staff_name;
+    const staffName = shift['スタッフ名'];
     const staffId = staffMap[staffName];
 
     if (!staffId) {
@@ -1298,10 +1308,10 @@ async function registerShiftData(client, masterIds) {
     }
 
     // 店舗IDを取得
-    const storeId = storeNameMap[shift.store_name] || masterIds.storeIds['COME'];
+    const storeId = storeNameMap[shift['店舗名']] || masterIds.storeIds['COME'];
 
     // 日付はCSVに既にYYYY-MM-DD形式で入っている
-    const shiftDate = shift.shift_date;
+    const shiftDate = shift['日付'];
 
     // このシフトの年月+店舗を取得し、対応するplan_idを使用
     const date = new Date(shiftDate);
@@ -1311,30 +1321,31 @@ async function registerShiftData(client, masterIds) {
 
     if (!planId) {
       skipped++;
-      console.error(`   ❌ plan_idが見つかりません: ${key} (店舗: ${shift.store_name})`);
+      console.error(`   ❌ plan_idが見つかりません: ${key} (店舗: ${shift['店舗名']})`);
       continue;
     }
 
-    // 開始・終了時刻を HH:MM → HH:MM:SS に変換
-    // 24時を超える時刻（27:00など）は正規化する（27:00 → 03:00）
+    // 開始・終了時刻は既に HH:MM:SS 形式
+    // 24時を超える時刻（27:00など）は正規化する（27:00:00 → 03:00:00）
     const normalizeTime = (timeStr) => {
       const parts = timeStr.split(':');
       let hour = parseInt(parts[0]);
       const minute = parts[1];
+      const second = parts[2] || '00';
 
       // 24時を超える場合は24で割った余りを使用
       if (hour >= 24) {
         hour = hour % 24;
       }
 
-      return `${String(hour).padStart(2, '0')}:${minute}:00`;
+      return `${String(hour).padStart(2, '0')}:${minute}:${second}`;
     };
 
-    const startTime = normalizeTime(shift.start_time);
-    const endTime = normalizeTime(shift.end_time);
+    const startTime = normalizeTime(shift['開始時刻']);
+    const endTime = normalizeTime(shift['終了時刻']);
 
     // 労働時間を計算（開始〜終了 - 休憩時間）
-    const breakMinutes = parseInt(shift.break_minutes) || 0;
+    const breakMinutes = parseInt(shift['休憩時間']) || 0;
     const [startHour, startMin] = startTime.split(':').map(Number);
     const [endHour, endMin] = endTime.split(':').map(Number);
     const startMinutes = startHour * 60 + startMin;
@@ -1368,12 +1379,12 @@ async function registerShiftData(client, masterIds) {
         endTime,
         breakMinutes,
         totalHours,
-        shift.notes || null
+        null  // notes列は新しいCSVにない
       ]);
       inserted++;
 
       if (inserted <= 5 || inserted % 100 === 0) {
-        console.log(`  [${inserted}/${shifts.length}] ${shiftDate} - ${staffName} (${shift.store_name})`);
+        console.log(`  [${inserted}/${shifts.length}] ${shiftDate} - ${staffName} (${shift['店舗名']})`);
       }
     } catch (error) {
       console.error(`   ❌ エラー (${staffName}, ${shiftDate}):`, error.message);

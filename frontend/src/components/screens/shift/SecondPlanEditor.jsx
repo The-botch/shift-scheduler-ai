@@ -118,8 +118,12 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     isOpen: false,
     mode: 'add', // 'add' | 'edit'
     shift: null,
+    selectedPattern: null, // 選択されたシフトパターン
     position: { x: 0, y: 0 }, // ポップアップ表示位置
   })
+
+  // シフトパターンマスタ
+  const [shiftPatterns, setShiftPatterns] = useState([])
 
   // CSVデータ格納用state
   const [csvShifts, setCsvShifts] = useState([])
@@ -175,6 +179,15 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       // マスタデータを取得（カスタムhook経由）
       const { staffMapping } = await loadMasterData()
       console.log('SecondPlanEditor - マスタデータ取得完了')
+
+      // シフトパターンマスタを取得
+      try {
+        const patterns = await masterRepository.getShiftPatterns()
+        setShiftPatterns(patterns)
+        console.log('シフトパターン取得完了:', patterns.length, '件')
+      } catch (error) {
+        console.error('シフトパターン取得エラー:', error)
+      }
 
       // 店舗名を設定
       const storeId = selectedShift?.storeId || selectedShift?.store_id
@@ -1186,6 +1199,14 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     // 仮IDを生成
     const tempId = `temp_${Date.now()}_${Math.random()}`
 
+    // pattern_id を動的に取得（マルチテナント対応）
+    // 優先順位: 選択されたパターン > 既存シフトの最初のパターン > デフォルト
+    const defaultPatternId =
+      modalState.selectedPattern?.pattern_id ||
+      (csvShifts.length > 0 ? csvShifts[0].pattern_id : null) ||
+      (firstPlanShifts.length > 0 ? firstPlanShifts[0].pattern_id : null) ||
+      (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1)
+
     const newShift = {
       shift_id: tempId,
       tenant_id: tenantId,
@@ -1193,7 +1214,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       plan_id: planId,
       staff_id: shiftData.staff_id,
       shift_date: shiftData.date, // MultiStoreShiftTableで使用されるフィールド名
-      pattern_id: 1, // デフォルトパターン（通常勤務）
+      pattern_id: defaultPatternId, // 動的に取得（マルチテナント対応）
       start_time: shiftData.start_time,
       end_time: shiftData.end_time,
       break_minutes: shiftData.break_minutes || 0,
@@ -1376,11 +1397,13 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     onDelete,
     position,
     availableStores,
+    shiftPatterns,
   }) => {
     const [startTime, setStartTime] = useState(shift?.start_time || '')
     const [endTime, setEndTime] = useState(shift?.end_time || '')
     const [breakMinutes, setBreakMinutes] = useState(shift?.break_minutes || 0)
     const [storeId, setStoreId] = useState(shift?.store_id || '')
+    const [selectedPatternId, setSelectedPatternId] = useState('')
     const [popupStyle, setPopupStyle] = useState({})
     const [isDragging, setIsDragging] = useState(false)
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -1393,8 +1416,23 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
         setEndTime(shift.end_time || '')
         setBreakMinutes(shift.break_minutes || 0)
         setStoreId(shift.store_id || '')
+        setSelectedPatternId('')
       }
     }, [shift])
+
+    // パターン選択ハンドラー（時刻を自動入力）
+    const handlePatternSelect = patternId => {
+      setSelectedPatternId(patternId)
+
+      if (patternId && shiftPatterns) {
+        const pattern = shiftPatterns.find(p => p.pattern_id === Number(patternId))
+        if (pattern) {
+          setStartTime(pattern.start_time)
+          setEndTime(pattern.end_time)
+          setBreakMinutes(pattern.break_minutes || 0)
+        }
+      }
+    }
 
     // ドラッグハンドラー
     const handleDragStart = e => {
@@ -1632,6 +1670,39 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
                       ))}
                   </select>
                 </div>
+
+                {/* シフトパターン選択（店舗選択後に表示） */}
+                {storeId &&
+                  shiftPatterns &&
+                  shiftPatterns.length > 0 &&
+                  (() => {
+                    // 選択された店舗のパターン、またはテナント共通パターン（store_id=null）をフィルタリング
+                    const filteredPatterns = shiftPatterns.filter(
+                      pattern => pattern.store_id === null || pattern.store_id === Number(storeId)
+                    )
+
+                    if (filteredPatterns.length === 0) return null
+
+                    return (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          シフトパターン
+                        </label>
+                        <select
+                          value={selectedPatternId}
+                          onChange={e => handlePatternSelect(e.target.value)}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">-- パターンを選択 --</option>
+                          {filteredPatterns.map(pattern => (
+                            <option key={pattern.pattern_id} value={pattern.pattern_id}>
+                              {pattern.pattern_name} ({pattern.start_time}-{pattern.end_time})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )
+                  })()}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     開始時刻 <span className="text-red-500">*</span>
@@ -2413,6 +2484,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
             preferences={preferences}
             position={modalState.position}
             availableStores={availableStores}
+            shiftPatterns={shiftPatterns}
             onClose={() =>
               setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })
             }
