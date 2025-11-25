@@ -1047,9 +1047,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
 
   // シフト更新ハンドラー（メモリに保存のみ、FirstPlanEditorと同じ仕組み）
   const handleUpdateShift = (shiftId, updates) => {
-    console.log('=== handleUpdateShift START ===')
-    console.log('shiftId:', shiftId)
-    console.log('updates:', updates)
     setHasUnsavedChanges(true)
 
     // ローカルの変更を保持
@@ -1076,17 +1073,20 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
         )
       )
     }
-
-    console.log('=== handleUpdateShift END ===')
-    console.log('Updated successfully for shiftId:', shiftId)
   }
 
   // シフト削除ハンドラー（メモリに保存のみ、FirstPlanEditorと同じ仕組み）
   const handleDeleteShift = shiftId => {
     setHasUnsavedChanges(true)
 
-    // ローカルの削除リストに追加
-    setDeletedShiftIds(prev => new Set([...prev, shiftId]))
+    // Tempシフト（未保存）かどうかを判定
+    if (String(shiftId).startsWith('temp_')) {
+      // Tempシフトの場合：addedShiftsから削除（バックエンドへの削除リクエストは不要）
+      setAddedShifts(prev => prev.filter(shift => shift.shift_id !== shiftId))
+    } else {
+      // 既存シフト（DB保存済み）の場合：削除リストに追加（バックエンドで削除）
+      setDeletedShiftIds(prev => new Set([...prev, shiftId]))
+    }
 
     // ローカルステートから削除（UIから削除）
     setCsvShifts(prev => prev.filter(shift => shift.shift_id !== shiftId))
@@ -1111,17 +1111,12 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
 
     try {
       setSaving(true)
-      console.log('下書き保存処理開始')
 
       if (!hasUnsavedChanges) {
         alert(MESSAGES.SUCCESS.NO_CHANGES)
         setSaving(false)
         return
       }
-
-      console.log('新規追加:', addedShifts.length, '件')
-      console.log('修正:', Object.keys(modifiedShifts).length, '件')
-      console.log('削除:', deletedShiftIds.size, '件')
 
       // すべての変更をバックエンドに送信
       const updatePromises = []
@@ -1142,27 +1137,22 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
           is_preferred: newShift.is_preferred,
           is_modified: newShift.is_modified,
         }
-        console.log('新規シフト作成:', shiftData)
         updatePromises.push(shiftRepository.createShift(shiftData))
       }
 
       // 修正されたシフトを更新
       for (const [shiftId, updates] of Object.entries(modifiedShifts)) {
-        console.log('シフト更新:', shiftId, updates)
         updatePromises.push(shiftRepository.updateShift(Number(shiftId), updates))
       }
 
       // 削除されたシフトを削除
       for (const shiftId of deletedShiftIds) {
-        console.log('シフト削除:', shiftId)
         updatePromises.push(shiftRepository.deleteShift(shiftId))
       }
 
       // すべての変更を並行実行
       if (updatePromises.length > 0) {
-        console.log('変更をバックエンドに送信中...')
-        const results = await Promise.all(updatePromises)
-        console.log('保存完了:', results)
+        await Promise.all(updatePromises)
       }
 
       // ローカルステートをリセット
@@ -1170,8 +1160,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       setDeletedShiftIds(new Set())
       setAddedShifts([])
       setHasUnsavedChanges(false)
-
-      console.log('下書き保存処理完了')
 
       alert(MESSAGES.SUCCESS.SAVED)
       // データをリロードして最新の状態を表示
@@ -1188,9 +1176,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
 
   // シフト新規追加ハンドラー（メモリに保存のみ）
   const handleAddShift = shiftData => {
-    console.log('=== handleAddShift START ===')
-    console.log('shiftData:', shiftData)
-
     const year = selectedShift?.year || new Date().getFullYear()
     const month = selectedShift?.month || new Date().getMonth() + 1
     const planId = selectedShift?.plan_id || selectedShift?.planId || planIdState
@@ -1240,16 +1225,10 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     if (selectedDate && shiftData.date === selectedDate) {
       setDayShifts(prev => [...prev, newShift])
     }
-
-    console.log('=== handleAddShift END ===')
   }
 
   // セルクリック時のハンドラー
   const handleShiftClick = ({ mode, shift, date, staffId, storeId, event }) => {
-    console.log('=== handleShiftClick ===')
-    console.log('mode:', mode)
-    console.log('shift:', shift)
-
     // クリック位置を取得
     const rect = event?.target.getBoundingClientRect()
     const position = rect
@@ -1301,10 +1280,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
 
   // モーダルからの保存処理
   const handleModalSave = timeData => {
-    console.log('=== handleModalSave ===')
-    console.log('modalState:', modalState)
-    console.log('timeData:', timeData)
-
     if (modalState.mode === 'add') {
       handleAddShift({
         ...modalState.shift,
