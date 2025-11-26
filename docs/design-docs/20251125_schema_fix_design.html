@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>schema.sql修正 - 設計書</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 4px solid #e74c3c;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 40px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 5px solid #e74c3c;
+            padding-left: 15px;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 25px;
+            margin-bottom: 15px;
+            font-size: 1.3em;
+        }
+
+        .error-box {
+            background: #fee;
+            border-left: 4px solid #e74c3c;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .error-box strong {
+            color: #c0392b;
+        }
+
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .code-block pre {
+            margin: 0;
+        }
+
+        .diff-removed {
+            background: #fdd;
+            color: #c00;
+            text-decoration: line-through;
+        }
+
+        .diff-added {
+            background: #dfd;
+            color: #080;
+            font-weight: bold;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        th {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .step-list {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+
+        .step-list li {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-left: 4px solid #e74c3c;
+            padding-left: 15px;
+        }
+
+        .impact-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+
+        .impact-high {
+            background: #e74c3c;
+            color: white;
+        }
+
+        .impact-medium {
+            background: #f39c12;
+            color: white;
+        }
+
+        .impact-low {
+            background: #2ecc71;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 schema.sql修正 - 設計書</h1>
+
+        <div class="error-box">
+            <strong>🚨 問題の概要:</strong>
+            <p style="margin-top: 10px;">STG環境でDDL/DML実行時に、<code>shift_preferences</code>テーブルのUNIQUE制約追加でエラーが発生。存在しないカラム<code>preference_date</code>を参照しているため。</p>
+        </div>
+
+        <h2>1. エラー詳細</h2>
+
+        <div class="code-block">
+<pre>❌ エラー: column "preference_date" named in key does not exist
+error: column "preference_date" named in key does not exist
+
+where: 'SQL statement "ALTER TABLE ops.shift_preferences
+    ADD CONSTRAINT unique_shift_preference_per_staff_date
+    UNIQUE (tenant_id, staff_id, preference_date)"
+PL/pgSQL function inline_code_block line 7 at SQL statement'</pre>
+        </div>
+
+        <h3>エラー発生箇所</h3>
+        <p><strong>ファイル:</strong> <code>scripts/database/ddl/schema.sql</code></p>
+        <p><strong>行番号:</strong> 873行目</p>
+
+        <h2>2. 原因分析</h2>
+
+        <h3>2-1. shift_preferencesテーブルの定義（392-414行目）</h3>
+        <div class="code-block">
+<pre>CREATE TABLE IF NOT EXISTS ops.shift_preferences (
+    preference_id SERIAL PRIMARY KEY,
+    tenant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    staff_id INT NOT NULL,
+    staff_name VARCHAR(100),
+    year INT NOT NULL,              ← ✅ 年を個別に管理
+    month INT NOT NULL,             ← ✅ 月を個別に管理
+    preferred_days TEXT,
+    ng_days TEXT,
+    preferred_time_slots TEXT,
+    max_hours_per_week DECIMAL(5,2),
+    notes TEXT,
+    submitted_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    ...
+);</pre>
+        </div>
+
+        <h3>2-2. UNIQUE制約の追加（865-875行目）</h3>
+        <div class="code-block">
+<pre>DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'unique_shift_preference_per_staff_date'
+  ) THEN
+    ALTER TABLE ops.shift_preferences
+    ADD CONSTRAINT unique_shift_preference_per_staff_date
+    <span class="diff-removed">UNIQUE (tenant_id, staff_id, preference_date);</span>  ← ❌ 存在しないカラム
+  END IF;
+END $$;</pre>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ 問題点:</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li><code>shift_preferences</code>テーブルには<code>preference_date</code>カラムが存在しない</li>
+                <li>代わりに<code>year</code>と<code>month</code>カラムで期間を管理している</li>
+                <li>UNIQUE制約は<code>(tenant_id, staff_id, year, month)</code>であるべき</li>
+            </ul>
+        </div>
+
+        <h2>3. 修正方針</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>項目</th>
+                    <th>現状</th>
+                    <th>修正後</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>制約名</strong></td>
+                    <td><code>unique_shift_preference_per_staff_date</code></td>
+                    <td><code>unique_shift_preference_per_staff_period</code></td>
+                </tr>
+                <tr>
+                    <td><strong>UNIQUE制約</strong></td>
+                    <td><code>(tenant_id, staff_id, preference_date)</code></td>
+                    <td><code>(tenant_id, staff_id, year, month)</code></td>
+                </tr>
+                <tr>
+                    <td><strong>影響範囲</strong></td>
+                    <td colspan="2">
+                        <span class="impact-badge impact-low">LOW</span>
+                        DDLのみの修正、既存データへの影響なし
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>4. 修正内容</h2>
+
+        <h3>4-1. schema.sql（865-875行目）</h3>
+
+        <div class="code-block">
+<pre><span style="color: #95a5a6;">-- 修正前</span>
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = '<span class="diff-removed">unique_shift_preference_per_staff_date</span>'
+  ) THEN
+    ALTER TABLE ops.shift_preferences
+    ADD CONSTRAINT <span class="diff-removed">unique_shift_preference_per_staff_date</span>
+    UNIQUE (tenant_id, staff_id, <span class="diff-removed">preference_date</span>);
+  END IF;
+END $$;
+
+<span style="color: #95a5a6;">-- 修正後</span>
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = '<span class="diff-added">unique_shift_preference_per_staff_period</span>'
+  ) THEN
+    ALTER TABLE ops.shift_preferences
+    ADD CONSTRAINT <span class="diff-added">unique_shift_preference_per_staff_period</span>
+    UNIQUE (tenant_id, staff_id, <span class="diff-added">year, month</span>);
+  END IF;
+END $$;</pre>
+        </div>
+
+        <h2>5. 影響範囲の確認</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>対象</th>
+                    <th>影響</th>
+                    <th>対応</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>schema.sql</strong></td>
+                    <td><span class="impact-badge impact-low">LOW</span> 1箇所のみ修正</td>
+                    <td>873行目の制約定義を修正</td>
+                </tr>
+                <tr>
+                    <td><strong>既存のDB</strong></td>
+                    <td><span class="impact-badge impact-low">LOW</span> 影響なし</td>
+                    <td>STG環境は再構築、PRD環境は未使用</td>
+                </tr>
+                <tr>
+                    <td><strong>アプリケーション</strong></td>
+                    <td><span class="impact-badge impact-low">LOW</span> 影響なし</td>
+                    <td>制約名の変更のみ、ロジックは変更不要</td>
+                </tr>
+                <tr>
+                    <td><strong>DMLファイル</strong></td>
+                    <td><span class="impact-badge impact-low">LOW</span> 影響なし</td>
+                    <td>修正不要</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>6. 実装手順</h2>
+
+        <ol class="step-list">
+            <li><strong>schema.sqlの修正</strong>
+                <ul style="margin-left: 20px; margin-top: 5px;">
+                    <li>873行目: <code>preference_date</code> → <code>year, month</code></li>
+                    <li>制約名: <code>unique_shift_preference_per_staff_date</code> → <code>unique_shift_preference_per_staff_period</code></li>
+                </ul>
+            </li>
+            <li><strong>DDL/DMLの実行</strong>
+                <ul style="margin-left: 20px; margin-top: 5px;">
+                    <li>修正したschema.sqlでSTG環境を再構築</li>
+                    <li><code>node scripts/run-ddl-dml-stg.mjs</code>を実行</li>
+                </ul>
+            </li>
+            <li><strong>動作確認</strong>
+                <ul style="margin-left: 20px; margin-top: 5px;">
+                    <li>DDL/DMLが正常に完了することを確認</li>
+                    <li>テーブル構成を確認</li>
+                    <li>制約が正しく作成されていることを確認</li>
+                </ul>
+            </li>
+            <li><strong>コミット</strong>
+                <ul style="margin-left: 20px; margin-top: 5px;">
+                    <li>修正をコミット</li>
+                    <li>設計書も併せてコミット</li>
+                </ul>
+            </li>
+        </ol>
+
+        <h2>7. 確認項目</h2>
+
+        <div class="success">
+            <strong>✅ 確認項目:</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>[ ] schema.sqlの修正が完了している</li>
+                <li>[ ] DDL/DML実行がエラーなく完了する</li>
+                <li>[ ] <code>shift_preferences</code>テーブルが正しく作成されている</li>
+                <li>[ ] UNIQUE制約<code>unique_shift_preference_per_staff_period</code>が作成されている</li>
+                <li>[ ] テナント3のマスターデータが投入されている</li>
+                <li>[ ] スタッフ、店舗データが正しく登録されている</li>
+            </ul>
+        </div>
+
+        <h2>8. まとめ</h2>
+
+        <div class="success">
+            <strong>✅ 修正のポイント:</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li><code>shift_preferences</code>テーブルは<code>year</code>と<code>month</code>で期間を管理</li>
+                <li>UNIQUE制約は<code>(tenant_id, staff_id, year, month)</code>で一意性を保証</li>
+                <li>修正箇所は1箇所のみで、影響範囲は限定的</li>
+                <li>DDL修正のみで、DMLやアプリケーションコードの変更は不要</li>
+            </ul>
+        </div>
+    </div>
+</body>
+</html>

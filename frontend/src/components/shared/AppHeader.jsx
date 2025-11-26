@@ -41,8 +41,10 @@ const AppHeader = () => {
   useEffect(() => {
     const fetchHealthInfo = async () => {
       try {
+        console.log('🔍 BACKEND_API_URL:', BACKEND_API_URL)
         const response = await fetch(`${BACKEND_API_URL}/api/health`)
         const data = await response.json()
+        console.log('🔍 Health Response:', data)
 
         if (data.success) {
           setBackendEnv(data.backend.environment)
@@ -70,18 +72,50 @@ const AppHeader = () => {
 
   // 環境判定
   const getEnvironment = () => {
+    // 環境変数で明示的に指定されている場合はそれを優先
+    const envVar = import.meta.env.VITE_ENV
     const hostname = window.location.hostname
 
+    // デバッグログ
+    console.log('🔍 Environment Detection:')
+    console.log('  VITE_ENV:', envVar)
+    console.log('  hostname:', hostname)
+    console.log('  import.meta.env:', import.meta.env)
+
+    if (envVar) {
+      const envMap = {
+        local: { name: 'LOCAL', label: 'ローカル', color: 'blue' },
+        stg: { name: 'STG', label: 'ステージング', color: 'yellow' },
+        prd: { name: 'PRD', label: '本番', color: 'green' },
+      }
+      const result = envMap[envVar.toLowerCase()] || envMap.local
+      console.log('  → Determined by VITE_ENV:', result.name)
+      return result
+    }
+
+    // ホスト名から自動判定
+    console.log('  → Determining by hostname...')
+
     if (hostname === 'localhost' || hostname === '127.0.0.1') {
+      console.log('  → Result: LOCAL')
       return { name: 'LOCAL', label: 'ローカル', color: 'blue' }
+    } else if (
+      hostname.includes('shift-scheduler-ai-stg.vercel.app') ||
+      hostname.includes('staging-shift-scheduler-ai.vercel.app')
+    ) {
+      // ステージング環境
+      console.log('  → Result: STG (matched staging hostname)')
+      return { name: 'STG', label: 'ステージング', color: 'yellow' }
     } else if (
       hostname.includes('vercel.app') &&
       !hostname.includes('shift-scheduler-ai.vercel.app')
     ) {
       // プレビューデプロイ（xxxxx-username.vercel.app）
+      console.log('  → Result: DEV (preview deploy)')
       return { name: 'DEV', label: '開発', color: 'amber' }
     } else {
       // 本番ドメイン
+      console.log('  → Result: PRD (default fallback)')
       return { name: 'PRD', label: '本番', color: 'green' }
     }
   }

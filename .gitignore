@@ -7,11 +7,12 @@ dist-ssr
 *.local
 
 # Environment variables
-# 注意: 開発環境では.envをコミットしています（全員が同じRailway接続情報を使用するため）
-# .env は開発環境用の接続情報を含んでいます
+# モダンな環境変数管理:
+#   .env, .env.example → デフォルト値・テンプレート（コミット可）
+#   .env.local → ローカル開発用シークレット（コミット不可）
+#   STG/PRD → クラウドプラットフォーム（Vercel/Railway）のUIで管理
 .env.local
 .env.*.local
-.env.production
 
 # OS
 .DS_Store
@@ -47,8 +48,3 @@ frontend/public/data/generated/*
 # Test coverage
 coverage
 .nyc_output
-
-# 個人のシークレットを含むため除外
-.env
-frontend/.env
-backend/.env

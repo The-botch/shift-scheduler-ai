@@ -22,11 +22,32 @@ npm install
 
 ### 2. 環境変数設定
 
-`.env`ファイルを作成:
+`.env.local`ファイルを作成（サンプルからコピー）:
+
+```bash
+cp .env.local.example .env.local
+```
+
+`.env.local`を編集:
 
 ```env
-VITE_OPENAI_API_KEY=sk-proj-your-api-key-here
+# Railway PostgreSQL接続情報
+DATABASE_URL=postgresql://postgres:your-password@your-host:port/railway
+
+# サーバー設定
+PORT=3001
+
+# CORS設定
+CORS_ORIGIN=http://localhost:5173
+
+# OpenAI API Key
+OPENAI_API_KEY=sk-proj-your-api-key-here
 ```
+
+**環境ファイルの優先順位:**
+1. `.env.local` (ローカル開発用、gitignore対象)
+2. `.env.staging` / `.env.production` (参考用、コミット対象)
+3. `.env` (デフォルト、非推奨)
 
 ### 3. サーバー起動
 
@@ -297,6 +318,50 @@ npm run test:coverage  # カバレッジ計測
 ## ライセンス
 
 このプロジェクトはMITライセンスの下で公開されています。
+
+## Vercelデプロイ
+
+### 環境変数の設定
+
+Vercelダッシュボードで以下の環境変数を設定してください：
+
+#### ステージング環境 (staging)
+
+```
+DATABASE_URL=postgresql://postgres:BWmHYBbEZqnptZRYmptockuomkHRWNPO@switchyard.proxy.rlwy.net:26491/railway
+PORT=3001
+CORS_ORIGIN=https://your-staging-frontend.vercel.app
+OPENAI_API_KEY=sk-proj-your-openai-api-key-here
+NODE_ENV=staging
+```
+
+#### 本番環境 (production)
+
+```
+DATABASE_URL=postgresql://postgres:gkfRVoPvcoLdoDHjCabWcBWhYYBONYfe@mainline.proxy.rlwy.net:50142/railway
+PORT=3001
+CORS_ORIGIN=https://your-production-frontend.vercel.app
+OPENAI_API_KEY=sk-proj-your-openai-api-key-here
+NODE_ENV=production
+```
+
+### 自動デプロイ
+
+- `staging`ブランチへのpush → STG環境に自動デプロイ
+- `main`ブランチへのマージ → PRD環境に自動デプロイ
+
+### デプロイ設定
+
+`vercel.json`でビルドとルーティングを設定:
+
+```json
+{
+  "version": 2,
+  "builds": [{ "src": "src/server.js", "use": "@vercel/node" }],
+  "routes": [{ "src": "/(.*)", "dest": "src/server.js" }],
+  "env": { "NODE_ENV": "production" }
+}
+```
 
 ## 貢献
 

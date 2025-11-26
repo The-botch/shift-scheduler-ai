@@ -648,42 +648,94 @@
             </div>
         </div>
 
-        <h2>6. 環境変数の読み込みフロー</h2>
+        <h2>6. 環境変数の読み込みフロー（✅ 実装済み）</h2>
 
         <h3>6-1. Backend</h3>
         <div class="code-block">
-<pre>// backend/src/config/env.js (新規作成)
+<pre>// backend/src/config/env.js (✅ 実装完了)
 
-import dotenv from 'dotenv';
-import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import dotenv from 'dotenv'
+import { fileURLToPath } from 'url'
+import { dirname, resolve } from 'path'
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
-const rootDir = resolve(__dirname, '../../');
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = dirname(__filename)
 
-// 環境判定: Railway環境変数が存在する場合はデプロイ環境
-const isDeployed = !!process.env.RAILWAY_ENVIRONMENT_NAME;
+/**
+ * 環境変数を読み込む
+ * 読み込み優先順位:
+ * 1. .env.local (ローカル開発用、gitignore対象)
+ * 2. .env.{NODE_ENV} (環境別設定)
+ * 3. .env (デフォルト設定)
+ */
 
-if (!isDeployed) {
-  // ローカル開発環境: .env.local のみを読み込む
-  dotenv.config({ path: resolve(rootDir, '.env.local') });
+const NODE_ENV = process.env.NODE_ENV || 'development'
+const ROOT_DIR = resolve(__dirname, '../..')
 
-  console.log(`💻 Local Development Environment`);
-  console.log(`📊 DB Host: ${process.env.PGHOST}`);
+console.log(`🔧 Loading environment: ${NODE_ENV}`)
+
+// .env.local を最優先で読み込み
+const localEnvPath = resolve(ROOT_DIR, '.env.local')
+const localResult = dotenv.config({ path: localEnvPath })
+
+if (localResult.parsed) {
+  console.log('✅ Loaded .env.local')
 } else {
-  // デプロイ環境: Railwayの環境変数を使用
-  console.log(`🚀 Railway Environment: ${process.env.RAILWAY_ENVIRONMENT_NAME}`);
-  console.log(`📊 DB Host: ${process.env.PGHOST}`);
+  console.log('ℹ️  .env.local not found (OK for cloud environments)')
+
+  // .env.{NODE_ENV} を読み込み
+  const envPath = resolve(ROOT_DIR, `.env.${NODE_ENV}`)
+  const envResult = dotenv.config({ path: envPath })
+
+  if (envResult.parsed) {
+    console.log(`✅ Loaded .env.${NODE_ENV}`)
+  } else {
+    // デフォルトの .env を読み込み
+    const defaultEnvPath = resolve(ROOT_DIR, '.env')
+    const defaultResult = dotenv.config({ path: defaultEnvPath })
+
+    if (defaultResult.parsed) {
+      console.log('✅ Loaded .env')
+    } else {
+      console.warn('⚠️  No .env files found')
+    }
+  }
 }
 
-export default {};</pre>
+// 必須環境変数のチェック
+const requiredEnvVars = ['DATABASE_URL', 'PORT']
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName])
+
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:', missingEnvVars.join(', '))
+  console.error('💡 Please create .env.local file in backend/ directory')
+  console.error('💡 You can copy from .env.local.example and fill in the values')
+  process.exit(1)
+}
+
+console.log('✅ All required environment variables are set')
+console.log(`📊 Environment: ${NODE_ENV}`)
+console.log(`🗄️  Database: ${process.env.DATABASE_URL?.replace(/:[^:@]+@/, ':****@')}`) // パスワードをマスク
+
+export default {
+  NODE_ENV,
+  PORT: process.env.PORT || 3001,
+  DATABASE_URL: process.env.DATABASE_URL,
+  OPENAI_API_KEY: process.env.OPENAI_API_KEY,
+  CORS_ORIGIN: process.env.CORS_ORIGIN || 'http://localhost:5173',
+}</pre>
         </div>
 
         <div class="code-block">
-<pre>// backend/src/server.js (先頭に追加)
-import './config/env.js'; // 最初に読み込む
-import express from 'express';
+<pre>// backend/src/config/database.js (✅ 更新完了)
+import pkg from 'pg'
+const { Pool } = pkg
+import './env.js' // 環境変数を読み込む（dotenv.config()削除）
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false
+})
 // ... 以下既存のコード</pre>
         </div>
 
@@ -774,25 +826,126 @@ npm run build  # Vercelの環境変数を使用</pre>
             </div>
         </div>
 
-        <h2>9. 実装の手順</h2>
+        <h2>9. Vercel設定（✅ 実装済み）</h2>
+
+        <h3>9-1. Backend用vercel.json</h3>
+        <div class="code-block">
+<pre>// backend/vercel.json (✅ 作成完了)
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "src/server.js",
+      "use": "@vercel/node"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "src/server.js"
+    }
+  ],
+  "env": {
+    "NODE_ENV": "production"
+  }
+}</pre>
+        </div>
+
+        <h3>9-2. Frontend用vercel.json</h3>
+        <div class="code-block">
+<pre>// frontend/vercel.json (✅ 作成完了)
+{
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "framework": "vite",
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}</pre>
+        </div>
+
+        <h2>10. 実装の手順と進捗状況</h2>
 
         <ol class="step-list">
-            <li class="current">✅ 設計書の確認・承認 ← 今ここ</li>
-            <li>Backend の <code>env.js</code> 設定ファイル作成</li>
-            <li>Backend の環境別ファイル作成（<code>.env.local</code>, <code>.env.local.example</code>, <code>.env.staging</code>, <code>.env.production</code>）</li>
-            <li>Frontend の環境別ファイル作成（<code>.env.local</code>, <code>.env.local.example</code>, <code>.env.staging</code>, <code>.env.production</code>）</li>
-            <li><code>package.json</code> スクリプトの簡素化（不要なスクリプト削除）</li>
-            <li><code>.gitignore</code> の確認・更新</li>
-            <li>ローカルでの動作確認（.env.local使用）</li>
-            <li>Railway にステージング環境を作成</li>
-            <li>Vercel の Preview 環境設定</li>
-            <li>全環境での動作確認</li>
-            <li>README の更新</li>
+            <li class="current">✅ Phase 1: 設計書の作成・承認</li>
+            <li class="current">✅ Phase 2: Backend実装
+                <ul style="margin-left: 20px; margin-top: 5px;">
+                    <li>✅ <code>backend/src/config/env.js</code> 設定ファイル作成</li>
+                    <li>✅ <code>backend/.env.local</code> 作成（STG DB接続）</li>
+                    <li>✅ <code>backend/.env.local.example</code> 作成（サンプル）</li>
+                    <li>✅ <code>backend/.env.staging</code> 作成（参考用）</li>
+                    <li>✅ <code>backend/.env.production</code> 作成（参考用）</li>
+                    <li>✅ <code>backend/src/config/database.js</code> 更新（dotenv削除）</li>
+                    <li>✅ <code>.gitignore</code> 更新（.env.staging/.env.productionをコミット対象に）</li>
+                    <li>✅ ローカルでの動作確認（STG環境DBに接続）</li>
+                </ul>
+            </li>
+            <li class="current">✅ Phase 3: Vercel設定とデプロイ手順
+                <ul style="margin-left: 20px; margin-top: 5px;">
+                    <li>✅ <code>backend/vercel.json</code> 作成</li>
+                    <li>✅ <code>frontend/vercel.json</code> 作成</li>
+                    <li>✅ <code>backend/README.md</code> 更新（環境設定手順とVercelデプロイ手順）</li>
+                    <li>✅ ルート <code>vercel.json</code> 削除（frontend/backend別々に管理）</li>
+                </ul>
+            </li>
+            <li>📝 Phase 4: デプロイと検証（次のステップ）
+                <ul style="margin-left: 20px; margin-top: 5px;">
+                    <li>⏳ Vercelダッシュボードで環境変数を設定</li>
+                    <li>⏳ stagingブランチへプッシュしてSTG環境デプロイ</li>
+                    <li>⏳ STG環境での動作確認</li>
+                    <li>⏳ mainブランチへマージしてPRD環境デプロイ</li>
+                    <li>⏳ PRD環境での動作確認</li>
+                </ul>
+            </li>
         </ol>
 
-        <h2>10. まとめ</h2>
+        <h2>11. 動作確認結果</h2>
+
+        <h3>11-1. ローカル開発環境（✅ 確認済み）</h3>
+        <div class="code-block">
+<pre>$ npm run dev
+
+🔧 Loading environment: development
+✅ Loaded .env.local
+✅ All required environment variables are set
+📊 Environment: development
+🗄️  Database: postgresql://postgres:****@switchyard.proxy.rlwy.net:26491/railway
+🚀 Backend server running on port 3001
+✅ Database connected successfully (timezone: Asia/Tokyo)</pre>
+        </div>
 
         <div class="warning" style="background: #d4edda; border-left-color: #28a745;">
+            <strong>✅ 確認事項:</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>✅ .env.localが正しく読み込まれている</li>
+                <li>✅ STG環境のDB（switchyard:26491）に接続している</li>
+                <li>✅ パスワードがログでマスクされている</li>
+                <li>✅ 必須環境変数のバリデーションが動作している</li>
+                <li>✅ フロントエンドからバックエンドAPIを呼び出せる</li>
+            </ul>
+        </div>
+
+        <h2>12. まとめ</h2>
+
+        <div class="warning" style="background: #d4edda; border-left-color: #28a745;">
+            <strong>✅ 実装完了項目（Phase 2-3）:</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>✅ 環境変数管理システムの実装（優先順位方式）</li>
+                <li>✅ .env.local/.env.local.example/.env.staging/.env.productionファイル作成</li>
+                <li>✅ backend/src/config/env.js実装</li>
+                <li>✅ database.js更新（dotenv削除）</li>
+                <li>✅ .gitignore更新</li>
+                <li>✅ ローカル開発環境での動作確認（STG DB接続）</li>
+                <li>✅ backend/vercel.json作成</li>
+                <li>✅ frontend/vercel.json作成</li>
+                <li>✅ README.md更新（環境設定手順とVercelデプロイ手順）</li>
+            </ul>
+        </div>
+
+        <div class="warning" style="background: #d4edda; border-left-color: #28a745; margin-top: 20px;">
             <strong>✅ この設計のメリット:</strong>
             <ul style="margin-left: 20px; margin-top: 10px;">
                 <li>ローカル開発でステージングDBを使用し、本番データを保護</li>

@@ -20,67 +20,64 @@ app.use(express.json({ limit: '50mb' }))
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  // Railwayの環境名を取得（全体で共通使用）
+  // 環境変数を取得
+  const appEnv = process.env.APP_ENV // local/stg/prd
+  const dbEnv = process.env.DB_ENV // stg/prd
   const railwayEnv = process.env.RAILWAY_ENVIRONMENT_NAME
 
-  // 環境判定: Railwayの環境変数でPRD/DEV/LOCALを判定
+  // BE環境判定: APP_ENVを優先、なければRAILWAY_ENVIRONMENT_NAMEで判定
   const getEnvironment = () => {
-    // Railwayの環境変数がない場合はLOCAL
+    // APP_ENVが明示的に設定されている場合はそれを使用
+    if (appEnv) {
+      return appEnv.toUpperCase()
+    }
+
+    // Railwayの環境変数で判定
     if (!railwayEnv) {
       return 'LOCAL'
     }
 
-    // Railwayの環境名で判定
     if (railwayEnv === 'production') {
       return 'PRD'
     } else {
-      return 'DEV'
+      return 'STG'
     }
   }
 
-  // DB環境判定: 実際のDATABASE_URLの接続先で判定
+  // DB環境判定: DB_ENVを優先、なければURLで判定
   const getDbEnvironment = () => {
+    // DB_ENVが明示的に設定されている場合はそれを使用
+    if (dbEnv) {
+      return dbEnv.toUpperCase()
+    }
+
     const dbUrl = process.env.DATABASE_URL || ''
 
-    // ローカルDBの場合
+    // ローカルDBの場合（DBはSTG/PRDのみだが念のため）
     if (dbUrl.includes('localhost') || dbUrl.includes('127.0.0.1')) {
       return 'LOCAL'
     }
 
-    // Railway本番DBの場合（実際の接続先で判定）
-    // 本番DBのホスト名やデータベース名に基づいて判定
-    if (dbUrl.includes('railway.app') || dbUrl.includes('railway')) {
-      // DATABASE_URLからデータベース名またはホスト名を抽出して判定
-      // 本番DBは通常 "postgresql://..." の形式
-      // ここでは、RAILWAY_ENVIRONMENT_NAMEよりも実際のURLを優先
-
+    // Railway DBの場合
+    if (dbUrl.includes('railway.app') || dbUrl.includes('railway') || dbUrl.includes('rlwy.net')) {
       // 明示的に本番DB用の識別子がある場合
       if (dbUrl.includes('-production-') || dbUrl.includes('production.')) {
         return 'PRD'
       }
 
-      // RAILWAY_ENVIRONMENT_NAMEで判定（環境変数が設定されている場合）
+      // RAILWAY_ENVIRONMENT_NAMEで判定
       if (railwayEnv === 'production') {
         return 'PRD'
       } else if (railwayEnv) {
-        return 'DEV'
+        return 'STG'
       }
 
-      // Railwayだが環境変数がない場合は、URLベースで推測
-      // デフォルトでは本番DBとして扱う（安全側に倒す）
-      return 'PRD'
+      // デフォルトはSTG（PRDよりSTGの方が安全）
+      return 'STG'
     }
 
-    // フォールバック: RAILWAY_ENVIRONMENT_NAMEで判定
-    if (!railwayEnv) {
-      return 'LOCAL'
-    }
-
-    if (railwayEnv === 'production') {
-      return 'PRD'
-    } else {
-      return 'DEV'
-    }
+    // その他の場合
+    return 'UNKNOWN'
   }
 
   res.json({

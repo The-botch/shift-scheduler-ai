@@ -227,18 +227,27 @@ sequenceDiagram
 
 ### 環境変数（`.env`）
 
-#### バックエンド（`backend/.env`）
+#### バックエンド（`backend/.env.local`）
 ```bash
+# サーバー設定
+PORT=3001
+
 # OpenAI API
 VITE_OPENAI_API_KEY=sk-proj-...
 VITE_OPENAI_MODEL=gpt-4
 VITE_OPENAI_MAX_TOKENS=2000
 
 # Database
+# LOCAL環境（ローカル開発）: postgresql://user:password@localhost:5432/shift_scheduler
+# STG環境（ステージング）: Railway PostgreSQL URL
+# PRD環境（本番）: Production PostgreSQL URL
 DATABASE_URL=postgresql://postgres:xxx@mainline.proxy.rlwy.net:50142/railway
 
-# Node Environment
+# 環境設定
 NODE_ENV=production
+
+# CORS設定（フロントエンドのURL）
+CORS_ORIGIN=http://localhost:5173
 ```
 
 #### フロントエンド（`frontend/.env`）

@@ -1,0 +1,1147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>環境設定の仕組み - 詳細ドキュメント</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.7;
+            color: #333;
+            background: #f5f5f5;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            color: #2c3e50;
+            border-bottom: 4px solid #3498db;
+            padding-bottom: 15px;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+        }
+
+        h2 {
+            color: #2c3e50;
+            margin-top: 50px;
+            margin-bottom: 20px;
+            font-size: 1.8em;
+            border-left: 5px solid #3498db;
+            padding-left: 15px;
+        }
+
+        h3 {
+            color: #34495e;
+            margin-top: 30px;
+            margin-bottom: 15px;
+            font-size: 1.4em;
+        }
+
+        h4 {
+            color: #555;
+            margin-top: 20px;
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .flow-diagram {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            margin: 30px 0;
+        }
+
+        .flow-step {
+            background: rgba(255,255,255,0.1);
+            border-left: 4px solid #ffd700;
+            padding: 20px;
+            margin: 15px 0;
+            border-radius: 5px;
+        }
+
+        .flow-step h4 {
+            color: #ffd700;
+            margin-top: 0;
+        }
+
+        .code-block {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 20px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9em;
+        }
+
+        .info-box {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .warning-box {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .success-box {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 25px 0;
+            background: white;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        th {
+            background: #3498db;
+            color: white;
+            padding: 15px;
+            text-align: left;
+            font-weight: bold;
+        }
+
+        td {
+            padding: 12px 15px;
+            border-bottom: 1px solid #dee2e6;
+        }
+
+        tr:hover {
+            background: #f8f9fa;
+        }
+
+        .env-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 15px;
+            font-size: 0.85em;
+            font-weight: bold;
+            margin: 0 5px;
+        }
+
+        .env-local {
+            background: #2196f3;
+            color: white;
+        }
+
+        .env-stg {
+            background: #ff9800;
+            color: white;
+        }
+
+        .env-prd {
+            background: #4caf50;
+            color: white;
+        }
+
+        .timeline {
+            position: relative;
+            padding-left: 40px;
+            margin: 30px 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 10px;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: #3498db;
+        }
+
+        .timeline-item {
+            position: relative;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -34px;
+            top: 25px;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #3498db;
+            border: 4px solid white;
+        }
+
+        .component-box {
+            background: #fff;
+            border: 2px solid #3498db;
+            border-radius: 10px;
+            padding: 25px;
+            margin: 20px 0;
+        }
+
+        .component-title {
+            background: #3498db;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            font-weight: bold;
+            font-size: 1.1em;
+            margin: -25px -25px 20px -25px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 環境設定の仕組み - 詳細ドキュメント</h1>
+
+        <div class="info-box">
+            <strong>📋 このドキュメントについて</strong>
+            <p style="margin-top: 10px;">
+                このドキュメントでは、フロントエンド（Vite）とバックエンド（Node.js）における環境設定の仕組みを、<strong>ビルド → デプロイ → 起動 → 実行</strong>という流れに沿って詳しく解説します。
+            </p>
+        </div>
+
+        <h2>1. 環境の種類と定義</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>環境</th>
+                    <th>FE (Frontend)</th>
+                    <th>BE (Backend)</th>
+                    <th>DB (Database)</th>
+                    <th>説明</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><span class="env-badge env-local">LOCAL</span></td>
+                    <td>localhost:5173</td>
+                    <td>localhost:3001</td>
+                    <td>STG または PRD</td>
+                    <td>開発者のローカルマシンで実行。DBはクラウドのSTG/PRDを使用</td>
+                </tr>
+                <tr>
+                    <td><span class="env-badge env-stg">STG</span></td>
+                    <td>Vercel (stg)</td>
+                    <td>Railway (stg)</td>
+                    <td>Railway (stg)</td>
+                    <td>ステージング環境。本番前の検証用</td>
+                </tr>
+                <tr>
+                    <td><span class="env-badge env-prd">PRD</span></td>
+                    <td>Vercel (prd)</td>
+                    <td>Railway (prd)</td>
+                    <td>Railway (prd)</td>
+                    <td>本番環境。実際のユーザーが使用</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="warning-box">
+            <strong>⚠️ 重要な前提</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>ローカルDBは存在しない → DBは常にSTGまたはPRD</li>
+                <li>FE/BEの環境は「実行場所」を示す</li>
+                <li>DB環境は「接続先」を示す</li>
+            </ul>
+        </div>
+
+        <h2>2. フロントエンド (Vite) の環境設定</h2>
+
+        <div class="flow-diagram">
+            <h3 style="color: white; margin-top: 0;">📦 Vite フロントエンドの処理フロー</h3>
+
+            <div class="flow-step">
+                <h4>STEP 1: ビルド時（Build Time）</h4>
+                <p><strong>実行タイミング:</strong> <code>npm run build</code> または <code>vite build</code></p>
+                <p><strong>処理内容:</strong></p>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li>Vite が環境変数ファイルを読み込む（優先順位順）</li>
+                    <li><code>.env.local</code> → <code>.env.{MODE}</code> → <code>.env</code></li>
+                    <li><code>VITE_</code> プレフィックスの変数のみがクライアント側に公開される</li>
+                    <li>環境変数は <strong>ビルド時に静的に埋め込まれる</strong>（ランタイムでは変更不可）</li>
+                </ol>
+            </div>
+
+            <div class="flow-step">
+                <h4>STEP 2: デプロイ時（Deploy Time）</h4>
+                <p><strong>実行タイミング:</strong> Vercelへのデプロイ</p>
+                <p><strong>処理内容:</strong></p>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li>Vercelの環境変数設定を読み込む</li>
+                    <li>環境ごと（Production / Preview）に異なる変数を設定可能</li>
+                    <li>ビルドコマンド実行時に環境変数が適用される</li>
+                </ol>
+            </div>
+
+            <div class="flow-step">
+                <h4>STEP 3: 起動・実行時（Runtime）</h4>
+                <p><strong>実行タイミング:</strong> ブラウザでページ読み込み</p>
+                <p><strong>処理内容:</strong></p>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li><code>AppHeader.jsx</code> の <code>getEnvironment()</code> 関数が実行される</li>
+                    <li><code>import.meta.env.VITE_ENV</code> をチェック（ビルド時に埋め込まれた値）</li>
+                    <li>値がある場合 → その環境を表示</li>
+                    <li>値がない場合 → <code>window.location.hostname</code> から自動判定</li>
+                    <li>バックエンドに <code>/api/health</code> リクエストを送信してBE/DB環境を取得</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="component-box">
+            <div class="component-title">📄 frontend/.env.local (LOCAL環境)</div>
+            <div class="code-block">
+<pre># Environment (ローカルで実行)
+VITE_ENV=local
+
+# Backend API URL - local development
+VITE_API_URL=http://localhost:3001
+VITE_BACKEND_API_URL=http://localhost:3001
+
+# Frontend URL - local development
+VITE_FRONTEND_URL=http://localhost:5173</pre>
+            </div>
+            <p><strong>読み込まれるタイミング:</strong> <code>npm run dev</code> または <code>vite build</code></p>
+            <p><strong>優先順位:</strong> 最優先（.env より優先される）</p>
+        </div>
+
+        <div class="component-box">
+            <div class="component-title">📄 frontend/src/components/shared/AppHeader.jsx</div>
+            <div class="code-block">
+<pre>const getEnvironment = () => {
+  // 環境変数で明示的に指定されている場合はそれを優先
+  const envVar = import.meta.env.VITE_ENV
+
+  if (envVar) {
+    const envMap = {
+      local: { name: 'LOCAL', label: 'ローカル', color: 'blue' },
+      stg: { name: 'STG', label: 'ステージング', color: 'yellow' },
+      prd: { name: 'PRD', label: '本番', color: 'green' }
+    }
+    return envMap[envVar.toLowerCase()] || envMap.local
+  }
+
+  // ホスト名から自動判定
+  const hostname = window.location.hostname
+
+  if (hostname === 'localhost' || hostname === '127.0.0.1') {
+    return { name: 'LOCAL', label: 'ローカル', color: 'blue' }
+  } else if (hostname.includes('shift-scheduler-ai-stg.vercel.app')) {
+    return { name: 'STG', label: 'ステージング', color: 'yellow' }
+  } else if (hostname.includes('vercel.app') &&
+             !hostname.includes('shift-scheduler-ai.vercel.app')) {
+    return { name: 'DEV', label: '開発', color: 'amber' }
+  } else {
+    return { name: 'PRD', label: '本番', color: 'green' }
+  }
+}</pre>
+            </div>
+            <p><strong>実行タイミング:</strong> ページ読み込み時（コンポーネントマウント時）</p>
+            <p><strong>判定ロジック:</strong></p>
+            <ol style="margin-left: 20px; margin-top: 10px;">
+                <li><code>VITE_ENV</code> が設定されている → その値を使用</li>
+                <li>設定されていない → <code>hostname</code> から自動判定</li>
+            </ol>
+        </div>
+
+        <h2>3. バックエンド (Node.js) の環境設定</h2>
+
+        <div class="flow-diagram">
+            <h3 style="color: white; margin-top: 0;">🖥️ Node.js バックエンドの処理フロー</h3>
+
+            <div class="flow-step">
+                <h4>STEP 1: ビルド時（Build Time）</h4>
+                <p><strong>実行タイミング:</strong> デプロイ準備（TypeScriptの場合はトランスパイル）</p>
+                <p><strong>処理内容:</strong></p>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li>Node.jsはビルド不要（または軽微なトランスパイル）</li>
+                    <li>環境変数はランタイムで読み込まれる</li>
+                </ol>
+            </div>
+
+            <div class="flow-step">
+                <h4>STEP 2: デプロイ時（Deploy Time）</h4>
+                <p><strong>実行タイミング:</strong> Railwayへのデプロイ</p>
+                <p><strong>処理内容:</strong></p>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li>Railwayの環境変数設定を読み込む</li>
+                    <li><code>RAILWAY_ENVIRONMENT_NAME</code> が自動設定される</li>
+                    <li>環境ごと（production / staging）に異なる変数を設定可能</li>
+                </ol>
+            </div>
+
+            <div class="flow-step">
+                <h4>STEP 3: 起動時（Startup）</h4>
+                <p><strong>実行タイミング:</strong> <code>npm run dev</code> または <code>node src/server.js</code></p>
+                <p><strong>処理内容:</strong></p>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li><code>dotenv</code> パッケージが環境変数ファイルを読み込む</li>
+                    <li>読み込み順序（優先順位順）：<br>
+                        <code>.env.local</code> → <code>.env</code> → システム環境変数
+                    </li>
+                    <li><code>backend/src/config/env.js</code> が環境変数を検証</li>
+                    <li>必須環境変数（<code>DATABASE_URL</code>, <code>PORT</code>）が存在しない場合はエラー</li>
+                </ol>
+            </div>
+
+            <div class="flow-step">
+                <h4>STEP 4: 実行時（Runtime）</h4>
+                <p><strong>実行タイミング:</strong> <code>/api/health</code> エンドポイントへのリクエスト</p>
+                <p><strong>処理内容:</strong></p>
+                <ol style="margin-left: 20px; margin-top: 10px;">
+                    <li><code>getEnvironment()</code> 関数が <code>APP_ENV</code> をチェック</li>
+                    <li>値がある場合 → その環境を返す</li>
+                    <li>値がない場合 → <code>RAILWAY_ENVIRONMENT_NAME</code> から判定</li>
+                    <li><code>getDbEnvironment()</code> 関数が <code>DB_ENV</code> をチェック</li>
+                    <li>値がない場合 → <code>DATABASE_URL</code> から判定</li>
+                </ol>
+            </div>
+        </div>
+
+        <div class="component-box">
+            <div class="component-title">📄 backend/.env.local (LOCAL環境)</div>
+            <div class="code-block">
+<pre># 環境設定（ローカルで実行、STG DBに接続）
+NODE_ENV=development
+APP_ENV=local
+DB_ENV=stg
+
+# Railway PostgreSQL接続情報（STG/開発環境）
+DATABASE_URL=postgresql://postgres:****@switchyard.proxy.rlwy.net:26491/railway
+
+# サーバー設定
+PORT=3001
+
+# CORS設定
+CORS_ORIGIN=http://localhost:5173</pre>
+            </div>
+            <p><strong>読み込まれるタイミング:</strong> サーバー起動時（<code>npm run dev</code>）</p>
+            <p><strong>優先順位:</strong> 最優先（.env より優先される）</p>
+        </div>
+
+        <div class="component-box">
+            <div class="component-title">📄 backend/src/config/env.js</div>
+            <div class="code-block">
+<pre>const NODE_ENV = process.env.NODE_ENV || 'development'
+const ROOT_DIR = resolve(__dirname, '../..')
+
+// .env.local を最優先で読み込み
+const localEnvPath = resolve(ROOT_DIR, '.env.local')
+const localResult = dotenv.config({ path: localEnvPath })
+
+if (localResult.parsed) {
+  console.log('✅ Loaded .env.local')
+} else {
+  // フォールバック: .env.{NODE_ENV}
+  const envPath = resolve(ROOT_DIR, `.env.${NODE_ENV}`)
+  const envResult = dotenv.config({ path: envPath })
+
+  if (envResult.parsed) {
+    console.log(`✅ Loaded .env.${NODE_ENV}`)
+  } else {
+    // フォールバック: .env
+    const defaultEnvPath = resolve(ROOT_DIR, '.env')
+    dotenv.config({ path: defaultEnvPath })
+    console.log('✅ Loaded .env')
+  }
+}
+
+// 必須環境変数の検証
+const requiredEnvVars = ['DATABASE_URL', 'PORT']
+const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName])
+
+if (missingEnvVars.length > 0) {
+  console.error('❌ Missing required environment variables:', missingEnvVars.join(', '))
+  process.exit(1)
+}</pre>
+            </div>
+            <p><strong>実行タイミング:</strong> サーバー起動時に最初に実行される</p>
+            <p><strong>役割:</strong> 環境変数の読み込みと検証</p>
+        </div>
+
+        <div class="component-box">
+            <div class="component-title">📄 backend/src/server.js - /api/health エンドポイント</div>
+            <div class="code-block">
+<pre>app.get('/api/health', (req, res) => {
+  // 環境変数を取得
+  const appEnv = process.env.APP_ENV // local/stg/prd
+  const dbEnv = process.env.DB_ENV // stg/prd
+  const railwayEnv = process.env.RAILWAY_ENVIRONMENT_NAME
+
+  // BE環境判定
+  const getEnvironment = () => {
+    // APP_ENVが明示的に設定されている場合はそれを使用
+    if (appEnv) {
+      return appEnv.toUpperCase()
+    }
+
+    // Railwayの環境変数で判定
+    if (!railwayEnv) {
+      return 'LOCAL'
+    }
+
+    if (railwayEnv === 'production') {
+      return 'PRD'
+    } else {
+      return 'STG'
+    }
+  }
+
+  // DB環境判定
+  const getDbEnvironment = () => {
+    // DB_ENVが明示的に設定されている場合はそれを使用
+    if (dbEnv) {
+      return dbEnv.toUpperCase()
+    }
+
+    const dbUrl = process.env.DATABASE_URL || ''
+
+    // Railway DBの場合
+    if (dbUrl.includes('railway.app') ||
+        dbUrl.includes('railway') ||
+        dbUrl.includes('rlwy.net')) {
+
+      // 明示的に本番DB用の識別子がある場合
+      if (dbUrl.includes('-production-') || dbUrl.includes('production.')) {
+        return 'PRD'
+      }
+
+      // RAILWAY_ENVIRONMENT_NAMEで判定
+      if (railwayEnv === 'production') {
+        return 'PRD'
+      } else if (railwayEnv) {
+        return 'STG'
+      }
+
+      // デフォルトはSTG
+      return 'STG'
+    }
+
+    return 'UNKNOWN'
+  }
+
+  res.json({
+    success: true,
+    backend: {
+      environment: getEnvironment(),
+      hostname: req.hostname,
+      port: PORT,
+      nodeEnv: process.env.NODE_ENV || 'development'
+    },
+    database: {
+      environment: getDbEnvironment(),
+      connected: true,
+      host: process.env.PGHOST || 'unknown'
+    }
+  })
+})</pre>
+            </div>
+            <p><strong>実行タイミング:</strong> フロントエンドからのリクエスト時</p>
+            <p><strong>返り値:</strong> BE環境とDB環境の情報</p>
+        </div>
+
+        <h2>4. 環境判定の優先順位</h2>
+
+        <h3>4-1. フロントエンド (FE)</h3>
+
+        <div class="timeline">
+            <div class="timeline-item">
+                <h4>優先度 1: <code>VITE_ENV</code> 環境変数</h4>
+                <p>ビルド時に埋め込まれた明示的な環境設定</p>
+                <div class="code-block">VITE_ENV=local → LOCAL<br>VITE_ENV=stg → STG<br>VITE_ENV=prd → PRD</div>
+            </div>
+
+            <div class="timeline-item">
+                <h4>優先度 2: ホスト名（hostname）自動判定</h4>
+                <p><code>window.location.hostname</code> から判定</p>
+                <div class="code-block">localhost / 127.0.0.1 → LOCAL<br>shift-scheduler-ai-stg.vercel.app → STG<br>xxxxx-username.vercel.app → DEV (Preview)<br>shift-scheduler-ai.vercel.app → PRD</div>
+            </div>
+        </div>
+
+        <h3>4-2. バックエンド (BE)</h3>
+
+        <div class="timeline">
+            <div class="timeline-item">
+                <h4>優先度 1: <code>APP_ENV</code> 環境変数</h4>
+                <p>明示的に設定されたバックエンド環境</p>
+                <div class="code-block">APP_ENV=local → LOCAL<br>APP_ENV=stg → STG<br>APP_ENV=prd → PRD</div>
+            </div>
+
+            <div class="timeline-item">
+                <h4>優先度 2: <code>RAILWAY_ENVIRONMENT_NAME</code></h4>
+                <p>Railwayが自動設定する環境変数</p>
+                <div class="code-block">未設定 → LOCAL<br>production → PRD<br>その他 → STG</div>
+            </div>
+        </div>
+
+        <h3>4-3. データベース (DB)</h3>
+
+        <div class="timeline">
+            <div class="timeline-item">
+                <h4>優先度 1: <code>DB_ENV</code> 環境変数</h4>
+                <p>明示的に設定されたDB環境</p>
+                <div class="code-block">DB_ENV=stg → STG<br>DB_ENV=prd → PRD</div>
+            </div>
+
+            <div class="timeline-item">
+                <h4>優先度 2: <code>DATABASE_URL</code> 解析</h4>
+                <p>接続文字列から環境を推測</p>
+                <div class="code-block">localhost / 127.0.0.1 → LOCAL<br>-production- / production. 含む → PRD<br>railway.app / rlwy.net 含む → STG (デフォルト)</div>
+            </div>
+
+            <div class="timeline-item">
+                <h4>優先度 3: <code>RAILWAY_ENVIRONMENT_NAME</code></h4>
+                <p>Railwayの環境変数をフォールバック</p>
+                <div class="code-block">production → PRD<br>その他 → STG</div>
+            </div>
+        </div>
+
+        <h2>5. 環境別の設定例</h2>
+
+        <h3>5-1. LOCAL環境（開発者のマシン）</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>コンポーネント</th>
+                    <th>環境変数ファイル</th>
+                    <th>主要設定</th>
+                    <th>表示</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Frontend</strong></td>
+                    <td><code>frontend/.env.local</code></td>
+                    <td><code>VITE_ENV=local</code><br><code>VITE_API_URL=http://localhost:3001</code></td>
+                    <td><span class="env-badge env-local">LOCAL</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Backend</strong></td>
+                    <td><code>backend/.env.local</code></td>
+                    <td><code>APP_ENV=local</code><br><code>DB_ENV=stg</code></td>
+                    <td><span class="env-badge env-local">LOCAL</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Database</strong></td>
+                    <td>（接続先）</td>
+                    <td><code>DATABASE_URL=postgresql://...@switchyard.proxy.rlwy.net:26491/railway</code></td>
+                    <td><span class="env-badge env-stg">STG</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <div class="success-box">
+            <strong>✅ LOCAL環境の特徴:</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>FE/BEはローカルマシンで実行 → 表示: LOCAL</li>
+                <li>DBはクラウド（STG）に接続 → 表示: STG</li>
+                <li><code>.env.local</code> を使って明示的に環境を指定</li>
+            </ul>
+        </div>
+
+        <h3>5-2. STG環境（Vercel + Railway）</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>コンポーネント</th>
+                    <th>環境変数設定</th>
+                    <th>主要設定</th>
+                    <th>表示</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Frontend</strong></td>
+                    <td>Vercel環境変数</td>
+                    <td><code>VITE_ENV=stg</code><br><code>VITE_API_URL=https://api-stg.example.com</code></td>
+                    <td><span class="env-badge env-stg">STG</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Backend</strong></td>
+                    <td>Railway環境変数</td>
+                    <td><code>RAILWAY_ENVIRONMENT_NAME=staging</code><br><code>APP_ENV=stg</code></td>
+                    <td><span class="env-badge env-stg">STG</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Database</strong></td>
+                    <td>Railway DB</td>
+                    <td><code>DATABASE_URL=postgresql://...@...rlwy.net:...</code></td>
+                    <td><span class="env-badge env-stg">STG</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>5-3. PRD環境（Vercel + Railway）</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>コンポーネント</th>
+                    <th>環境変数設定</th>
+                    <th>主要設定</th>
+                    <th>表示</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Frontend</strong></td>
+                    <td>Vercel環境変数</td>
+                    <td><code>VITE_ENV=prd</code><br><code>VITE_API_URL=https://api.example.com</code></td>
+                    <td><span class="env-badge env-prd">PRD</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Backend</strong></td>
+                    <td>Railway環境変数</td>
+                    <td><code>RAILWAY_ENVIRONMENT_NAME=production</code><br><code>APP_ENV=prd</code></td>
+                    <td><span class="env-badge env-prd">PRD</span></td>
+                </tr>
+                <tr>
+                    <td><strong>Database</strong></td>
+                    <td>Railway DB</td>
+                    <td><code>DATABASE_URL=postgresql://...-production-...</code></td>
+                    <td><span class="env-badge env-prd">PRD</span></td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>6. 画面表示の仕組み</h2>
+
+        <div class="component-box">
+            <div class="component-title">🖥️ AppHeader.jsx での環境表示</div>
+
+            <h4>表示内容</h4>
+            <div class="code-block">
+<pre>&lt;span className="font-semibold"&gt;{environment.name}&lt;/span&gt;  ← FE環境
+&lt;span&gt;FE:{environment.name}&lt;/span&gt;                    ← FE環境（詳細）
+&lt;span&gt;BE:{backendEnv}&lt;/span&gt;                         ← BE環境
+&lt;span&gt;DB:{dbEnv}&lt;/span&gt;                              ← DB環境</pre>
+            </div>
+
+            <h4>取得フロー</h4>
+            <ol style="margin-left: 20px; margin-top: 15px;">
+                <li><strong>FE環境:</strong> <code>getEnvironment()</code> で取得（<code>VITE_ENV</code> または hostname）</li>
+                <li><strong>BE/DB環境:</strong> <code>useEffect</code> で <code>/api/health</code> を呼び出して取得</li>
+            </ol>
+
+            <div class="code-block">
+<pre>useEffect(() => {
+  const fetchHealthInfo = async () => {
+    try {
+      const response = await fetch(`${BACKEND_API_URL}/api/health`)
+      const data = await response.json()
+
+      if (data.success) {
+        setBackendEnv(data.backend.environment)  // BE環境を設定
+        setDbEnv(data.database.environment)      // DB環境を設定
+      }
+    } catch (error) {
+      console.error('Failed to fetch health info:', error)
+      setBackendEnv('ERROR')
+      setDbEnv('ERROR')
+    }
+  }
+
+  fetchHealthInfo()
+}, [])</pre>
+            </div>
+        </div>
+
+        <h2>7. トラブルシューティング</h2>
+
+        <h3>7-1. 「PRD」と表示されてしまう</h3>
+
+        <div class="warning-box">
+            <strong>原因:</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>環境変数が正しく設定されていない</li>
+                <li>環境変数ファイルが読み込まれていない</li>
+                <li>フォールバックロジックでPRDになっている</li>
+            </ul>
+            <strong style="display: block; margin-top: 15px;">解決策:</strong>
+            <ol style="margin-left: 20px; margin-top: 10px;">
+                <li>FE: <code>VITE_ENV=local</code> が <code>.env.local</code> に設定されているか確認</li>
+                <li>BE: <code>APP_ENV=local</code> と <code>DB_ENV=stg</code> が設定されているか確認</li>
+                <li>サーバーを再起動して環境変数を再読み込み</li>
+                <li>ブラウザをハードリロード（Ctrl+Shift+R / Cmd+Shift+R）</li>
+            </ol>
+        </div>
+
+        <h3>7-2. BE/DB が「ERROR」と表示される</h3>
+
+        <div class="warning-box">
+            <strong>原因:</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>バックエンドが起動していない</li>
+                <li><code>/api/health</code> エンドポイントにアクセスできない</li>
+                <li>CORS エラー</li>
+            </ul>
+            <strong style="display: block; margin-top: 15px;">解決策:</strong>
+            <ol style="margin-left: 20px; margin-top: 10px;">
+                <li><code>curl http://localhost:3001/api/health</code> でエンドポイントをテスト</li>
+                <li>バックエンドのログを確認（ポート3001が使用中でないか）</li>
+                <li><code>CORS_ORIGIN</code> が正しく設定されているか確認</li>
+            </ol>
+        </div>
+
+        <h3>7-3. 環境変数が反映されない</h3>
+
+        <div class="warning-box">
+            <strong>Vite (Frontend):</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>環境変数は<strong>ビルド時に埋め込まれる</strong> → ビルド後は変更不可</li>
+                <li><code>.env.local</code> を変更したら <code>npm run dev</code> を再起動</li>
+                <li><code>VITE_</code> プレフィックスが必要</li>
+            </ul>
+            <strong style="display: block; margin-top: 15px;">Node.js (Backend):</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li>環境変数は<strong>起動時に読み込まれる</strong> → サーバー再起動が必要</li>
+                <li><code>.env.local</code> が <code>.gitignore</code> に含まれていることを確認</li>
+                <li><code>dotenv</code> が正しくインストールされているか確認</li>
+            </ul>
+        </div>
+
+        <h2>8. まとめ</h2>
+
+        <div class="success-box">
+            <h3 style="margin-top: 0;">🎯 重要ポイント</h3>
+            <ol style="margin-left: 20px; margin-top: 15px; line-height: 2;">
+                <li><strong>FE環境変数はビルド時に埋め込まれる</strong> → 変更後はビルドが必要</li>
+                <li><strong>BE環境変数は起動時に読み込まれる</strong> → 変更後は再起動が必要</li>
+                <li><strong>明示的な環境変数（VITE_ENV, APP_ENV, DB_ENV）が最優先</strong></li>
+                <li><strong>.env.local は最優先で読み込まれる</strong> → ローカル開発に最適</li>
+                <li><strong>環境表示 = 実行場所</strong>、<strong>DB表示 = 接続先</strong></li>
+                <li><strong>ローカル開発ではFE/BEはLOCAL、DBはSTG</strong></li>
+            </ol>
+        </div>
+
+        <div class="info-box" style="margin-top: 30px;">
+            <strong>📚 関連ドキュメント</strong>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li><a href="./STAGING_ENVIRONMENT_DESIGN.html">ステージング環境構築 - 詳細設計書</a></li>
+                <li><a href="https://vitejs.dev/guide/env-and-mode.html">Vite - Env Variables and Modes</a></li>
+                <li><a href="https://github.com/motdotla/dotenv">dotenv - GitHub</a></li>
+            </ul>
+        </div>
+
+    </div>
+</body>
+</html>
+
+        <h2>9. 実装完了状況（2025-11-25）</h2>
+
+        <div class="success-box">
+            <h3 style="margin-top: 0;">✅ モダンな環境変数管理への移行完了</h3>
+            <p style="margin-top: 15px;"><strong>実施日:</strong> 2025年11月25日</p>
+        </div>
+
+        <h3>9-1. 実施した変更</h3>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>カテゴリ</th>
+                    <th>変更内容</th>
+                    <th>理由</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>不要ファイル削除</strong></td>
+                    <td>
+                        <code>backend/.env.staging</code><br>
+                        <code>backend/.env.production</code><br>
+                        <code>backend/.env.local.example</code>
+                    </td>
+                    <td>モダンな構成ではクラウドUIで管理。ファイル不要。</td>
+                </tr>
+                <tr>
+                    <td><strong>.gitignore 更新</strong></td>
+                    <td>
+                        <code>.env</code> と <code>.env.example</code> をコミット可能に<br>
+                        <code>.env.local</code> は引き続き除外
+                    </td>
+                    <td>デフォルト値は共有、シークレットは個人管理</td>
+                </tr>
+                <tr>
+                    <td><strong>環境判定ロジック</strong></td>
+                    <td>
+                        <code>APP_ENV</code>, <code>DB_ENV</code> 環境変数を優先<br>
+                        <code>VITE_ENV</code> でFE環境を明示
+                    </td>
+                    <td>明示的な設定で環境を確実に判別</td>
+                </tr>
+                <tr>
+                    <td><strong>ドキュメント作成</strong></td>
+                    <td>
+                        <code>ENVIRONMENT_CONFIGURATION.html</code><br>
+                        環境設定の仕組みを詳細に記載
+                    </td>
+                    <td>開発者が理解しやすいように</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>9-2. 現在のファイル構成</h3>
+
+        <div class="component-box">
+            <div class="component-title">📂 Backend</div>
+            <div class="code-block">
+<pre>backend/
+├── .env               ✅ デフォルト値（コミット済み）
+├── .env.example       ✅ テンプレート（コミット済み）
+├── .env.local         🔒 ローカル開発用（.gitignore）
+├── .gitignore         ✅ モダンな設定に更新
+└── src/
+    ├── config/
+    │   └── env.js     ✅ 環境変数読み込み・検証
+    └── server.js      ✅ /api/health エンドポイント</pre>
+            </div>
+        </div>
+
+        <div class="component-box">
+            <div class="component-title">📂 Frontend</div>
+            <div class="code-block">
+<pre>frontend/
+├── .env               ✅ デフォルト値（コミット済み）
+├── .env.example       ✅ テンプレート（コミット済み）
+├── .env.local         🔒 ローカル開発用（.gitignore）
+└── src/
+    └── components/
+        └── shared/
+            └── AppHeader.jsx  ✅ 環境表示ロジック</pre>
+            </div>
+        </div>
+
+        <h3>9-3. LOCAL環境の設定値</h3>
+
+        <div class="component-box">
+            <div class="component-title">📄 backend/.env.local (現在の設定)</div>
+            <div class="code-block">
+<pre># 環境設定（ローカルで実行、STG DBに接続）
+NODE_ENV=development
+APP_ENV=local
+DB_ENV=stg
+
+# Railway PostgreSQL接続情報（STG/開発環境）
+DATABASE_URL=postgresql://postgres:****@switchyard.proxy.rlwy.net:26491/railway
+
+# サーバー設定
+PORT=3001
+
+# CORS設定
+CORS_ORIGIN=http://localhost:5173</pre>
+            </div>
+        </div>
+
+        <div class="component-box">
+            <div class="component-title">📄 frontend/.env.local (現在の設定)</div>
+            <div class="code-block">
+<pre># Environment (ローカルで実行)
+VITE_ENV=local
+
+# Backend API URL - local development
+VITE_API_URL=http://localhost:3001
+VITE_BACKEND_API_URL=http://localhost:3001
+
+# Frontend URL - local development
+VITE_FRONTEND_URL=http://localhost:5173</pre>
+            </div>
+        </div>
+
+        <h3>9-4. STG環境での動作確認準備</h3>
+
+        <div class="info-box">
+            <h4 style="margin-top: 0;">🎯 STG環境とは</h4>
+            <ul style="margin-left: 20px; margin-top: 10px;">
+                <li><strong>Frontend:</strong> Vercel にデプロイ（<code>shift-scheduler-ai-stg.vercel.app</code>）</li>
+                <li><strong>Backend:</strong> Railway にデプロイ（STG環境）</li>
+                <li><strong>Database:</strong> Railway PostgreSQL（STG）</li>
+            </ul>
+        </div>
+
+        <h4>準備状況チェックリスト</h4>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>項目</th>
+                    <th>状態</th>
+                    <th>確認方法</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>ローカル環境</strong></td>
+                    <td><span class="env-badge env-local">LOCAL</span></td>
+                    <td>
+                        ✅ FE: <code>npm run dev</code> → http://localhost:5173<br>
+                        ✅ BE: <code>npm run dev</code> → http://localhost:3001<br>
+                        ✅ DB: STG環境に接続
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>環境表示</strong></td>
+                    <td>確認中</td>
+                    <td>
+                        画面右上に<br>
+                        FE:LOCAL → BE:LOCAL → DB:STG<br>
+                        と表示されるはず
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>データベース</strong></td>
+                    <td>✅ 構築済み</td>
+                    <td>
+                        <code>node scripts/run-ddl-dml-stg.mjs</code> 実行済み<br>
+                        - テナント3: Stand Banh Mi<br>
+                        - スタッフ: 51名<br>
+                        - 店舗: 5店舗<br>
+                        - シフト: 3,077件
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Vercel設定</strong></td>
+                    <td>⏳ 未実施</td>
+                    <td>
+                        STG環境の環境変数設定:<br>
+                        - <code>VITE_ENV=stg</code><br>
+                        - <code>VITE_API_URL=https://api-stg.railway.app</code>
+                    </td>
+                </tr>
+                <tr>
+                    <td><strong>Railway設定</strong></td>
+                    <td>⏳ 未実施</td>
+                    <td>
+                        STG環境の環境変数設定:<br>
+                        - <code>APP_ENV=stg</code><br>
+                        - <code>DB_ENV=stg</code><br>
+                        - <code>DATABASE_URL</code> (STG DB)
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h3>9-5. 動作確認手順（LOCAL環境）</h3>
+
+        <div class="timeline">
+            <div class="timeline-item">
+                <h4>STEP 1: サーバー起動確認</h4>
+                <div class="code-block">
+<pre># Backend
+cd backend
+npm run dev
+# → 🚀 Backend server running on port 3001
+
+# Frontend (別ターミナル)
+cd frontend
+npm run dev
+# → Local: http://localhost:5173/</pre>
+                </div>
+            </div>
+
+            <div class="timeline-item">
+                <h4>STEP 2: Health Endpoint確認</h4>
+                <div class="code-block">
+<pre>curl http://localhost:3001/api/health | jq .
+
+# 期待される出力:
+{
+  "success": true,
+  "backend": {
+    "environment": "LOCAL",
+    "hostname": "localhost",
+    "port": "3001",
+    "nodeEnv": "development"
+  },
+  "database": {
+    "environment": "STG",
+    "connected": true,
+    "host": "mainline.proxy.rlwy.net"
+  }
+}</pre>
+                </div>
+            </div>
+
+            <div class="timeline-item">
+                <h4>STEP 3: 画面表示確認</h4>
+                <p>ブラウザで <code>http://localhost:5173</code> を開く</p>
+                <p><strong>確認ポイント:</strong></p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>画面右上の環境バッジ: <span class="env-badge env-local">LOCAL</span></li>
+                    <li>詳細表示: FE:LOCAL → BE:LOCAL → DB:STG</li>
+                </ul>
+            </div>
+
+            <div class="timeline-item">
+                <h4>STEP 4: データ取得確認</h4>
+                <p>テナント3のデータが表示されることを確認</p>
+                <ul style="margin-left: 20px; margin-top: 10px;">
+                    <li>スタッフ一覧が表示される</li>
+                    <li>店舗一覧が表示される</li>
+                    <li>シフトデータが表示される</li>
+                </ul>
+            </div>
+        </div>
+
+        <h3>9-6. 次のステップ（STG環境デプロイ）</h3>
+
+        <div class="warning-box">
+            <strong>⏳ STG環境へのデプロイ準備</strong>
+            <p style="margin-top: 10px;">LOCAL環境での動作確認が完了したら、以下の手順でSTG環境にデプロイします：</p>
+            <ol style="margin-left: 20px; margin-top: 10px;">
+                <li><strong>Railwayにバックエンドをデプロイ</strong>
+                    <ul style="margin-left: 20px;">
+                        <li>環境変数設定（APP_ENV=stg, DB_ENV=stg）</li>
+                        <li>DATABASE_URLをSTG DBに設定</li>
+                    </ul>
+                </li>
+                <li><strong>Vercelにフロントエンドをデプロイ</strong>
+                    <ul style="margin-left: 20px;">
+                        <li>環境変数設定（VITE_ENV=stg）</li>
+                        <li>VITE_API_URLをRailway URLに設定</li>
+                    </ul>
+                </li>
+                <li><strong>STG環境で動作確認</strong>
+                    <ul style="margin-left: 20px;">
+                        <li>https://shift-scheduler-ai-stg.vercel.app にアクセス</li>
+                        <li>環境表示が FE:STG → BE:STG → DB:STG になることを確認</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+    </div>
+</body>
+</html>

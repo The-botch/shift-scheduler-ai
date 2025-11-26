@@ -118,8 +118,12 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     isOpen: false,
     mode: 'add', // 'add' | 'edit'
     shift: null,
+    selectedPattern: null, // 選択されたシフトパターン
     position: { x: 0, y: 0 }, // ポップアップ表示位置
   })
+
+  // シフトパターンマスタ
+  const [shiftPatterns, setShiftPatterns] = useState([])
 
   // CSVデータ格納用state
   const [csvShifts, setCsvShifts] = useState([])
@@ -175,6 +179,15 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       // マスタデータを取得（カスタムhook経由）
       const { staffMapping } = await loadMasterData()
       console.log('SecondPlanEditor - マスタデータ取得完了')
+
+      // シフトパターンマスタを取得
+      try {
+        const patterns = await masterRepository.getShiftPatterns()
+        setShiftPatterns(patterns)
+        console.log('シフトパターン取得完了:', patterns.length, '件')
+      } catch (error) {
+        console.error('シフトパターン取得エラー:', error)
+      }
 
       // 店舗名を設定
       const storeId = selectedShift?.storeId || selectedShift?.store_id
@@ -1034,9 +1047,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
 
   // シフト更新ハンドラー（メモリに保存のみ、FirstPlanEditorと同じ仕組み）
   const handleUpdateShift = (shiftId, updates) => {
-    console.log('=== handleUpdateShift START ===')
-    console.log('shiftId:', shiftId)
-    console.log('updates:', updates)
     setHasUnsavedChanges(true)
 
     // ローカルの変更を保持
@@ -1063,17 +1073,20 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
         )
       )
     }
-
-    console.log('=== handleUpdateShift END ===')
-    console.log('Updated successfully for shiftId:', shiftId)
   }
 
   // シフト削除ハンドラー（メモリに保存のみ、FirstPlanEditorと同じ仕組み）
   const handleDeleteShift = shiftId => {
     setHasUnsavedChanges(true)
 
-    // ローカルの削除リストに追加
-    setDeletedShiftIds(prev => new Set([...prev, shiftId]))
+    // Tempシフト（未保存）かどうかを判定
+    if (String(shiftId).startsWith('temp_')) {
+      // Tempシフトの場合：addedShiftsから削除（バックエンドへの削除リクエストは不要）
+      setAddedShifts(prev => prev.filter(shift => shift.shift_id !== shiftId))
+    } else {
+      // 既存シフト（DB保存済み）の場合：削除リストに追加（バックエンドで削除）
+      setDeletedShiftIds(prev => new Set([...prev, shiftId]))
+    }
 
     // ローカルステートから削除（UIから削除）
     setCsvShifts(prev => prev.filter(shift => shift.shift_id !== shiftId))
@@ -1098,17 +1111,12 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
 
     try {
       setSaving(true)
-      console.log('下書き保存処理開始')
 
       if (!hasUnsavedChanges) {
         alert(MESSAGES.SUCCESS.NO_CHANGES)
         setSaving(false)
         return
       }
-
-      console.log('新規追加:', addedShifts.length, '件')
-      console.log('修正:', Object.keys(modifiedShifts).length, '件')
-      console.log('削除:', deletedShiftIds.size, '件')
 
       // すべての変更をバックエンドに送信
       const updatePromises = []
@@ -1129,27 +1137,22 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
           is_preferred: newShift.is_preferred,
           is_modified: newShift.is_modified,
         }
-        console.log('新規シフト作成:', shiftData)
         updatePromises.push(shiftRepository.createShift(shiftData))
       }
 
       // 修正されたシフトを更新
       for (const [shiftId, updates] of Object.entries(modifiedShifts)) {
-        console.log('シフト更新:', shiftId, updates)
         updatePromises.push(shiftRepository.updateShift(Number(shiftId), updates))
       }
 
       // 削除されたシフトを削除
       for (const shiftId of deletedShiftIds) {
-        console.log('シフト削除:', shiftId)
         updatePromises.push(shiftRepository.deleteShift(shiftId))
       }
 
       // すべての変更を並行実行
       if (updatePromises.length > 0) {
-        console.log('変更をバックエンドに送信中...')
-        const results = await Promise.all(updatePromises)
-        console.log('保存完了:', results)
+        await Promise.all(updatePromises)
       }
 
       // ローカルステートをリセット
@@ -1157,8 +1160,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       setDeletedShiftIds(new Set())
       setAddedShifts([])
       setHasUnsavedChanges(false)
-
-      console.log('下書き保存処理完了')
 
       alert(MESSAGES.SUCCESS.SAVED)
       // データをリロードして最新の状態を表示
@@ -1175,9 +1176,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
 
   // シフト新規追加ハンドラー（メモリに保存のみ）
   const handleAddShift = shiftData => {
-    console.log('=== handleAddShift START ===')
-    console.log('shiftData:', shiftData)
-
     const year = selectedShift?.year || new Date().getFullYear()
     const month = selectedShift?.month || new Date().getMonth() + 1
     const planId = selectedShift?.plan_id || selectedShift?.planId || planIdState
@@ -1186,6 +1184,14 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     // 仮IDを生成
     const tempId = `temp_${Date.now()}_${Math.random()}`
 
+    // pattern_id を動的に取得（マルチテナント対応）
+    // 優先順位: 選択されたパターン > 既存シフトの最初のパターン > デフォルト
+    const defaultPatternId =
+      modalState.selectedPattern?.pattern_id ||
+      (csvShifts.length > 0 ? csvShifts[0].pattern_id : null) ||
+      (firstPlanShifts.length > 0 ? firstPlanShifts[0].pattern_id : null) ||
+      (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1)
+
     const newShift = {
       shift_id: tempId,
       tenant_id: tenantId,
@@ -1193,7 +1199,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       plan_id: planId,
       staff_id: shiftData.staff_id,
       shift_date: shiftData.date, // MultiStoreShiftTableで使用されるフィールド名
-      pattern_id: 1, // デフォルトパターン（通常勤務）
+      pattern_id: defaultPatternId, // 動的に取得（マルチテナント対応）
       start_time: shiftData.start_time,
       end_time: shiftData.end_time,
       break_minutes: shiftData.break_minutes || 0,
@@ -1219,16 +1225,10 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     if (selectedDate && shiftData.date === selectedDate) {
       setDayShifts(prev => [...prev, newShift])
     }
-
-    console.log('=== handleAddShift END ===')
   }
 
   // セルクリック時のハンドラー
   const handleShiftClick = ({ mode, shift, date, staffId, storeId, event }) => {
-    console.log('=== handleShiftClick ===')
-    console.log('mode:', mode)
-    console.log('shift:', shift)
-
     // クリック位置を取得
     const rect = event?.target.getBoundingClientRect()
     const position = rect
@@ -1280,10 +1280,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
 
   // モーダルからの保存処理
   const handleModalSave = timeData => {
-    console.log('=== handleModalSave ===')
-    console.log('modalState:', modalState)
-    console.log('timeData:', timeData)
-
     if (modalState.mode === 'add') {
       handleAddShift({
         ...modalState.shift,
@@ -1376,11 +1372,13 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     onDelete,
     position,
     availableStores,
+    shiftPatterns,
   }) => {
     const [startTime, setStartTime] = useState(shift?.start_time || '')
     const [endTime, setEndTime] = useState(shift?.end_time || '')
     const [breakMinutes, setBreakMinutes] = useState(shift?.break_minutes || 0)
     const [storeId, setStoreId] = useState(shift?.store_id || '')
+    const [selectedPatternId, setSelectedPatternId] = useState('')
     const [popupStyle, setPopupStyle] = useState({})
     const [isDragging, setIsDragging] = useState(false)
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -1393,8 +1391,23 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
         setEndTime(shift.end_time || '')
         setBreakMinutes(shift.break_minutes || 0)
         setStoreId(shift.store_id || '')
+        setSelectedPatternId('')
       }
     }, [shift])
+
+    // パターン選択ハンドラー（時刻を自動入力）
+    const handlePatternSelect = patternId => {
+      setSelectedPatternId(patternId)
+
+      if (patternId && shiftPatterns) {
+        const pattern = shiftPatterns.find(p => p.pattern_id === Number(patternId))
+        if (pattern) {
+          setStartTime(pattern.start_time)
+          setEndTime(pattern.end_time)
+          setBreakMinutes(pattern.break_minutes || 0)
+        }
+      }
+    }
 
     // ドラッグハンドラー
     const handleDragStart = e => {
@@ -1632,6 +1645,39 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
                       ))}
                   </select>
                 </div>
+
+                {/* シフトパターン選択（店舗選択後に表示） */}
+                {storeId &&
+                  shiftPatterns &&
+                  shiftPatterns.length > 0 &&
+                  (() => {
+                    // 選択された店舗のパターン、またはテナント共通パターン（store_id=null）をフィルタリング
+                    const filteredPatterns = shiftPatterns.filter(
+                      pattern => pattern.store_id === null || pattern.store_id === Number(storeId)
+                    )
+
+                    if (filteredPatterns.length === 0) return null
+
+                    return (
+                      <div>
+                        <label className="block text-xs font-medium text-gray-700 mb-1">
+                          シフトパターン
+                        </label>
+                        <select
+                          value={selectedPatternId}
+                          onChange={e => handlePatternSelect(e.target.value)}
+                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          <option value="">-- パターンを選択 --</option>
+                          {filteredPatterns.map(pattern => (
+                            <option key={pattern.pattern_id} value={pattern.pattern_id}>
+                              {pattern.pattern_name} ({pattern.start_time}-{pattern.end_time})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    )
+                  })()}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     開始時刻 <span className="text-red-500">*</span>
@@ -2413,6 +2459,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
             preferences={preferences}
             position={modalState.position}
             availableStores={availableStores}
+            shiftPatterns={shiftPatterns}
             onClose={() =>
               setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })
             }
