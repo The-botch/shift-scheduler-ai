@@ -5,6 +5,7 @@ import { SHIFT_PREFERENCE_STATUS, VALID_PREFERENCE_STATUSES } from '../config/co
 import { VALIDATION_MESSAGES } from '../config/validation.js';
 import ShiftGenerationService from '../services/shift/ShiftGenerationService.js';
 import ConstraintValidationService from '../services/shift/ConstraintValidationService.js';
+import { calculateWorkHours, calculateWorkHoursFixed, formatDateToYYYYMMDD } from '../utils/timeUtils.js';
 
 const router = express.Router();
 
@@ -131,9 +132,9 @@ router.get('/summary', async (req, res) => {
         st.store_name,
         COUNT(sh.shift_id)::int as shift_count,
         COUNT(DISTINCT sh.staff_id)::int as staff_count,
-        ROUND(SUM(COALESCE(sh.total_hours, EXTRACT(EPOCH FROM (sh.end_time - sh.start_time)) / 3600 - COALESCE(sh.break_minutes, 0) / 60.0))::numeric, 2) as total_hours,
-        ROUND(SUM(COALESCE(sh.labor_cost, (EXTRACT(EPOCH FROM (sh.end_time - sh.start_time)) / 3600 - COALESCE(sh.break_minutes, 0) / 60.0) * 1200))::numeric, 2) as total_labor_cost,
-        ROUND(AVG(COALESCE(sh.total_hours, EXTRACT(EPOCH FROM (sh.end_time - sh.start_time)) / 3600 - COALESCE(sh.break_minutes, 0) / 60.0))::numeric, 2) as avg_hours_per_shift,
+        ROUND(SUM(COALESCE(sh.total_hours, 0))::numeric, 2) as total_hours,
+        ROUND(SUM(COALESCE(sh.labor_cost, 0))::numeric, 2) as total_labor_cost,
+        ROUND(AVG(NULLIF(sh.total_hours, NULL))::numeric, 2) as avg_hours_per_shift,
         COUNT(CASE WHEN sh.is_modified = true THEN 1 END)::int as modified_count
 
 
@@ -1189,6 +1190,7 @@ router.get('/plans/:id', async (req, res) => {
 // ============================================
 // シフト希望API (Shift Preferences)
 // ============================================
+// ★大幅変更: 1日1レコード形式に対応（設計書: docs/design-docs/20251126_shift_preferences_schema_change.html）
 
 /**
  * シフト希望一覧取得
@@ -1198,13 +1200,13 @@ router.get('/plans/:id', async (req, res) => {
  * - tenant_id: テナントID (required, default: 1)
  * - store_id: 店舗ID (optional)
  * - staff_id: スタッフID (optional)
- * - year: 年 (optional)
- * - month: 月 (optional)
- * - status: ステータス (optional) PENDING/APPROVED/REJECTED
+ * - date_from: 開始日 (optional, format: YYYY-MM-DD) ★変更: year,month → date_from,date_to
+ * - date_to: 終了日 (optional, format: YYYY-MM-DD)
+ * - is_ng: NGフラグ (optional, true/false)
  */
 router.get('/preferences', async (req, res) => {
   try {
-    const { tenant_id = 1, store_id, staff_id, year, month, status } = req.query;
+    const { tenant_id = 1, store_id, staff_id, date_from, date_to, is_ng } = req.query;
 
     let sql = `
       SELECT
@@ -1216,16 +1218,13 @@ router.get('/preferences', async (req, res) => {
         staff.name as staff_name,
         staff.staff_code,
         staff.email as staff_email,
+        staff.employment_type,
         r.role_name,
-        pref.year,
-        pref.month,
-        pref.preferred_days,
-        pref.ng_days,
-        pref.preferred_time_slots,
-        pref.max_hours_per_week,
+        pref.preference_date,
+        pref.is_ng,
+        pref.start_time,
+        pref.end_time,
         pref.notes,
-        pref.submitted_at,
-        pref.status,
         pref.created_at,
         pref.updated_at
       FROM ops.shift_preferences pref
@@ -1250,25 +1249,25 @@ router.get('/preferences', async (req, res) => {
       paramIndex++;
     }
 
-    if (year) {
-      sql += ` AND pref.year = $${paramIndex}`;
-      params.push(year);
+    if (date_from) {
+      sql += ` AND pref.preference_date >= $${paramIndex}`;
+      params.push(date_from);
       paramIndex++;
     }
 
-    if (month) {
-      sql += ` AND pref.month = $${paramIndex}`;
-      params.push(month);
+    if (date_to) {
+      sql += ` AND pref.preference_date <= $${paramIndex}`;
+      params.push(date_to);
       paramIndex++;
     }
 
-    if (status) {
-      sql += ` AND pref.status = $${paramIndex}`;
-      params.push(status);
+    if (is_ng !== undefined) {
+      sql += ` AND pref.is_ng = $${paramIndex}`;
+      params.push(is_ng === 'true' || is_ng === true);
       paramIndex++;
     }
 
-    sql += ` ORDER BY pref.year DESC, pref.month DESC, staff.name ASC`;
+    sql += ` ORDER BY pref.preference_date ASC, staff.name ASC`;
 
     const result = await query(sql, params);
 
@@ -1297,20 +1296,29 @@ router.get('/preferences/:id', async (req, res) => {
 
     const result = await query(`
       SELECT
-        pref.*,
+        pref.preference_id,
+        pref.tenant_id,
+        pref.store_id,
+        pref.staff_id,
+        pref.preference_date,
+        pref.is_ng,
+        pref.start_time,
+        pref.end_time,
+        pref.notes,
+        pref.created_at,
+        pref.updated_at,
         s.store_name,
         s.store_code,
         staff.name as staff_name,
         staff.staff_code,
         staff.email as staff_email,
-        staff.phone as staff_phone,
-        r.role_name,
-        et.type_name as employment_type_name
+        staff.phone_number as staff_phone,
+        staff.employment_type,
+        r.role_name
       FROM ops.shift_preferences pref
       LEFT JOIN core.stores s ON pref.store_id = s.store_id
       LEFT JOIN hr.staff staff ON pref.staff_id = staff.staff_id
       LEFT JOIN core.roles r ON staff.role_id = r.role_id
-      LEFT JOIN core.employment_types et ON staff.employment_type_id = et.employment_type_id
       WHERE pref.preference_id = $1 AND pref.tenant_id = $2
     `, [id, tenant_id]);
 
@@ -1335,7 +1343,7 @@ router.get('/preferences/:id', async (req, res) => {
 });
 
 /**
- * シフト希望登録
+ * シフト希望登録（1日1レコード形式）
  * POST /api/shifts/preferences
  *
  * Request Body:
@@ -1343,14 +1351,11 @@ router.get('/preferences/:id', async (req, res) => {
  *   tenant_id: number,
  *   store_id: number,
  *   staff_id: number,
- *   year: number,
- *   month: number,
- *   preferred_days?: string (comma-separated dates: "2024-11-01,2024-11-03"),
- *   ng_days?: string (comma-separated dates: "2024-11-10,2024-11-20"),
- *   preferred_time_slots?: string (comma-separated: "morning,evening"),
- *   max_hours_per_week?: number,
- *   notes?: string,
- *   status?: string (default: 'PENDING')
+ *   preference_date: string (YYYY-MM-DD),
+ *   is_ng: boolean (default: false),
+ *   start_time?: string (HH:MM, 例: "09:00", "25:00"),
+ *   end_time?: string (HH:MM),
+ *   notes?: string
  * }
  */
 router.post('/preferences', async (req, res) => {
@@ -1359,69 +1364,72 @@ router.post('/preferences', async (req, res) => {
       tenant_id,
       store_id,
       staff_id,
-      year,
-      month,
-      preferred_days,
-      ng_days,
-      preferred_time_slots,
-      max_hours_per_week,
-      notes,
-      status = SHIFT_PREFERENCE_STATUS.PENDING
+      preference_date,
+      is_ng = false,
+      start_time,
+      end_time,
+      notes
     } = req.body;
 
     // 必須項目のバリデーション
-    if (!tenant_id || !store_id || !staff_id || !year || !month) {
+    if (!tenant_id || !store_id || !staff_id || !preference_date) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields',
-        required: ['tenant_id', 'store_id', 'staff_id', 'year', 'month']
+        required: ['tenant_id', 'store_id', 'staff_id', 'preference_date']
       });
     }
 
-    // year と month のバリデーション
-    if (year < 2000 || year > 2100) {
+    // preference_date のバリデーション（YYYY-MM-DD形式）
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    if (!dateRegex.test(preference_date)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid year: must be between 2000 and 2100'
+        error: 'Invalid preference_date format: must be YYYY-MM-DD'
       });
     }
 
-    if (month < 1 || month > 12) {
+    // 時刻のバリデーション（HH:MM形式、05:00〜28:00）
+    const timeRegex = /^([0-2][0-9]):([0-5][0-9])$/;
+    if (start_time && !timeRegex.test(start_time)) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid month: must be between 1 and 12'
+        error: 'Invalid start_time format: must be HH:MM'
       });
     }
-
-    // max_hours_per_week のバリデーション
-    if (max_hours_per_week !== undefined && max_hours_per_week < 0) {
+    if (end_time && !timeRegex.test(end_time)) {
       return res.status(400).json({
         success: false,
-        error: VALIDATION_MESSAGES.INVALID_MAX_HOURS
+        error: 'Invalid end_time format: must be HH:MM'
       });
     }
-
-    // submitted_at を現在時刻に設定
-    const submitted_at = new Date().toISOString();
 
     // シフト希望を挿入
     const result = await query(`
       INSERT INTO ops.shift_preferences (
-        tenant_id, store_id, staff_id, year, month,
-        preferred_days, ng_days, preferred_time_slots,
-        max_hours_per_week, notes, submitted_at, status
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+        tenant_id, store_id, staff_id, preference_date,
+        is_ng, start_time, end_time, notes
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING preference_id
     `, [
-      tenant_id, store_id, staff_id, year, month,
-      preferred_days || null, ng_days || null, preferred_time_slots || null,
-      max_hours_per_week || null, notes || null, submitted_at, status
+      tenant_id, store_id, staff_id, preference_date,
+      is_ng, start_time || null, end_time || null, notes || null
     ]);
 
     // 作成されたシフト希望の詳細情報を取得
     const detailResult = await query(`
       SELECT
-        pref.*,
+        pref.preference_id,
+        pref.tenant_id,
+        pref.store_id,
+        pref.staff_id,
+        pref.preference_date,
+        pref.is_ng,
+        pref.start_time,
+        pref.end_time,
+        pref.notes,
+        pref.created_at,
+        pref.updated_at,
         s.store_name,
         s.store_code,
         staff.name as staff_name,
@@ -1453,11 +1461,11 @@ router.post('/preferences', async (req, res) => {
       });
     }
 
-    // ユニーク制約エラーの場合（同じスタッフの同じ年月の希望が既に存在）
+    // ユニーク制約エラーの場合（同じスタッフの同じ日付の希望が既に存在）
     if (error.code === '23505') {
       return res.status(409).json({
         success: false,
-        error: 'Shift preference already exists for this staff, year, and month',
+        error: 'Shift preference already exists for this staff and date',
         detail: error.detail
       });
     }
@@ -1470,17 +1478,15 @@ router.post('/preferences', async (req, res) => {
 });
 
 /**
- * シフト希望更新
+ * シフト希望更新（1日1レコード形式）
  * PUT /api/shifts/preferences/:id
  *
  * Request Body (部分更新 - 変更したい項目のみ送信):
  * {
- *   preferred_days?: string,
- *   ng_days?: string,
- *   preferred_time_slots?: string,
- *   max_hours_per_week?: number,
- *   notes?: string,
- *   status?: string (PENDING/APPROVED/REJECTED)
+ *   is_ng?: boolean,
+ *   start_time?: string (HH:MM),
+ *   end_time?: string (HH:MM),
+ *   notes?: string
  * }
  *
  * Query Parameters:
@@ -1515,36 +1521,30 @@ router.put('/preferences/:id', async (req, res) => {
 
     // リクエストボディから更新項目を取得
     const {
-      preferred_days,
-      ng_days,
-      preferred_time_slots,
-      max_hours_per_week,
-      notes,
-      status
+      is_ng,
+      start_time,
+      end_time,
+      notes
     } = req.body;
 
     // 更新する値を決定（指定されていれば新しい値、なければ既存の値）
-    const newPreferredDays = preferred_days !== undefined ? preferred_days : existingPref.preferred_days;
-    const newNgDays = ng_days !== undefined ? ng_days : existingPref.ng_days;
-    const newPreferredTimeSlots = preferred_time_slots !== undefined ? preferred_time_slots : existingPref.preferred_time_slots;
-    const newMaxHoursPerWeek = max_hours_per_week !== undefined ? max_hours_per_week : existingPref.max_hours_per_week;
+    const newIsNg = is_ng !== undefined ? is_ng : existingPref.is_ng;
+    const newStartTime = start_time !== undefined ? start_time : existingPref.start_time;
+    const newEndTime = end_time !== undefined ? end_time : existingPref.end_time;
     const newNotes = notes !== undefined ? notes : existingPref.notes;
-    const newStatus = status !== undefined ? status : existingPref.status;
 
-    // max_hours_per_week のバリデーション
-    if (newMaxHoursPerWeek !== null && newMaxHoursPerWeek < 0) {
+    // 時刻のバリデーション（HH:MM形式）
+    const timeRegex = /^([0-2][0-9]):([0-5][0-9])$/;
+    if (newStartTime && !timeRegex.test(newStartTime)) {
       return res.status(400).json({
         success: false,
-        error: VALIDATION_MESSAGES.INVALID_MAX_HOURS
+        error: 'Invalid start_time format: must be HH:MM'
       });
     }
-
-    // status のバリデーション
-    const validStatuses = VALID_PREFERENCE_STATUSES;
-    if (newStatus && !validStatuses.includes(newStatus)) {
+    if (newEndTime && !timeRegex.test(newEndTime)) {
       return res.status(400).json({
         success: false,
-        error: `Invalid status: must be one of ${validStatuses.join(', ')}`
+        error: 'Invalid end_time format: must be HH:MM'
       });
     }
 
@@ -1552,23 +1552,30 @@ router.put('/preferences/:id', async (req, res) => {
     await query(`
       UPDATE ops.shift_preferences
       SET
-        preferred_days = $1,
-        ng_days = $2,
-        preferred_time_slots = $3,
-        max_hours_per_week = $4,
-        notes = $5,
-        status = $6,
+        is_ng = $1,
+        start_time = $2,
+        end_time = $3,
+        notes = $4,
         updated_at = CURRENT_TIMESTAMP
-      WHERE preference_id = $7 AND tenant_id = $8
+      WHERE preference_id = $5 AND tenant_id = $6
     `, [
-      newPreferredDays, newNgDays, newPreferredTimeSlots,
-      newMaxHoursPerWeek, newNotes, newStatus, id, tenant_id
+      newIsNg, newStartTime, newEndTime, newNotes, id, tenant_id
     ]);
 
     // 更新後のシフト希望詳細情報を取得
     const detailResult = await query(`
       SELECT
-        pref.*,
+        pref.preference_id,
+        pref.tenant_id,
+        pref.store_id,
+        pref.staff_id,
+        pref.preference_date,
+        pref.is_ng,
+        pref.start_time,
+        pref.end_time,
+        pref.notes,
+        pref.created_at,
+        pref.updated_at,
         s.store_name,
         s.store_code,
         staff.name as staff_name,
@@ -1599,6 +1606,145 @@ router.put('/preferences/:id', async (req, res) => {
 });
 
 /**
+ * シフト希望一括登録（1日1レコード形式）
+ * POST /api/shifts/preferences/bulk
+ *
+ * Request Body:
+ * {
+ *   tenant_id: number,
+ *   store_id: number,
+ *   staff_id: number,
+ *   preferences: [
+ *     {
+ *       preference_date: string (YYYY-MM-DD),
+ *       is_ng: boolean,
+ *       start_time?: string (HH:MM),
+ *       end_time?: string (HH:MM),
+ *       notes?: string
+ *     },
+ *     ...
+ *   ]
+ * }
+ */
+router.post('/preferences/bulk', async (req, res) => {
+  try {
+    const {
+      tenant_id,
+      store_id,
+      staff_id,
+      preferences
+    } = req.body;
+
+    // 必須項目のバリデーション
+    if (!tenant_id || !store_id || !staff_id || !preferences || !Array.isArray(preferences)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Missing required fields',
+        required: ['tenant_id', 'store_id', 'staff_id', 'preferences (array)']
+      });
+    }
+
+    if (preferences.length === 0) {
+      return res.status(400).json({
+        success: false,
+        error: 'preferences array cannot be empty'
+      });
+    }
+
+    // 各preference のバリデーション
+    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+    const timeRegex = /^([0-2][0-9]):([0-5][0-9])$/;
+
+    for (const pref of preferences) {
+      if (!pref.preference_date) {
+        return res.status(400).json({
+          success: false,
+          error: 'Each preference must have preference_date'
+        });
+      }
+      if (!dateRegex.test(pref.preference_date)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid preference_date format: ${pref.preference_date}. Must be YYYY-MM-DD`
+        });
+      }
+      if (pref.start_time && !timeRegex.test(pref.start_time)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid start_time format: ${pref.start_time}. Must be HH:MM`
+        });
+      }
+      if (pref.end_time && !timeRegex.test(pref.end_time)) {
+        return res.status(400).json({
+          success: false,
+          error: `Invalid end_time format: ${pref.end_time}. Must be HH:MM`
+        });
+      }
+    }
+
+    // 一括挿入（UPSERT: 既存データは更新）
+    const insertedIds = [];
+    const updatedIds = [];
+    const errors = [];
+
+    for (const pref of preferences) {
+      try {
+        // UPSERT: 存在すれば更新、なければ挿入
+        const result = await query(`
+          INSERT INTO ops.shift_preferences (
+            tenant_id, store_id, staff_id, preference_date,
+            is_ng, start_time, end_time, notes
+          ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          ON CONFLICT (tenant_id, staff_id, preference_date)
+          DO UPDATE SET
+            is_ng = EXCLUDED.is_ng,
+            start_time = EXCLUDED.start_time,
+            end_time = EXCLUDED.end_time,
+            notes = EXCLUDED.notes,
+            updated_at = CURRENT_TIMESTAMP
+          RETURNING preference_id, (xmax = 0) as is_insert
+        `, [
+          tenant_id, store_id, staff_id, pref.preference_date,
+          pref.is_ng || false,
+          pref.start_time || null,
+          pref.end_time || null,
+          pref.notes || null
+        ]);
+
+        if (result.rows[0].is_insert) {
+          insertedIds.push(result.rows[0].preference_id);
+        } else {
+          updatedIds.push(result.rows[0].preference_id);
+        }
+      } catch (err) {
+        errors.push({
+          preference_date: pref.preference_date,
+          error: err.message
+        });
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      message: 'Bulk operation completed',
+      inserted_count: insertedIds.length,
+      updated_count: updatedIds.length,
+      error_count: errors.length,
+      inserted_ids: insertedIds,
+      updated_ids: updatedIds,
+      errors: errors.length > 0 ? errors : undefined
+    });
+  } catch (error) {
+    console.error('Error bulk creating shift preferences:', error);
+
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * シフト希望削除
  * DELETE /api/shifts/preferences/:id
  *
@@ -1619,7 +1765,7 @@ router.delete('/preferences/:id', async (req, res) => {
 
     // 削除前に存在確認とtenant_idチェック
     const existingResult = await query(
-      'SELECT preference_id, staff_id, year, month FROM ops.shift_preferences WHERE preference_id = $1 AND tenant_id = $2',
+      'SELECT preference_id, staff_id, preference_date FROM ops.shift_preferences WHERE preference_id = $1 AND tenant_id = $2',
       [id, tenant_id]
     );
 
@@ -1644,8 +1790,7 @@ router.delete('/preferences/:id', async (req, res) => {
       deleted_preference_id: parseInt(id),
       deleted_preference_info: {
         staff_id: deletedPref.staff_id,
-        year: deletedPref.year,
-        month: deletedPref.month
+        preference_date: deletedPref.preference_date
       }
     });
   } catch (error) {
@@ -1776,27 +1921,16 @@ router.post('/', async (req, res) => {
     // total_hours の自動計算（未指定の場合）
     let calculatedTotalHours = total_hours;
     if (calculatedTotalHours === undefined || calculatedTotalHours === null) {
-      // 時刻を分に変換して計算
-      const startParts = start_time.split(':');
-      const endParts = end_time.split(':');
-      const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-      const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+      const workHours = calculateWorkHours(start_time, end_time, break_minutes);
 
-      let totalMinutes = endMinutes - startMinutes;
-      // 日をまたぐ場合の処理
-      if (totalMinutes < 0) {
-        totalMinutes += 24 * 60;
-      }
-      totalMinutes -= break_minutes;
-
-      if (totalMinutes < 0) {
+      if (workHours < 0) {
         return res.status(400).json({
           success: false,
           error: 'Invalid time range: break_minutes exceeds work hours'
         });
       }
 
-      calculatedTotalHours = (totalMinutes / 60).toFixed(2);
+      calculatedTotalHours = workHours.toFixed(2);
     }
 
     // labor_cost の自動計算（未指定の場合）
@@ -1974,25 +2108,16 @@ router.put('/:id', async (req, res) => {
     if (calculatedTotalHours === undefined) {
       if (start_time !== undefined || end_time !== undefined || break_minutes !== undefined) {
         // 時間関連の項目が変更された場合は再計算
-        const startParts = newStartTime.split(':');
-        const endParts = newEndTime.split(':');
-        const startMinutes = parseInt(startParts[0]) * 60 + parseInt(startParts[1]);
-        const endMinutes = parseInt(endParts[0]) * 60 + parseInt(endParts[1]);
+        const workHours = calculateWorkHours(newStartTime, newEndTime, newBreakMinutes);
 
-        let totalMinutes = endMinutes - startMinutes;
-        if (totalMinutes < 0) {
-          totalMinutes += 24 * 60;
-        }
-        totalMinutes -= newBreakMinutes;
-
-        if (totalMinutes < 0) {
+        if (workHours < 0) {
           return res.status(400).json({
             success: false,
             error: 'Invalid time range: break_minutes exceeds work hours'
           });
         }
 
-        calculatedTotalHours = (totalMinutes / 60).toFixed(2);
+        calculatedTotalHours = workHours.toFixed(2);
       } else {
         // 時間が変更されていない場合は既存の値を使用
         calculatedTotalHours = existingShift.total_hours;
@@ -2602,11 +2727,11 @@ router.post('/plans/copy-from-previous', async (req, res) => {
         storeInfo: storeResult.rows[0] || {}
       };
 
-      // シフトデータを整形
+      // シフトデータを整形（JSTでフォーマット）
       const shiftsForValidation = copiedShiftsResult.rows.map(shift => ({
         shift_id: shift.shift_id,
         staff_id: shift.staff_id,
-        shift_date: shift.shift_date.toISOString().split('T')[0],
+        shift_date: formatDateToYYYYMMDD(shift.shift_date),
         start_time: shift.start_time,
         end_time: shift.end_time,
         break_minutes: shift.break_minutes || 0,
@@ -2819,7 +2944,7 @@ router.post('/plans/copy-from-previous-all-stores', async (req, res) => {
                   store_id: store.store_id,
                   plan_id: newPlanId,
                   staff_id: sourceShift.staff_id,
-                  shift_date: newShiftDate.toISOString().split('T')[0],
+                  shift_date: formatDateToYYYYMMDD(newShiftDate),
                   pattern_id: sourceShift.pattern_id,
                   start_time: sourceShift.start_time,
                   end_time: sourceShift.end_time,
@@ -3040,7 +3165,7 @@ router.post('/plans/fetch-previous-data-all-stores', async (req, res) => {
               shifts.push({
                 store_id: store.store_id,
                 staff_id: sourceShift.staff_id,
-                shift_date: newShiftDate.toISOString().split('T')[0],
+                shift_date: formatDateToYYYYMMDD(newShiftDate),
                 pattern_id: sourceShift.pattern_id,
                 start_time: sourceShift.start_time,
                 end_time: sourceShift.end_time,

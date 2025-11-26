@@ -66,27 +66,28 @@ CREATE TABLE ops.shift_preferences (
 
 ---
 
-## Phase 2: バックエンドAPI修正
+## Phase 2: バックエンドAPI修正 ✅ 完了
 
-### 2.1 shifts.js の修正
+### 2.1 shifts.js の修正 ✅
 **ファイル**: `backend/src/routes/shifts.js`
 
-#### 修正が必要なエンドポイント
+#### 修正したエンドポイント
 
 | エンドポイント | 修正内容 |
 |---------------|---------|
-| `GET /api/shifts/preferences` | クエリパラメータ: year,month → date_from,date_to |
-| `POST /api/shifts/preferences` | リクエストボディ変更、INSERT文修正 |
-| `PUT /api/shifts/preferences/:id` | リクエストボディ変更、UPDATE文修正 |
-| `POST /api/shifts/preferences/bulk` | 新規追加（一括登録） |
+| `GET /api/shifts/preferences` | ✅ クエリパラメータ: year,month → date_from,date_to, is_ng |
+| `GET /api/shifts/preferences/:id` | ✅ レスポンス構造変更 |
+| `POST /api/shifts/preferences` | ✅ リクエストボディ変更（preference_date, is_ng, start_time, end_time） |
+| `PUT /api/shifts/preferences/:id` | ✅ リクエストボディ変更（is_ng, start_time, end_time, notes） |
+| `DELETE /api/shifts/preferences/:id` | ✅ レスポンス構造変更（preference_date） |
+| `POST /api/shifts/preferences/bulk` | ✅ 新規追加（一括登録、UPSERT対応） |
 
-#### shifts関連エンドポイント
-- INSERT/UPDATE文でstart_time/end_timeの扱いを確認
-- pattern_idがNULLでも動作するよう修正
-
-### 2.2 vector-store.js の修正
+### 2.2 vector-store.js の確認 ✅
 **ファイル**: `backend/src/routes/vector-store.js`
-- shift_preferencesのクエリ修正
+- SELECT * のため変更不要（新カラムは自動取得）
+
+### 2.3 動作確認 ✅
+- GET/POST/PUT/DELETE/bulk 全て正常動作を確認
 
 ---
 
