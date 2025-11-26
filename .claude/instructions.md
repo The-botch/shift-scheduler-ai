@@ -320,6 +320,28 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ---
 
+## 🌿 ブランチ管理
+
+### ブランチ作成のルール
+- **特別な指示がない限り、最新の `staging` ブランチから切り出してブランチを作成すること**
+- ブランチ作成の手順：
+  1. `git checkout staging` でstagingブランチに切り替え
+  2. `git pull` で最新の状態を取得
+  3. `git checkout -b <branch-name>` で新しいブランチを作成
+
+### ブランチ命名規則
+- `feature/<description>`: 新機能
+- `fix/<description>`: バグ修正
+- `refactor/<description>`: リファクタリング
+- `docs/<description>`: ドキュメント更新
+- `chore/<description>`: その他の作業
+
+### 例外ケース
+- ユーザーが明示的に別のブランチを指定した場合は、その指示に従う
+- 例：「mainブランチから切り出してください」と言われた場合はmainから作成
+
+---
+
 ## 🚀 開発ワークフロー
 
 1. イシューを確認
