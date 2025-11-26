@@ -200,6 +200,7 @@ feature/xxx, fix/xxx, etc. (ローカル開発ブランチ)
                 <td>
                     • 直接pushは禁止<br>
                     • PRレビュー必須<br>
+                    • 承認者の承認が必要<br>
                     • CI checksパス必須
                 </td>
             </tr>
@@ -234,6 +235,15 @@ feature/xxx, fix/xxx, etc. (ローカル開発ブランチ)
             <tr>
                 <td><strong>切り出し元</strong></td>
                 <td>mainブランチから切り出される</td>
+            </tr>
+            <tr>
+                <td><strong>保護設定</strong></td>
+                <td>
+                    • 直接pushは禁止<br>
+                    • PRレビュー必須<br>
+                    • 承認者の承認が必要<br>
+                    • CI checksパス必須
+                </td>
             </tr>
             <tr>
                 <td><strong>マージ元</strong></td>
@@ -350,6 +360,8 @@ git commit -m "feat: 新しい機能を追加"</pre>
             <ul>
                 <li>コードレビューを受ける</li>
                 <li>必要に応じて修正</li>
+                <li><strong>承認者（Approver）の承認を取得</strong></li>
+                <li>CI checksが全てパスすることを確認</li>
                 <li>承認後、stagingにマージ</li>
                 <li>ステージング環境に自動デプロイ</li>
             </ul>
@@ -380,6 +392,7 @@ git commit -m "feat: 新しい機能を追加"</pre>
             <strong>ステップ9: 最終レビューとマージ</strong>
             <ul>
                 <li>最終レビュー（重要）</li>
+                <li><strong>承認者（Approver）の承認を取得（必須）</strong></li>
                 <li>CI checksが全てパスすることを確認</li>
                 <li>mainにマージ</li>
                 <li>本番環境に自動デプロイ</li>
@@ -504,6 +517,7 @@ git checkout -b hotfix/critical-bug-fix</pre>
             <strong>ステップ4: 迅速なレビューとマージ</strong>
             <ul>
                 <li>優先的にレビュー</li>
+                <li><strong>承認者（Approver）の承認を取得（必須）</strong></li>
                 <li>CI checksが全てパス</li>
                 <li>mainにマージ</li>
                 <li>本番環境に自動デプロイ</li>
