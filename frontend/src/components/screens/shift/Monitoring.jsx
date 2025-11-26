@@ -24,6 +24,7 @@ import ShiftTimeline from '../../shared/ShiftTimeline'
 import StaffTimeTable from '../../shared/StaffTimeTable'
 import { AnimatePresence } from 'framer-motion'
 import { useTenant } from '../../../contexts/TenantContext'
+import { isoToJSTDateString, isoToJSTDateParts } from '../../../utils/dateUtils'
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -146,10 +147,19 @@ const Monitoring = () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
+      // ★変更: 新API形式（date_from, date_to）に対応
       // 選択した年月のデータを取得
-      const preferencesUrl = historyMonth
-        ? `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&year=${historyYear}&month=${historyMonth}`
-        : `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&year=${historyYear}`
+      let dateFrom, dateTo
+      if (historyMonth) {
+        dateFrom = `${historyYear}-${String(historyMonth).padStart(2, '0')}-01`
+        const lastDay = new Date(historyYear, historyMonth, 0).getDate()
+        dateTo = `${historyYear}-${String(historyMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+      } else {
+        // 年のみ指定の場合は1年分
+        dateFrom = `${historyYear}-01-01`
+        dateTo = `${historyYear}-12-31`
+      }
+      const preferencesUrl = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&date_from=${dateFrom}&date_to=${dateTo}`
 
       const [staffResponse, rolesResponse, patternsResponse, preferencesResponse] =
         await Promise.all([
@@ -225,20 +235,24 @@ const Monitoring = () => {
         }
       })
 
-      // 提出状況を集計（submitted_atがあるstaff_idのみを提出済みとする）
+      // ★変更: 新API形式（1日1レコード）での提出状況集計
+      // created_atまたはupdated_atを提出日時として使用
       const submittedStaffIds = new Set()
       availData.forEach(req => {
-        if (req.submitted_at) {
+        // 1日1レコード形式なので、レコードがあれば提出済み
+        const submittedAt = req.updated_at || req.created_at
+        if (submittedAt) {
           submittedStaffIds.add(req.staff_id.toString())
 
           if (staffMap[req.staff_id]) {
-            const date = new Date(req.submitted_at)
+            const date = new Date(submittedAt)
             const formatted = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
             if (
               !staffMap[req.staff_id].submittedAt ||
-              new Date(req.submitted_at) > new Date(staffMap[req.staff_id].submittedAt)
+              new Date(submittedAt) > new Date(staffMap[req.staff_id].rawSubmittedAt || 0)
             ) {
               staffMap[req.staff_id].submittedAt = formatted
+              staffMap[req.staff_id].rawSubmittedAt = submittedAt
             }
           }
         }
@@ -257,65 +271,51 @@ const Monitoring = () => {
       setStaffStatus(staffStatusArray)
       setAvailabilityRequests(availData)
 
-      // StaffTimeTable用のシフトデータを準備（希望データをシフトとして表示）
+      // ★変更: 新API形式（1日1レコード）でのカレンダーシフトデータ準備
       const calendarShifts = []
       availData.forEach(req => {
-        if (req.submitted_at && req.preferred_days) {
-          // preferred_daysをパース
-          const preferredDays = req.preferred_days.split(',')
-          preferredDays.forEach(dateStr => {
-            const date = new Date(dateStr.trim())
-            if (
-              !isNaN(date.getTime()) &&
-              date.getFullYear() === historyYear &&
-              date.getMonth() + 1 === historyMonth
-            ) {
-              const staffInfo = staffMapping[req.staff_id]
-              if (
-                staffInfo &&
-                (!selectedStoreId || parseInt(staffInfo.store_id) === parseInt(selectedStoreId))
-              ) {
-                calendarShifts.push({
-                  shift_date: dateStr.trim(),
-                  staff_id: req.staff_id,
-                  staff_name: staffInfo.name,
-                  start_time: '09:00', // 希望シフトは時刻未定なので仮の値
-                  end_time: '18:00',
-                  role: rolesMapping[staffInfo.role_id] || 'スタッフ',
-                  is_preference: true,
-                })
-              }
-            }
-          })
-        }
+        // preference_dateからJSTの日付を取得
+        const {
+          year: prefYear,
+          month: prefMonth,
+          day: prefDay,
+        } = isoToJSTDateParts(req.preference_date)
+        const dateStr = isoToJSTDateString(req.preference_date)
 
-        // ng_daysもパース（休み希望として表示）
-        if (req.submitted_at && req.ng_days) {
-          const ngDays = req.ng_days.split(',')
-          ngDays.forEach(dateStr => {
-            const date = new Date(dateStr.trim())
-            if (
-              !isNaN(date.getTime()) &&
-              date.getFullYear() === historyYear &&
-              date.getMonth() + 1 === historyMonth
-            ) {
-              const staffInfo = staffMapping[req.staff_id]
-              if (
-                staffInfo &&
-                (!selectedStoreId || parseInt(staffInfo.store_id) === parseInt(selectedStoreId))
-              ) {
-                calendarShifts.push({
-                  shift_date: dateStr.trim(),
-                  staff_id: req.staff_id,
-                  staff_name: staffInfo.name,
-                  start_time: '00:00', // NG日は休みとして表示
-                  end_time: '00:00',
-                  role: rolesMapping[staffInfo.role_id] || 'スタッフ',
-                  is_ng_day: true,
-                })
-              }
+        if (
+          prefYear > 0 &&
+          prefYear === historyYear &&
+          (!historyMonth || prefMonth === historyMonth)
+        ) {
+          const staffInfo = staffMapping[req.staff_id]
+          if (
+            staffInfo &&
+            (!selectedStoreId || parseInt(staffInfo.store_id) === parseInt(selectedStoreId))
+          ) {
+            if (req.is_ng) {
+              // NG日（休み希望）
+              calendarShifts.push({
+                shift_date: dateStr,
+                staff_id: req.staff_id,
+                staff_name: staffInfo.name,
+                start_time: '00:00',
+                end_time: '00:00',
+                role: rolesMapping[staffInfo.role_id] || 'スタッフ',
+                is_ng_day: true,
+              })
+            } else {
+              // 勤務希望日
+              calendarShifts.push({
+                shift_date: dateStr,
+                staff_id: req.staff_id,
+                staff_name: staffInfo.name,
+                start_time: req.start_time || '09:00',
+                end_time: req.end_time || '18:00',
+                role: rolesMapping[staffInfo.role_id] || 'スタッフ',
+                is_preference: true,
+              })
             }
-          })
+          }
         }
       })
 
@@ -432,94 +432,90 @@ const Monitoring = () => {
     return availabilityRequests.filter(req => req.staff_id === staffId)
   }
 
-  // ShiftTimeline用のデータを準備（その日のスタッフの希望を表示）
+  // ★変更: 新API形式（1日1レコード）でのShiftTimeline用データ準備
   const getDayShifts = (day, staffId) => {
-    const requests = getStaffRequests(staffId)
-    const latestRequest = requests.length > 0 ? requests[requests.length - 1] : null
+    // availabilityRequestsから該当スタッフ・該当日のデータを検索
+    const targetDate = `${historyYear}-${String(historyMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 
-    if (!latestRequest || !latestRequest.preferred_days) {
+    const preference = availabilityRequests.find(req => {
+      // UTCの日付文字列をJST日付として正しく取得
+      const jstDate = isoToJSTDateString(req.preference_date)
+      return parseInt(req.staff_id) === parseInt(staffId) && jstDate === targetDate
+    })
+
+    if (!preference) {
       return []
     }
 
-    // その日が希望日に含まれているかチェック
-    const preferredDays = latestRequest.preferred_days.split(',')
-    const year = latestRequest.year
-    const month = latestRequest.month
-    const targetDate = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-
-    const isPreferred = preferredDays.some(dateStr => dateStr.trim() === targetDate)
-
-    if (!isPreferred) {
+    // NG日の場合は空配列を返す（シフトバーを表示しない）
+    if (preference.is_ng) {
       return []
     }
 
     const staff = staffMap[staffId]
     const roleName = staff ? rolesMap[staff.role_id] : '一般スタッフ'
 
-    // 希望シフトを表示用に変換（時間帯は未定なので仮の値）
+    // 出勤希望シフトを表示用に変換（時間指定がある場合のみ）
+    if (!preference.start_time || !preference.end_time) {
+      return []
+    }
+
     return [
       {
-        shift_id: `pref-${latestRequest.preference_id}-${day}`,
-        staff_name: selectedStaff.name,
+        shift_id: `pref-${preference.preference_id}-${day}`,
+        staff_name: staff?.name || 'スタッフ',
         role: roleName,
-        start_time: '09:00', // 仮の値
-        end_time: '18:00', // 仮の値
+        start_time: preference.start_time,
+        end_time: preference.end_time,
         actual_hours: 8,
         planned_hours: 8,
         modified_flag: false,
-        is_preference: true, // 希望シフトであることを示すフラグ
+        is_preference: true,
+        is_ng_day: false,
       },
     ]
   }
 
-  // カレンダー表示用のデータ準備
+  // ★変更: 新API形式（1日1レコード）でのカレンダー表示用データ準備
   const getCalendarData = staffId => {
-    const requests = getStaffRequests(staffId)
-
-    // 最新のリクエストを取得
-    const latestRequest = requests.length > 0 ? requests[requests.length - 1] : null
-
-    if (!latestRequest) {
-      return {
-        preferredDaysSet: new Set(),
-        daysInMonth: 31,
-        firstDay: 0,
-        year: 2024,
-        month: 10,
-        latestRequest: null,
-      }
-    }
+    // スタッフの全希望をフィルタ
+    const staffPreferences = availabilityRequests.filter(
+      req => parseInt(req.staff_id) === parseInt(staffId)
+    )
 
     const preferredDaysSet = new Set()
-    const year = latestRequest.year
-    const month = latestRequest.month
+    const ngDaysSet = new Set()
 
-    // preferred_daysフィールドから日付を抽出（アルバイトの勤務希望日）
-    if (latestRequest.preferred_days) {
-      const days = latestRequest.preferred_days.split(',')
-      days.forEach(dateStr => {
-        const date = new Date(dateStr.trim())
-        if (!isNaN(date.getTime())) {
-          preferredDaysSet.add(date.getDate())
+    // 各レコードからpreference_dateを抽出（JSTで正しく解釈）
+    staffPreferences.forEach(pref => {
+      const { year: prefYear, month: prefMonth, day } = isoToJSTDateParts(pref.preference_date)
+
+      if (day > 0) {
+        // 現在表示中の年月と一致する場合のみ追加
+        if (prefYear === historyYear && prefMonth === historyMonth) {
+          if (pref.is_ng) {
+            ngDaysSet.add(day)
+          } else {
+            preferredDaysSet.add(day)
+          }
         }
-      })
-    }
+      }
+    })
 
-    // ng_daysフィールドから日付を抽出（正社員の休み希望日）
-    if (latestRequest.ng_days) {
-      const days = latestRequest.ng_days.split(',')
-      days.forEach(dateStr => {
-        const date = new Date(dateStr.trim())
-        if (!isNaN(date.getTime())) {
-          preferredDaysSet.add(date.getDate())
-        }
-      })
-    }
-
+    const year = historyYear
+    const month = historyMonth
     const daysInMonth = new Date(year, month, 0).getDate()
     const firstDay = new Date(year, month - 1, 1).getDay()
 
-    return { preferredDaysSet, daysInMonth, firstDay, year, month, latestRequest }
+    return {
+      preferredDaysSet,
+      ngDaysSet,
+      daysInMonth,
+      firstDay,
+      year,
+      month,
+      preferences: staffPreferences,
+    }
   }
 
   const calculateHours = (startTime, endTime) => {
@@ -803,11 +799,19 @@ const Monitoring = () => {
             {/* コンテンツ */}
             <div className="flex-1 overflow-y-auto p-6">
               {(() => {
-                const { preferredDaysSet, daysInMonth, firstDay, year, month, latestRequest } =
-                  getCalendarData(selectedStaff.id)
+                const {
+                  preferredDaysSet,
+                  ngDaysSet,
+                  daysInMonth,
+                  firstDay,
+                  year,
+                  month,
+                  preferences,
+                } = getCalendarData(selectedStaff.id)
                 const weekDays = ['日', '月', '火', '水', '木', '金', '土']
 
-                if (!latestRequest) {
+                // 希望データが全くない場合
+                if (preferredDaysSet.size === 0 && ngDaysSet.size === 0) {
                   return (
                     <div className="text-center text-gray-500 py-8">
                       このスタッフのシフト希望はまだ登録されていません。
@@ -843,35 +847,15 @@ const Monitoring = () => {
                 const isPartTimeStaff =
                   currentStaff?.employment_type === 'PART_TIME' ||
                   currentStaff?.employment_type === 'PART'
-                const hasNgDays = latestRequest.ng_days && latestRequest.ng_days.length > 0
-                const hasPreferredDays =
-                  latestRequest.preferred_days && latestRequest.preferred_days.length > 0
+                const hasNgDays = ngDaysSet.size > 0
+                const hasPreferredDays = preferredDaysSet.size > 0
 
                 return (
                   <div>
                     <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
                       <Calendar className="h-5 w-5 text-blue-600" />
-                      {year}年{month}月の{isPartTimeStaff ? 'シフト希望' : '休み希望'}
+                      {year}年{month}月のシフト希望
                     </h3>
-
-                    {/* 追加情報 */}
-                    {latestRequest.notes && (
-                      <div className="mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
-                        <div className="text-sm font-bold text-yellow-800 mb-1">備考</div>
-                        <div className="text-sm text-yellow-700">{latestRequest.notes}</div>
-                      </div>
-                    )}
-
-                    {latestRequest.max_hours_per_week && (
-                      <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded">
-                        <div className="text-sm">
-                          <span className="font-bold text-blue-800">週最大勤務時間: </span>
-                          <span className="text-blue-700">
-                            {latestRequest.max_hours_per_week}時間
-                          </span>
-                        </div>
-                      </div>
-                    )}
 
                     {/* 曜日ヘッダー */}
                     <div className="grid grid-cols-7 gap-2 mb-2">
@@ -896,21 +880,23 @@ const Monitoring = () => {
                         const dayOfWeek = (firstDay + day - 1) % 7
                         const isWeekend = dayOfWeek === 0 || dayOfWeek === 6
                         const isPreferred = preferredDaysSet.has(day)
+                        const isNg = ngDaysSet.has(day)
+                        const hasData = isPreferred || isNg
 
                         return (
                           <motion.div
                             key={day}
                             className={`p-2 border-2 rounded-lg min-h-[100px] ${
-                              isPreferred
-                                ? isPartTimeStaff
+                              isNg
+                                ? 'bg-red-50 border-red-300 cursor-pointer hover:bg-red-100'
+                                : isPreferred
                                   ? 'bg-green-50 border-green-300 cursor-pointer hover:bg-green-100'
-                                  : 'bg-red-50 border-red-300 cursor-pointer hover:bg-red-100'
-                                : 'bg-gray-50 border-gray-200'
-                            } ${isWeekend && !isPreferred ? 'bg-blue-50' : ''}`}
+                                  : 'bg-gray-50 border-gray-200'
+                            } ${isWeekend && !hasData ? 'bg-blue-50' : ''}`}
                             initial={{ opacity: 0, scale: 0.9 }}
                             animate={{ opacity: 1, scale: 1 }}
                             transition={{ delay: index * 0.01 }}
-                            onClick={() => isPreferred && handleDayClick(day)}
+                            onClick={() => hasData && handleDayClick(day)}
                           >
                             <div
                               className={`text-sm font-bold mb-1 ${
@@ -919,13 +905,14 @@ const Monitoring = () => {
                             >
                               {day}
                             </div>
+                            {isNg && (
+                              <div className="space-y-1">
+                                <div className="text-xs font-bold text-red-700">✕ NG</div>
+                              </div>
+                            )}
                             {isPreferred && (
                               <div className="space-y-1">
-                                <div
-                                  className={`text-xs font-bold ${isPartTimeStaff ? 'text-green-700' : 'text-red-700'}`}
-                                >
-                                  {isPartTimeStaff ? '◯ 出勤希望' : '✕ 休み希望'}
-                                </div>
+                                <div className="text-xs font-bold text-green-700">◯ 出勤希望</div>
                               </div>
                             )}
                           </motion.div>
@@ -936,10 +923,12 @@ const Monitoring = () => {
                     {/* 凡例 */}
                     <div className="mt-4 flex items-center gap-4 text-sm">
                       <div className="flex items-center gap-2">
-                        <div
-                          className={`w-4 h-4 border-2 rounded ${isPartTimeStaff ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`}
-                        ></div>
-                        <span>{isPartTimeStaff ? '出勤希望' : '休み希望'}</span>
+                        <div className="w-4 h-4 border-2 rounded bg-green-50 border-green-300"></div>
+                        <span>出勤希望</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-4 h-4 border-2 rounded bg-red-50 border-red-300"></div>
+                        <span>NG</span>
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-4 h-4 bg-gray-50 border-2 border-gray-200 rounded"></div>

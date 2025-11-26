@@ -222,23 +222,28 @@ export class ShiftRepository {
 
   /**
    * 希望シフト一覧を取得
+   * ★変更: 新API形式（1日1レコード、date_from/date_to）に対応
    * @param {Object} filters - フィルタリング条件
    * @param {number} filters.tenantId - テナントID
    * @param {number} filters.staffId - スタッフID
-   * @param {number} filters.year - 年
-   * @param {number} filters.month - 月
+   * @param {number} filters.storeId - 店舗ID
+   * @param {string} filters.dateFrom - 開始日 (YYYY-MM-DD)
+   * @param {string} filters.dateTo - 終了日 (YYYY-MM-DD)
+   * @param {boolean} filters.isNg - NG日フラグでフィルタ
    * @returns {Promise<Array>} 希望シフトデータ配列
    */
   async getPreferences(filters = {}) {
     try {
-      const { tenantId = null, staffId, year, month } = filters
+      const { tenantId = null, staffId, storeId, dateFrom, dateTo, isNg } = filters
 
       const actualTenantId = tenantId ?? getCurrentTenantId()
 
       const params = new URLSearchParams({ tenant_id: actualTenantId })
       if (staffId) params.append('staff_id', staffId)
-      if (year) params.append('year', year)
-      if (month) params.append('month', month)
+      if (storeId) params.append('store_id', storeId)
+      if (dateFrom) params.append('date_from', dateFrom)
+      if (dateTo) params.append('date_to', dateTo)
+      if (isNg !== undefined) params.append('is_ng', isNg)
 
       const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS_PREFERENCES}?${params}`
       const response = await fetch(url)
@@ -257,6 +262,49 @@ export class ShiftRepository {
     } catch (error) {
       console.error('希望シフト取得エラー:', error)
       throw new Error(`希望シフト取得エラー: ${error.message}`)
+    }
+  }
+
+  /**
+   * 希望シフトを一括登録（UPSERT）
+   * ★新規追加: 新API形式（1日1レコード、bulk API）
+   * @param {Array} preferences - 希望シフトデータ配列
+   * @param {number} tenantId - テナントID
+   * @returns {Promise<Object>} 登録結果
+   */
+  async savePreferencesBulk(preferences, tenantId = null) {
+    try {
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      // 各preferenceにtenant_idを設定
+      const preferencesWithTenantId = preferences.map(p => ({
+        ...p,
+        tenant_id: p.tenant_id ?? actualTenantId,
+      }))
+
+      const url = `${BACKEND_API_URL}${API_ENDPOINTS.SHIFTS_PREFERENCES}/bulk`
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ preferences: preferencesWithTenantId }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '希望シフト一括登録に失敗しました')
+      }
+
+      return result
+    } catch (error) {
+      console.error('希望シフト一括登録エラー:', error)
+      throw new Error(`希望シフト一括登録エラー: ${error.message}`)
     }
   }
 

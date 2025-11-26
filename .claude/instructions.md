@@ -320,6 +320,51 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 ---
 
+## 🌿 ブランチ管理
+
+### ブランチ構成
+- **main**: 本番環境（常に安定、直接push禁止）
+- **staging**: ステージング環境（mainから切り出される、統合テスト用）
+- **ローカル開発ブランチ**: stagingから切り出して開発
+
+### ブランチ作成のルール
+- **特別な指示がない限り、最新の `staging` ブランチから切り出してブランチを作成すること**
+- ブランチ作成の手順：
+  1. `git checkout staging` でstagingブランチに切り替え
+  2. `git pull` で最新の状態を取得
+  3. `git checkout -b <branch-name>` で新しいブランチを作成
+
+### ブランチ命名規則
+- `feature/<description>`: 新機能
+- `fix/<description>`: バグ修正
+- `refactor/<description>`: リファクタリング
+- `docs/<description>`: ドキュメント更新
+- `chore/<description>`: その他の作業
+- `hotfix/<description>`: 緊急の本番修正（mainから切り出す）
+
+### PR作成とマージのルール
+- **全てのPRは承認者（Approver）の承認が必要**
+- CI checksが全てパスすること
+- コードレビューを受けること
+- マージフロー：
+  1. ローカルブランチ → staging（ステージング環境で確認）
+  2. staging → main（任意のタイミングで本番リリース）
+
+### Hotfix運用（緊急修正）
+- 本番環境で緊急修正が必要な場合のみ使用
+- **mainブランチから切り出す**（stagingからではない）
+- 最小限の変更で修正
+- mainにマージ後、**必ずstagingにもバックポート**
+
+### 例外ケース
+- ユーザーが明示的に別のブランチを指定した場合は、その指示に従う
+- 例：「mainブランチから切り出してください」と言われた場合はmainから作成
+
+### 参考ドキュメント
+詳細なブランチ運用戦略は `docs/design-docs/20251126_branch_strategy.html` を参照
+
+---
+
 ## 🚀 開発ワークフロー
 
 1. イシューを確認

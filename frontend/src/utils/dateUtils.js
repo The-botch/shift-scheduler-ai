@@ -117,3 +117,40 @@ export const getDaysInMonth = (year, month) => {
   const date = parseJSTDate(dateStr)
   return dateFnsGetDaysInMonth(date)
 }
+
+/**
+ * ISO日時文字列（UTC）をJSTのYYYY-MM-DD形式に変換
+ * 環境（UTC/JST）に依存せず、常にJSTとして変換する
+ * @param {string} isoString - ISO8601形式の日時文字列（例: "2025-12-01T15:00:00.000Z"）
+ * @returns {string} YYYY-MM-DD形式の日付文字列（JST）
+ */
+export const isoToJSTDateString = isoString => {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  if (isNaN(date.getTime())) return ''
+  // 明示的にJSTタイムゾーンに変換（環境に依存しない）
+  const jstDate = toZonedTime(date, JST_TIMEZONE)
+  const year = jstDate.getFullYear()
+  const month = String(jstDate.getMonth() + 1).padStart(2, '0')
+  const day = String(jstDate.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
+/**
+ * ISO日時文字列（UTC）からJSTの日付部分を取得
+ * 環境（UTC/JST）に依存せず、常にJSTとして変換する
+ * @param {string} isoString - ISO8601形式の日時文字列
+ * @returns {Object} { year, month, day } （JST）
+ */
+export const isoToJSTDateParts = isoString => {
+  if (!isoString) return { year: 0, month: 0, day: 0 }
+  const date = new Date(isoString)
+  if (isNaN(date.getTime())) return { year: 0, month: 0, day: 0 }
+  // 明示的にJSTタイムゾーンに変換（環境に依存しない）
+  const jstDate = toZonedTime(date, JST_TIMEZONE)
+  return {
+    year: jstDate.getFullYear(),
+    month: jstDate.getMonth() + 1,
+    day: jstDate.getDate(),
+  }
+}

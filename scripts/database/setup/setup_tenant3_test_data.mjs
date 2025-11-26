@@ -1326,23 +1326,17 @@ async function registerShiftData(client, masterIds) {
     }
 
     // 開始・終了時刻は既に HH:MM:SS 形式
-    // 24時を超える時刻（27:00など）は正規化する（27:00:00 → 03:00:00）
-    const normalizeTime = (timeStr) => {
+    // ★変更: VARCHAR(5)対応 - 24時超過表記（25:00, 26:00など）をそのまま保存
+    // HH:MM形式に変換（秒は削除）
+    const formatTimeForVarchar = (timeStr) => {
       const parts = timeStr.split(':');
-      let hour = parseInt(parts[0]);
+      const hour = parts[0];
       const minute = parts[1];
-      const second = parts[2] || '00';
-
-      // 24時を超える場合は24で割った余りを使用
-      if (hour >= 24) {
-        hour = hour % 24;
-      }
-
-      return `${String(hour).padStart(2, '0')}:${minute}:${second}`;
+      return `${hour}:${minute}`;
     };
 
-    const startTime = normalizeTime(shift['開始時刻']);
-    const endTime = normalizeTime(shift['終了時刻']);
+    const startTime = formatTimeForVarchar(shift['開始時刻']);
+    const endTime = formatTimeForVarchar(shift['終了時刻']);
 
     // 労働時間を計算（開始〜終了 - 休憩時間）
     const breakMinutes = parseInt(shift['休憩時間']) || 0;
@@ -1374,7 +1368,7 @@ async function registerShiftData(client, masterIds) {
         planId,
         staffId,
         shiftDate,
-        defaultPatternId,
+        null,  // ★変更: pattern_id = NULL（MVPではシフトパターン入力なし）
         startTime,
         endTime,
         breakMinutes,

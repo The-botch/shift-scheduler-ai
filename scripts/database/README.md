@@ -71,6 +71,18 @@ node setup.mjs --env demo
   - LINE連携テーブル
   - plan_typeカラム追加
 
+#### 2025-11-27 スキーマ変更
+
+**ops.shifts テーブル**
+- `start_time`: TIME → VARCHAR(5) （24時超過対応: "25:00"形式）
+- `end_time`: TIME → VARCHAR(5)
+- `pattern_id`: NOT NULL → NULL許可
+
+**ops.shift_preferences テーブル** - 完全再設計
+- 旧: 1ヶ月1レコード（year, month, preferred_days, ng_days）
+- 新: 1日1レコード（preference_date, is_ng, start_time, end_time）
+- 詳細: `docs/design-docs/20251126_shift_preferences_schema_change.html`
+
 ### DML
 
 #### `dml/01_core_master.sql` - coreスキーマ

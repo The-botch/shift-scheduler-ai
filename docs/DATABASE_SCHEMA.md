@@ -3,8 +3,8 @@
 **対象環境**: Railway PostgreSQL
 **バージョン**: PostgreSQL 15+
 **文字コード**: UTF-8
-**最終更新**: 2025-11-01
-**実装ファイル**: `scripts/setup/schema.sql`
+**最終更新**: 2025-11-27
+**実装ファイル**: `scripts/database/ddl/schema.sql`
 
 ---
 
@@ -25,10 +25,10 @@
 
 ### 実装状況
 
-✅ **完全実装済み**: `scripts/setup/schema.sql` (795行)
-✅ **マスターデータ**: `scripts/setup/seed_data.sql`
-✅ **セットアップスクリプト**: `scripts/setup/setup_fresh_db.mjs`
-✅ **検証スクリプト**: `scripts/setup/verify_setup.mjs`
+✅ **DDL（スキーマ定義）**: `scripts/database/ddl/schema.sql`
+✅ **DML（マスターデータ）**: `scripts/database/dml/*.sql`
+✅ **セットアップスクリプト**: `scripts/database/setup/setup.mjs`
+✅ **テストデータ**: `scripts/database/setup/setup_tenant3_test_data.mjs`
 
 ### 主要な特徴
 
@@ -277,9 +277,9 @@ AIが生成するシフト計画の基本情報
 | plan_id | INT | ✓ | 計画ID（FK） |
 | staff_id | INT | ✓ | スタッフID（FK） |
 | shift_date | DATE | ✓ | シフト日 |
-| pattern_id | INT | ✓ | パターンID（FK） |
-| start_time | TIME | ✓ | 開始時間 |
-| end_time | TIME | ✓ | 終了時間 |
+| pattern_id | INT | | パターンID（FK）**※NULL許可** |
+| start_time | VARCHAR(5) | ✓ | 開始時間（"09:00", "25:00"形式）**※24時超過対応** |
+| end_time | VARCHAR(5) | ✓ | 終了時間（"18:00", "26:00"形式）**※24時超過対応** |
 | break_minutes | INT | ✓ | 休憩時間（分） |
 | total_hours | DECIMAL(5,2) | | 総労働時間 |
 | labor_cost | INT | | 人件費 |
@@ -294,10 +294,14 @@ AIが生成するシフト計画の基本情報
 - FOREIGN KEY: `tenant_id`, `store_id`, `plan_id`, `staff_id`, `pattern_id`
 - INDEX: `(tenant_id)`, `(store_id)`, `(shift_date)`, `(staff_id)`, `(plan_id)`
 
+**2025-11-27 変更**:
+- `pattern_id`: NOT NULL → NULL許可（MVPではシフトパターン入力なし）
+- `start_time`, `end_time`: TIME → VARCHAR(5)（24時間超過表記対応: "25:00"など）
+
 ---
 
 #### 20. shift_preferences（シフト希望）
-メンバーが入力するシフト希望
+メンバーが入力するシフト希望（**2025-11-27 完全再設計**）
 
 | カラム名 | データ型 | NOT NULL | 説明 |
 |---------|---------|----------|------|
@@ -305,19 +309,25 @@ AIが生成するシフト計画の基本情報
 | tenant_id | INT | ✓ | テナントID（FK） |
 | store_id | INT | ✓ | 店舗ID（FK） |
 | staff_id | INT | ✓ | スタッフID（FK） |
-| year | INT | ✓ | 対象年 |
-| month | INT | ✓ | 対象月 |
-| preferred_days | TEXT | | 希望日（カンマ区切り） |
-| ng_days | TEXT | | NG日（カンマ区切り） |
-| preferred_time_slots | TEXT | | 希望時間帯 |
-| max_hours_per_week | DECIMAL(5,2) | | 週最大時間 |
-| status | VARCHAR(20) | | ステータス |
+| preference_date | DATE | ✓ | 希望日（1日1レコード） |
+| is_ng | BOOLEAN | ✓ | NG日フラグ（TRUE=NG日、FALSE=希望日） |
+| start_time | VARCHAR(5) | | 希望開始時間（"09:00"形式） |
+| end_time | VARCHAR(5) | | 希望終了時間（"18:00"形式） |
+| notes | TEXT | | 備考 |
+| created_at | TIMESTAMP | ✓ | 作成日時 |
+| updated_at | TIMESTAMP | ✓ | 更新日時 |
 
-**データ投入元**: メンバー入力
+**データ投入元**: メンバー入力（LINEシフト入力画面）
 
 **制約**:
-- CHECK: `status IN ('PENDING', 'APPROVED', 'REJECTED')`
+- UNIQUE: `(tenant_id, staff_id, preference_date)` - 1スタッフ1日1レコード
 - FOREIGN KEY: `tenant_id`, `store_id`, `staff_id`
+- INDEX: `idx_shift_preferences_date(preference_date)`, `idx_shift_preferences_is_ng(is_ng)`
+
+**2025-11-27 変更**:
+- 旧形式: 1ヶ月1レコード（year, month, preferred_days, ng_days）
+- 新形式: 1日1レコード（preference_date, is_ng, start_time, end_time）
+- 詳細: `docs/design-docs/20251126_shift_preferences_schema_change.html`
 
 ---
 
@@ -458,6 +468,10 @@ CREATE INDEX idx_shifts_plan ON ops.shifts(plan_id);
 CREATE INDEX idx_shift_plans_period ON ops.shift_plans(plan_year, plan_month);
 CREATE INDEX idx_work_hours_actual_date ON ops.work_hours_actual(work_date);
 CREATE INDEX idx_payroll_period ON hr.payroll(year, month);
+
+-- シフト希望（2025-11-27追加）
+CREATE INDEX idx_shift_preferences_date ON ops.shift_preferences(preference_date);
+CREATE INDEX idx_shift_preferences_is_ng ON ops.shift_preferences(is_ng);
 ```
 
 ---
@@ -509,21 +523,23 @@ CREATE INDEX idx_payroll_period ON hr.payroll(year, month);
 スキーマとテーブルの作成:
 
 ```bash
-# ローカル環境
-psql -U postgres -d shift_scheduler -f scripts/setup/schema.sql
+# 開発環境（ローカル）
+cd scripts/database/setup
+node setup.mjs --env dev
 
-# Railway環境（.envのDATABASE_URLを使用）
-node scripts/setup/setup_fresh_db.mjs
+# デモ環境（テストデータ含む）
+node setup.mjs --env demo
 ```
+
+詳細は `scripts/database/README.md` を参照。
 
 ---
 
-## 次のステップ
+## 変更履歴
 
-1. ✅ **DDL実行**: `scripts/setup/schema.sql`
-2. ✅ **マスターデータ投入**: `scripts/setup/seed_data.sql`
-3. ⏳ **CSV投入スクリプト作成**: シフト、給与、売上などのCSV投入
-4. ⏳ **バックエンドAPI実装**: CRUD操作のエンドポイント作成
-5. ⏳ **フロントエンド連携**: ローカルストレージからDB連携に移行
+| 日付 | 変更内容 |
+|-----|---------|
+| 2025-11-27 | shift_preferences テーブル完全再設計（1日1レコード形式）、shifts テーブル時刻型変更 |
+| 2025-11-01 | 初版作成 |
 
 ---
