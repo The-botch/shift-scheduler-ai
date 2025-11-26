@@ -60,12 +60,7 @@ const pageTransition = {
  * - 希望シフトとの突合表示
  * - 比較モード（第1案と第2案の並列表示）
  */
-const SecondPlanEditor = ({
-  selectedShift,
-  onNext,
-  onPrev,
-  mode = 'edit',
-}) => {
+const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const isViewMode = mode === 'view'
   const isEditMode = mode === 'edit'
 
@@ -167,7 +162,10 @@ const SecondPlanEditor = ({
 
   const year = selectedShift?.year || new Date().getFullYear()
   const month = selectedShift?.month || new Date().getMonth() + 1
-  const planId = selectedShift?.planId || selectedShift?.plan_id || (planIdsState.length > 0 ? planIdsState[0] : null)
+  const planId =
+    selectedShift?.planId ||
+    selectedShift?.plan_id ||
+    (planIdsState.length > 0 ? planIdsState[0] : null)
 
   useEffect(() => {
     loadShiftData()
@@ -210,7 +208,8 @@ const SecondPlanEditor = ({
         }
 
         // pattern_idを取得
-        const fetchedPatternId = secondPlanShiftsData.length > 0 ? secondPlanShiftsData[0].pattern_id : null
+        const fetchedPatternId =
+          secondPlanShiftsData.length > 0 ? secondPlanShiftsData[0].pattern_id : null
         setDefaultPatternId(fetchedPatternId)
 
         secondPlanWithStaffInfo = secondPlanShiftsData.map(shift => ({
@@ -249,7 +248,8 @@ const SecondPlanEditor = ({
         })
 
         // pattern_idを取得
-        const fetchedPatternId = firstPlanShiftsData.length > 0 ? firstPlanShiftsData[0].pattern_id : null
+        const fetchedPatternId =
+          firstPlanShiftsData.length > 0 ? firstPlanShiftsData[0].pattern_id : null
         setDefaultPatternId(fetchedPatternId)
 
         firstPlanWithStaffInfo = firstPlanShiftsData.map(shift => ({
@@ -483,7 +483,9 @@ const SecondPlanEditor = ({
 
         if (result.data?.errors?.length > 0) {
           console.error('プラン作成でエラーが発生しました:', result.data.errors)
-          const errorMessages = result.data.errors.map(e => `店舗${e.store_id}: ${e.error}`).join('\n')
+          const errorMessages = result.data.errors
+            .map(e => `店舗${e.store_id}: ${e.error}`)
+            .join('\n')
           throw new Error(`プラン作成でエラーが発生しました:\n${errorMessages}`)
         }
 
@@ -756,7 +758,7 @@ const SecondPlanEditor = ({
       modified_flag: true,
     }
 
-    const updateUI = (newShift) => {
+    const updateUI = newShift => {
       const date = new Date(newShift.shift_date)
       const day = date.getDate()
 
@@ -1557,9 +1559,7 @@ const SecondPlanEditor = ({
             <div className="window-header bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 flex justify-between items-center cursor-move select-none">
               <div className="font-semibold text-sm">
                 📅 {month}月{selectedDay}日 -{' '}
-                {selectedStoreId === null
-                  ? '全店舗'
-                  : storesMap[selectedStoreId]?.store_name || ''}
+                {selectedStoreId === null ? '全店舗' : storesMap[selectedStoreId]?.store_name || ''}
               </div>
               <div className="flex gap-2">
                 <button

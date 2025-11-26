@@ -37,7 +37,7 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete, updateL
   /**
    * planIdを設定（単一または配列）
    */
-  const setPlanId = useCallback((id) => {
+  const setPlanId = useCallback(id => {
     if (Array.isArray(id)) {
       setPlanIds(id)
     } else if (id) {
@@ -107,16 +107,14 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete, updateL
 
     // Tempシフト（未保存）の場合はaddedShiftsを更新
     if (String(shiftId).startsWith('temp_')) {
-      setAddedShifts(prev => prev.map(shift =>
-        shift.shift_id === shiftId
-          ? { ...shift, ...changes }
-          : shift
-      ))
+      setAddedShifts(prev =>
+        prev.map(shift => (shift.shift_id === shiftId ? { ...shift, ...changes } : shift))
+      )
     } else {
       // 既存シフトの場合は修正リストに追加
       setModifiedShifts(prev => ({
         ...prev,
-        [shiftId]: { ...prev[shiftId], ...changes }
+        [shiftId]: { ...prev[shiftId], ...changes },
       }))
     }
 
@@ -190,19 +188,22 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete, updateL
   /**
    * 下書き保存
    */
-  const saveDraft = useCallback(async (skipConfirm = false) => {
-    if (!skipConfirm && !confirm('下書きを保存しますか？')) {
-      return null
-    }
+  const saveDraft = useCallback(
+    async (skipConfirm = false) => {
+      if (!skipConfirm && !confirm('下書きを保存しますか？')) {
+        return null
+      }
 
-    const result = await saveChanges()
-    if (result.success) {
-      alert(MESSAGES.SUCCESS.DRAFT_SAVED || '下書きを保存しました')
-    } else {
-      alert(`下書きの保存に失敗しました\n\nエラー: ${result.message}`)
-    }
-    return result.success ? getPlanId() : null
-  }, [saveChanges, getPlanId])
+      const result = await saveChanges()
+      if (result.success) {
+        alert(MESSAGES.SUCCESS.DRAFT_SAVED || '下書きを保存しました')
+      } else {
+        alert(`下書きの保存に失敗しました\n\nエラー: ${result.message}`)
+      }
+      return result.success ? getPlanId() : null
+    },
+    [saveChanges, getPlanId]
+  )
 
   /**
    * 承認処理
@@ -232,9 +233,10 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete, updateL
         }
       }
 
-      const message = planType === 'FIRST'
-        ? MESSAGES.SUCCESS.APPROVE_FIRST_PLAN
-        : MESSAGES.SUCCESS.APPROVE_SECOND_PLAN
+      const message =
+        planType === 'FIRST'
+          ? MESSAGES.SUCCESS.APPROVE_FIRST_PLAN
+          : MESSAGES.SUCCESS.APPROVE_SECOND_PLAN
       alert(message)
 
       // コールバック実行
@@ -255,42 +257,45 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete, updateL
   /**
    * プラン削除
    */
-  const deletePlan = useCallback(async (skipConfirm = false) => {
-    if (!skipConfirm && !confirm('シフトプランを削除しますか？この操作は取り消せません。')) {
-      return { success: false, cancelled: true }
-    }
-
-    try {
-      setSaving(true)
-
-      // 全てのplanIdを削除
-      const planIdsToDelete = planIds.length > 0 ? planIds : []
-
-      if (planIdsToDelete.length === 0) {
-        throw new Error('削除するプランがありません')
+  const deletePlan = useCallback(
+    async (skipConfirm = false) => {
+      if (!skipConfirm && !confirm('シフトプランを削除しますか？この操作は取り消せません。')) {
+        return { success: false, cancelled: true }
       }
 
-      for (const id of planIdsToDelete) {
-        await shiftRepository.deletePlan(id)
+      try {
+        setSaving(true)
+
+        // 全てのplanIdを削除
+        const planIdsToDelete = planIds.length > 0 ? planIds : []
+
+        if (planIdsToDelete.length === 0) {
+          throw new Error('削除するプランがありません')
+        }
+
+        for (const id of planIdsToDelete) {
+          await shiftRepository.deletePlan(id)
+        }
+
+        // 状態をリセット
+        setPlanIds([])
+        setAddedShifts([])
+        setModifiedShifts({})
+        setDeletedShiftIds(new Set())
+        setHasUnsavedChanges(false)
+
+        alert('シフトプランを削除しました')
+        return { success: true }
+      } catch (error) {
+        console.error('削除エラー:', error)
+        alert(`削除に失敗しました\n\nエラー: ${error.message}`)
+        return { success: false, message: error.message }
+      } finally {
+        setSaving(false)
       }
-
-      // 状態をリセット
-      setPlanIds([])
-      setAddedShifts([])
-      setModifiedShifts({})
-      setDeletedShiftIds(new Set())
-      setHasUnsavedChanges(false)
-
-      alert('シフトプランを削除しました')
-      return { success: true }
-    } catch (error) {
-      console.error('削除エラー:', error)
-      alert(`削除に失敗しました\n\nエラー: ${error.message}`)
-      return { success: false, message: error.message }
-    } finally {
-      setSaving(false)
-    }
-  }, [planIds])
+    },
+    [planIds]
+  )
 
   /**
    * モーダルを開く
