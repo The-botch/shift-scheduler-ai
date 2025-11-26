@@ -150,6 +150,7 @@ CREATE TABLE ops.shift_preferences (
 **ファイル**: `frontend/src/utils/dateUtils.js`
 - ✅ `isoToJSTDateString()` - ISO日時文字列をJSTのYYYY-MM-DD形式に変換
 - ✅ `isoToJSTDateParts()` - ISO日時文字列からJSTのyear/month/dayを取得
+- ✅ `toZonedTime`を使用して環境（UTC/JST）に依存しない実装に修正
 
 **修正したコンポーネント:**
 | ファイル | 修正内容 |
