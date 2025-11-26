@@ -3235,7 +3235,7 @@ router.post('/plans/create-with-shifts', async (req, res) => {
 
           // 既存プランをチェック
           const existingPlan = await query(`
-            SELECT plan_id, status FROM ops.shift_plans
+            SELECT plan_id, status, plan_type FROM ops.shift_plans
             WHERE tenant_id = $1 AND store_id = $2
               AND plan_year = $3 AND plan_month = $4
               AND plan_type = $5
