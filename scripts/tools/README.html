@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>テストツール使い方ガイド</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      line-height: 1.6;
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 20px;
+      background: #f5f5f5;
+      color: #333;
+    }
+    h1 {
+      color: #2c3e50;
+      border-bottom: 3px solid #3498db;
+      padding-bottom: 10px;
+    }
+    h2 {
+      color: #2980b9;
+      margin-top: 40px;
+      padding: 10px;
+      background: #ecf0f1;
+      border-radius: 5px;
+    }
+    h3 {
+      color: #27ae60;
+      margin-top: 25px;
+    }
+    .tool-card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .tool-card h3 {
+      margin-top: 0;
+      color: #e74c3c;
+    }
+    code {
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 0.9em;
+    }
+    pre {
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 15px;
+      border-radius: 5px;
+      overflow-x: auto;
+      font-family: 'Monaco', 'Consolas', monospace;
+      font-size: 0.85em;
+    }
+    pre code {
+      background: none;
+      padding: 0;
+    }
+    .warning {
+      background: #fff3cd;
+      border-left: 4px solid #ffc107;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 0 5px 5px 0;
+    }
+    .info {
+      background: #d1ecf1;
+      border-left: 4px solid #17a2b8;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 0 5px 5px 0;
+    }
+    .success {
+      background: #d4edda;
+      border-left: 4px solid #28a745;
+      padding: 15px;
+      margin: 15px 0;
+      border-radius: 0 5px 5px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      background: white;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px;
+      text-align: left;
+    }
+    th {
+      background: #3498db;
+      color: white;
+    }
+    tr:nth-child(even) { background: #f9f9f9; }
+    .option { color: #9b59b6; font-weight: bold; }
+    .required { color: #e74c3c; }
+    .optional { color: #7f8c8d; }
+  </style>
+</head>
+<body>
+
+<h1>🛠️ シフトスケジューラー テストツール使い方ガイド</h1>
+
+<div class="info">
+  <strong>📁 保存場所:</strong> <code>scripts/tools/</code><br>
+  <strong>🔌 接続先:</strong> STG環境（Railway）<br>
+  <strong>🏢 対象テナント:</strong> tenant_id = 3
+</div>
+
+<h2>📋 ツール一覧</h2>
+
+<table>
+  <tr>
+    <th>ツール名</th>
+    <th>ファイル</th>
+    <th>用途</th>
+  </tr>
+  <tr>
+    <td>希望シフト生成</td>
+    <td><code>generate-random-preferences.mjs</code></td>
+    <td>スタッフの希望シフト（勤務希望/NG日）を生成</td>
+  </tr>
+  <tr>
+    <td>第1案生成</td>
+    <td><code>generate-first-plan.mjs</code></td>
+    <td>シフト第1案（FIRST Plan）を生成</td>
+  </tr>
+  <tr>
+    <td>実績シフト生成</td>
+    <td><code>generate-actual-shifts.mjs</code></td>
+    <td>第1案をベースに実績データを生成</td>
+  </tr>
+  <tr>
+    <td>スタッフ生成</td>
+    <td><code>generate-staff.mjs</code></td>
+    <td>ダミースタッフを生成・削除</td>
+  </tr>
+  <tr>
+    <td>データリセット</td>
+    <td><code>reset-data.mjs</code></td>
+    <td>テストデータを削除</td>
+  </tr>
+</table>
+
+<h2>🔒 ツール使用前の準備（重要）</h2>
+
+<div class="warning">
+  <strong>⚠️ 必ずバックアップを取ってから作業してください！</strong><br>
+  <code>--execute</code> や <code>--delete</code> を使う前に、DBのダンプを取得しておくと安心です。
+</div>
+
+<div class="tool-card">
+  <h3>📦 バックアップの取り方</h3>
+
+  <h4>1. PostgreSQLクライアントの準備（初回のみ）</h4>
+  <pre><code># macOS (Homebrew)
+arch -arm64 brew install postgresql@17
+
+# パスを通す
+export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"</code></pre>
+
+  <h4>2. ダンプを取得</h4>
+  <pre><code># STG環境のダンプを取得
+PGPASSWORD=BWmHYBbEZqnptZRYmptockuomkHRWNPO pg_dump \
+  -h switchyard.proxy.rlwy.net \
+  -p 26491 \
+  -U postgres \
+  -d railway \
+  -F c \
+  -f backup_$(date +%Y%m%d_%H%M%S).dump
+
+# 確認
+ls -la backup_*.dump</code></pre>
+
+  <h4>3. リストア（元に戻す場合）</h4>
+  <pre><code># ダンプからリストア
+PGPASSWORD=BWmHYBbEZqnptZRYmptockuomkHRWNPO pg_restore \
+  -h switchyard.proxy.rlwy.net \
+  -p 26491 \
+  -U postgres \
+  -d railway \
+  --clean \
+  --if-exists \
+  backup_XXXXXXXX_XXXXXX.dump</code></pre>
+
+  <div class="info">
+    <strong>💡 ヒント:</strong> ダンプファイルは作業ディレクトリに保存されます。<br>
+    日付付きファイル名で複数のバックアップを管理できます。
+  </div>
+</div>
+
+<h2>⚙️ 共通オプション</h2>
+
+<table>
+  <tr>
+    <th>オプション</th>
+    <th>説明</th>
+  </tr>
+  <tr>
+    <td><code class="option">--dry-run</code></td>
+    <td>確認のみ（DBに書き込まない）<strong>デフォルト</strong></td>
+  </tr>
+  <tr>
+    <td><code class="option">--execute</code></td>
+    <td>実際にDBに書き込む</td>
+  </tr>
+  <tr>
+    <td><code class="option">--delete</code></td>
+    <td>指定条件のデータを削除</td>
+  </tr>
+  <tr>
+    <td><code class="option">--help</code></td>
+    <td>ヘルプを表示</td>
+  </tr>
+</table>
+
+<div class="warning">
+  <strong>⚠️ 注意:</strong> <code>--execute</code> や <code>--delete</code> を付けない限り、DBには何も書き込まれません。<br>
+  まずは <code>--dry-run</code>（デフォルト）で内容を確認してから実行してください。
+</div>
+
+<!-- ツール1: 希望シフト生成 -->
+<div class="tool-card">
+  <h3>① 希望シフト生成 (generate-random-preferences.mjs)</h3>
+
+  <p>スタッフの希望シフトをランダムに生成します。</p>
+  <ul>
+    <li><strong>社員:</strong> NG日（休み希望）を生成</li>
+    <li><strong>アルバイト:</strong> 勤務希望日＋時間を生成</li>
+  </ul>
+
+  <h4>基本的な使い方</h4>
+  <pre><code># 確認のみ（2025年1月分）
+node scripts/tools/generate-random-preferences.mjs --year 2025 --month 1
+
+# 実際に登録
+node scripts/tools/generate-random-preferences.mjs --year 2025 --month 1 --execute
+
+# 削除
+node scripts/tools/generate-random-preferences.mjs --year 2025 --month 1 --delete</code></pre>
+
+  <h4>オプション</h4>
+  <table>
+    <tr><th>オプション</th><th>説明</th><th>例</th></tr>
+    <tr><td><code>--year</code></td><td class="required">対象年（必須）</td><td><code>--year 2025</code></td></tr>
+    <tr><td><code>--month</code></td><td class="optional">対象月（省略時: 1-12月）</td><td><code>--month 1</code> / <code>--month 1-3</code></td></tr>
+    <tr><td><code>--store</code></td><td class="optional">店舗ID（省略時: 全店舗）</td><td><code>--store 6</code> / <code>--store 6,7,8</code></td></tr>
+    <tr><td><code>--staff</code></td><td class="optional">スタッフID</td><td><code>--staff 10,11,12</code></td></tr>
+    <tr><td><code>--clear</code></td><td class="optional">既存データを削除してから登録</td><td></td></tr>
+  </table>
+</div>
+
+<!-- ツール2: 第1案生成 -->
+<div class="tool-card">
+  <h3>② 第1案生成 (generate-first-plan.mjs)</h3>
+
+  <p>シフト第1案（FIRST Plan）を店舗ごとに生成します。</p>
+  <ul>
+    <li>希望シフトがあれば考慮（なくても動作します）</li>
+    <li>土日は多め、平日は少なめに人員配置</li>
+  </ul>
+
+  <h4>基本的な使い方</h4>
+  <pre><code># 確認のみ（2025年1月分）
+node scripts/tools/generate-first-plan.mjs --year 2025 --month 1
+
+# 実際に登録
+node scripts/tools/generate-first-plan.mjs --year 2025 --month 1 --execute
+
+# 削除
+node scripts/tools/generate-first-plan.mjs --year 2025 --month 1 --delete</code></pre>
+
+  <h4>オプション</h4>
+  <table>
+    <tr><th>オプション</th><th>説明</th><th>例</th></tr>
+    <tr><td><code>--year</code></td><td class="required">対象年（必須）</td><td><code>--year 2025</code></td></tr>
+    <tr><td><code>--month</code></td><td class="required">対象月（必須）</td><td><code>--month 1</code></td></tr>
+    <tr><td><code>--store</code></td><td class="optional">店舗ID（省略時: 全店舗）</td><td><code>--store 6,7</code></td></tr>
+    <tr><td><code>--clear</code></td><td class="optional">既存プランを削除してから登録</td><td></td></tr>
+  </table>
+</div>
+
+<!-- ツール3: 実績シフト生成 -->
+<div class="tool-card">
+  <h3>③ 実績シフト生成 (generate-actual-shifts.mjs)</h3>
+
+  <p>第1案をベースに、実績シフト（ACTUAL Plan）を生成します。</p>
+  <ul>
+    <li>一定確率で欠勤を発生</li>
+    <li>一定確率で時間変更（残業含む）を発生</li>
+  </ul>
+
+  <div class="warning">
+    <strong>前提条件:</strong> 第1案（FIRST Plan）が存在する必要があります。
+  </div>
+
+  <h4>基本的な使い方</h4>
+  <pre><code># 確認のみ
+node scripts/tools/generate-actual-shifts.mjs --year 2025 --month 1
+
+# 実際に登録（欠勤率10%、時間変更率15%）
+node scripts/tools/generate-actual-shifts.mjs --year 2025 --month 1 --absence 10 --time-change 15 --execute
+
+# 削除
+node scripts/tools/generate-actual-shifts.mjs --year 2025 --month 1 --delete</code></pre>
+
+  <h4>オプション</h4>
+  <table>
+    <tr><th>オプション</th><th>説明</th><th>デフォルト</th></tr>
+    <tr><td><code>--year</code></td><td class="required">対象年（必須）</td><td>-</td></tr>
+    <tr><td><code>--month</code></td><td class="required">対象月（必須）</td><td>-</td></tr>
+    <tr><td><code>--absence</code></td><td class="optional">欠勤率（%）</td><td>5</td></tr>
+    <tr><td><code>--time-change</code></td><td class="optional">時間変更率（%）</td><td>10</td></tr>
+    <tr><td><code>--store</code></td><td class="optional">店舗ID</td><td>全店舗</td></tr>
+  </table>
+</div>
+
+<!-- ツール4: スタッフ生成 -->
+<div class="tool-card">
+  <h3>④ スタッフ生成 (generate-staff.mjs)</h3>
+
+  <p>ダミーのスタッフデータを生成・管理します。</p>
+
+  <h4>基本的な使い方</h4>
+  <pre><code># スタッフ一覧を表示
+node scripts/tools/generate-staff.mjs --list
+
+# 10人のスタッフを生成（確認のみ）
+node scripts/tools/generate-staff.mjs --count 10
+
+# 店舗6に5人のアルバイトを登録
+node scripts/tools/generate-staff.mjs --count 5 --store 6 --type PART_TIME --execute
+
+# スタッフを削除（ID指定）
+node scripts/tools/generate-staff.mjs --delete --staff 100,101,102 --execute</code></pre>
+
+  <h4>オプション</h4>
+  <table>
+    <tr><th>オプション</th><th>説明</th><th>例</th></tr>
+    <tr><td><code>--list</code></td><td>現在のスタッフ一覧を表示</td><td></td></tr>
+    <tr><td><code>--count</code></td><td class="required">生成人数（生成時必須）</td><td><code>--count 10</code></td></tr>
+    <tr><td><code>--store</code></td><td class="optional">割当店舗ID</td><td><code>--store 6</code></td></tr>
+    <tr><td><code>--type</code></td><td class="optional">雇用形態</td><td><code>FULL_TIME</code> / <code>PART_TIME</code> / <code>CONTRACT</code></td></tr>
+    <tr><td><code>--delete</code></td><td>削除モード</td><td></td></tr>
+    <tr><td><code>--staff</code></td><td>削除対象のスタッフID</td><td><code>--staff 100,101</code></td></tr>
+  </table>
+</div>
+
+<!-- ツール5: データリセット -->
+<div class="tool-card">
+  <h3>⑤ データリセット (reset-data.mjs)</h3>
+
+  <p>テストデータを条件指定で削除します。</p>
+
+  <h4>削除対象テーブル</h4>
+  <table>
+    <tr><th>テーブル</th><th>内容</th><th>デフォルト</th></tr>
+    <tr><td><code>ops.shifts</code></td><td>シフトデータ</td><td>✅</td></tr>
+    <tr><td><code>ops.shift_preferences</code></td><td>希望シフト</td><td>✅</td></tr>
+    <tr><td><code>ops.shift_plans</code></td><td>シフトプラン</td><td>✅</td></tr>
+    <tr><td><code>ops.notifications</code></td><td>通知</td><td><code>--all</code>時のみ</td></tr>
+    <tr><td><code>hr.payroll</code></td><td>給与</td><td><code>--all</code>時のみ</td></tr>
+  </table>
+
+  <h4>基本的な使い方</h4>
+  <pre><code># 削除対象を確認（2025年1月分）
+node scripts/tools/reset-data.mjs --year 2025 --month 1
+
+# 実際に削除
+node scripts/tools/reset-data.mjs --year 2025 --month 1 --execute
+
+# 特定テーブルのみ削除
+node scripts/tools/reset-data.mjs --year 2025 --tables shifts,shift_preferences --execute
+
+# 全データ削除（マスタ以外）
+node scripts/tools/reset-data.mjs --all --execute</code></pre>
+
+  <h4>オプション</h4>
+  <table>
+    <tr><th>オプション</th><th>説明</th><th>例</th></tr>
+    <tr><td><code>--year</code></td><td class="optional">対象年</td><td><code>--year 2025</code></td></tr>
+    <tr><td><code>--month</code></td><td class="optional">対象月</td><td><code>--month 1</code></td></tr>
+    <tr><td><code>--store</code></td><td class="optional">店舗ID</td><td><code>--store 6</code></td></tr>
+    <tr><td><code>--tables</code></td><td class="optional">対象テーブル（カンマ区切り）</td><td><code>--tables shifts,shift_plans</code></td></tr>
+    <tr><td><code>--all</code></td><td class="optional">全データ削除（マスタ以外）</td><td></td></tr>
+  </table>
+</div>
+
+<h2>📝 よくある使い方の例</h2>
+
+<div class="success">
+  <h4>シナリオ1: 新しい月のテストデータを作成</h4>
+  <pre><code># 1. 希望シフトを生成
+node scripts/tools/generate-random-preferences.mjs --year 2025 --month 2 --execute
+
+# 2. 第1案を生成
+node scripts/tools/generate-first-plan.mjs --year 2025 --month 2 --execute
+
+# 3. 実績シフトを生成
+node scripts/tools/generate-actual-shifts.mjs --year 2025 --month 2 --execute</code></pre>
+</div>
+
+<div class="success">
+  <h4>シナリオ2: テストデータをクリーンアップ</h4>
+  <pre><code># 特定月のデータを削除
+node scripts/tools/reset-data.mjs --year 2025 --month 2 --execute</code></pre>
+</div>
+
+<div class="success">
+  <h4>シナリオ3: 大量のスタッフでテスト</h4>
+  <pre><code># 50人のアルバイトを追加
+node scripts/tools/generate-staff.mjs --count 50 --type PART_TIME --execute
+
+# テスト後に削除（IDを確認してから）
+node scripts/tools/generate-staff.mjs --list
+node scripts/tools/generate-staff.mjs --delete --staff 100,101,102,... --execute</code></pre>
+</div>
+
+<h2>🔧 トラブルシューティング</h2>
+
+<div class="tool-card">
+  <h4>Q: コマンドが動かない</h4>
+  <p>A: プロジェクトのルートディレクトリで実行しているか確認してください。</p>
+  <pre><code>cd /path/to/shift-scheduler-ai
+node scripts/tools/xxx.mjs --help</code></pre>
+
+  <h4>Q: DBに接続できない</h4>
+  <p>A: ネットワーク接続を確認してください。ツールはSTG環境（Railway）に直接接続します。</p>
+
+  <h4>Q: 間違ってデータを削除してしまった</h4>
+  <p>A: バックアップからリストアしてください。</p>
+  <pre><code># バックアップ取得
+pg_dump -h xxx -U postgres -d railway -F c -f backup.dump
+
+# リストア
+pg_restore -h xxx -U postgres -d railway --clean backup.dump</code></pre>
+</div>
+
+<hr>
+<p style="text-align: center; color: #7f8c8d;">
+  Last updated: 2024-11-27<br>
+  Issue: <a href="https://github.com/The-botch/shift-scheduler-ai/issues/86">#86</a>
+</p>
+
+</body>
+</html>
