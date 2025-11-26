@@ -3230,7 +3230,7 @@ router.post('/plans/fetch-previous-data-all-stores', async (req, res) => {
  */
 router.post('/plans/create-with-shifts', async (req, res) => {
   try {
-    const { tenant_id = 1, target_year, target_month, created_by, stores } = req.body;
+    const { tenant_id = 1, target_year, target_month, created_by, stores, plan_type = 'FIRST' } = req.body;
 
     // バリデーション
     if (!target_year || !target_month || !stores || !Array.isArray(stores)) {
@@ -3240,7 +3240,14 @@ router.post('/plans/create-with-shifts', async (req, res) => {
       });
     }
 
-    console.log(`[CreateWithShifts] ${target_year}年${target_month}月のプランとシフトを一括作成`);
+    if (!['FIRST', 'SECOND'].includes(plan_type)) {
+      return res.status(400).json({
+        success: false,
+        error: 'plan_type は FIRST または SECOND である必要があります'
+      });
+    }
+
+    console.log(`[CreateWithShifts] ${target_year}年${target_month}月の${plan_type}プランとシフトを一括作成`);
 
     const createdPlans = [];
     const errors = [];
@@ -3260,27 +3267,54 @@ router.post('/plans/create-with-shifts', async (req, res) => {
         await query('BEGIN');
 
         try {
-          // 新規プラン作成
           const periodStart = new Date(target_year, target_month - 1, 1);
           const periodEnd = new Date(target_year, target_month, 0);
-          const planCode = `PLAN-${target_year}${String(target_month).padStart(2, '0')}-${String(store_id).padStart(3, '0')}`;
-          const planName = `${target_year}年${target_month}月シフト（第1案）`;
+          const planTypeSuffix = plan_type === 'SECOND' ? '2' : '1';
+          const planCode = `PLAN-${target_year}${String(target_month).padStart(2, '0')}-${String(store_id).padStart(3, '0')}-${planTypeSuffix}`;
+          const planNameSuffix = plan_type === 'SECOND' ? '第2案' : '第1案';
+          const planName = `${target_year}年${target_month}月シフト（${planNameSuffix}）`;
+          const planType = plan_type;
 
-          const planResult = await query(`
-            INSERT INTO ops.shift_plans (
-              tenant_id, store_id, plan_year, plan_month,
-              plan_code, plan_name, period_start, period_end,
-              plan_type, status, generation_type, created_by
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'FIRST', 'DRAFT', 'MANUAL', $9)
-            RETURNING plan_id, store_id, plan_year, plan_month, plan_type, status
-          `, [
-            tenant_id, store_id, target_year, target_month,
-            planCode, planName, periodStart, periodEnd,
-            created_by || null
-          ]);
+          // 既存プランをチェック
+          const existingPlan = await query(`
+            SELECT plan_id, status FROM ops.shift_plans
+            WHERE tenant_id = $1 AND store_id = $2
+              AND plan_year = $3 AND plan_month = $4
+              AND plan_type = $5
+          `, [tenant_id, store_id, target_year, target_month, planType]);
 
-          const newPlanId = planResult.rows[0].plan_id;
-          console.log(`    新規プラン作成: plan_id=${newPlanId}`);
+          let planId;
+          let isNewPlan = false;
+
+          if (existingPlan.rows.length > 0) {
+            // 既存プランあり → 更新
+            planId = existingPlan.rows[0].plan_id;
+            console.log(`    既存プラン使用: plan_id=${planId}`);
+
+            // 既存シフトを削除
+            const deleteResult = await query(`
+              DELETE FROM ops.shifts WHERE plan_id = $1
+            `, [planId]);
+            console.log(`    既存シフト削除: ${deleteResult.rowCount}件`);
+          } else {
+            // 新規プラン作成
+            const planResult = await query(`
+              INSERT INTO ops.shift_plans (
+                tenant_id, store_id, plan_year, plan_month,
+                plan_code, plan_name, period_start, period_end,
+                plan_type, status, generation_type, created_by
+              ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'DRAFT', 'MANUAL', $10)
+              RETURNING plan_id, store_id, plan_year, plan_month, plan_type, status
+            `, [
+              tenant_id, store_id, target_year, target_month,
+              planCode, planName, periodStart, periodEnd, planType,
+              created_by || null
+            ]);
+
+            planId = planResult.rows[0].plan_id;
+            isNewPlan = true;
+            console.log(`    新規プラン作成: plan_id=${planId}`);
+          }
 
           // シフトデータを挿入
           if (shifts && shifts.length > 0) {
@@ -3292,7 +3326,7 @@ router.post('/plans/create-with-shifts', async (req, res) => {
             const params = shifts.flatMap(s => [
               tenant_id,
               store_id,
-              newPlanId,
+              planId,
               s.staff_id,
               s.shift_date,
               s.pattern_id || null,
@@ -3314,9 +3348,10 @@ router.post('/plans/create-with-shifts', async (req, res) => {
           await query('COMMIT');
 
           createdPlans.push({
-            plan_id: newPlanId,
+            plan_id: planId,
             store_id: store_id,
-            shifts_count: shifts ? shifts.length : 0
+            shifts_count: shifts ? shifts.length : 0,
+            is_new: isNewPlan
           });
 
         } catch (error) {
