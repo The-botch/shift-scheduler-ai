@@ -4,19 +4,26 @@
  * 日付はJST (Asia/Tokyo) で処理
  */
 
+import { toZonedTime } from 'date-fns-tz';
+
+// JST タイムゾーン定数
+const JST_TIMEZONE = 'Asia/Tokyo';
+
 /**
- * Dateオブジェクトをローカルタイムゾーン（JST）でYYYY-MM-DD形式に変換
- * toISOString().split('T')[0] はUTCで変換するため使わない
+ * DateオブジェクトをJSTでYYYY-MM-DD形式に変換
+ * 環境（UTC/JST）に依存せず、常にJSTとして変換する
  * @param {Date} date - 日付オブジェクト
- * @returns {string} YYYY-MM-DD形式の日付文字列
+ * @returns {string} YYYY-MM-DD形式の日付文字列（JST）
  */
 function formatDateToYYYYMMDD(date) {
   if (!date || !(date instanceof Date) || isNaN(date.getTime())) {
     return '';
   }
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  // 明示的にJSTタイムゾーンに変換（環境に依存しない）
+  const jstDate = toZonedTime(date, JST_TIMEZONE);
+  const year = jstDate.getFullYear();
+  const month = String(jstDate.getMonth() + 1).padStart(2, '0');
+  const day = String(jstDate.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
 

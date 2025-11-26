@@ -165,6 +165,7 @@ CREATE TABLE ops.shift_preferences (
 #### バックエンド ✅
 **ファイル**: `backend/src/utils/timeUtils.js`
 - ✅ `formatDateToYYYYMMDD()` 追加
+- ✅ `toZonedTime`を使用して環境（UTC/JST）に依存しない実装に修正
 
 **ファイル**: `backend/src/routes/shifts.js`
 - ✅ `toISOString().split('T')[0]` → `formatDateToYYYYMMDD()` に置換（3箇所）
