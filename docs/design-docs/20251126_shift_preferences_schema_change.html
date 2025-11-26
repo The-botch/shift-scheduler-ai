@@ -1,0 +1,1611 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト関連テーブル構造変更 設計書</title>
+    <style>
+        body {
+            font-family: 'Hiragino Sans', 'Meiryo', sans-serif;
+            line-height: 1.8;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #1a365d;
+            border-bottom: 3px solid #3182ce;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #2c5282;
+            border-left: 4px solid #3182ce;
+            padding-left: 12px;
+            margin-top: 40px;
+        }
+        h3 {
+            color: #2d3748;
+            margin-top: 30px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #edf2f7;
+            font-weight: bold;
+        }
+        tr:nth-child(even) {
+            background-color: #f7fafc;
+        }
+        .warning {
+            background-color: #fef3c7;
+            border: 1px solid #f59e0b;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .info {
+            background-color: #dbeafe;
+            border: 1px solid #3b82f6;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .success {
+            background-color: #d1fae5;
+            border: 1px solid #10b981;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        .danger {
+            background-color: #fee2e2;
+            border: 1px solid #ef4444;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+        code {
+            background-color: #edf2f7;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+        }
+        pre {
+            background-color: #1a202c;
+            color: #e2e8f0;
+            padding: 20px;
+            border-radius: 6px;
+            overflow-x: auto;
+        }
+        .file-path {
+            color: #3182ce;
+            font-weight: bold;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-change {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+        .badge-add {
+            background-color: #d1fae5;
+            color: #065f46;
+        }
+        .badge-delete {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+        .badge-backend {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .badge-frontend {
+            background-color: #fae8ff;
+            color: #86198f;
+        }
+        .badge-db {
+            background-color: #fef9c3;
+            color: #854d0e;
+        }
+        .employment-type {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-weight: bold;
+            margin-right: 8px;
+        }
+        .part-time {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+        .full-time {
+            background-color: #fce7f3;
+            color: #9d174d;
+        }
+        .contractor {
+            background-color: #e0e7ff;
+            color: #3730a3;
+        }
+        .future-scope {
+            background-color: #f3f4f6;
+            border: 2px dashed #9ca3af;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📋 シフト関連テーブル構造変更 設計書</h1>
+
+        <div class="info">
+            <strong>📅 作成日:</strong> 2025-11-26<br>
+            <strong>📝 概要:</strong> シフト関連テーブル(ops.shifts, ops.shift_preferences)の構造変更
+            <ul style="margin: 10px 0 0 0;">
+                <li><b>ops.shift_preferences:</b> 1日1レコード形式に変更</li>
+                <li><b>ops.shifts:</b> 24時間超過表記対応 + pattern_idをNULL許可に変更</li>
+            </ul>
+        </div>
+
+        <h2>1. 背景と目的</h2>
+
+        <h3>1.1 shift_preferencesテーブルの問題点</h3>
+        <p>現在の<code>ops.shift_preferences</code>テーブルは以下の構造になっています：</p>
+
+        <table>
+            <tr>
+                <th>カラム名</th>
+                <th>型</th>
+                <th>説明</th>
+                <th>問題点</th>
+            </tr>
+            <tr>
+                <td><code>year</code></td>
+                <td>INT</td>
+                <td>対象年</td>
+                <td rowspan="2">年月で管理するため、日付ごとの開始・終了時刻を持てない</td>
+            </tr>
+            <tr>
+                <td><code>month</code></td>
+                <td>INT</td>
+                <td>対象月</td>
+            </tr>
+            <tr>
+                <td><code>preferred_days</code></td>
+                <td>TEXT</td>
+                <td>希望日（カンマ区切り）</td>
+                <td>複数日がカンマ区切りで格納されており、個別の時刻情報を持てない</td>
+            </tr>
+            <tr>
+                <td><code>ng_days</code></td>
+                <td>TEXT</td>
+                <td>NG日（カンマ区切り）</td>
+                <td>同上</td>
+            </tr>
+            <tr>
+                <td><code>preferred_time_slots</code></td>
+                <td>TEXT</td>
+                <td>希望時間帯</td>
+                <td>日付と紐づいていないため、どの日にどの時間帯を希望しているか不明</td>
+            </tr>
+        </table>
+
+        <div class="warning">
+            <strong>⚠️ 問題:</strong> 現在の構造では「12月5日は10:00〜18:00、12月7日は14:00〜22:00」といった日ごとの希望時間を表現できず、画面上で希望シフトを適切に表示できない状態です。
+        </div>
+
+        <h3>1.2 shiftsテーブルの問題点</h3>
+        <p>現在の<code>ops.shifts</code>テーブルにも以下の問題があります：</p>
+
+        <table>
+            <tr>
+                <th>カラム名</th>
+                <th>型</th>
+                <th>問題点</th>
+            </tr>
+            <tr>
+                <td><code>start_time</code></td>
+                <td>TIME NOT NULL</td>
+                <td rowspan="2">PostgreSQLのTIME型は00:00〜23:59のみ対応。<br>深夜営業の「25:00」「26:00」等の24時間超過表記を格納できない</td>
+            </tr>
+            <tr>
+                <td><code>end_time</code></td>
+                <td>TIME NOT NULL</td>
+            </tr>
+            <tr>
+                <td><code>pattern_id</code></td>
+                <td>INT NOT NULL (FK)</td>
+                <td>MVPではシフトパターン入力機能を使用しないが、NOT NULL制約があるため必ず値が必要</td>
+            </tr>
+        </table>
+
+        <div class="warning">
+            <strong>⚠️ 問題:</strong> 既存のCSVデータには「26:00」等の時刻が含まれていますが、TIME型では格納できません。また、MVPでシフトパターン機能を使用しない場合、pattern_idのNOT NULL制約が障害となります。
+        </div>
+
+        <h3>1.3 設計方針</h3>
+
+        <div class="success">
+            <strong>✅ 方針:</strong>
+            <ul>
+                <li><b>ops.shift_preferences:</b> 1日1レコード形式に変更、時刻はVARCHAR(5)で24時間超過表記に対応</li>
+                <li><b>ops.shifts:</b> start_time/end_timeをVARCHAR(5)に変更、pattern_idをNULL許可に変更</li>
+            </ul>
+        </div>
+
+        <h3>1.4 雇用形態別の入力パターン（shift_preferences）</h3>
+
+        <div class="info">
+            <p><span class="employment-type part-time">アルバイト (PART_TIME)</span></p>
+            <ul>
+                <li><strong>入力内容:</strong> 勤務希望日 + 開始時刻 + 終了時刻</li>
+                <li><strong>意味:</strong> 「この日のこの時間帯なら働けます」</li>
+                <li><strong>例:</strong> 12月5日 10:00〜18:00、12月7日 14:00〜22:00</li>
+            </ul>
+        </div>
+
+        <div class="info">
+            <p><span class="employment-type full-time">正社員 (FULL_TIME)</span> <span class="employment-type contractor">業務委託 (CONTRACTOR)</span></p>
+            <ul>
+                <li><strong>入力内容:</strong> NG日（出勤できない日）のみ</li>
+                <li><strong>意味:</strong> 「この日は出勤できません」（それ以外は出勤可能）</li>
+                <li><strong>例:</strong> 12月10日（私用）、12月15日（通院）</li>
+            </ul>
+        </div>
+
+        <h3>1.5 対象テーブルの比較</h3>
+
+        <h4>ops.shifts テーブル（参考：目標の構造）</h4>
+        <pre>
+CREATE TABLE ops.shifts (
+    shift_id SERIAL PRIMARY KEY,
+    tenant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    plan_id INT NOT NULL,
+    staff_id INT NOT NULL,
+    shift_date DATE NOT NULL,           -- 日付
+    pattern_id INT NOT NULL,
+    start_time TIME NOT NULL,           -- 開始時刻
+    end_time TIME NOT NULL,             -- 終了時刻
+    break_minutes INT DEFAULT 0,
+    ...
+);
+        </pre>
+
+        <h4>ops.shift_preferences テーブル（現状）</h4>
+        <pre>
+CREATE TABLE ops.shift_preferences (
+    preference_id SERIAL PRIMARY KEY,
+    tenant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    staff_id INT NOT NULL,
+    staff_name VARCHAR(100),
+    year INT NOT NULL,                  -- 年（1ヶ月1レコード）
+    month INT NOT NULL,                 -- 月
+    preferred_days TEXT,                -- 希望日（カンマ区切り）
+    ng_days TEXT,                       -- NG日（カンマ区切り）
+    preferred_time_slots TEXT,          -- 希望時間帯（日付と紐づいていない）
+    max_hours_per_week DECIMAL(5,2),
+    notes TEXT,
+    submitted_at TIMESTAMP,
+    status VARCHAR(20) DEFAULT 'PENDING',
+    ...
+);
+        </pre>
+
+        <h2>2. 変更後のテーブル設計</h2>
+
+        <h3>2.1 新テーブル構造</h3>
+
+        <div class="success">
+            <strong>✅ 設計ポイント:</strong>
+            <ul>
+                <li><b>1日1レコード</b> - シフトテーブルと同じ粒度</li>
+                <li><b>シンプルな構造</b> - pattern_idは持たない（UIの概念であり、DBで管理しない）</li>
+                <li><b>ユニーク制約</b> - 同一スタッフ・同一日付で1レコードのみ</li>
+                <li><b>24時間超過表記対応</b> - start_time/end_timeはVARCHAR(5)で「25:00」等に対応</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ 時刻型について:</strong><br>
+            PostgreSQLのTIME型は00:00〜23:59までしか格納できないため、深夜営業で使用される「25:00」「26:00」といった24時間超過表記に対応できません。<br>
+            そのため、<code>start_time</code>と<code>end_time</code>は<strong>VARCHAR(5)</strong>型を使用します（05:00〜28:00の範囲を想定）。<br>
+            <br>
+            <strong>ops.shiftsテーブルについて:</strong> 本設計にてops.shiftsテーブルも同様にVARCHAR(5)に変更します（セクション2.4参照）。
+        </div>
+
+        <pre>
+CREATE TABLE ops.shift_preferences (
+    preference_id SERIAL PRIMARY KEY,
+    tenant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    staff_id INT NOT NULL,
+    preference_date DATE NOT NULL,      -- 希望/NG対象日（年月日）★変更
+    is_ng BOOLEAN NOT NULL DEFAULT FALSE, -- TRUE: NG日（出勤不可）、FALSE: 希望日（出勤希望）★追加
+    start_time VARCHAR(5),              -- 希望開始時刻 ★追加（例: "09:00", "25:00"）アルバイト用、NG日の場合はNULL
+    end_time VARCHAR(5),                -- 希望終了時刻 ★追加（例: "18:00", "26:00"）アルバイト用、NG日の場合はNULL
+    notes TEXT,                         -- 日付ごとのコメント
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
+    FOREIGN KEY (store_id) REFERENCES core.stores(store_id) ON DELETE CASCADE,
+    FOREIGN KEY (staff_id) REFERENCES hr.staff(staff_id) ON DELETE CASCADE,
+
+    -- ★重要: 同一スタッフ・同一日付で1レコードのみ許可（重複登録防止）
+    CONSTRAINT unique_preference_per_staff_date UNIQUE (tenant_id, staff_id, preference_date)
+);
+
+-- インデックス作成
+CREATE INDEX idx_shift_preferences_tenant ON ops.shift_preferences(tenant_id);
+CREATE INDEX idx_shift_preferences_store ON ops.shift_preferences(store_id);
+CREATE INDEX idx_shift_preferences_staff ON ops.shift_preferences(staff_id);
+CREATE INDEX idx_shift_preferences_date ON ops.shift_preferences(preference_date);
+CREATE INDEX idx_shift_preferences_is_ng ON ops.shift_preferences(is_ng);
+
+-- updated_at自動更新トリガー
+CREATE TRIGGER update_shift_preferences_updated_at
+    BEFORE UPDATE ON ops.shift_preferences
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+        </pre>
+
+        <div class="success">
+            <strong>✅ ユニーク制約:</strong> <code>UNIQUE (tenant_id, staff_id, preference_date)</code><br>
+            同じスタッフが同じ日付に複数のレコードを登録しようとすると、DBレベルでエラーになります。
+        </div>
+
+        <h3>2.2 カラム変更詳細</h3>
+
+        <table>
+            <tr>
+                <th>変更種別</th>
+                <th>カラム名</th>
+                <th>旧定義</th>
+                <th>新定義</th>
+                <th>説明</th>
+            </tr>
+            <tr>
+                <td><span class="badge badge-delete">削除</span></td>
+                <td><code>year</code></td>
+                <td>INT NOT NULL</td>
+                <td>-</td>
+                <td>preference_dateに統合</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-delete">削除</span></td>
+                <td><code>month</code></td>
+                <td>INT NOT NULL</td>
+                <td>-</td>
+                <td>preference_dateに統合</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-delete">削除</span></td>
+                <td><code>preferred_days</code></td>
+                <td>TEXT</td>
+                <td>-</td>
+                <td>preference_date + is_ng=FALSE で表現</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-delete">削除</span></td>
+                <td><code>ng_days</code></td>
+                <td>TEXT</td>
+                <td>-</td>
+                <td>preference_date + is_ng=TRUE で表現</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-delete">削除</span></td>
+                <td><code>preferred_time_slots</code></td>
+                <td>TEXT</td>
+                <td>-</td>
+                <td>start_time, end_timeに置き換え</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-delete">削除</span></td>
+                <td><code>max_hours_per_week</code></td>
+                <td>DECIMAL(5,2)</td>
+                <td>-</td>
+                <td>スタッフマスター側で管理</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-delete">削除</span></td>
+                <td><code>staff_name</code></td>
+                <td>VARCHAR(100)</td>
+                <td>-</td>
+                <td>JOINで取得（冗長データの削除）</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-delete">削除</span></td>
+                <td><code>status</code></td>
+                <td>VARCHAR(20)</td>
+                <td>-</td>
+                <td>MVP後に shift_submissions で管理予定</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-delete">削除</span></td>
+                <td><code>submitted_at</code></td>
+                <td>TIMESTAMP</td>
+                <td>-</td>
+                <td>MVP後に shift_submissions で管理予定</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-add">追加</span></td>
+                <td><code>preference_date</code></td>
+                <td>-</td>
+                <td>DATE NOT NULL</td>
+                <td>希望/NGの対象日（年月日）</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-add">追加</span></td>
+                <td><code>is_ng</code></td>
+                <td>-</td>
+                <td>BOOLEAN DEFAULT FALSE</td>
+                <td>NG日フラグ（TRUE=出勤不可、FALSE=出勤希望）</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-add">追加</span></td>
+                <td><code>start_time</code></td>
+                <td>-</td>
+                <td>VARCHAR(5)</td>
+                <td>希望開始時刻（アルバイト用）例: "09:00", "25:00"</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-add">追加</span></td>
+                <td><code>end_time</code></td>
+                <td>-</td>
+                <td>VARCHAR(5)</td>
+                <td>希望終了時刻（アルバイト用）例: "18:00", "26:00"</td>
+            </tr>
+        </table>
+
+        <h3>2.3 雇用形態別のデータ格納パターン</h3>
+
+        <h4>アルバイトの例（12月に5日分の希望を出す場合）→ 5レコード</h4>
+        <table>
+            <tr>
+                <th>preference_id</th>
+                <th>staff_id</th>
+                <th>preference_date</th>
+                <th>is_ng</th>
+                <th>start_time</th>
+                <th>end_time</th>
+                <th>notes</th>
+            </tr>
+            <tr>
+                <td>101</td>
+                <td>5</td>
+                <td>2025-12-01</td>
+                <td>FALSE</td>
+                <td>10:00</td>
+                <td>18:00</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>102</td>
+                <td>5</td>
+                <td>2025-12-03</td>
+                <td>FALSE</td>
+                <td>10:00</td>
+                <td>18:00</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>103</td>
+                <td>5</td>
+                <td>2025-12-05</td>
+                <td>FALSE</td>
+                <td>18:00</td>
+                <td>26:00</td>
+                <td>深夜勤務希望（翌2時まで）</td>
+            </tr>
+            <tr>
+                <td>104</td>
+                <td>5</td>
+                <td>2025-12-07</td>
+                <td>FALSE</td>
+                <td>10:00</td>
+                <td>18:00</td>
+                <td></td>
+            </tr>
+            <tr>
+                <td>105</td>
+                <td>5</td>
+                <td>2025-12-10</td>
+                <td>FALSE</td>
+                <td>10:00</td>
+                <td>14:00</td>
+                <td>午前のみ</td>
+            </tr>
+        </table>
+
+        <h4>正社員の例（12月に2日分のNG日を出す場合）→ 2レコード</h4>
+        <table>
+            <tr>
+                <th>preference_id</th>
+                <th>staff_id</th>
+                <th>preference_date</th>
+                <th>is_ng</th>
+                <th>start_time</th>
+                <th>end_time</th>
+                <th>notes</th>
+            </tr>
+            <tr>
+                <td>201</td>
+                <td>3</td>
+                <td>2025-12-10</td>
+                <td>TRUE</td>
+                <td>NULL</td>
+                <td>NULL</td>
+                <td>私用</td>
+            </tr>
+            <tr>
+                <td>202</td>
+                <td>3</td>
+                <td>2025-12-15</td>
+                <td>TRUE</td>
+                <td>NULL</td>
+                <td>NULL</td>
+                <td>通院</td>
+            </tr>
+        </table>
+
+        <div class="info">
+            <strong>💡 ポイント:</strong>
+            <ul>
+                <li><strong>アルバイト:</strong> 勤務希望日を登録（is_ng=FALSE）、時間帯も指定</li>
+                <li><strong>正社員/業務委託:</strong> NG日のみを登録（is_ng=TRUE）、それ以外の日は出勤可能とみなす</li>
+                <li><strong>pattern_idは不要:</strong> UIでシフトパターンを選択しても、実際に保存するのはstart_time/end_time</li>
+            </ul>
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ ビジネスルール（アプリケーション層で制御）:</strong>
+            <table>
+                <tr>
+                    <th>雇用形態</th>
+                    <th>is_ng=FALSE（希望日）</th>
+                    <th>is_ng=TRUE（NG日）</th>
+                </tr>
+                <tr>
+                    <td><span class="employment-type part-time">アルバイト</span></td>
+                    <td>✅ 登録可能</td>
+                    <td>❌ 登録不可</td>
+                </tr>
+                <tr>
+                    <td><span class="employment-type full-time">正社員</span></td>
+                    <td>❌ 登録不可</td>
+                    <td>✅ 登録可能</td>
+                </tr>
+                <tr>
+                    <td><span class="employment-type contractor">業務委託</span></td>
+                    <td>❌ 登録不可</td>
+                    <td>✅ 登録可能</td>
+                </tr>
+            </table>
+            <p style="margin-top: 10px; font-size: 13px;">
+                ※ このルールはDB制約ではなく、<strong>フロントエンドのUI制御</strong>と<strong>バックエンドのバリデーション</strong>で実装する。<br>
+                （employment_typeはhr.staffテーブルにあり、shift_preferencesからCHECK制約で直接参照できないため）
+            </p>
+        </div>
+
+        <div class="future-scope">
+            <strong>📋 将来対応（MVP後）:</strong> シフト希望提出管理テーブル<br>
+            <p>「シフト希望が0件」の状態が「未提出」なのか「提出済み（希望なし）」なのか区別するため、<code>shift_submissions</code>テーブルを追加予定。</p>
+            <p>詳細: <a href="https://github.com/The-botch/shift-scheduler-ai/issues/132">Issue #132</a></p>
+        </div>
+
+        <h2>2.4 ops.shiftsテーブルの変更</h2>
+
+        <h3>2.4.1 変更後のテーブル構造</h3>
+
+        <div class="success">
+            <strong>✅ 変更ポイント:</strong>
+            <ul>
+                <li><b>start_time/end_time:</b> TIME → VARCHAR(5)に変更（24時間超過表記対応）</li>
+                <li><b>pattern_id:</b> NOT NULL → NULL許可に変更（MVPではシフトパターン入力なし）</li>
+            </ul>
+        </div>
+
+        <pre>
+-- ops.shifts（シフト実績/計画）- CSV投入 or AI生成
+CREATE TABLE IF NOT EXISTS ops.shifts (
+    shift_id SERIAL PRIMARY KEY,
+    tenant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    plan_id INT NOT NULL,
+    staff_id INT NOT NULL,
+    shift_date DATE NOT NULL,
+    pattern_id INT,                     -- ★変更: NOT NULL → NULL許可（MVPではシフトパターン未使用）
+    start_time VARCHAR(5) NOT NULL,     -- ★変更: TIME → VARCHAR(5)（例: "09:00", "25:00"）
+    end_time VARCHAR(5) NOT NULL,       -- ★変更: TIME → VARCHAR(5)（例: "18:00", "26:00"）
+    break_minutes INT NOT NULL DEFAULT 0,
+    total_hours DECIMAL(5,2),
+    labor_cost INT,
+    assigned_skills JSONB,
+    is_preferred BOOLEAN DEFAULT FALSE,
+    is_modified BOOLEAN DEFAULT FALSE,
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
+    FOREIGN KEY (store_id) REFERENCES core.stores(store_id) ON DELETE CASCADE,
+    FOREIGN KEY (plan_id) REFERENCES ops.shift_plans(plan_id) ON DELETE CASCADE,
+    FOREIGN KEY (staff_id) REFERENCES hr.staff(staff_id) ON DELETE CASCADE,
+    FOREIGN KEY (pattern_id) REFERENCES core.shift_patterns(pattern_id)  -- NULL許可のFK
+);
+        </pre>
+
+        <h3>2.4.2 カラム変更詳細</h3>
+
+        <table>
+            <tr>
+                <th>変更種別</th>
+                <th>カラム名</th>
+                <th>旧定義</th>
+                <th>新定義</th>
+                <th>説明</th>
+            </tr>
+            <tr>
+                <td><span class="badge badge-change">変更</span></td>
+                <td><code>pattern_id</code></td>
+                <td>INT NOT NULL</td>
+                <td>INT (NULL許可)</td>
+                <td>MVPではシフトパターン入力機能を使用しないため、NULL許可に変更。将来的に機能追加する場合に備えてカラム自体は残す</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-change">変更</span></td>
+                <td><code>start_time</code></td>
+                <td>TIME NOT NULL</td>
+                <td>VARCHAR(5) NOT NULL</td>
+                <td>24時間超過表記（例: "25:00"）に対応するため文字列型に変更</td>
+            </tr>
+            <tr>
+                <td><span class="badge badge-change">変更</span></td>
+                <td><code>end_time</code></td>
+                <td>TIME NOT NULL</td>
+                <td>VARCHAR(5) NOT NULL</td>
+                <td>24時間超過表記（例: "26:00"）に対応するため文字列型に変更</td>
+            </tr>
+        </table>
+
+        <div class="info">
+            <strong>💡 pattern_idについて:</strong>
+            <ul>
+                <li>MVPでは<b>シフトパターン入力機能を使用しない</b>ため、NULL許可に変更</li>
+                <li>将来的にシフトパターン機能を追加する際に備え、カラム・FK・マスタテーブルは残す</li>
+                <li>既存データでpattern_idが設定されている場合はそのまま保持</li>
+            </ul>
+        </div>
+
+        <h2>3. 影響範囲と修正対象</h2>
+
+        <h3>3.1 データベース（DDL） <span class="badge badge-db">DB</span></h3>
+
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>修正内容</th>
+            </tr>
+            <tr>
+                <td class="file-path">scripts/database/ddl/schema.sql</td>
+                <td>
+                    <ul>
+                        <li>ops.shift_preferencesテーブルの再定義</li>
+                        <li>ops.shiftsテーブルの変更（start_time/end_time型変更、pattern_id NULL許可）</li>
+                    </ul>
+                </td>
+            </tr>
+        </table>
+
+        <h3>3.2 バックエンドAPI <span class="badge badge-backend">Backend</span></h3>
+
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>エンドポイント</th>
+                <th>修正内容</th>
+            </tr>
+            <tr>
+                <td class="file-path">backend/src/routes/shifts.js</td>
+                <td><code>GET /api/shifts/preferences</code></td>
+                <td>
+                    <ul>
+                        <li>クエリパラメータ変更: year, month → date_from, date_to</li>
+                        <li>レスポンス構造の変更</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td class="file-path">backend/src/routes/shifts.js</td>
+                <td><code>GET /api/shifts/preferences/:id</code></td>
+                <td>レスポンス構造の変更</td>
+            </tr>
+            <tr>
+                <td class="file-path">backend/src/routes/shifts.js</td>
+                <td><code>POST /api/shifts/preferences</code></td>
+                <td>
+                    <ul>
+                        <li>リクエストボディ変更</li>
+                        <li>INSERT文の修正</li>
+                        <li>バリデーション修正</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td class="file-path">backend/src/routes/shifts.js</td>
+                <td><code>PUT /api/shifts/preferences/:id</code></td>
+                <td>
+                    <ul>
+                        <li>リクエストボディ変更</li>
+                        <li>UPDATE文の修正</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td class="file-path">backend/src/routes/shifts.js</td>
+                <td><code>DELETE /api/shifts/preferences/:id</code></td>
+                <td>変更なし（preference_idベースのため）</td>
+            </tr>
+            <tr>
+                <td class="file-path">backend/src/routes/vector-store.js</td>
+                <td>Vector Store構築</td>
+                <td>shift_preferencesのクエリ修正</td>
+            </tr>
+        </table>
+
+        <h3>3.3 フロントエンド <span class="badge badge-frontend">Frontend</span></h3>
+
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>コンポーネント/関数</th>
+                <th>修正内容</th>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/infrastructure/repositories/ShiftRepository.js</td>
+                <td><code>getPreferences()</code></td>
+                <td>
+                    <ul>
+                        <li>パラメータ変更（year, month → dateFrom, dateTo）</li>
+                        <li>レスポンスのデータ構造対応</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/screens/shift/LineShiftInput.jsx</td>
+                <td>シフト希望入力画面</td>
+                <td>
+                    <ul>
+                        <li>APIリクエスト/レスポンス処理の修正</li>
+                        <li><code>preferred_days</code>のパース処理を削除</li>
+                        <li>新構造（1日1レコード）への対応</li>
+                        <li>アルバイト: start_time, end_timeの入力UI</li>
+                        <li>正社員/業務委託: NG日選択UI</li>
+                        <li>時刻入力UIの変更（<code>&lt;input type="time"&gt;</code>では24時超過不可のため、カスタムセレクトボックスに変更）</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/shared/ShiftTimeline.jsx</td>
+                <td>シフトタイムライン</td>
+                <td>
+                    <ul>
+                        <li><code>timeToMinutes()</code>関数の修正（"25:00"形式を直接パース可能に）</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/mobile/ShiftPatternSelector.jsx</td>
+                <td>シフトパターン選択</td>
+                <td>
+                    <ul>
+                        <li>時刻入力UIの変更（24時超過対応）</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/screens/shift/Monitoring.jsx</td>
+                <td>シフト希望モニタリング画面</td>
+                <td>
+                    <ul>
+                        <li>希望データの読み込み処理修正</li>
+                        <li><code>preferred_days</code>, <code>ng_days</code>のパース削除</li>
+                        <li>新構造での表示処理</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/shared/MultiStoreShiftTable.jsx</td>
+                <td>複数店舗シフト表</td>
+                <td>
+                    <ul>
+                        <li><code>isPreferredDay()</code>, <code>isNgDay()</code>関数の修正</li>
+                        <li>is_ngフラグベースの判定に変更</li>
+                        <li>希望表示の色分けロジック修正</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/utils/shiftInputCollector.js</td>
+                <td>シフト入力データ収集</td>
+                <td>
+                    <ul>
+                        <li>API呼び出しの修正</li>
+                        <li>データ変換処理の修正</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/screens/shift/FirstPlanEditor.jsx</td>
+                <td>第一案エディタ</td>
+                <td>希望シフト参照処理の修正</td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/screens/shift/SecondPlanEditor.jsx</td>
+                <td>第二案エディタ</td>
+                <td>希望シフト参照処理の修正</td>
+            </tr>
+        </table>
+
+        <h3>3.4 その他関連ファイル</h3>
+
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>修正内容</th>
+            </tr>
+            <tr>
+                <td class="file-path">docs/DATABASE_SCHEMA.md</td>
+                <td>スキーマドキュメント更新</td>
+            </tr>
+            <tr>
+                <td class="file-path">scripts/debug/export_transaction_data.mjs</td>
+                <td>エクスポート処理の修正</td>
+            </tr>
+            <tr>
+                <td class="file-path">scripts/debug/verify_columns.mjs</td>
+                <td>カラム検証処理の修正</td>
+            </tr>
+            <tr>
+                <td class="file-path">fixtures/demo_data/transactions/shift_preferences_*.csv</td>
+                <td>デモデータの再生成</td>
+            </tr>
+        </table>
+
+        <h2>4. データ移行計画</h2>
+
+        <h3>4.1 移行スクリプト</h3>
+
+        <div class="warning">
+            <strong>⚠️ 重要:</strong> 既存データを新構造に移行する必要があります。以下のスクリプトを実行します。
+        </div>
+
+        <pre>
+-- 1. 新テーブルを作成（一時テーブルとして）
+CREATE TABLE ops.shift_preferences_new (
+    preference_id SERIAL PRIMARY KEY,
+    tenant_id INT NOT NULL,
+    store_id INT NOT NULL,
+    staff_id INT NOT NULL,
+    preference_date DATE NOT NULL,
+    is_ng BOOLEAN NOT NULL DEFAULT FALSE,
+    start_time VARCHAR(5),              -- TIME型ではなくVARCHAR(5)で24時間超過表記に対応
+    end_time VARCHAR(5),                -- 例: "25:00", "26:00"
+    notes TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
+    FOREIGN KEY (store_id) REFERENCES core.stores(store_id) ON DELETE CASCADE,
+    FOREIGN KEY (staff_id) REFERENCES hr.staff(staff_id) ON DELETE CASCADE
+);
+
+-- 2. 既存データを移行（preferred_daysを展開）→ is_ng = FALSE
+INSERT INTO ops.shift_preferences_new
+(tenant_id, store_id, staff_id, preference_date, is_ng, notes, created_at, updated_at)
+SELECT
+    p.tenant_id,
+    p.store_id,
+    p.staff_id,
+    TRIM(date_val)::DATE AS preference_date,
+    FALSE AS is_ng,
+    p.notes,
+    p.created_at,
+    p.updated_at
+FROM ops.shift_preferences p,
+LATERAL unnest(string_to_array(p.preferred_days, ',')) AS date_val
+WHERE p.preferred_days IS NOT NULL AND p.preferred_days != '';
+
+-- 3. ng_daysも移行 → is_ng = TRUE
+INSERT INTO ops.shift_preferences_new
+(tenant_id, store_id, staff_id, preference_date, is_ng, notes, created_at, updated_at)
+SELECT
+    p.tenant_id,
+    p.store_id,
+    p.staff_id,
+    TRIM(date_val)::DATE AS preference_date,
+    TRUE AS is_ng,
+    p.notes,
+    p.created_at,
+    p.updated_at
+FROM ops.shift_preferences p,
+LATERAL unnest(string_to_array(p.ng_days, ',')) AS date_val
+WHERE p.ng_days IS NOT NULL AND p.ng_days != '';
+
+-- 4. 旧テーブルをリネーム（バックアップ）
+ALTER TABLE ops.shift_preferences RENAME TO shift_preferences_old;
+
+-- 5. 新テーブルをリネーム
+ALTER TABLE ops.shift_preferences_new RENAME TO shift_preferences;
+
+-- 6. ユニーク制約追加
+ALTER TABLE ops.shift_preferences
+ADD CONSTRAINT unique_preference_per_staff_date UNIQUE (tenant_id, staff_id, preference_date);
+
+-- 7. インデックス作成
+CREATE INDEX idx_shift_preferences_tenant ON ops.shift_preferences(tenant_id);
+CREATE INDEX idx_shift_preferences_store ON ops.shift_preferences(store_id);
+CREATE INDEX idx_shift_preferences_staff ON ops.shift_preferences(staff_id);
+CREATE INDEX idx_shift_preferences_date ON ops.shift_preferences(preference_date);
+CREATE INDEX idx_shift_preferences_is_ng ON ops.shift_preferences(is_ng);
+
+-- 8. トリガー作成
+CREATE TRIGGER update_shift_preferences_updated_at
+    BEFORE UPDATE ON ops.shift_preferences
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+        </pre>
+
+        <h3>4.2 ops.shiftsテーブルの変更</h3>
+
+        <div class="info">
+            <strong>💡 ポイント:</strong> shiftsテーブルはカラムの型変更のみなので、テーブル再作成ではなくALTER TABLEで対応可能です。
+        </div>
+
+        <pre>
+-- ops.shiftsテーブルの変更
+
+-- 1. pattern_idのNOT NULL制約を削除
+ALTER TABLE ops.shifts ALTER COLUMN pattern_id DROP NOT NULL;
+
+-- 2. start_timeの型をVARCHAR(5)に変更
+ALTER TABLE ops.shifts
+    ALTER COLUMN start_time TYPE VARCHAR(5)
+    USING to_char(start_time, 'HH24:MI');
+
+-- 3. end_timeの型をVARCHAR(5)に変更
+ALTER TABLE ops.shifts
+    ALTER COLUMN end_time TYPE VARCHAR(5)
+    USING to_char(end_time, 'HH24:MI');
+
+-- 注意: 既存データにTIME型で格納できた値（00:00〜23:59）は
+-- 'HH24:MI'形式の文字列（例: "09:00", "18:00"）に変換されます。
+-- 24時間超過表記は新規データから適用されます。
+        </pre>
+
+        <h2>5. API仕様変更</h2>
+
+        <h3>5.1 GET /api/shifts/preferences</h3>
+
+        <h4>変更前（現行）</h4>
+        <pre>
+// リクエスト
+GET /api/shifts/preferences?tenant_id=1&staff_id=5&year=2025&month=12
+
+// レスポンス
+{
+  "success": true,
+  "data": [
+    {
+      "preference_id": 1,
+      "tenant_id": 1,
+      "store_id": 1,
+      "staff_id": 5,
+      "year": 2025,
+      "month": 12,
+      "preferred_days": "2025-12-01,2025-12-03,2025-12-05",
+      "ng_days": "2025-12-10,2025-12-11",
+      "preferred_time_slots": "morning,evening",
+      "max_hours_per_week": 20,
+      "notes": null,
+      "status": "PENDING"
+    }
+  ]
+}
+        </pre>
+
+        <h4>変更後（新仕様）</h4>
+        <pre>
+// リクエスト
+GET /api/shifts/preferences?tenant_id=1&staff_id=5&date_from=2025-12-01&date_to=2025-12-31
+
+// レスポンス
+{
+  "success": true,
+  "data": [
+    {
+      "preference_id": 1,
+      "tenant_id": 1,
+      "store_id": 1,
+      "staff_id": 5,
+      "staff_name": "田中太郎",      // JOINで取得
+      "employment_type": "PART_TIME", // JOINで取得
+      "preference_date": "2025-12-01",
+      "is_ng": false,
+      "start_time": "10:00",
+      "end_time": "18:00",
+      "notes": null
+    },
+    {
+      "preference_id": 2,
+      "tenant_id": 1,
+      "store_id": 1,
+      "staff_id": 5,
+      "staff_name": "田中太郎",
+      "employment_type": "PART_TIME",
+      "preference_date": "2025-12-03",
+      "is_ng": false,
+      "start_time": "14:00",
+      "end_time": "22:00",
+      "notes": null
+    },
+    {
+      "preference_id": 10,
+      "tenant_id": 1,
+      "store_id": 1,
+      "staff_id": 3,
+      "staff_name": "鈴木一郎",
+      "employment_type": "FULL_TIME",
+      "preference_date": "2025-12-10",
+      "is_ng": true,
+      "start_time": null,
+      "end_time": null,
+      "notes": "私用のため"
+    }
+  ],
+  "count": 3
+}
+        </pre>
+
+        <h3>5.2 POST /api/shifts/preferences</h3>
+
+        <h4>変更前（現行）</h4>
+        <pre>
+// リクエスト
+POST /api/shifts/preferences
+{
+  "tenant_id": 1,
+  "store_id": 1,
+  "staff_id": 5,
+  "year": 2025,
+  "month": 12,
+  "preferred_days": "2025-12-01,2025-12-03,2025-12-05",
+  "ng_days": "2025-12-10",
+  "preferred_time_slots": "morning",
+  "max_hours_per_week": 20,
+  "notes": "",
+  "status": "PENDING"
+}
+        </pre>
+
+        <h4>変更後（新仕様）- 1件登録</h4>
+        <pre>
+// アルバイトの場合（勤務希望）
+POST /api/shifts/preferences
+{
+  "tenant_id": 1,
+  "store_id": 1,
+  "staff_id": 5,
+  "preference_date": "2025-12-01",
+  "is_ng": false,
+  "start_time": "10:00",
+  "end_time": "18:00",
+  "notes": ""
+}
+
+// 正社員/業務委託の場合（NG日）
+POST /api/shifts/preferences
+{
+  "tenant_id": 1,
+  "store_id": 1,
+  "staff_id": 3,
+  "preference_date": "2025-12-10",
+  "is_ng": true,
+  "notes": "私用のため"
+}
+        </pre>
+
+        <h4>変更後（新仕様）- 一括登録</h4>
+        <pre>
+// 一括登録用エンドポイント
+POST /api/shifts/preferences/bulk
+{
+  "tenant_id": 1,
+  "store_id": 1,
+  "staff_id": 5,
+  "preferences": [
+    {
+      "preference_date": "2025-12-01",
+      "is_ng": false,
+      "start_time": "10:00",
+      "end_time": "18:00"
+    },
+    {
+      "preference_date": "2025-12-03",
+      "is_ng": false,
+      "start_time": "14:00",
+      "end_time": "22:00"
+    }
+  ]
+}
+        </pre>
+
+        <h2>6. 実装順序</h2>
+
+        <table>
+            <tr>
+                <th>順序</th>
+                <th>対象</th>
+                <th>作業内容</th>
+                <th>依存</th>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td><span class="badge badge-db">DB</span></td>
+                <td>schema.sql の修正</td>
+                <td>-</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td><span class="badge badge-db">DB</span></td>
+                <td>マイグレーションスクリプト作成・実行</td>
+                <td>1</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td><span class="badge badge-backend">Backend</span></td>
+                <td>shifts.js の preference API 修正</td>
+                <td>2</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td><span class="badge badge-backend">Backend</span></td>
+                <td>一括登録API (POST /bulk) の追加</td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td><span class="badge badge-frontend">Frontend</span></td>
+                <td>ShiftRepository.js の修正</td>
+                <td>3</td>
+            </tr>
+            <tr>
+                <td>6</td>
+                <td><span class="badge badge-frontend">Frontend</span></td>
+                <td>LineShiftInput.jsx の修正</td>
+                <td>5</td>
+            </tr>
+            <tr>
+                <td>7</td>
+                <td><span class="badge badge-frontend">Frontend</span></td>
+                <td>MultiStoreShiftTable.jsx の修正</td>
+                <td>5</td>
+            </tr>
+            <tr>
+                <td>8</td>
+                <td><span class="badge badge-frontend">Frontend</span></td>
+                <td>Monitoring.jsx の修正</td>
+                <td>5</td>
+            </tr>
+            <tr>
+                <td>9</td>
+                <td><span class="badge badge-frontend">Frontend</span></td>
+                <td>その他コンポーネントの修正</td>
+                <td>5</td>
+            </tr>
+            <tr>
+                <td>10</td>
+                <td>-</td>
+                <td>統合テスト</td>
+                <td>1-9</td>
+            </tr>
+        </table>
+
+        <h2>7. テスト計画</h2>
+
+        <h3>7.1 単体テスト</h3>
+        <ul>
+            <li>API エンドポイントのリクエスト/レスポンス検証</li>
+            <li>データ移行スクリプトの動作確認</li>
+            <li>フロントエンドコンポーネントの表示確認</li>
+        </ul>
+
+        <h3>7.2 統合テスト</h3>
+        <ul>
+            <li>希望シフト入力 → DB保存 → 一覧表示 の E2E フロー</li>
+            <li><span class="employment-type part-time">アルバイト</span>: 勤務希望日 + 時間帯の入力・表示</li>
+            <li><span class="employment-type full-time">正社員</span>: NG日の入力・表示</li>
+            <li><span class="employment-type contractor">業務委託</span>: NG日の入力・表示</li>
+            <li>シフト表での希望日/NG日表示（色分け）確認</li>
+        </ul>
+
+        <h3>7.3 移行テスト</h3>
+        <ul>
+            <li>既存データの正常移行確認</li>
+            <li>移行後のデータ整合性チェック</li>
+            <li>preferred_days → is_ng=FALSE への変換確認</li>
+            <li>ng_days → is_ng=TRUE への変換確認</li>
+        </ul>
+
+        <h2>8. リスクと対策</h2>
+
+        <div class="danger">
+            <strong>🚨 リスク1: 既存データの消失</strong><br>
+            <strong>対策:</strong> 移行前に旧テーブルをバックアップ（shift_preferences_old）として保持
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ リスク2: API互換性の破壊</strong><br>
+            <strong>対策:</strong> フロントエンド/バックエンドを同時にデプロイ
+        </div>
+
+        <div class="warning">
+            <strong>⚠️ リスク3: パフォーマンス低下</strong><br>
+            <strong>対策:</strong>
+            <ul>
+                <li>適切なインデックス設計（preference_date, staff_id, is_ng）</li>
+                <li>一括登録APIの提供</li>
+            </ul>
+        </div>
+
+        <h2>9. 参考情報</h2>
+
+        <h3>9.1 関連ドキュメント</h3>
+        <ul>
+            <li><code>docs/DATABASE_SCHEMA.md</code> - データベーススキーマドキュメント</li>
+            <li><code>backend/API.md</code> - API仕様書</li>
+        </ul>
+
+        <h3>9.2 関連Issue</h3>
+        <ul>
+            <li><a href="https://github.com/The-botch/shift-scheduler-ai/issues/132">Issue #132</a> - シフト希望提出管理テーブル(shift_submissions)の追加（MVP後）</li>
+        </ul>
+
+        <h3>9.3 将来タスク（本設計の範囲外）</h3>
+        <div class="future-scope">
+            <ul>
+                <li><strong>時刻バリデーション追加:</strong> start_time/end_timeの形式チェック（HH:MM形式、05:00〜28:00の範囲）をフロントエンド・バックエンド両方に追加</li>
+                <li><strong>シフト希望提出管理:</strong> shift_submissionsテーブルの追加（Issue #132）</li>
+            </ul>
+        </div>
+
+        <h2>10. 実装結果（2025-11-27 完了）</h2>
+
+        <div class="success">
+            <strong>✅ 実装完了:</strong> Phase 1〜3 すべて完了、動作確認済み
+        </div>
+
+        <h3>10.1 Phase 1: データベース変更</h3>
+
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>修正内容</th>
+                <th>状態</th>
+            </tr>
+            <tr>
+                <td class="file-path">scripts/database/ddl/schema.sql</td>
+                <td>
+                    <ul>
+                        <li>ops.shiftsテーブル: TIME→VARCHAR(5)、pattern_id NULL許可</li>
+                        <li>ops.shift_preferencesテーブル: 完全再定義（1日1レコード形式）</li>
+                        <li>インデックス追加: idx_shift_preferences_date, idx_shift_preferences_is_ng</li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+            <tr>
+                <td class="file-path">scripts/database/setup/setup_tenant3_test_data.mjs</td>
+                <td>
+                    <ul>
+                        <li>時刻フォーマット: HH:MM:SS → HH:MM形式</li>
+                        <li>pattern_id: null に変更</li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+        </table>
+
+        <h3>10.2 Phase 2: バックエンドAPI修正</h3>
+
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>修正内容</th>
+                <th>状態</th>
+            </tr>
+            <tr>
+                <td class="file-path">backend/src/routes/shifts.js</td>
+                <td>
+                    <ul>
+                        <li>GET /api/shifts/preferences: year,month → date_from,date_to,is_ng</li>
+                        <li>POST /api/shifts/preferences: preference_date, is_ng対応</li>
+                        <li>PUT /api/shifts/preferences/:id: is_ng, start_time, end_time対応</li>
+                        <li>DELETE /api/shifts/preferences/:id: preference_date返却</li>
+                        <li><strong>POST /api/shifts/preferences/bulk: 新規追加（UPSERT対応）</strong></li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+            <tr>
+                <td class="file-path">backend/src/utils/timeUtils.js</td>
+                <td>
+                    <strong>新規作成</strong> - 時刻計算ユーティリティ
+                    <ul>
+                        <li><code>timeToMinutes()</code> - VARCHAR(5)形式を分に変換</li>
+                        <li><code>minutesToTime()</code> - 分をVARCHAR(5)形式に変換</li>
+                        <li><code>calculateWorkHours()</code> - 勤務時間計算（休憩対応）</li>
+                        <li><code>calculateWorkHoursFixed()</code> - 小数点2桁で丸め</li>
+                        <li><code>formatDateToYYYYMMDD()</code> - JSTでYYYY-MM-DD形式に変換</li>
+                        <li><code>toZonedTime</code>を使用して環境（UTC/JST）に依存しない実装</li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+        </table>
+
+        <h3>10.3 Phase 3: フロントエンド修正</h3>
+
+        <h4>Repository層</h4>
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>修正内容</th>
+                <th>状態</th>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/infrastructure/repositories/ShiftRepository.js</td>
+                <td>
+                    <ul>
+                        <li><code>getPreferences()</code>: パラメータ変更（year,month → dateFrom,dateTo,isNg）</li>
+                        <li><code>savePreferencesBulk()</code>: 新規追加（bulk API対応）</li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+        </table>
+
+        <h4>画面コンポーネント</h4>
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>修正内容</th>
+                <th>状態</th>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/screens/shift/LineShiftInput.jsx</td>
+                <td>
+                    <ul>
+                        <li>loadShiftPreferences(): 新API形式対応</li>
+                        <li>handleSubmit(): bulk API使用</li>
+                        <li>シフトパターン時刻のVARCHAR(5)形式変換</li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/screens/shift/Monitoring.jsx</td>
+                <td>
+                    <ul>
+                        <li>loadAvailabilityData(): 新API形式対応</li>
+                        <li>getDayShifts(), getCalendarData(): タイムゾーン修正</li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/shared/MultiStoreShiftTable.jsx</td>
+                <td>
+                    <ul>
+                        <li>getStaffPreferenceForDate(): 新API形式対応</li>
+                        <li>isPreferredDay(), isNgDay(): is_ngフラグベースに変更</li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/screens/shift/FirstPlanEditor.jsx</td>
+                <td>checkPreference(): 新API形式対応、TimeInput置換</td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/screens/shift/SecondPlanEditor.jsx</td>
+                <td>checkPreferenceConflicts(): 新API形式対応、TimeInput置換</td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+        </table>
+
+        <h4>共通コンポーネント</h4>
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>修正内容</th>
+                <th>状態</th>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/shared/TimeInput.jsx</td>
+                <td>
+                    <strong>新規作成</strong> - 24時超過対応カスタム時刻入力
+                    <ul>
+                        <li>5:00〜28:00の範囲に対応</li>
+                        <li>compactモード対応</li>
+                        <li>&lt;input type="time"&gt;の制約を回避</li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/shared/ShiftTimeline.jsx</td>
+                <td>timeToMinutes(): "25:00"形式対応、null安全対策</td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/shared/ShiftTableView.jsx</td>
+                <td>timeToMinutes(): "25:00"形式対応、null安全対策</td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/components/shared/StaffTimeTable.jsx</td>
+                <td>
+                    <ul>
+                        <li>インライン編集をTimeInputに置換</li>
+                        <li>時刻保存時の':00'追加を削除</li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+        </table>
+
+        <h4>ユーティリティ</h4>
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>修正内容</th>
+                <th>状態</th>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/utils/dateUtils.js</td>
+                <td>
+                    <strong>新規追加</strong>
+                    <ul>
+                        <li><code>isoToJSTDateString()</code> - ISO日時をJSTのYYYY-MM-DD形式に変換</li>
+                        <li><code>isoToJSTDateParts()</code> - ISO日時からJSTのyear/month/dayを取得</li>
+                        <li><code>toZonedTime</code>を使用して環境（UTC/JST）に依存しない実装</li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+            <tr>
+                <td class="file-path">frontend/src/utils/shiftInputCollector.js</td>
+                <td>
+                    <ul>
+                        <li>API呼び出し修正（date_from,date_to）</li>
+                        <li>データ変換処理修正（preference_date, is_ng）</li>
+                    </ul>
+                </td>
+                <td><span class="badge badge-add">完了</span></td>
+            </tr>
+        </table>
+
+        <h3>10.4 動作確認結果</h3>
+
+        <div class="success">
+            <strong>✅ 確認済み項目:</strong>
+            <ul>
+                <li><strong>API:</strong> GET/POST/PUT/DELETE/bulk すべて正常動作</li>
+                <li><strong>LINEシフト入力:</strong> 希望日・NG日の登録・削除</li>
+                <li><strong>シフト表表示:</strong> 希望シフトの色分け表示</li>
+                <li><strong>タイムライン:</strong> 24時超過シフトの正常表示</li>
+                <li><strong>タイムゾーン:</strong> JST日付変換の正常動作</li>
+            </ul>
+        </div>
+
+        <h3>10.5 バグ修正</h3>
+
+        <table>
+            <tr>
+                <th>ファイル</th>
+                <th>問題</th>
+                <th>対応</th>
+            </tr>
+            <tr>
+                <td class="file-path">LineShiftInput.jsx</td>
+                <td>bulk APIで「Missing required fields」エラー</td>
+                <td>tenant_id, store_id, staff_idをトップレベルに移動</td>
+            </tr>
+            <tr>
+                <td class="file-path">LineShiftInput.jsx</td>
+                <td>「Invalid start_time format: 15:00:00」エラー</td>
+                <td>シフトパターン時刻を.substring(0, 5)でVARCHAR(5)形式に変換</td>
+            </tr>
+            <tr>
+                <td class="file-path">StaffTimeTable.jsx</td>
+                <td>DB保存時に':00'が追加される</td>
+                <td>':00'追加処理を削除（VARCHAR(5)形式対応）</td>
+            </tr>
+            <tr>
+                <td class="file-path">SecondPlanEditor.jsx</td>
+                <td>表示用時刻で.replace(':00', '')が実行される</td>
+                <td>replace処理を削除（既にVARCHAR(5)形式）</td>
+            </tr>
+        </table>
+
+        <h3>10.6 コミット履歴</h3>
+
+        <table>
+            <tr>
+                <th>コミットID</th>
+                <th>種別</th>
+                <th>内容</th>
+            </tr>
+            <tr>
+                <td><code>a26b2ef</code></td>
+                <td><span class="badge badge-db">DB</span></td>
+                <td>feat(db): Phase 1 - シフト関連テーブル構造変更</td>
+            </tr>
+            <tr>
+                <td><code>98276d4</code></td>
+                <td><span class="badge badge-backend">Backend</span></td>
+                <td>feat(api): Phase 2 - シフト希望API（1日1レコード形式対応）</td>
+            </tr>
+            <tr>
+                <td><code>d2ae1d6</code></td>
+                <td><span class="badge badge-frontend">Frontend</span></td>
+                <td>feat(frontend): Phase 3 - フロントエンド新API形式対応</td>
+            </tr>
+            <tr>
+                <td><code>f8f9890</code></td>
+                <td>-</td>
+                <td>docs: スキーマ変更に伴う設計書・READMEの更新</td>
+            </tr>
+        </table>
+
+        <h3>10.7 残課題</h3>
+
+        <div class="future-scope">
+            <strong>📋 将来対応:</strong>
+            <ul>
+                <li><strong>core.shift_patterns テーブル:</strong> start_time/end_time が未だTIME型。現在はフロントエンドで.substring(0, 5)で対応中。将来的にVARCHAR(5)への移行を検討（Issue登録推奨）</li>
+                <li><strong>時刻バリデーション追加:</strong> 05:00〜28:00の範囲チェック</li>
+            </ul>
+        </div>
+
+        <hr>
+        <p style="text-align: center; color: #718096; font-size: 14px;">
+            作成: 2025-11-26 | 実装完了: 2025-11-27 | AIシフトスケジューラー開発チーム
+        </p>
+    </div>
+</body>
+</html>

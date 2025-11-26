@@ -3,6 +3,7 @@ import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
 import { Button } from '../../ui/button'
+import { isoToJSTDateString } from '../../../utils/dateUtils'
 import {
   RefreshCw,
   Zap,
@@ -30,6 +31,7 @@ import { Rnd } from 'react-rnd'
 import ShiftTimeline from '../../shared/ShiftTimeline'
 import ShiftTableView from '../../shared/ShiftTableView'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
+import TimeInput from '../../shared/TimeInput'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
 import { CSVRepository } from '../../../infrastructure/repositories/CSVRepository'
@@ -286,10 +288,13 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       setCsvShifts(secondPlanWithStaffInfo) // 第2案の元データ（詳細表示用）
       setShiftData(secondPlanWithStaffInfo) // 第2案の編集データ
 
-      // 希望シフトを取得
+      // ★変更: 新API形式（date_from, date_to）で希望シフトを取得
+      const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`
+      const lastDay = new Date(year, month, 0).getDate()
+      const dateTo = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
       const preferencesData = await shiftRepository.getPreferences({
-        year,
-        month,
+        dateFrom,
+        dateTo,
       })
       console.log(`希望シフト取得: ${preferencesData.length}件`)
 
@@ -321,7 +326,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     const conflicts = []
     const daysInMonth = new Date(year, month, 0).getDate()
 
-    // スタッフごとの希望日をマップに変換
+    // ★変更: 新API形式（1日1レコード）でスタッフごとの希望日をマップに変換
     const staffPreferencesMap = {}
     prefs.forEach(pref => {
       if (!staffPreferencesMap[pref.staff_id]) {
@@ -331,20 +336,15 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
         }
       }
 
-      // preferred_daysをパース（カンマ区切り）
-      if (pref.preferred_days) {
-        const days = pref.preferred_days.split(',').map(d => d.trim())
-        days.forEach(day => {
-          staffPreferencesMap[pref.staff_id].preferredDays.add(day)
-        })
-      }
+      // preference_dateからYYYY-MM-DD形式を取得（JSTで正しくパース）
+      const dateStr = isoToJSTDateString(pref.preference_date)
 
-      // ng_daysをパース
-      if (pref.ng_days) {
-        const days = pref.ng_days.split(',').map(d => d.trim())
-        days.forEach(day => {
-          staffPreferencesMap[pref.staff_id].ngDays.add(day)
-        })
+      if (pref.is_ng) {
+        // NG日
+        staffPreferencesMap[pref.staff_id].ngDays.add(dateStr)
+      } else {
+        // 勤務希望日
+        staffPreferencesMap[pref.staff_id].preferredDays.add(dateStr)
       }
     })
 
@@ -617,7 +617,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
         const staffInfo = newStaffMap[shift.staff_id] || { name: '不明', skill_level: 1 }
         groupedByDate[shift.date].push({
           name: staffInfo.name,
-          time: `${shift.start_time.replace(':00', '')}-${shift.end_time.replace(':00', '')}`,
+          time: `${shift.start_time}-${shift.end_time}`, // VARCHAR(5)形式: "09:00-18:00"
           skill: shift.skill_level || staffInfo.skill_level,
           preferred: shift.is_preferred,
           changed: false,
@@ -660,7 +660,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
             }
             firstPlanGrouped[shift.date].push({
               name: staffInfo.name,
-              time: `${shift.start_time.replace(':00', '')}-${shift.end_time.replace(':00', '')}`,
+              time: `${shift.start_time}-${shift.end_time}`, // VARCHAR(5)形式: "09:00-18:00"
               skill: shift.skill_level || staffInfo.skill_level,
               role: staffInfo.role_name,
               preferred: shift.is_preferred,
@@ -1678,29 +1678,25 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
                       </div>
                     )
                   })()}
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    開始時刻 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={e => setStartTime(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                <TimeInput
+                  value={startTime}
+                  onChange={setStartTime}
+                  label="開始時刻"
+                  required
+                  minHour={5}
+                  maxHour={28}
+                  minuteStep={15}
+                />
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    終了時刻 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={e => setEndTime(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                <TimeInput
+                  value={endTime}
+                  onChange={setEndTime}
+                  label="終了時刻"
+                  required
+                  minHour={5}
+                  maxHour={28}
+                  minuteStep={15}
+                />
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">

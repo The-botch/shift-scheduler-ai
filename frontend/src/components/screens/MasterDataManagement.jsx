@@ -27,6 +27,7 @@ import {
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { useTenant } from '../../contexts/TenantContext'
 import DataImpactDocumentation from './DataImpactDocumentation'
+import TimeInput from '../shared/TimeInput'
 
 const masterRepository = new MasterRepository()
 
@@ -1170,21 +1171,23 @@ const MasterDataManagement = ({ onPrev }) => {
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">営業開始時刻</label>
-              <input
-                type="time"
+              <TimeInput
                 value={formData.business_hours_start || ''}
-                onChange={e => handleInputChange('business_hours_start', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={val => handleInputChange('business_hours_start', val)}
+                label="営業開始時刻"
+                minHour={5}
+                maxHour={28}
+                minuteStep={30}
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">営業終了時刻</label>
-              <input
-                type="time"
+              <TimeInput
                 value={formData.business_hours_end || ''}
-                onChange={e => handleInputChange('business_hours_end', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={val => handleInputChange('business_hours_end', val)}
+                label="営業終了時刻"
+                minHour={5}
+                maxHour={28}
+                minuteStep={30}
               />
             </div>
           </>
@@ -1337,21 +1340,23 @@ const MasterDataManagement = ({ onPrev }) => {
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">開始時刻</label>
-              <input
-                type="time"
+              <TimeInput
                 value={formData.start_time || ''}
-                onChange={e => handleInputChange('start_time', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={val => handleInputChange('start_time', val)}
+                label="開始時刻"
+                minHour={5}
+                maxHour={28}
+                minuteStep={15}
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">終了時刻</label>
-              <input
-                type="time"
+              <TimeInput
                 value={formData.end_time || ''}
-                onChange={e => handleInputChange('end_time', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                onChange={val => handleInputChange('end_time', val)}
+                label="終了時刻"
+                minHour={5}
+                maxHour={28}
+                minuteStep={15}
               />
             </div>
             <div className="mb-4">

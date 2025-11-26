@@ -366,9 +366,9 @@ CREATE TABLE IF NOT EXISTS ops.shifts (
     plan_id INT NOT NULL,
     staff_id INT NOT NULL,
     shift_date DATE NOT NULL,
-    pattern_id INT NOT NULL,
-    start_time TIME NOT NULL,
-    end_time TIME NOT NULL,
+    pattern_id INT,                          -- ★変更: NOT NULL → NULL許可（MVPではシフトパターン入力なし）
+    start_time VARCHAR(5) NOT NULL,          -- ★変更: TIME → VARCHAR(5)（24時間超過表記対応: "09:00", "25:00"）
+    end_time VARCHAR(5) NOT NULL,            -- ★変更: TIME → VARCHAR(5)（24時間超過表記対応: "18:00", "26:00"）
     break_minutes INT NOT NULL DEFAULT 0,
     total_hours DECIMAL(5,2),
     labor_cost INT,
@@ -389,31 +389,29 @@ CREATE TABLE IF NOT EXISTS ops.shifts (
 COMMENT ON TABLE ops.shifts IS 'シフト実績/計画（CSV投入 or AI生成）';
 
 -- ops.shift_preferences（シフト希望）- メンバーが入力
+-- ★大幅変更: 1日1レコード形式に変更（設計書: docs/design-docs/20251126_shift_preferences_schema_change.html）
 CREATE TABLE IF NOT EXISTS ops.shift_preferences (
     preference_id SERIAL PRIMARY KEY,
     tenant_id INT NOT NULL,
     store_id INT NOT NULL,
     staff_id INT NOT NULL,
-    staff_name VARCHAR(100),
-    year INT NOT NULL,
-    month INT NOT NULL,
-    preferred_days TEXT,
-    ng_days TEXT,
-    preferred_time_slots TEXT,
-    max_hours_per_week DECIMAL(5,2),
-    notes TEXT,
-    submitted_at TIMESTAMP,
-    status VARCHAR(20) DEFAULT 'PENDING',
+    preference_date DATE NOT NULL,           -- ★変更: year/month → preference_date（1日1レコード）
+    is_ng BOOLEAN NOT NULL DEFAULT FALSE,    -- ★追加: TRUE=NG日（出勤不可）、FALSE=希望日（出勤希望）
+    start_time VARCHAR(5),                   -- ★追加: 希望開始時刻（アルバイト用、例: "09:00", "25:00"）
+    end_time VARCHAR(5),                     -- ★追加: 希望終了時刻（アルバイト用、例: "18:00", "26:00"）
+    notes TEXT,                              -- 日付ごとのコメント
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
     FOREIGN KEY (store_id) REFERENCES core.stores(store_id) ON DELETE CASCADE,
     FOREIGN KEY (staff_id) REFERENCES hr.staff(staff_id) ON DELETE CASCADE,
-    CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED'))
+
+    -- ★追加: 同一スタッフ・同一日付で1レコードのみ許可（重複登録防止）
+    CONSTRAINT unique_preference_per_staff_date UNIQUE (tenant_id, staff_id, preference_date)
 );
 
-COMMENT ON TABLE ops.shift_preferences IS 'シフト希望（メンバーが入力）';
+COMMENT ON TABLE ops.shift_preferences IS 'シフト希望（メンバーが入力）- 1日1レコード形式';
 
 -- ops.availability_requests（出勤可否リクエスト）- メンバーが入力
 CREATE TABLE IF NOT EXISTS ops.availability_requests (
@@ -719,7 +717,9 @@ CREATE INDEX IF NOT EXISTS idx_shifts_plan ON ops.shifts(plan_id);
 CREATE INDEX IF NOT EXISTS idx_shift_preferences_tenant ON ops.shift_preferences(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_shift_preferences_store ON ops.shift_preferences(store_id);
 CREATE INDEX IF NOT EXISTS idx_shift_preferences_staff ON ops.shift_preferences(staff_id);
-CREATE INDEX IF NOT EXISTS idx_shift_preferences_period ON ops.shift_preferences(year, month);
+-- ★変更: year/month → preference_date（1日1レコード形式対応）
+CREATE INDEX IF NOT EXISTS idx_shift_preferences_date ON ops.shift_preferences(preference_date);
+CREATE INDEX IF NOT EXISTS idx_shift_preferences_is_ng ON ops.shift_preferences(is_ng);
 CREATE INDEX IF NOT EXISTS idx_availability_requests_tenant ON ops.availability_requests(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_availability_requests_store ON ops.availability_requests(store_id);
 CREATE INDEX IF NOT EXISTS idx_availability_requests_staff ON ops.availability_requests(staff_id);
@@ -862,17 +862,19 @@ COMMENT ON COLUMN ops.line_message_logs.status IS 'success: 成功, failed: 失�
 COMMENT ON COLUMN ops.line_message_logs.parsed_data IS '解析されたデータのJSON';
 
 -- 3. shift_preferencesテーブルにユニーク制約を追加
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_constraint
-    WHERE conname = 'unique_shift_preference_per_staff_period'
-  ) THEN
-    ALTER TABLE ops.shift_preferences
-    ADD CONSTRAINT unique_shift_preference_per_staff_period
-    UNIQUE (tenant_id, staff_id, year, month);
-  END IF;
-END $$;
+-- ★削除: 旧構造（year, month）のユニーク制約は不要
+-- 新構造ではテーブル定義内でunique_preference_per_staff_date制約を設定済み
+-- DO $$
+-- BEGIN
+--   IF NOT EXISTS (
+--     SELECT 1 FROM pg_constraint
+--     WHERE conname = 'unique_shift_preference_per_staff_period'
+--   ) THEN
+--     ALTER TABLE ops.shift_preferences
+--     ADD CONSTRAINT unique_shift_preference_per_staff_period
+--     UNIQUE (tenant_id, staff_id, year, month);
+--   END IF;
+-- END $$;
 
 -- Migration 2: シフト案区分機能 (2025-11-09追加)
 -- ============================================
