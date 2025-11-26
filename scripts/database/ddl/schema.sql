@@ -353,7 +353,10 @@ CREATE TABLE IF NOT EXISTS ops.shift_plans (
 
     FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
     FOREIGN KEY (store_id) REFERENCES core.stores(store_id) ON DELETE CASCADE,
-    CHECK (status IN ('DRAFT', 'APPROVED'))
+    CHECK (status IN ('DRAFT', 'APPROVED')),
+
+    -- 同一テナント・店舗・年月・プランタイプで一意
+    CONSTRAINT unique_plan_per_store_month_type UNIQUE (tenant_id, store_id, plan_year, plan_month, plan_type)
 );
 
 COMMENT ON TABLE ops.shift_plans IS 'シフト計画（AIが生成）';
