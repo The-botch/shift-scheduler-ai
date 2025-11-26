@@ -18,12 +18,8 @@ class OpenAIClientService {
       model = 'gpt-4-turbo-preview'
     } = options
 
-    console.log(`[OpenAIClient] AI生成開始: model=${model}, temperature=${temperature}`)
-
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       try {
-        console.log(`[OpenAIClient] 試行 ${attempt}/${maxRetries}...`)
-
         const response = await openai.chat.completions.create({
           model,
           temperature,
@@ -35,7 +31,6 @@ class OpenAIClientService {
         })
 
         const content = response.choices[0].message.content
-        console.log(`[OpenAIClient] AI生成成功 (${attempt}回目)`)
 
         return content
 
@@ -48,7 +43,6 @@ class OpenAIClientService {
 
         // 指数バックオフ (1秒、2秒、4秒)
         const waitTime = Math.pow(2, attempt - 1) * 1000
-        console.log(`[OpenAIClient] ${waitTime}ms待機してリトライします...`)
         await this.sleep(waitTime)
       }
     }

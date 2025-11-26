@@ -14,8 +14,6 @@ class MasterDataCollectorService {
    * @returns {Promise<Object>} マスターデータオブジェクト
    */
   async collectMasterData(tenantId, storeId, year, month) {
-    console.log(`[DataCollector] データ収集開始: tenant=${tenantId}, store=${storeId}, ${year}/${month}`)
-
     const [
       staff,
       shiftPatterns,
@@ -33,13 +31,6 @@ class MasterDataCollectorService {
     ])
 
     const daysInMonth = new Date(year, month, 0).getDate()
-
-    console.log(`[DataCollector] データ収集完了:`, {
-      staffCount: staff.length,
-      patternsCount: shiftPatterns.length,
-      constraintsCount: laborLawConstraints.length + storeConstraints.length,
-      daysInMonth
-    })
 
     return {
       staff,

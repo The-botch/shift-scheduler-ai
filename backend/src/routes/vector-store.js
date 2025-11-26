@@ -108,8 +108,6 @@ router.post('/setup', async (req, res) => {
         await openai.vectorStores.files.create(vectorStore.id, {
           file_id: file.id,
         })
-
-        console.log(`✅ ${name}.json をVector Storeに追加しました (${result.rows.length}件)`)
       }
 
       res.json({

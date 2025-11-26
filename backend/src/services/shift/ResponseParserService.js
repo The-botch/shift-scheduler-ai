@@ -10,8 +10,6 @@ class ResponseParserService {
    * @returns {Promise<Object>} { shifts: [...], errors: [...] }
    */
   async parseAndValidate(aiResponse, masterData) {
-    console.log('[ResponseParser] AI応答のパース開始')
-
     const errors = []
     let parsedData = null
 
@@ -28,8 +26,6 @@ class ResponseParserService {
       throw new Error('AI応答に shifts 配列が含まれていません')
     }
 
-    console.log(`[ResponseParser] ${parsedData.shifts.length}件のシフトをパース中...`)
-
     // 3. 各シフトの検証と正規化
     const validatedShifts = []
     const { staff, shiftPatterns, period } = masterData
@@ -44,12 +40,6 @@ class ResponseParserService {
         errors.push(...validation.errors)
       }
     }
-
-    console.log('[ResponseParser] パース完了:', {
-      total: parsedData.shifts.length,
-      valid: validatedShifts.length,
-      errors: errors.length
-    })
 
     // 4. エラーが多すぎる場合は失敗扱い
     if (errors.length > parsedData.shifts.length * 0.5) {

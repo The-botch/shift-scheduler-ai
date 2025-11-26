@@ -27,13 +27,10 @@ class ShiftGenerationService {
    * @returns {Promise<Object>} { shifts, validation, metadata }
    */
   async generateShifts(tenantId, storeId, year, month, options = {}) {
-    console.log('[ShiftGeneration] AI自動生成開始:', { tenantId, storeId, year, month })
-
     const startTime = Date.now()
 
     try {
       // フェーズ1: マスターデータ収集
-      console.log('[ShiftGeneration] Phase 1: マスターデータ収集')
       const masterData = await this.dataCollector.collectMasterData(
         tenantId,
         storeId,
@@ -45,11 +42,9 @@ class ShiftGenerationService {
       this.validateMasterData(masterData)
 
       // フェーズ2: プロンプト生成
-      console.log('[ShiftGeneration] Phase 2: プロンプト生成')
       const prompt = this.promptBuilder.buildPrompt(masterData)
 
       // フェーズ3: AI生成
-      console.log('[ShiftGeneration] Phase 3: AI生成')
       const aiResponse = await this.aiClient.generateShifts(prompt, {
         maxRetries: options.maxRetries || 3,
         temperature: options.temperature || 0.7,
@@ -57,23 +52,15 @@ class ShiftGenerationService {
       })
 
       // フェーズ4: 応答パース
-      console.log('[ShiftGeneration] Phase 4: 応答パース')
       const parsed = await this.responseParser.parseAndValidate(aiResponse, masterData)
 
       // フェーズ5: 制約検証
-      console.log('[ShiftGeneration] Phase 5: 制約検証')
       const validation = await this.constraintValidator.validateShifts(
         parsed.shifts,
         masterData
       )
 
       const elapsed = Date.now() - startTime
-
-      console.log('[ShiftGeneration] AI自動生成完了:', {
-        shifts: parsed.shifts.length,
-        violations: validation.violations.length,
-        elapsed: `${elapsed}ms`
-      })
 
       return {
         shifts: parsed.shifts,

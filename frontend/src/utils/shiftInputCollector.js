@@ -696,8 +696,6 @@ export const collectWeatherData = async (year, month) => {
  * @returns {Promise<Object>} 全インプットデータ
  */
 export const collectAllInputs = async (year, month, enabledCategories = {}) => {
-  console.log(`シフト生成インプットデータ収集開始: ${year}年${month}月`)
-
   const startTime = Date.now()
 
   // デフォルトで全て有効

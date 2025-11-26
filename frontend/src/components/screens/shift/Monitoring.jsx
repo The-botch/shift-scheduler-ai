@@ -60,11 +60,6 @@ const Monitoring = () => {
       ? parseInt(shift.storeId)
       : null
 
-  // デバッグログ
-  console.log('Monitoring - 受け取ったshift:', shift)
-  console.log('Monitoring - initialMonth:', initialMonth)
-  console.log('Monitoring - initialStoreId:', initialStoreId, '(type:', typeof initialStoreId, ')')
-
   const [staffStatus, setStaffStatus] = useState([])
   const [loading, setLoading] = useState(true)
   const [selectedStaff, setSelectedStaff] = useState(null)
@@ -92,7 +87,6 @@ const Monitoring = () => {
   // initialMonthが渡された場合は年月を設定（一度だけ）
   useEffect(() => {
     if (initialMonth && !isInitializedRef.current) {
-      console.log('Monitoring - initialMonthを適用:', initialMonth)
       setHistoryYear(initialMonth.year)
       setHistoryMonth(initialMonth.month)
       isInitializedRef.current = true
@@ -104,9 +98,7 @@ const Monitoring = () => {
 
   // initialStoreIdが渡された場合は店舗を設定（一度だけ）
   useEffect(() => {
-    console.log('Monitoring - initialStoreId useEffect:', initialStoreId)
     if (initialStoreId && !isStoreInitializedRef.current) {
-      console.log('Monitoring - selectedStoreIdを設定:', initialStoreId)
       setSelectedStoreId(initialStoreId)
       isStoreInitializedRef.current = true
     }
@@ -117,14 +109,6 @@ const Monitoring = () => {
   }, [tenantId])
 
   useEffect(() => {
-    console.log(
-      'Monitoring - loadAvailabilityData実行 historyYear:',
-      historyYear,
-      'historyMonth:',
-      historyMonth,
-      'selectedStoreId:',
-      selectedStoreId
-    )
     loadAvailabilityData()
   }, [historyYear, historyMonth, selectedStoreId, tenantId])
 
@@ -204,22 +188,12 @@ const Monitoring = () => {
       setShiftPatternsMap(patternsMapping)
 
       // スタッフを店舗でフィルタリング
-      console.log(
-        'Monitoring - フィルタリング前のスタッフ数:',
-        staffData.length,
-        'selectedStoreId:',
-        selectedStoreId
-      )
       const filteredStaffData = selectedStoreId
         ? staffData.filter(staff => {
             const match = parseInt(staff.store_id) === parseInt(selectedStoreId)
-            if (!match) {
-              console.log(`  除外: ${staff.name} (store_id: ${staff.store_id})`)
-            }
             return match
           })
         : staffData
-      console.log('Monitoring - フィルタリング後のスタッフ数:', filteredStaffData.length)
 
       // スタッフごとに集計
       const staffMap = {}
@@ -266,8 +240,6 @@ const Monitoring = () => {
       })
 
       const staffStatusArray = Object.values(staffMap)
-      console.log('Staff Status:', staffStatusArray)
-      console.log('Availability Requests:', availData)
       setStaffStatus(staffStatusArray)
       setAvailabilityRequests(availData)
 
@@ -406,12 +378,8 @@ const Monitoring = () => {
   }
 
   const handleStaffClick = staff => {
-    console.log('Clicked staff:', staff)
     if (staff.submitted) {
-      console.log('Staff is submitted, showing modal')
       setSelectedStaff(staff)
-    } else {
-      console.log('Staff not submitted, ignoring click')
     }
   }
 
@@ -579,7 +547,6 @@ const Monitoring = () => {
                       : 'text-sm px-3 py-1.5'
                   }
                   onClick={() => {
-                    console.log('Monitoring - 月ボタンクリック:', month, '現在の月:', historyMonth)
                     setHistoryMonth(month)
                   }}
                 >
@@ -599,7 +566,6 @@ const Monitoring = () => {
               value={selectedStoreId || ''}
               onChange={e => {
                 const newStoreId = e.target.value ? parseInt(e.target.value) : null
-                console.log('Monitoring - 店舗選択変更:', newStoreId, '元の値:', selectedStoreId)
                 setSelectedStoreId(newStoreId)
               }}
               className="px-3 py-2 border-2 border-gray-300 rounded-lg text-base font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"

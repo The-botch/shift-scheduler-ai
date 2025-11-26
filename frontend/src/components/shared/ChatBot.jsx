@@ -39,7 +39,6 @@ const ChatBot = ({ assistantId, onClose }) => {
         try {
           const thread = await createThread()
           setThreadId(thread.id)
-          console.log('Thread作成:', thread.id)
         } catch (error) {
           console.error('Thread作成エラー:', error)
         }

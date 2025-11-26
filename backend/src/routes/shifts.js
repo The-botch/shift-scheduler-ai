@@ -9,6 +9,96 @@ import { calculateWorkHours, calculateWorkHoursFixed, formatDateToYYYYMMDD } fro
 
 const router = express.Router();
 
+// ============================================
+// 共通ヘルパー関数
+// ============================================
+
+/**
+ * 前月を計算
+ */
+function getPreviousMonth(year, month) {
+  if (month === 1) {
+    return { year: year - 1, month: 12 };
+  }
+  return { year, month: month - 1 };
+}
+
+/**
+ * シフトを取得する（共通関数）
+ *
+ * @param {number} tenantId - テナントID
+ * @param {Object} options - 検索オプション
+ * @param {number} options.year - 年
+ * @param {number} options.month - 月
+ * @param {number|null} options.storeId - 店舗ID（nullの場合は全店舗）
+ * @param {string|null} options.planType - 'FIRST' | 'SECOND' | null（nullの場合は全タイプ）
+ * @returns {Object} - { plans: [...], shifts: [...], plansByStoreId: Map }
+ */
+async function getShiftsData(tenantId, { year, month, storeId = null, planType = null }) {
+  // 1. プランを取得
+  let planSql = `
+    SELECT plan_id, store_id, plan_year, plan_month, plan_type, status
+    FROM ops.shift_plans
+    WHERE tenant_id = $1 AND plan_year = $2 AND plan_month = $3
+  `;
+  const planParams = [tenantId, year, month];
+  let paramIndex = 4;
+
+  if (storeId) {
+    planSql += ` AND store_id = $${paramIndex++}`;
+    planParams.push(storeId);
+  }
+
+  if (planType) {
+    planSql += ` AND plan_type = $${paramIndex++}`;
+    planParams.push(planType);
+  }
+
+  planSql += ` ORDER BY store_id`;
+
+  const planResult = await query(planSql, planParams);
+  const plans = planResult.rows;
+
+  if (plans.length === 0) {
+    return { plans: [], shifts: [], plansByStoreId: new Map() };
+  }
+
+  // 2. シフトを取得（プランIDで絞り込み）
+  const planIds = plans.map(p => p.plan_id);
+  const shiftResult = await query(`
+    SELECT *
+    FROM ops.shifts
+    WHERE plan_id = ANY($1)
+    ORDER BY store_id, shift_date, staff_id
+  `, [planIds]);
+
+  // 3. store_id → plan のマップを作成
+  const plansByStoreId = new Map(plans.map(p => [p.store_id, p]));
+
+  return {
+    plans,
+    shifts: shiftResult.rows,
+    plansByStoreId
+  };
+}
+
+/**
+ * 前月のSECOND案シフトを取得する（便利関数）
+ */
+async function getPreviousSecondShifts(tenantId, targetYear, targetMonth, storeId = null) {
+  const { year: prevYear, month: prevMonth } = getPreviousMonth(targetYear, targetMonth);
+  return getShiftsData(tenantId, {
+    year: prevYear,
+    month: prevMonth,
+    storeId,
+    planType: 'SECOND'
+  });
+}
+
+// ============================================
+// エンドポイント
+// ============================================
+
 /**
  * シフト計画一覧取得
  * GET /api/shifts/plans
@@ -419,47 +509,21 @@ router.post('/plans/generate', async (req, res) => {
       throw lockError;
     }
 
-    // 前月の計算
-    let prevYear = year;
-    let prevMonth = month - 1;
-    if (prevMonth === 0) {
-      prevMonth = 12;
-      prevYear = year - 1;
+    // 前月のSECOND案を取得（共通関数を使用）
+    const { plans: sourcePlans, shifts: sourceShifts } = await getPreviousSecondShifts(tenant_id, year, month, store_id);
+
+    if (sourcePlans.length === 0) {
+      const { year: prevYear, month: prevMonth } = getPreviousMonth(year, month);
+      return res.status(404).json({
+        success: false,
+        error: 'No SECOND plan found for previous month',
+        message: `${prevYear}年${prevMonth}月の第2案（確定版）が存在しません。第2案を作成・承認してからコピーしてください。`
+      });
     }
 
-    // 前月のシフトデータを取得
-    const prevShifts = await query(`
-      SELECT
-        sh.shift_id,
-        sh.tenant_id,
-        sh.store_id,
-        sh.plan_id,
-        sh.staff_id,
-        TO_CHAR(sh.shift_date, 'YYYY-MM-DD') as shift_date,
-        sh.pattern_id,
-        sh.start_time,
-        sh.end_time,
-        sh.break_minutes,
-        sh.total_hours,
-        sh.labor_cost,
-        sh.assigned_skills,
-        sh.is_preferred,
-        sh.is_modified,
-        sh.notes,
-        sh.created_at,
-        sh.updated_at,
-        pat.pattern_name,
-        pat.pattern_code
-      FROM ops.shifts sh
-      LEFT JOIN core.shift_patterns pat ON sh.pattern_id = pat.pattern_id
-      WHERE sh.tenant_id = $1
-        AND sh.store_id = $2
-        AND EXTRACT(YEAR FROM sh.shift_date) = $3
-        AND EXTRACT(MONTH FROM sh.shift_date) = $4
-      ORDER BY sh.shift_date, sh.staff_id, sh.start_time
-    `, [tenant_id, store_id, prevYear, prevMonth]);
+    const sourcePlan = sourcePlans[0];
 
-    if (prevShifts.rows.length === 0) {
+    if (sourceShifts.length === 0) {
       return res.status(404).json({
         success: false,
         error: `No shift data found for previous month (${prevYear}/${prevMonth})`,
@@ -481,17 +545,6 @@ router.post('/plans/generate', async (req, res) => {
       const planCode = `PLAN-${year}${String(month).padStart(2, '0')}-001`;
       const planName = `${year}年${month}月シフト（第1案）`;
 
-      console.log('📝 Creating new plan with params:', {
-        tenant_id,
-        store_id,
-        year,
-        month,
-        planCode,
-        planName,
-        plan_type: 'FIRST',
-        status: 'DRAFT'
-      });
-
       const planResult = await query(`
         INSERT INTO ops.shift_plans (
           tenant_id, store_id, plan_year, plan_month,
@@ -504,8 +557,6 @@ router.post('/plans/generate', async (req, res) => {
         planCode, planName, periodStart, periodEnd,
         created_by || null
       ]);
-
-      console.log('✅ Plan created:', planResult.rows[0]);
 
       newPlanId = planResult.rows[0].plan_id;
     }
@@ -749,8 +800,6 @@ router.post('/plans/generate-ai', async (req, res) => {
         message: `${year}年${month}月は過去の月のため、シフトを作成できません。`
       });
     }
-
-    console.log('[API] AI自動生成リクエスト:', { tenant_id, store_id, year, month, options });
 
     // AIシフト生成サービスを実行
     const generationService = new ShiftGenerationService();
@@ -2071,6 +2120,7 @@ router.put('/:id', async (req, res) => {
       shift_date,
       pattern_id,
       staff_id,
+      store_id,
       total_hours,
       labor_cost,
       assigned_skills,
@@ -2086,6 +2136,7 @@ router.put('/:id', async (req, res) => {
     const newShiftDate = shift_date !== undefined ? shift_date : existingShift.shift_date;
     const newPatternId = pattern_id !== undefined ? pattern_id : existingShift.pattern_id;
     const newStaffId = staff_id !== undefined ? staff_id : existingShift.staff_id;
+    const newStoreId = store_id !== undefined ? store_id : existingShift.store_id;
     const newIsPreferred = is_preferred !== undefined ? is_preferred : existingShift.is_preferred;
     const newNotes = notes !== undefined ? notes : existingShift.notes;
 
@@ -2158,19 +2209,20 @@ router.put('/:id', async (req, res) => {
         shift_date = $1,
         pattern_id = $2,
         staff_id = $3,
-        start_time = $4,
-        end_time = $5,
-        break_minutes = $6,
-        total_hours = $7,
-        labor_cost = $8,
-        assigned_skills = $9,
-        is_preferred = $10,
-        is_modified = $11,
-        notes = $12,
+        store_id = $4,
+        start_time = $5,
+        end_time = $6,
+        break_minutes = $7,
+        total_hours = $8,
+        labor_cost = $9,
+        assigned_skills = $10,
+        is_preferred = $11,
+        is_modified = $12,
+        notes = $13,
         updated_at = CURRENT_TIMESTAMP
-      WHERE shift_id = $13 AND tenant_id = $14
+      WHERE shift_id = $14 AND tenant_id = $15
     `, [
-      newShiftDate, newPatternId, newStaffId, newStartTime, newEndTime,
+      newShiftDate, newPatternId, newStaffId, newStoreId, newStartTime, newEndTime,
       newBreakMinutes, calculatedTotalHours, calculatedLaborCost, assignedSkillsJson,
       newIsPreferred, newIsModified, newNotes, id, tenant_id
     ]);
@@ -2432,12 +2484,6 @@ router.put('/plans/:plan_id/status', async (req, res) => {
       });
     }
 
-    console.log('📝 Updating plan status:', {
-      plan_id,
-      new_status: status,
-      old_status: planCheck.rows[0].status
-    });
-
     // ステータスを更新
     const updateResult = await query(
       `UPDATE ops.shift_plans
@@ -2446,8 +2492,6 @@ router.put('/plans/:plan_id/status', async (req, res) => {
        RETURNING plan_id, store_id, plan_year, plan_month, plan_type, status`,
       [status, plan_id]
     );
-
-    console.log('✅ Plan status updated:', updateResult.rows[0]);
 
     res.json({
       success: true,
@@ -2503,8 +2547,6 @@ router.post('/plans/copy-from-previous', async (req, res) => {
       source_year = target_year - 1;
     }
 
-    console.log(`[CopyFromPrevious] ${source_year}年${source_month}月 → ${target_year}年${target_month}月へコピー`);
-
     // トランザクション開始
     await query('BEGIN');
 
@@ -2546,8 +2588,6 @@ router.post('/plans/copy-from-previous', async (req, res) => {
         });
       }
 
-      console.log(`[CopyFromPrevious] コピー元シフト件数: ${sourceShiftsResult.rows.length}件`);
-
       // 新規プラン作成
       const periodStart = new Date(target_year, target_month - 1, 1);
       const periodEnd = new Date(target_year, target_month, 0);
@@ -2568,7 +2608,6 @@ router.post('/plans/copy-from-previous', async (req, res) => {
       ]);
 
       const new_plan_id = newPlanResult.rows[0].plan_id;
-      console.log(`[CopyFromPrevious] 新規プランID: ${new_plan_id}`);
 
       // 曜日ベースマッピングを構築
       // 先月の各日について「第N週の○曜日」を計算
@@ -2638,14 +2677,12 @@ router.post('/plans/copy-from-previous', async (req, res) => {
             targetDay = targetMapping[fallbackKey];
 
             if (targetDay) {
-              console.log(`[CopyFromPrevious] ${key}が存在しないため、${fallbackKey}にフォールバック`);
               usedFallback = true;
               fallbackCount += sourceShifts.length;
             }
           }
 
           if (!targetDay) {
-            console.log(`[CopyFromPrevious] スキップ: ${key} (フォールバック先も存在しない)`);
             skippedCount += sourceShifts.length;
             continue;
           }
@@ -2682,14 +2719,10 @@ router.post('/plans/copy-from-previous', async (req, res) => {
         }
       }
 
-      console.log(`[CopyFromPrevious] コピー完了: ${insertedCount}件挿入, ${skippedCount}件スキップ, ${fallbackCount}件フォールバック`);
-
       // コミット
       await query('COMMIT');
 
       // === 労働基準法チェック ===
-      console.log('[CopyFromPrevious] 労働基準法チェック開始');
-
       // コピーしたシフトデータを取得
       const copiedShiftsResult = await query(`
         SELECT
@@ -2745,8 +2778,6 @@ router.post('/plans/copy-from-previous', async (req, res) => {
         shiftsForValidation,
         masterData
       );
-
-      console.log('[CopyFromPrevious] バリデーション完了:', validationResult.summary);
 
       // レスポンスにバリデーション結果を含める
       res.status(201).json({
@@ -2807,8 +2838,6 @@ router.post('/plans/copy-from-previous-all-stores', async (req, res) => {
       });
     }
 
-    console.log(`[CopyFromPreviousAllStores] ${target_year}年${target_month}月を全店舗で作成`);
-
     // テナントの全店舗を取得
     const storesResult = await query(`
       SELECT store_id, store_name
@@ -2824,42 +2853,18 @@ router.post('/plans/copy-from-previous-all-stores', async (req, res) => {
       });
     }
 
+    // 前月のSECOND案を一括取得（全店舗分）- 共通関数を使用
+    const { plans: allSourcePlans, shifts: allSourceShifts, plansByStoreId: sourcePlanByStoreId } = await getPreviousSecondShifts(tenant_id, target_year, target_month);
+    const { year: prevYear, month: prevMonth } = getPreviousMonth(target_year, target_month);
+
     const createdPlans = [];
     const errors = [];
 
     // 各店舗ごとにプラン作成
     for (const store of storesResult.rows) {
       try {
-        console.log(`  店舗 ${store.store_name} (ID: ${store.store_id}) の処理開始`);
-
-        // この店舗の最新プランを検索（最大12ヶ月遡る）
-        let sourceYear = target_year;
-        let sourceMonth = target_month - 1;
-        let sourcePlan = null;
-
-        for (let i = 0; i < 12; i++) {
-          if (sourceMonth === 0) {
-            sourceMonth = 12;
-            sourceYear--;
-          }
-
-          const planCheck = await query(`
-            SELECT plan_id, plan_year, plan_month
-            FROM ops.shift_plans
-            WHERE tenant_id = $1 AND store_id = $2
-              AND plan_year = $3 AND plan_month = $4
-            ORDER BY plan_id DESC
-            LIMIT 1
-          `, [tenant_id, store.store_id, sourceYear, sourceMonth]);
-
-          if (planCheck.rows.length > 0) {
-            sourcePlan = planCheck.rows[0];
-            console.log(`    最新プラン発見: ${sourcePlan.plan_year}年${sourcePlan.plan_month}月 (plan_id: ${sourcePlan.plan_id})`);
-            break;
-          }
-
-          sourceMonth--;
-        }
+        // 前月のSECOND案を取得
+        const sourcePlan = sourcePlanByStoreId.get(store.store_id);
 
         // トランザクション開始
         await query('BEGIN');
@@ -2885,21 +2890,14 @@ router.post('/plans/copy-from-previous-all-stores', async (req, res) => {
           ]);
 
           const newPlanId = planResult.rows[0].plan_id;
-          console.log(`    新規プラン作成: plan_id=${newPlanId}`);
 
           let copiedShiftsCount = 0;
           const shiftsToInsert = []; // バルクINSERT用の配列
 
           // 最新プランが見つかった場合はシフトをコピー
           if (sourcePlan) {
-            const sourceShifts = await query(`
-              SELECT *
-              FROM ops.shifts
-              WHERE plan_id = $1
-              ORDER BY shift_date, staff_id
-            `, [sourcePlan.plan_id]);
-
-            console.log(`    コピー元シフト数: ${sourceShifts.rows.length}`);
+            // 事前取得済みのシフトからフィルタリング（クエリ不要）
+            const sourceShiftsRows = allSourceShifts.filter(s => s.plan_id === sourcePlan.plan_id);
 
             // 曜日ベースでコピー（既存ロジックと同じ）
             const getWeekInfo = (date) => {
@@ -2911,7 +2909,7 @@ router.post('/plans/copy-from-previous-all-stores', async (req, res) => {
             };
 
             const shiftsByWeekAndDay = {};
-            for (const shift of sourceShifts.rows) {
+            for (const shift of sourceShiftsRows) {
               const shiftDate = new Date(shift.shift_date);
               const { weekNumber, dayOfWeek } = getWeekInfo(shiftDate);
               const key = `w${weekNumber}_d${dayOfWeek}`;
@@ -2988,8 +2986,6 @@ router.post('/plans/copy-from-previous-all-stores', async (req, res) => {
             copied_shifts_count: copiedShiftsCount
           });
 
-          console.log(`    完了: ${copiedShiftsCount}件のシフトをコピー`);
-
         } catch (error) {
           await query('ROLLBACK');
           throw error;
@@ -3048,8 +3044,6 @@ router.post('/plans/fetch-previous-data-all-stores', async (req, res) => {
       });
     }
 
-    console.log(`[FetchPreviousDataAllStores] ${target_year}年${target_month}月の前月データを全店舗で取得`);
-
     // テナントの全店舗を取得
     const storesResult = await query(`
       SELECT store_id, store_name
@@ -3065,54 +3059,24 @@ router.post('/plans/fetch-previous-data-all-stores', async (req, res) => {
       });
     }
 
+    // 前月のSECOND案を一括取得（全店舗分）- 共通関数を使用
+    const { plans: allSourcePlans, shifts: allSourceShifts, plansByStoreId: sourcePlanByStoreId } = await getPreviousSecondShifts(tenant_id, target_year, target_month);
+    const { year: prevYear, month: prevMonth } = getPreviousMonth(target_year, target_month);
+
     const storesData = [];
 
     // 各店舗ごとにデータ取得
     for (const store of storesResult.rows) {
       try {
-        console.log(`  店舗 ${store.store_name} (ID: ${store.store_id}) の処理開始`);
-
-        // この店舗の最新プランを検索（最大12ヶ月遡る）
-        let sourceYear = target_year;
-        let sourceMonth = target_month - 1;
-        let sourcePlan = null;
-
-        for (let i = 0; i < 12; i++) {
-          if (sourceMonth === 0) {
-            sourceMonth = 12;
-            sourceYear--;
-          }
-
-          const planCheck = await query(`
-            SELECT plan_id, plan_year, plan_month
-            FROM ops.shift_plans
-            WHERE tenant_id = $1 AND store_id = $2
-              AND plan_year = $3 AND plan_month = $4
-            ORDER BY plan_id DESC
-            LIMIT 1
-          `, [tenant_id, store.store_id, sourceYear, sourceMonth]);
-
-          if (planCheck.rows.length > 0) {
-            sourcePlan = planCheck.rows[0];
-            console.log(`    最新プラン発見: ${sourcePlan.plan_year}年${sourcePlan.plan_month}月 (plan_id: ${sourcePlan.plan_id})`);
-            break;
-          }
-
-          sourceMonth--;
-        }
+        // 前月のSECOND案を取得
+        const sourcePlan = sourcePlanByStoreId.get(store.store_id);
 
         const shifts = [];
 
         // 最新プランが見つかった場合はシフトデータを取得して変換
         if (sourcePlan) {
-          const sourceShifts = await query(`
-            SELECT *
-            FROM ops.shifts
-            WHERE plan_id = $1
-            ORDER BY shift_date, staff_id
-          `, [sourcePlan.plan_id]);
-
-          console.log(`    取得元シフト数: ${sourceShifts.rows.length}`);
+          // 事前取得済みのシフトからフィルタリング（クエリ不要）
+          const sourceShiftsRows = allSourceShifts.filter(s => s.plan_id === sourcePlan.plan_id);
 
           // 曜日ベースで対象月に変換（特定の曜日が何回目に出現するかをカウント）
           const getWeekInfo = (date) => {
@@ -3134,7 +3098,7 @@ router.post('/plans/fetch-previous-data-all-stores', async (req, res) => {
           };
 
           const shiftsByWeekAndDay = {};
-          for (const shift of sourceShifts.rows) {
+          for (const shift of sourceShiftsRows) {
             const shiftDate = new Date(shift.shift_date);
             const { weekNumber, dayOfWeek } = getWeekInfo(shiftDate);
             const key = `w${weekNumber}_d${dayOfWeek}`;
@@ -3181,8 +3145,6 @@ router.post('/plans/fetch-previous-data-all-stores', async (req, res) => {
           source_plan: sourcePlan ? `${sourcePlan.plan_year}年${sourcePlan.plan_month}月` : null,
           shifts: shifts
         });
-
-        console.log(`    完了: ${shifts.length}件のシフトデータを生成`);
 
       } catch (storeError) {
         console.error(`  店舗 ${store.store_name} でエラー:`, storeError);
@@ -3247,8 +3209,6 @@ router.post('/plans/create-with-shifts', async (req, res) => {
       });
     }
 
-    console.log(`[CreateWithShifts] ${target_year}年${target_month}月の${plan_type}プランとシフトを一括作成`);
-
     const createdPlans = [];
     const errors = [];
 
@@ -3261,8 +3221,6 @@ router.post('/plans/create-with-shifts', async (req, res) => {
           errors.push({ error: 'store_idが必要です', storeData });
           continue;
         }
-
-        console.log(`  店舗ID ${store_id} の処理開始`);
 
         await query('BEGIN');
 
@@ -3289,13 +3247,11 @@ router.post('/plans/create-with-shifts', async (req, res) => {
           if (existingPlan.rows.length > 0) {
             // 既存プランあり → 更新
             planId = existingPlan.rows[0].plan_id;
-            console.log(`    既存プラン使用: plan_id=${planId}`);
 
             // 既存シフトを削除
-            const deleteResult = await query(`
+            await query(`
               DELETE FROM ops.shifts WHERE plan_id = $1
             `, [planId]);
-            console.log(`    既存シフト削除: ${deleteResult.rowCount}件`);
           } else {
             // 新規プラン作成
             const planResult = await query(`
@@ -3313,7 +3269,6 @@ router.post('/plans/create-with-shifts', async (req, res) => {
 
             planId = planResult.rows[0].plan_id;
             isNewPlan = true;
-            console.log(`    新規プラン作成: plan_id=${planId}`);
           }
 
           // シフトデータを挿入
@@ -3341,8 +3296,6 @@ router.post('/plans/create-with-shifts', async (req, res) => {
                 pattern_id, start_time, end_time, break_minutes
               ) VALUES ${values}
             `, params);
-
-            console.log(`    ${shifts.length}件のシフトを作成`);
           }
 
           await query('COMMIT');
