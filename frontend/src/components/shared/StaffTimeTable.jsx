@@ -376,9 +376,7 @@ const StaffTimeTable = ({
                           <div className="p-1 bg-yellow-50 border border-yellow-300 rounded space-y-0.5">
                             <TimeInput
                               value={editForm.start_time}
-                              onChange={val =>
-                                setEditForm({ ...editForm, start_time: val })
-                              }
+                              onChange={val => setEditForm({ ...editForm, start_time: val })}
                               label="開始"
                               compact
                               minHour={5}

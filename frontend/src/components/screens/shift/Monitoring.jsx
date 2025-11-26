@@ -275,9 +275,11 @@ const Monitoring = () => {
       const calendarShifts = []
       availData.forEach(req => {
         // preference_dateからJSTの日付を取得
-        const { year: prefYear, month: prefMonth, day: prefDay } = isoToJSTDateParts(
-          req.preference_date
-        )
+        const {
+          year: prefYear,
+          month: prefMonth,
+          day: prefDay,
+        } = isoToJSTDateParts(req.preference_date)
         const dateStr = isoToJSTDateString(req.preference_date)
 
         if (
@@ -797,8 +799,15 @@ const Monitoring = () => {
             {/* コンテンツ */}
             <div className="flex-1 overflow-y-auto p-6">
               {(() => {
-                const { preferredDaysSet, ngDaysSet, daysInMonth, firstDay, year, month, preferences } =
-                  getCalendarData(selectedStaff.id)
+                const {
+                  preferredDaysSet,
+                  ngDaysSet,
+                  daysInMonth,
+                  firstDay,
+                  year,
+                  month,
+                  preferences,
+                } = getCalendarData(selectedStaff.id)
                 const weekDays = ['日', '月', '火', '水', '木', '金', '土']
 
                 // 希望データが全くない場合
@@ -898,16 +907,12 @@ const Monitoring = () => {
                             </div>
                             {isNg && (
                               <div className="space-y-1">
-                                <div className="text-xs font-bold text-red-700">
-                                  ✕ NG
-                                </div>
+                                <div className="text-xs font-bold text-red-700">✕ NG</div>
                               </div>
                             )}
                             {isPreferred && (
                               <div className="space-y-1">
-                                <div className="text-xs font-bold text-green-700">
-                                  ◯ 出勤希望
-                                </div>
+                                <div className="text-xs font-bold text-green-700">◯ 出勤希望</div>
                               </div>
                             )}
                           </motion.div>
