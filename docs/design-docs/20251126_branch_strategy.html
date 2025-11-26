@@ -1,0 +1,788 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ブランチ運用戦略 - Shift Scheduler AI</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            margin-top: 30px;
+            border-left: 4px solid #3498db;
+            padding-left: 10px;
+        }
+        h3 {
+            color: #7f8c8d;
+            margin-top: 20px;
+        }
+        .section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .branch-box {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px;
+            border-radius: 5px;
+            font-weight: bold;
+            color: white;
+        }
+        .main-branch {
+            background-color: #e74c3c;
+        }
+        .staging-branch {
+            background-color: #f39c12;
+        }
+        .feature-branch {
+            background-color: #3498db;
+        }
+        .hotfix-branch {
+            background-color: #e67e22;
+        }
+        .flow-diagram {
+            background: #ecf0f1;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-family: monospace;
+            white-space: pre;
+            overflow-x: auto;
+        }
+        .step {
+            margin: 15px 0;
+            padding: 15px;
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            border-radius: 4px;
+        }
+        .warning {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        .success {
+            background: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+            border-radius: 4px;
+        }
+        code {
+            background: #f4f4f4;
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Courier New', monospace;
+        }
+        pre {
+            background: #2c3e50;
+            color: #ecf0f1;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 12px;
+            text-align: left;
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+        }
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+        .arrow {
+            display: inline-block;
+            margin: 0 10px;
+            font-size: 24px;
+            color: #3498db;
+        }
+    </style>
+</head>
+<body>
+    <h1>🌿 ブランチ運用戦略</h1>
+
+    <div class="section">
+        <p><strong>作成日:</strong> 2025年11月26日</p>
+        <p><strong>対象:</strong> Shift Scheduler AI プロジェクト</p>
+        <p><strong>目的:</strong> プロジェクトのブランチ運用ルールを明確化し、チーム全体で一貫した開発フローを確立する</p>
+    </div>
+
+    <h2>📋 目次</h2>
+    <div class="section">
+        <ol>
+            <li><a href="#overview">ブランチ構成概要</a></li>
+            <li><a href="#branch-types">ブランチの種類と役割</a></li>
+            <li><a href="#normal-flow">通常の開発フロー</a></li>
+            <li><a href="#hotfix-flow">緊急修正（Hotfix）フロー</a></li>
+            <li><a href="#branch-naming">ブランチ命名規則</a></li>
+            <li><a href="#ci-cd">CI/CD連携</a></li>
+            <li><a href="#best-practices">ベストプラクティス</a></li>
+        </ol>
+    </div>
+
+    <h2 id="overview">1. ブランチ構成概要</h2>
+    <div class="section">
+        <p>本プロジェクトでは、以下の3つの主要なブランチタイプを使用します：</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+            <div class="branch-box main-branch">main（本番環境）</div>
+            <span class="arrow">←</span>
+            <div class="branch-box staging-branch">staging（ステージング環境）</div>
+            <span class="arrow">←</span>
+            <div class="branch-box feature-branch">feature/xxx（開発環境）</div>
+        </div>
+
+        <div class="flow-diagram">
+main (本番環境)
+  ↑
+  │ マージ（任意のタイミング）
+  │
+staging (ステージング環境)
+  ↑
+  │ マージ（開発完了時）
+  │
+feature/xxx, fix/xxx, etc. (ローカル開発ブランチ)
+        </div>
+
+        <div class="success">
+            <strong>✅ 基本原則</strong>
+            <ul>
+                <li>stagingブランチはmainブランチから切り出される</li>
+                <li>開発者はstagingブランチから切り出したローカルブランチで開発</li>
+                <li>ローカルブランチ → staging → mainの順にマージ</li>
+                <li>stagingからmainへのマージは任意のタイミングで実施</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2 id="branch-types">2. ブランチの種類と役割</h2>
+
+    <div class="section">
+        <h3>2.1 mainブランチ（本番環境）</h3>
+        <div class="branch-box main-branch">main</div>
+
+        <table>
+            <tr>
+                <th>項目</th>
+                <th>内容</th>
+            </tr>
+            <tr>
+                <td><strong>目的</strong></td>
+                <td>本番環境にデプロイされるコードを管理</td>
+            </tr>
+            <tr>
+                <td><strong>保護設定</strong></td>
+                <td>
+                    • 直接pushは禁止<br>
+                    • PRレビュー必須<br>
+                    • CI checksパス必須
+                </td>
+            </tr>
+            <tr>
+                <td><strong>マージ元</strong></td>
+                <td>staging、またはhotfix/*ブランチのみ</td>
+            </tr>
+            <tr>
+                <td><strong>デプロイ</strong></td>
+                <td>マージ時に自動デプロイ（本番環境）</td>
+            </tr>
+            <tr>
+                <td><strong>安定性</strong></td>
+                <td>常に動作する状態を保つ（最重要）</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3>2.2 stagingブランチ（ステージング環境）</h3>
+        <div class="branch-box staging-branch">staging</div>
+
+        <table>
+            <tr>
+                <th>項目</th>
+                <th>内容</th>
+            </tr>
+            <tr>
+                <td><strong>目的</strong></td>
+                <td>ステージング環境での統合テスト、本番リリース前の最終確認</td>
+            </tr>
+            <tr>
+                <td><strong>切り出し元</strong></td>
+                <td>mainブランチから切り出される</td>
+            </tr>
+            <tr>
+                <td><strong>マージ元</strong></td>
+                <td>feature/*, fix/*, refactor/*, docs/* など全てのローカルブランチ</td>
+            </tr>
+            <tr>
+                <td><strong>デプロイ</strong></td>
+                <td>マージ時に自動デプロイ（ステージング環境）</td>
+            </tr>
+            <tr>
+                <td><strong>安定性</strong></td>
+                <td>基本的に安定しているが、機能追加・修正による一時的な不具合は許容</td>
+            </tr>
+            <tr>
+                <td><strong>リセット</strong></td>
+                <td>必要に応じてmainから再作成可能</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="section">
+        <h3>2.3 ローカル開発ブランチ</h3>
+        <div class="branch-box feature-branch">feature/*, fix/*, etc.</div>
+
+        <table>
+            <tr>
+                <th>ブランチタイプ</th>
+                <th>用途</th>
+                <th>例</th>
+            </tr>
+            <tr>
+                <td><strong>feature/*</strong></td>
+                <td>新機能の開発</td>
+                <td>feature/add-shift-export</td>
+            </tr>
+            <tr>
+                <td><strong>fix/*</strong></td>
+                <td>バグ修正</td>
+                <td>fix/shift-date-calculation</td>
+            </tr>
+            <tr>
+                <td><strong>refactor/*</strong></td>
+                <td>リファクタリング</td>
+                <td>refactor/optimize-database-queries</td>
+            </tr>
+            <tr>
+                <td><strong>docs/*</strong></td>
+                <td>ドキュメント更新</td>
+                <td>docs/update-api-documentation</td>
+            </tr>
+            <tr>
+                <td><strong>chore/*</strong></td>
+                <td>その他の作業（設定変更など）</td>
+                <td>chore/update-dependencies</td>
+            </tr>
+            <tr>
+                <td><strong>hotfix/*</strong></td>
+                <td>緊急の本番修正</td>
+                <td>hotfix/critical-auth-bug</td>
+            </tr>
+        </table>
+
+        <div class="warning">
+            <strong>⚠️ 重要</strong><br>
+            ローカル開発ブランチは必ず最新のstagingブランチから切り出すこと
+        </div>
+    </div>
+
+    <h2 id="normal-flow">3. 通常の開発フロー</h2>
+
+    <div class="section">
+        <h3>3.1 開発開始</h3>
+        <div class="step">
+            <strong>ステップ1: stagingブランチを最新化</strong>
+            <pre>git checkout staging
+git pull origin staging</pre>
+        </div>
+
+        <div class="step">
+            <strong>ステップ2: ローカルブランチを作成</strong>
+            <pre>git checkout -b feature/new-awesome-feature</pre>
+        </div>
+
+        <div class="step">
+            <strong>ステップ3: 開発作業</strong>
+            <ul>
+                <li>コードを書く</li>
+                <li>ローカルでテスト</li>
+                <li>コミット（適切な粒度で）</li>
+            </ul>
+            <pre>git add .
+git commit -m "feat: 新しい機能を追加"</pre>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>3.2 stagingへのマージ</h3>
+        <div class="step">
+            <strong>ステップ4: リモートにプッシュ</strong>
+            <pre>git push -u origin feature/new-awesome-feature</pre>
+        </div>
+
+        <div class="step">
+            <strong>ステップ5: Pull Request作成</strong>
+            <ul>
+                <li>GitHub上でstagingブランチへのPRを作成</li>
+                <li>タイトルと説明を記入</li>
+                <li>CI checksが全てパスすることを確認</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>ステップ6: レビューとマージ</strong>
+            <ul>
+                <li>コードレビューを受ける</li>
+                <li>必要に応じて修正</li>
+                <li>承認後、stagingにマージ</li>
+                <li>ステージング環境に自動デプロイ</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>ステップ7: ステージング環境で動作確認</strong>
+            <ul>
+                <li>ステージング環境で機能を確認</li>
+                <li>問題があれば追加修正</li>
+                <li>問題なければ本番リリース待ち</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>3.3 本番環境へのリリース</h3>
+        <div class="step">
+            <strong>ステップ8: stagingからmainへのPR作成</strong>
+            <ul>
+                <li>リリースタイミングを判断</li>
+                <li>stagingからmainへのPRを作成</li>
+                <li>含まれる変更内容を確認</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>ステップ9: 最終レビューとマージ</strong>
+            <ul>
+                <li>最終レビュー（重要）</li>
+                <li>CI checksが全てパスすることを確認</li>
+                <li>mainにマージ</li>
+                <li>本番環境に自動デプロイ</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>ステップ10: 本番環境で動作確認</strong>
+            <ul>
+                <li>本番環境で動作確認</li>
+                <li>問題があればhotfixで対応</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>3.4 フロー図</h3>
+        <div class="flow-diagram">
+┌─────────────────┐
+│  開発者         │
+└────────┬────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│ 1. staging を最新化          │
+│    git checkout staging      │
+│    git pull origin staging   │
+└────────┬────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│ 2. ローカルブランチ作成      │
+│    git checkout -b          │
+│    feature/xxx              │
+└────────┬────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│ 3. 開発・テスト・コミット    │
+└────────┬────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│ 4. push & PR作成            │
+│    → staging                │
+└────────┬────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│ 5. レビュー & CI checks     │
+└────────┬────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│ 6. staging にマージ         │
+│    → ステージング環境デプロイ│
+└────────┬────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│ 7. ステージング環境で確認    │
+└────────┬────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│ 8. staging → main PR作成    │
+│   （任意のタイミング）        │
+└────────┬────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│ 9. main にマージ            │
+│    → 本番環境デプロイ        │
+└────────┬────────────────────┘
+         │
+         ▼
+┌─────────────────────────────┐
+│ 10. 本番環境で確認          │
+└─────────────────────────────┘
+        </div>
+    </div>
+
+    <h2 id="hotfix-flow">4. 緊急修正（Hotfix）フロー</h2>
+
+    <div class="section">
+        <div class="warning">
+            <strong>⚠️ Hotfixとは</strong><br>
+            本番環境で緊急に修正が必要な重大なバグが発見された場合に使用する特別なフロー
+        </div>
+
+        <h3>4.1 Hotfix作成</h3>
+        <div class="step">
+            <strong>ステップ1: mainブランチから切り出し</strong>
+            <pre>git checkout main
+git pull origin main
+git checkout -b hotfix/critical-bug-fix</pre>
+            <div class="warning">
+                <strong>注意:</strong> Hotfixは<strong>mainブランチから</strong>切り出す（stagingからではない）
+            </div>
+        </div>
+
+        <div class="step">
+            <strong>ステップ2: 最小限の修正</strong>
+            <ul>
+                <li>問題の原因を特定</li>
+                <li><strong>最小限の変更で修正</strong>（他の機能に影響を与えない）</li>
+                <li>ローカルでテスト</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>ステップ3: push & PR作成（mainへ）</strong>
+            <pre>git push -u origin hotfix/critical-bug-fix</pre>
+            <ul>
+                <li>mainブランチへのPRを作成</li>
+                <li>タイトルに[HOTFIX]を付ける</li>
+                <li>影響範囲を明確に記載</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>ステップ4: 迅速なレビューとマージ</strong>
+            <ul>
+                <li>優先的にレビュー</li>
+                <li>CI checksが全てパス</li>
+                <li>mainにマージ</li>
+                <li>本番環境に自動デプロイ</li>
+            </ul>
+        </div>
+
+        <div class="step">
+            <strong>ステップ5: stagingへのバックポート</strong>
+            <pre>git checkout staging
+git pull origin staging
+git merge hotfix/critical-bug-fix
+git push origin staging</pre>
+            <div class="success">
+                <strong>重要:</strong> Hotfixの内容をstagingにも反映させる（バックポート）
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <h3>4.2 Hotfixフロー図</h3>
+        <div class="flow-diagram">
+         main (本番環境)
+          │
+          │ 緊急バグ発見！
+          │
+          ▼
+    hotfix/xxx ブランチ作成
+          │
+          ▼
+        修正・テスト
+          │
+          ▼
+      PR作成 → main
+          │
+          ▼
+     レビュー & マージ
+          │
+          ├──────────────┐
+          │              │
+          ▼              ▼
+      main 更新     staging へ
+    （本番デプロイ）  バックポート
+        </div>
+    </div>
+
+    <h2 id="branch-naming">5. ブランチ命名規則</h2>
+
+    <div class="section">
+        <h3>5.1 基本形式</h3>
+        <pre><code>&lt;type&gt;/&lt;short-description&gt;</code></pre>
+
+        <table>
+            <tr>
+                <th>Type</th>
+                <th>用途</th>
+                <th>例</th>
+            </tr>
+            <tr>
+                <td><code>feature/</code></td>
+                <td>新機能</td>
+                <td>feature/add-shift-export<br>feature/multi-store-view</td>
+            </tr>
+            <tr>
+                <td><code>fix/</code></td>
+                <td>バグ修正</td>
+                <td>fix/date-calculation-bug<br>fix/lint-staged-path-resolution</td>
+            </tr>
+            <tr>
+                <td><code>refactor/</code></td>
+                <td>リファクタリング</td>
+                <td>refactor/database-queries<br>refactor/component-structure</td>
+            </tr>
+            <tr>
+                <td><code>docs/</code></td>
+                <td>ドキュメント</td>
+                <td>docs/api-documentation<br>docs/branch-strategy</td>
+            </tr>
+            <tr>
+                <td><code>chore/</code></td>
+                <td>その他</td>
+                <td>chore/update-dependencies<br>chore/ci-configuration</td>
+            </tr>
+            <tr>
+                <td><code>hotfix/</code></td>
+                <td>緊急修正</td>
+                <td>hotfix/critical-auth-bug<br>hotfix/production-crash</td>
+            </tr>
+        </table>
+
+        <h3>5.2 命名のベストプラクティス</h3>
+        <div class="success">
+            <ul>
+                <li>✅ 小文字とハイフンを使用（例: <code>feature/add-new-feature</code>）</li>
+                <li>✅ 簡潔で説明的な名前（30文字以内推奨）</li>
+                <li>✅ Issue番号を含める（該当する場合: <code>fix/issue-123-date-bug</code>）</li>
+                <li>❌ スペース、アンダースコア、大文字は避ける</li>
+                <li>❌ 曖昧な名前は避ける（例: <code>fix/bug</code>、<code>feature/update</code>）</li>
+            </ul>
+        </div>
+    </div>
+
+    <h2 id="ci-cd">6. CI/CD連携</h2>
+
+    <div class="section">
+        <h3>6.1 CIチェック</h3>
+        <p>以下のブランチへのPR・push時に自動的にCIチェックが実行されます：</p>
+
+        <table>
+            <tr>
+                <th>対象ブランチ</th>
+                <th>トリガー</th>
+                <th>実行内容</th>
+            </tr>
+            <tr>
+                <td><strong>main</strong></td>
+                <td>pull_request, push</td>
+                <td>
+                    Frontend Checks:<br>
+                    • ESLint<br>
+                    • Prettier<br>
+                    • Tests<br>
+                    • Build<br>
+                    <br>
+                    Backend Checks:<br>
+                    • Tests<br>
+                    • Syntax check
+                </td>
+            </tr>
+            <tr>
+                <td><strong>staging</strong></td>
+                <td>pull_request, push</td>
+                <td>同上</td>
+            </tr>
+        </table>
+
+        <h3>6.2 デプロイフロー</h3>
+        <table>
+            <tr>
+                <th>ブランチ</th>
+                <th>デプロイ先</th>
+                <th>タイミング</th>
+            </tr>
+            <tr>
+                <td><strong>main</strong></td>
+                <td>本番環境</td>
+                <td>マージ時に自動デプロイ</td>
+            </tr>
+            <tr>
+                <td><strong>staging</strong></td>
+                <td>ステージング環境</td>
+                <td>マージ時に自動デプロイ</td>
+            </tr>
+        </table>
+    </div>
+
+    <h2 id="best-practices">7. ベストプラクティス</h2>
+
+    <div class="section">
+        <h3>7.1 ブランチ運用の原則</h3>
+        <div class="success">
+            <ol>
+                <li><strong>stagingは常に最新に保つ</strong>
+                    <ul>
+                        <li>ローカルブランチ作成前に必ず<code>git pull origin staging</code></li>
+                    </ul>
+                </li>
+                <li><strong>小さく頻繁にマージ</strong>
+                    <ul>
+                        <li>大きな機能は小さなPRに分割</li>
+                        <li>長期間マージされないブランチを作らない</li>
+                    </ul>
+                </li>
+                <li><strong>mainへのマージは慎重に</strong>
+                    <ul>
+                        <li>stagingで十分にテストしてから</li>
+                        <li>複数の機能をまとめてリリース可能</li>
+                    </ul>
+                </li>
+                <li><strong>Hotfixは最小限に</strong>
+                    <ul>
+                        <li>本当に緊急の場合のみ使用</li>
+                        <li>必ずstagingにもバックポート</li>
+                    </ul>
+                </li>
+            </ol>
+        </div>
+
+        <h3>7.2 コミットメッセージ</h3>
+        <pre><code>&lt;type&gt;: &lt;subject&gt;
+
+&lt;body&gt;
+
+🤖 Generated with Claude Code
+Co-Authored-By: Claude &lt;noreply@anthropic.com&gt;</code></pre>
+
+        <p><strong>Type:</strong></p>
+        <ul>
+            <li><code>feat</code>: 新機能</li>
+            <li><code>fix</code>: バグ修正</li>
+            <li><code>refactor</code>: リファクタリング</li>
+            <li><code>docs</code>: ドキュメント</li>
+            <li><code>test</code>: テスト追加</li>
+            <li><code>chore</code>: その他</li>
+            <li><code>ci</code>: CI/CD設定</li>
+        </ul>
+
+        <h3>7.3 PRの作成</h3>
+        <div class="step">
+            <strong>PRテンプレート</strong>
+            <pre>## 概要
+変更内容の簡潔な説明
+
+## 変更理由
+なぜこの変更が必要か
+
+## 影響範囲
+- フロントエンド: xxx
+- バックエンド: xxx
+- データベース: xxx
+
+## テスト
+- [ ] ローカルでテスト済み
+- [ ] ステージング環境で確認済み
+
+## スクリーンショット（該当する場合）
+
+## 関連Issue
+Closes #xxx</pre>
+        </div>
+
+        <h3>7.4 トラブルシューティング</h3>
+        <div class="warning">
+            <strong>Q: stagingが壊れてしまった場合</strong><br>
+            A: mainから新しいstagingを作り直す
+            <pre>git checkout main
+git pull origin main
+git branch -D staging
+git checkout -b staging
+git push -f origin staging</pre>
+        </div>
+
+        <div class="warning">
+            <strong>Q: マージコンフリクトが発生した場合</strong><br>
+            A: ローカルでstagingをマージして解決
+            <pre>git checkout feature/xxx
+git fetch origin
+git merge origin/staging
+# コンフリクト解決
+git add .
+git commit
+git push</pre>
+        </div>
+    </div>
+
+    <h2>8. まとめ</h2>
+    <div class="section">
+        <div class="success">
+            <h3>🎯 重要ポイント</h3>
+            <ol>
+                <li><strong>staging から切り出す</strong> - 新しいブランチは常に最新のstagingから</li>
+                <li><strong>staging で統合テスト</strong> - 本番リリース前に必ずステージング環境で確認</li>
+                <li><strong>main は常に安定</strong> - 本番環境は常に動作する状態を保つ</li>
+                <li><strong>Hotfix は例外的</strong> - 緊急時のみ使用し、必ずstagingにもバックポート</li>
+            </ol>
+        </div>
+
+        <div style="text-align: center; margin: 40px 0; padding: 20px; background: #e8f4f8; border-radius: 8px;">
+            <h3 style="color: #2c3e50;">開発フローのまとめ</h3>
+            <div class="branch-box feature-branch">開発</div>
+            <span class="arrow">→</span>
+            <div class="branch-box staging-branch">テスト</div>
+            <span class="arrow">→</span>
+            <div class="branch-box main-branch">本番</div>
+        </div>
+    </div>
+
+    <div class="section" style="background: #f8f9fa; border-left: 4px solid #6c757d;">
+        <p><strong>作成者:</strong> Claude Code</p>
+        <p><strong>最終更新:</strong> 2025年11月26日</p>
+    </div>
+</body>
+</html>
