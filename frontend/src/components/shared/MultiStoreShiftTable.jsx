@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { isHoliday, getHolidayName } from '../../utils/holidays'
-import { getDaysInMonth, getDayOfWeek } from '../../utils/dateUtils'
+import { getDaysInMonth, getDayOfWeek, isoToJSTDateString } from '../../utils/dateUtils'
 
 /**
  * マルチストアシフトテーブル（読み取り専用）
@@ -239,27 +239,26 @@ const MultiStoreShiftTable = ({
     )
   }
 
-  // スタッフの希望シフト情報を取得
-  const getStaffPreference = staffId => {
-    return preferences.find(pref => parseInt(pref.staff_id) === parseInt(staffId))
+  // ★変更: 新API形式（1日1レコード）でのスタッフ希望シフト情報取得
+  // 指定した日付のスタッフの希望情報を取得（JSTで正しくパース）
+  const getStaffPreferenceForDate = (date, staffId) => {
+    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+    return preferences.find(pref => {
+      const prefDate = isoToJSTDateString(pref.preference_date)
+      return parseInt(pref.staff_id) === parseInt(staffId) && prefDate === dateStr
+    })
   }
 
-  // その日がpreferredDaysに含まれているかチェック
+  // その日が勤務希望日かチェック（is_ng=false）
   const isPreferredDay = (date, staffId) => {
-    const pref = getStaffPreference(staffId)
-    if (!pref || !pref.preferred_days) return false
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-    const days = pref.preferred_days.split(',').map(d => d.trim())
-    return days.includes(dateStr)
+    const pref = getStaffPreferenceForDate(date, staffId)
+    return pref && !pref.is_ng
   }
 
-  // その日がngDaysに含まれているかチェック
+  // その日がNG日かチェック（is_ng=true）
   const isNgDay = (date, staffId) => {
-    const pref = getStaffPreference(staffId)
-    if (!pref || !pref.ng_days) return false
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-    const days = pref.ng_days.split(',').map(d => d.trim())
-    return days.includes(dateStr)
+    const pref = getStaffPreferenceForDate(date, staffId)
+    return pref && pref.is_ng
   }
 
   // セルの背景色を決定（希望シフトとの関係で判定）

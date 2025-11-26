@@ -3,6 +3,7 @@ import { motion } from 'framer-motion'
 import { isHoliday, getHolidayName } from '../../utils/holidays'
 import { getDaysInMonth, getDayOfWeek } from '../../utils/dateUtils'
 import { Check, X, Trash2, Plus } from 'lucide-react'
+import TimeInput from './TimeInput'
 
 /**
  * スタッフ別タイムテーブル（インライン編集対応）
@@ -211,8 +212,8 @@ const StaffTimeTable = ({
       // 既存シフトの更新
       console.log('既存シフトを更新:', editingCell.shift.shift_id)
       const updates = {
-        start_time: editForm.start_time + ':00',
-        end_time: editForm.end_time + ':00',
+        start_time: editForm.start_time, // VARCHAR(5)形式: "09:00", "25:00"
+        end_time: editForm.end_time,
         break_minutes: parseInt(editForm.break_minutes),
       }
       console.log('更新内容:', updates)
@@ -223,8 +224,8 @@ const StaffTimeTable = ({
       const newShift = {
         staff_id: editingCell.staffId,
         shift_date: dateStr,
-        start_time: editForm.start_time + ':00',
-        end_time: editForm.end_time + ':00',
+        start_time: editForm.start_time, // VARCHAR(5)形式: "09:00", "25:00"
+        end_time: editForm.end_time,
         break_minutes: parseInt(editForm.break_minutes),
       }
       console.log('新規シフト:', newShift)
@@ -371,21 +372,27 @@ const StaffTimeTable = ({
                         className="px-0.5 py-0.5 border-r border-b border-gray-200"
                       >
                         {isEditing ? (
-                          // 編集モード
+                          // 編集モード（24時超過対応）
                           <div className="p-1 bg-yellow-50 border border-yellow-300 rounded space-y-0.5">
-                            <input
-                              type="time"
+                            <TimeInput
                               value={editForm.start_time}
-                              onChange={e =>
-                                setEditForm({ ...editForm, start_time: e.target.value })
+                              onChange={val =>
+                                setEditForm({ ...editForm, start_time: val })
                               }
-                              className="w-full text-[0.6rem] px-0.5 py-0.5 border rounded"
+                              label="開始"
+                              compact
+                              minHour={5}
+                              maxHour={28}
+                              minuteStep={30}
                             />
-                            <input
-                              type="time"
+                            <TimeInput
                               value={editForm.end_time}
-                              onChange={e => setEditForm({ ...editForm, end_time: e.target.value })}
-                              className="w-full text-[0.6rem] px-0.5 py-0.5 border rounded"
+                              onChange={val => setEditForm({ ...editForm, end_time: val })}
+                              label="終了"
+                              compact
+                              minHour={5}
+                              maxHour={28}
+                              minuteStep={30}
                             />
                             <input
                               type="number"

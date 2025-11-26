@@ -91,34 +91,94 @@ CREATE TABLE ops.shift_preferences (
 
 ---
 
-## Phase 3: フロントエンド修正
+## Phase 3: フロントエンド修正 ✅ 完了
 
-### 3.1 Repository層
+### 3.1 Repository層 ✅
 **ファイル**: `frontend/src/infrastructure/repositories/ShiftRepository.js`
-- `getPreferences()`: パラメータ変更（year,month → dateFrom,dateTo）
-- レスポンスデータ構造の対応
+- `getPreferences()`: パラメータ変更（year,month → dateFrom,dateTo,isNg）✅
+- `savePreferencesBulk()`: 新規追加（bulk API対応）✅
 
-### 3.2 画面コンポーネント
-
-| ファイル | 修正内容 |
-|---------|---------|
-| `LineShiftInput.jsx` | API対応、時刻入力UI（24時超過対応） |
-| `Monitoring.jsx` | 新構造での表示処理 |
-| `MultiStoreShiftTable.jsx` | isPreferredDay/isNgDay関数修正 |
-| `FirstPlanEditor.jsx` | 希望シフト参照処理修正 |
-| `SecondPlanEditor.jsx` | 希望シフト参照処理修正 |
-
-### 3.3 共通コンポーネント
+### 3.2 画面コンポーネント ✅
 
 | ファイル | 修正内容 |
 |---------|---------|
-| `ShiftTimeline.jsx` | timeToMinutes()関数修正（"25:00"形式対応） |
-| `ShiftPatternSelector.jsx` | 時刻入力UI（24時超過対応） |
+| `LineShiftInput.jsx` | ✅ loadShiftPreferences(), handleSubmit() を新API形式に対応 |
+| `Monitoring.jsx` | ✅ loadAvailabilityData() を新API形式（date_from,date_to, preference_date, is_ng）に対応 |
+| `MultiStoreShiftTable.jsx` | ✅ getStaffPreferenceForDate(), isPreferredDay(), isNgDay() を新API形式に対応 |
+| `FirstPlanEditor.jsx` | ✅ checkPreference() を新API形式（preference_date, is_ng）に対応 |
+| `SecondPlanEditor.jsx` | ✅ getPreferences() 呼び出しとcheckPreferenceConflicts() を新API形式に対応 |
 
-### 3.4 ユーティリティ
+### 3.3 共通コンポーネント ✅
+
+| ファイル | 修正内容 |
+|---------|---------|
+| `ShiftTimeline.jsx` | ✅ timeToMinutes() 関数修正（"25:00"形式対応、null安全対策） |
+| `ShiftTableView.jsx` | ✅ timeToMinutes() 関数修正（"25:00"形式対応、null安全対策） |
+| `TimeInput.jsx` | ✅ **新規作成** - 24時超過対応カスタム時刻入力（5:00〜28:00、compactモード対応） |
+| `StaffTimeTable.jsx` | ✅ インライン編集をTimeInputコンポーネントに置換 |
+
+### 3.4 ユーティリティ ✅
 **ファイル**: `frontend/src/utils/shiftInputCollector.js`
-- API呼び出し修正
-- データ変換処理修正
+- ✅ API呼び出し修正（date_from,date_to）
+- ✅ データ変換処理修正（preference_date, is_ng, start_time, end_time）
+
+### 3.5 時刻入力コンポーネント適用 ✅
+
+| ファイル | 修正内容 |
+|---------|---------|
+| `ShiftPatternSelector.jsx` | ✅ カスタム時間入力をTimeInputに置換 |
+| `FirstPlanEditor.jsx` | ✅ 開始/終了時刻入力をTimeInputに置換 |
+| `SecondPlanEditor.jsx` | ✅ 開始/終了時刻入力をTimeInputに置換 |
+| `MasterDataManagement.jsx` | ✅ 営業時間・シフトパターン時刻入力をTimeInputに置換 |
+
+### 3.6 バックエンド時刻計算ユーティリティ ✅
+**ファイル**: `backend/src/utils/timeUtils.js` **新規作成**
+- ✅ `timeToMinutes()` - VARCHAR(5)形式を分に変換
+- ✅ `minutesToTime()` - 分をVARCHAR(5)形式に変換
+- ✅ `calculateWorkHours()` - 勤務時間計算（休憩時間対応）
+- ✅ `calculateWorkHoursFixed()` - 小数点2桁で丸めた勤務時間計算
+- ✅ `formatDateToYYYYMMDD()` - DateオブジェクトをJSTでYYYY-MM-DD形式に変換
+
+**ファイル**: `backend/src/routes/shifts.js`
+- ✅ timeUtils関数をインポートして使用
+- ✅ Summary API修正（EXTRACT(EPOCH)からCOALESCEに変更）
+
+### 3.7 UTC→JST タイムゾーン修正 ✅
+**問題**: `toISOString().split('T')[0]` や `split('T')[0]` を使うとUTCで日付が変換され、JSTと1日ずれる
+
+#### フロントエンド ✅
+**ファイル**: `frontend/src/utils/dateUtils.js`
+- ✅ `isoToJSTDateString()` - ISO日時文字列をJSTのYYYY-MM-DD形式に変換
+- ✅ `isoToJSTDateParts()` - ISO日時文字列からJSTのyear/month/dayを取得
+
+**修正したコンポーネント:**
+| ファイル | 修正内容 |
+|---------|---------|
+| `shiftInputCollector.js` | ✅ preference_dateパース処理 |
+| `MultiStoreShiftTable.jsx` | ✅ getStaffPreferenceForDate() |
+| `FirstPlanEditor.jsx` | ✅ checkPreference() |
+| `LineShiftInput.jsx` | ✅ loadShiftPreferences() |
+| `SecondPlanEditor.jsx` | ✅ checkPreferenceConflicts() |
+| `Monitoring.jsx` | ✅ getDayShifts(), getCalendarData(), loadAvailabilityData() |
+
+#### バックエンド ✅
+**ファイル**: `backend/src/utils/timeUtils.js`
+- ✅ `formatDateToYYYYMMDD()` 追加
+
+**ファイル**: `backend/src/routes/shifts.js`
+- ✅ `toISOString().split('T')[0]` → `formatDateToYYYYMMDD()` に置換（3箇所）
+
+### 3.8 バグ修正 ✅
+
+#### LineShiftInput.jsx ✅
+- ✅ bulk APIリクエスト形式修正（tenant_id, store_id, staff_idをトップレベルに移動）
+- ✅ シフトパターン時刻のVARCHAR(5)形式変換（substring(0, 5)で秒を削除）
+
+#### StaffTimeTable.jsx ✅
+- ✅ 時刻保存時の`:00`追加を削除（VARCHAR(5)形式対応）
+
+#### SecondPlanEditor.jsx ✅
+- ✅ 表示用時刻の`.replace(':00', '')`を削除（VARCHAR(5)形式対応）
 
 ---
 

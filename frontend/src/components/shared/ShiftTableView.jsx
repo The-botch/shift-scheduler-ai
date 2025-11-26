@@ -45,14 +45,18 @@ const ShiftTableView = ({
     }
   }
 
-  // 時間を分に変換（深夜営業対応）
+  // ★変更: 時間を分に変換（深夜営業対応、VARCHAR(5)形式 "25:00" 対応）
   const timeToMinutes = timeStr => {
+    if (!timeStr) return 0
     const [hour, minute] = timeStr.split(':').map(Number)
-    // 0-6時は翌日として扱う（24-30時として計算）
+    // 新DB形式では "25:00" のような形式がそのまま保存されている
+    // 旧形式（0-6時）との互換性も維持
     let actualHour = hour
     if (hour >= 0 && hour < 7) {
+      // 旧形式: 0-6時は翌日として扱う（24-30時として計算）
       actualHour = hour + 24
     }
+    // 新形式: 24以上の時間はそのまま使用
     return actualHour * 60 + minute
   }
 

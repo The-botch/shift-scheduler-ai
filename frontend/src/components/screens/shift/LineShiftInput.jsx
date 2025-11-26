@@ -21,6 +21,7 @@ import {
 } from '../../../config/defaults'
 import { SHIFT_PREFERENCE_STATUS } from '../../../config/constants'
 import { useTenant } from '../../../contexts/TenantContext'
+import { isoToJSTDateParts } from '../../../utils/dateUtils'
 
 /**
  * 提出期限を計算する
@@ -318,6 +319,7 @@ const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
 
   /**
    * APIからシフト希望を読み込む
+   * ★変更: 新API形式（1日1レコード、date_from/date_to）に対応
    */
   const loadShiftPreferences = async () => {
     setIsLoadingPreferences(true)
@@ -327,9 +329,12 @@ const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-      // store_idは使用せず、tenant_id、staff_id、年月でフィルタ
-      // （スタッフマスターとシフト希望のstore_idが不一致の場合があるため）
-      const url = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&staff_id=${selectedStaffId}&year=${selectedYear}&month=${selectedMonth}`
+      // ★変更: 新API形式（date_from, date_to）
+      const dateFrom = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`
+      const lastDay = new Date(selectedYear, selectedMonth, 0).getDate()
+      const dateTo = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+
+      const url = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&staff_id=${selectedStaffId}&date_from=${dateFrom}&date_to=${dateTo}`
 
       const response = await fetch(url)
 
@@ -340,55 +345,32 @@ const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
       const result = await response.json()
 
       if (result.success && result.data && result.data.length > 0) {
-        // APIレスポンスをローカルステート形式に変換
+        // ★変更: 新API形式（1日1レコード）をローカルステート形式に変換
         const prefs = {}
-        const firstPreference = result.data[0]
-
-        // 既存のpreference_idを保存（更新時に使用）
-        if (firstPreference.preference_id) {
-          setExistingPreferenceId(firstPreference.preference_id)
-        }
+        const preferenceIds = [] // 複数のpreference_idを保持
 
         result.data.forEach(preference => {
-          // preferred_days: "2024-11-01,2024-11-03,2024-11-05" (アルバイトの場合)
-          if (preference.preferred_days) {
-            const dates = preference.preferred_days.split(',').map(d => d.trim())
-            dates.forEach(dateStr => {
-              const day = parseInt(dateStr.split('-')[2]) // "2024-11-05" → 5
-              if (!isNaN(day) && day >= 1 && day <= 31) {
-                prefs[day] = {
-                  patterns: [], // パターン情報はAPIに保存していないためデフォルト
-                  comment: preference.notes || '',
-                }
-              }
-            })
-          }
+          // preference_date: "2025-12-01T15:00:00.000Z" → JSTでパースして日付を取得
+          const { day } = isoToJSTDateParts(preference.preference_date)
 
-          // ng_days: "2025-12-10,2025-12-11,2025-12-16" (正社員の場合)
-          if (preference.ng_days) {
-            const ngDates = preference.ng_days.split(',').map(d => d.trim())
-            ngDates.forEach(dateStr => {
-              const day = parseInt(dateStr.split('-')[2]) // "2025-12-10" → 10
-              if (!isNaN(day) && day >= 1 && day <= 31) {
-                prefs[day] = {
-                  patterns: [], // 正社員はパターン不要
-                  comment: preference.notes || '',
-                }
-              }
-            })
+          if (!isNaN(day) && day >= 1 && day <= 31) {
+            prefs[day] = {
+              preference_id: preference.preference_id, // 各日付のIDを保持
+              is_ng: preference.is_ng,
+              start_time: preference.start_time,
+              end_time: preference.end_time,
+              patterns: [], // パターン情報は別途管理
+              comment: preference.notes || '',
+            }
+            preferenceIds.push(preference.preference_id)
           }
         })
 
         setDatePreferences(prefs)
 
-        // 既に希望が提出されている場合
-        if (
-          result.data.some(
-            p =>
-              p.status === SHIFT_PREFERENCE_STATUS.PENDING ||
-              p.status === SHIFT_PREFERENCE_STATUS.APPROVED
-          )
-        ) {
+        // 既存データがある場合（更新モード表示用）
+        if (preferenceIds.length > 0) {
+          setExistingPreferenceId(preferenceIds[0]) // 表示用に最初のIDを使用
           setIsSubmitted(true)
         }
       }
@@ -405,38 +387,63 @@ const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-      // 選択された日付を配列化
-      const selectedDays = Object.keys(datePreferences)
-        .map(day => {
-          const dayNum = parseInt(day)
-          return `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
-        })
-        .join(',')
+      // ★変更: 新API形式（1日1レコード形式、bulk API使用）
+      // datePreferencesから各日付のデータを構築
+      // バックエンドAPIはtenant_id, store_id, staff_idをトップレベルで期待
+      const preferences = Object.keys(datePreferences).map(day => {
+        const dayNum = parseInt(day)
+        const preference_date = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`
+        const pref = datePreferences[day]
 
-      // アルバイトは勤務希望日、正社員は休み希望日として扱う
-      const requestBody = {
-        tenant_id: tenantId,
-        store_id: selectedStaff?.store_id || null, // スタッフの所属店舗を使用
-        staff_id: selectedStaffId,
-        year: selectedYear,
-        month: selectedMonth,
-        preferred_days: isPartTimeStaff ? selectedDays : '', // アルバイト: 勤務希望日
-        ng_days: isPartTimeStaff ? '' : selectedDays, // 正社員: 休み希望日
-        notes: '',
-        status: SHIFT_PREFERENCE_STATUS.PENDING,
-      }
+        if (isPartTimeStaff) {
+          // アルバイト: 勤務希望日（is_ng=false）、パターンから時刻を取得
+          const patternCodes = pref.patterns || []
+          let start_time = null
+          let end_time = null
 
-      const isUpdate = !!existingPreferenceId
-      const url = isUpdate
-        ? `${apiUrl}/api/shifts/preferences/${existingPreferenceId}?tenant_id=${tenantId}`
-        : `${apiUrl}/api/shifts/preferences`
+          // 選択されたパターンの最初のものから時刻を取得
+          if (patternCodes.length > 0 && shiftPatterns.length > 0) {
+            const firstPattern = shiftPatterns.find(p => p.pattern_code === patternCodes[0])
+            if (firstPattern) {
+              // TIME形式（"15:00:00"）からVARCHAR(5)形式（"15:00"）に変換
+              start_time = firstPattern.start_time?.substring(0, 5) || null
+              end_time = firstPattern.end_time?.substring(0, 5) || null
+            }
+          }
+
+          return {
+            preference_date,
+            is_ng: false,
+            start_time,
+            end_time,
+            notes: pref.comment || null,
+          }
+        } else {
+          // 正社員/契約社員: NG日（is_ng=true）、時刻は不要
+          return {
+            preference_date,
+            is_ng: true,
+            start_time: null,
+            end_time: null,
+            notes: pref.comment || null,
+          }
+        }
+      })
+
+      // bulk APIを使用して一括登録（UPSERT）
+      const url = `${apiUrl}/api/shifts/preferences/bulk`
 
       const response = await fetch(url, {
-        method: isUpdate ? 'PUT' : 'POST',
+        method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody),
+        body: JSON.stringify({
+          tenant_id: tenantId,
+          store_id: selectedStaff?.store_id || null,
+          staff_id: selectedStaffId,
+          preferences,
+        }),
       })
 
       const result = await response.json()

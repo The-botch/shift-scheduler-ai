@@ -18,10 +18,12 @@ import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import ShiftTimeline from '../../shared/ShiftTimeline'
 import ShiftTableView from '../../shared/ShiftTableView'
+import TimeInput from '../../shared/TimeInput'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
 import { BACKEND_API_URL } from '../../../config/api'
 import { getCurrentTenantId } from '../../../config/tenant'
+import { isoToJSTDateString } from '../../../utils/dateUtils'
 import { useShiftEditorBase } from '../../../hooks/useShiftEditorBase'
 import { exportCSV } from '../../../utils/csvHelper'
 
@@ -1099,32 +1101,26 @@ const FirstPlanEditor = ({
       })
     }, [popupPosition, isDragging])
 
-    // 希望シフトのチェック
+    // ★変更: 新API形式（1日1レコード）での希望シフトチェック
     const checkPreference = () => {
-      if (!shift || !preferences) return null
-
-      const pref = preferences.find(p => parseInt(p.staff_id) === parseInt(shift.staff_id))
-      if (!pref) return null
+      if (!shift || !preferences || preferences.length === 0) return null
 
       const dateStr = shift.date
 
-      // NG日チェック
-      if (pref.ng_days) {
-        const ngDays = pref.ng_days.split(',').map(d => d.trim())
-        if (ngDays.includes(dateStr)) {
-          return 'ng'
-        }
-      }
+      // 新API形式: staff_id と preference_date の両方でマッチング（JSTで正しくパース）
+      const pref = preferences.find(p => {
+        const prefDate = isoToJSTDateString(p.preference_date)
+        return parseInt(p.staff_id) === parseInt(shift.staff_id) && prefDate === dateStr
+      })
 
-      // 希望日チェック
-      if (pref.preferred_days) {
-        const preferredDays = pref.preferred_days.split(',').map(d => d.trim())
-        if (preferredDays.includes(dateStr)) {
-          return 'preferred'
-        }
-      }
+      if (!pref) return null
 
-      return null
+      // is_ng フラグでNG日/希望日を判定
+      if (pref.is_ng) {
+        return 'ng'
+      } else {
+        return 'preferred'
+      }
     }
 
     const handleSave = () => {
@@ -1286,29 +1282,25 @@ const FirstPlanEditor = ({
                     )
                   })()}
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    開始時刻 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="time"
-                    value={startTime}
-                    onChange={e => setStartTime(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                <TimeInput
+                  value={startTime}
+                  onChange={setStartTime}
+                  label="開始時刻"
+                  required
+                  minHour={5}
+                  maxHour={28}
+                  minuteStep={15}
+                />
 
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    終了時刻 <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="time"
-                    value={endTime}
-                    onChange={e => setEndTime(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
+                <TimeInput
+                  value={endTime}
+                  onChange={setEndTime}
+                  label="終了時刻"
+                  required
+                  minHour={5}
+                  maxHour={28}
+                  minuteStep={15}
+                />
 
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">

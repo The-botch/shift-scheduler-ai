@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import { Clock } from 'lucide-react'
+import TimeInput from '../shared/TimeInput'
 
 const SHIFT_PATTERNS = [
   { id: 'morning', name: '午前', start: '09:00', end: '18:00', color: 'bg-blue-500', icon: '🌅' },
@@ -98,7 +99,7 @@ const ShiftPatternSelector = ({ onSelect, selectedDatesCount = 0 }) => {
           ))}
         </div>
 
-        {/* カスタム時間入力 */}
+        {/* カスタム時間入力（24時超過対応） */}
         <AnimatePresence>
           {selectedPattern === 'custom' && (
             <motion.div
@@ -107,24 +108,22 @@ const ShiftPatternSelector = ({ onSelect, selectedDatesCount = 0 }) => {
               exit={{ opacity: 0, height: 0 }}
               className="space-y-3 pt-3 border-t"
             >
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">開始時刻</label>
-                <input
-                  type="time"
-                  value={customStart}
-                  onChange={e => setCustomStart(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-700 block mb-1">終了時刻</label>
-                <input
-                  type="time"
-                  value={customEnd}
-                  onChange={e => setCustomEnd(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                />
-              </div>
+              <TimeInput
+                value={customStart}
+                onChange={setCustomStart}
+                label="開始時刻"
+                minHour={5}
+                maxHour={28}
+                minuteStep={15}
+              />
+              <TimeInput
+                value={customEnd}
+                onChange={setCustomEnd}
+                label="終了時刻"
+                minHour={5}
+                maxHour={28}
+                minuteStep={15}
+              />
               <Button
                 onClick={handleCustomSubmit}
                 className="w-full"

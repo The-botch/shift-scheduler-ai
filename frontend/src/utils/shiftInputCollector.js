@@ -5,6 +5,7 @@
 import Papa from 'papaparse'
 import DEFAULT_CONFIG from '../config/defaults.js'
 import { SHIFT_PREFERENCE_STATUS, PRIORITY } from '../config/constants'
+import { isoToJSTDateString } from './dateUtils'
 
 /**
  * CSVファイルを読み込む共通関数
@@ -387,51 +388,50 @@ export const collectStaffData = async (year, month) => {
   ])
 
   // シフト希望はAPIから取得
+  // ★変更: 新API形式（1日1レコード、date_from/date_to）に対応
   let preferences = []
   let preferencesSource = 'API (shift_preferences)'
 
   try {
     const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3001'
-    const url = `${apiUrl}/api/shifts/preferences?tenant_id=${DEFAULT_CONFIG.TENANT_ID}&year=${year}&month=${month}`
+    // ★変更: year/month → date_from/date_to
+    const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`
+    const lastDay = new Date(year, month, 0).getDate()
+    const dateTo = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    const url = `${apiUrl}/api/shifts/preferences?tenant_id=${DEFAULT_CONFIG.TENANT_ID}&date_from=${dateFrom}&date_to=${dateTo}`
 
     const response = await fetch(url)
     if (response.ok) {
       const result = await response.json()
       if (result.success && result.data) {
-        // APIレスポンスをCSV互換形式に変換
-        preferences = result.data.flatMap(pref => {
-          const prefs = []
+        // ★変更: 新API形式（1日1レコード）をCSV互換形式に変換
+        preferences = result.data.map(pref => {
+          // preference_dateからYYYY-MM-DD形式を取得（JSTで正しくパース）
+          const dateStr = isoToJSTDateString(pref.preference_date)
 
-          // preferred_days を展開
-          if (pref.preferred_days) {
-            const dates = pref.preferred_days.split(',').map(d => d.trim())
-            dates.forEach(date => {
-              prefs.push({
-                staffId: pref.staff_id,
-                date: date,
-                shift: 'preferred', // APIにはシフトパターン情報がないため固定値
-                priority:
-                  pref.status === SHIFT_PREFERENCE_STATUS.APPROVED
-                    ? PRIORITY.HIGH
-                    : PRIORITY.MEDIUM,
-              })
-            })
+          if (pref.is_ng) {
+            // NG日（休み希望）
+            return {
+              staffId: pref.staff_id,
+              date: dateStr,
+              shift: 'off',
+              priority: 'high',
+              isNg: true,
+              startTime: null,
+              endTime: null,
+            }
+          } else {
+            // 勤務希望日
+            return {
+              staffId: pref.staff_id,
+              date: dateStr,
+              shift: 'preferred',
+              priority: PRIORITY.MEDIUM,
+              isNg: false,
+              startTime: pref.start_time,
+              endTime: pref.end_time,
+            }
           }
-
-          // ng_days を展開
-          if (pref.ng_days) {
-            const dates = pref.ng_days.split(',').map(d => d.trim())
-            dates.forEach(date => {
-              prefs.push({
-                staffId: pref.staff_id,
-                date: date,
-                shift: 'off',
-                priority: 'high',
-              })
-            })
-          }
-
-          return prefs
         })
       }
     } else {
