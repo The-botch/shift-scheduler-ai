@@ -500,7 +500,6 @@ export const generateShiftWithAssistant = async params => {
           // CSVファイルをダウンロード
           const fileId = attachment.file_id
           csvContent = await downloadFile(fileId)
-          console.log(`CSVファイル (${fileId}) をダウンロードしました`)
           break // 最初のCSVファイルのみ取得
         }
       }
@@ -530,13 +529,9 @@ export const generateShiftWithAssistant = async params => {
 
       if (jsonMatch && jsonMatch[1]) {
         summaryJson = JSON.parse(jsonMatch[1].trim())
-        console.log('✅ JSONサマリーを抽出しました:', summaryJson)
-      } else {
-        console.warn('⚠️ JSON形式のサマリーが見つかりませんでした')
       }
     } catch (error) {
-      console.warn('⚠️ サマリーJSONのパースに失敗:', error.message)
-      console.log('応答テキスト（先頭500文字）:', textValue.substring(0, 500))
+      console.warn('サマリーJSONのパースに失敗:', error.message)
     }
 
     return {

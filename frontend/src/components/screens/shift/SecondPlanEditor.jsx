@@ -1,49 +1,42 @@
 import { useState, useEffect, useRef } from 'react'
 import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
 import { Button } from '../../ui/button'
-import { isoToJSTDateString } from '../../../utils/dateUtils'
 import {
-  RefreshCw,
-  Zap,
-  Calendar as CalendarIcon,
+  ArrowLeft,
   CheckCircle,
-  TrendingUp,
+  Loader2,
+  Save,
+  Trash2,
+  Download,
+  Maximize2,
+  Minimize2,
+  X,
+  Eye,
+  GitCompare,
+  Calendar as CalendarIcon,
   MessageSquare,
   Send,
   Users,
-  Clock,
-  Eye,
-  GitCompare,
-  ArrowLeft,
-  ChevronLeft,
-  Minimize2,
-  Maximize2,
-  X,
-  GripVertical,
   AlertTriangle,
-  Trash2,
-  Save,
-  Loader2,
+  Zap,
+  GripVertical,
 } from 'lucide-react'
 import { Rnd } from 'react-rnd'
-import ShiftTimeline from '../../shared/ShiftTimeline'
-import ShiftTableView from '../../shared/ShiftTableView'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
+import ShiftTableView from '../../shared/ShiftTableView'
 import TimeInput from '../../shared/TimeInput'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
-import { CSVRepository } from '../../../infrastructure/repositories/CSVRepository'
-import { isHoliday, getHolidayName, loadHolidays } from '../../../utils/holidays'
+import { BACKEND_API_URL } from '../../../config/api'
+import { getCurrentTenantId } from '../../../config/tenant'
+import { isoToJSTDateString } from '../../../utils/dateUtils'
 import { useShiftEditorBase } from '../../../hooks/useShiftEditorBase'
+import { useShiftEditing } from '../../../hooks/useShiftEditing'
+import { exportCSV } from '../../../utils/csvHelper'
 
 const shiftRepository = new ShiftRepository()
 const masterRepository = new MasterRepository()
-const csvRepository = new CSVRepository()
-
-// 祝日データを事前に読み込む
-loadHolidays()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -57,7 +50,20 @@ const pageTransition = {
   duration: 0.5,
 }
 
-const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selectedShift }) => {
+/**
+ * 第2案シフト編集画面
+ * FirstPlanEditorをベースに、SECOND plan用に特化
+ *
+ * 主な違い:
+ * - planType: 'SECOND'
+ * - 第2案がない場合は第1案をコピーして表示（temp_idを付与）
+ * - 希望シフトとの突合表示
+ * - 比較モード（第1案と第2案の並列表示）
+ */
+const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
+  const isViewMode = mode === 'view'
+  const isEditMode = mode === 'edit'
+
   // 共通ロジック（マスタデータ取得・店舗選択管理）
   const {
     staffMap,
@@ -73,12 +79,40 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     setSelectedStores,
   } = useShiftEditorBase(selectedShift)
 
-  const [generating, setGenerating] = useState(false)
-  const [generated, setGenerated] = useState(false)
-  const [comparison, setComparison] = useState(null)
-  const [selectedDate, setSelectedDate] = useState(null)
-  const [selectedStoreId, setSelectedStoreId] = useState(null) // クリックされた店舗ID（nullは全店舗）
+  // 共通ロジック（シフト編集・保存・承認）- planType: 'SECOND'
+  const {
+    modifiedShifts,
+    deletedShiftIds,
+    addedShifts,
+    hasUnsavedChanges,
+    saving,
+    planIds: planIdsState,
+    modalState,
+    setPlanId: setPlanIdsState,
+    getPlanId,
+    handleDeleteShift: handleDeleteShiftBase,
+    handleAddShift: handleAddShiftBase,
+    handleModifyShift,
+    saveChanges,
+    saveDraft,
+    approve,
+    deletePlan,
+    openModal,
+    closeModal,
+    setModalState,
+    resetChanges,
+    setHasUnsavedChanges,
+  } = useShiftEditing({
+    planType: 'SECOND',
+    onApproveComplete: onNext,
+  })
+
+  const [loading, setLoading] = useState(true)
+  const [calendarData, setCalendarData] = useState(null)
+  const [selectedDay, setSelectedDay] = useState(null)
+  const [selectedStoreId, setSelectedStoreId] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
+  const [hasSavedDraft, setHasSavedDraft] = useState(false)
 
   // カレンダービューのウィンドウ状態
   const [windowState, setWindowState] = useState({
@@ -89,64 +123,33 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     isMaximized: false,
   })
 
-  const [viewMode, setViewMode] = useState('second') // 'second', 'first', 'compare'
+  // シフトデータ - FirstPlanEditorと同じ構造
+  const [shiftData, setShiftData] = useState([])
+  const [firstPlanShifts, setFirstPlanShifts] = useState([]) // 第1案（比較表示用）
+  const [defaultPatternId, setDefaultPatternId] = useState(null)
+  const [preferences, setPreferences] = useState([])
+  const [shiftPatterns, setShiftPatterns] = useState([])
+
+  // 表示モード: 'second', 'first', 'compare'
+  const [viewMode, setViewMode] = useState('second')
+
+  // 希望シフトとの不一致情報
+  const [conflicts, setConflicts] = useState([])
+  const [selectedConflict, setSelectedConflict] = useState(null)
+
+  // チャットボット関連
+  const [isChatMinimized, setIsChatMinimized] = useState(false)
   const [messages, setMessages] = useState([
     {
       id: 1,
       type: 'system',
       content: '第2案が生成されました。自然言語で修正指示をお聞かせください。',
-      time: '14:30',
+      time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
     },
   ])
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const chatEndRef = useRef(null)
-  const [shiftData, setShiftData] = useState([])
-  const [planIdState, setPlanIdState] = useState(null) // 状態として保持するplanId
-  const [changedDates, setChangedDates] = useState(new Set())
-  const [pendingChange, setPendingChange] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [preferences, setPreferences] = useState([]) // 希望シフト
-
-  // 下書き保存用のstate（FirstPlanEditorと同じ仕組み）
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
-  const [saving, setSaving] = useState(false)
-  const [modifiedShifts, setModifiedShifts] = useState({}) // { shiftId: { start_time, end_time, ... } }
-  const [deletedShiftIds, setDeletedShiftIds] = useState(new Set())
-  const [addedShifts, setAddedShifts] = useState([]) // 新規追加されたシフト
-
-  // シフト編集モーダルの状態
-  const [modalState, setModalState] = useState({
-    isOpen: false,
-    mode: 'add', // 'add' | 'edit'
-    shift: null,
-    selectedPattern: null, // 選択されたシフトパターン
-    position: { x: 0, y: 0 }, // ポップアップ表示位置
-  })
-
-  // シフトパターンマスタ
-  const [shiftPatterns, setShiftPatterns] = useState([])
-
-  // CSVデータ格納用state
-  const [csvShifts, setCsvShifts] = useState([])
-  const [csvIssues, setCsvIssues] = useState([])
-  const [csvSolutions, setCsvSolutions] = useState([])
-  const [firstPlanShifts, setFirstPlanShifts] = useState([]) // 第1案の生データ
-  const [storeName, setStoreName] = useState('') // 店舗名
-
-  // 問題のある日付を定義
-  const problematicDates = new Set([]) // 問題のある日付
-  const [problemDates, setProblemDates] = useState(new Set([]))
-  const [conflicts, setConflicts] = useState([]) // 希望シフトとの不一致情報
-  const [selectedConflict, setSelectedConflict] = useState(null) // 選択されたconflict（モーダル表示用）
-
-  // 解決済み問題を管理
-  const [resolvedProblems, setResolvedProblems] = useState(new Set())
-
-  // チャットボット最小化状態
-  const [isChatMinimized, setIsChatMinimized] = useState(false)
-
-  // チャットボット位置とサイズ
   const [chatPosition, setChatPosition] = useState({
     x: window.innerWidth - 336,
     y: window.innerHeight - 520,
@@ -157,60 +160,40 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
   const chatRef = useRef(null)
 
-  // 日付が問題があるかどうかを判定する関数（解決済みは除外）
-  const isProblematicDate = date => {
-    return problematicDates.has(date) && !resolvedProblems.has(date)
-  }
+  const year = selectedShift?.year || new Date().getFullYear()
+  const month = selectedShift?.month || new Date().getMonth() + 1
+  const planId =
+    selectedShift?.planId ||
+    selectedShift?.plan_id ||
+    (planIdsState.length > 0 ? planIdsState[0] : null)
 
-  // マウント時に第1案と希望シフトを読み込み
   useEffect(() => {
-    loadInitialData()
-  }, [])
+    loadShiftData()
+  }, [year, month])
 
-  const loadInitialData = async () => {
+  const loadShiftData = async () => {
     try {
       setLoading(true)
 
-      // selectedShiftから年月を取得
-      const year = selectedShift?.year || new Date().getFullYear()
-      const month = selectedShift?.month || new Date().getMonth() + 1
-      const planId = selectedShift?.planId
-
-      console.log(`第2案データ読み込み開始: ${year}年${month}月, plan_id=${planId || '新規作成'}`)
-
-      // マスタデータを取得（カスタムhook経由）
+      // マスタデータを取得
       const { staffMapping } = await loadMasterData()
-      console.log('SecondPlanEditor - マスタデータ取得完了')
 
       // シフトパターンマスタを取得
       try {
         const patterns = await masterRepository.getShiftPatterns()
         setShiftPatterns(patterns)
-        console.log('シフトパターン取得完了:', patterns.length, '件')
       } catch (error) {
         console.error('シフトパターン取得エラー:', error)
       }
 
-      // 店舗名を設定
-      const storeId = selectedShift?.storeId || selectedShift?.store_id
-      if (selectedShift?.store_name) {
-        setStoreName(selectedShift.store_name)
-      } else if (storeId && storesMap[storeId]) {
-        setStoreName(storesMap[storeId].store_name)
-      }
-
       // ========================================
-      // ステップ1: まず第2案の存在確認（優先）
+      // ステップ1: 第2案の存在確認
       // ========================================
       const secondPlanShiftsData = await shiftRepository.getShifts({
         year,
         month,
         plan_type: 'SECOND',
       })
-      console.log(
-        `第2案シフト取得: ${secondPlanShiftsData.length}件`,
-        secondPlanShiftsData.slice(0, 3)
-      )
 
       let secondPlanWithStaffInfo
       let firstPlanWithStaffInfo
@@ -219,76 +202,101 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
         // ========================================
         // 第2案が存在する → 編集モード
         // ========================================
-        console.log('✅ 既存の第2案を復元します（編集モード）')
-
-        // plan_idを抽出して状態に保存
-        const extractedPlanId =
-          secondPlanShiftsData.length > 0 ? secondPlanShiftsData[0].plan_id : null
-        if (extractedPlanId) {
-          setPlanIdState(extractedPlanId)
+        const allPlanIds = [...new Set(secondPlanShiftsData.map(s => s.plan_id).filter(Boolean))]
+        if (allPlanIds.length > 0) {
+          setPlanIdsState(allPlanIds)
         }
+
+        // pattern_idを取得
+        const fetchedPatternId =
+          secondPlanShiftsData.length > 0 ? secondPlanShiftsData[0].pattern_id : null
+        setDefaultPatternId(fetchedPatternId)
 
         secondPlanWithStaffInfo = secondPlanShiftsData.map(shift => ({
           ...shift,
           staff_name: staffMapping[shift.staff_id]?.name || '不明',
           role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
+          modified_flag: false,
         }))
 
-        // 第1案は左側表示用に取得
+        // 第1案は比較表示用に取得
         const firstPlanShiftsData = await shiftRepository.getShifts({
           year,
           month,
           plan_type: 'FIRST',
         })
-        console.log(`第1案シフト取得（参照用）: ${firstPlanShiftsData.length}件`)
-
         firstPlanWithStaffInfo = firstPlanShiftsData.map(shift => ({
           ...shift,
           staff_name: staffMapping[shift.staff_id]?.name || '不明',
           role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
+          modified_flag: false,
         }))
       } else {
         // ========================================
         // 第2案が存在しない → 新規作成モード
+        // 第1案をコピーして第2案の初期データとする
         // ========================================
-        console.log('📝 第2案が存在しないため、第1案をベースに新規作成します')
 
-        // 第1案を取得してベースデータとして使用
+        // ★重要: planIdsStateをクリア（第1案のplan_idを使わない）
+        setPlanIdsState([])
+
+        // 第1案を取得
         const firstPlanShiftsData = await shiftRepository.getShifts({
           year,
           month,
           plan_type: 'FIRST',
         })
-        console.log(
-          `第1案シフト取得: ${firstPlanShiftsData.length}件`,
-          firstPlanShiftsData.slice(0, 3)
-        )
 
-        // plan_idを抽出して状態に保存（第1案から）
-        const extractedPlanId =
-          firstPlanShiftsData.length > 0 ? firstPlanShiftsData[0].plan_id : null
-        if (extractedPlanId) {
-          setPlanIdState(extractedPlanId)
-        }
+        // pattern_idを取得
+        const fetchedPatternId =
+          firstPlanShiftsData.length > 0 ? firstPlanShiftsData[0].pattern_id : null
+        setDefaultPatternId(fetchedPatternId)
 
         firstPlanWithStaffInfo = firstPlanShiftsData.map(shift => ({
           ...shift,
           staff_name: staffMapping[shift.staff_id]?.name || '不明',
           role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
+          modified_flag: false,
         }))
 
-        // 第1案をコピーして第2案の初期データとする
-        secondPlanWithStaffInfo = firstPlanWithStaffInfo
+        // ★重要: 第1案をコピーする際、plan_idとshift_idを新しいものに変更
+        // これにより、saveChanges()が呼ばれても第1案のシフトは更新されない
+        secondPlanWithStaffInfo = firstPlanWithStaffInfo.map((shift, index) => ({
+          ...shift,
+          plan_id: null, // 第2案用のplan_idはまだ存在しない
+          shift_id: `temp_second_${index}_${Date.now()}`, // temp_で始まるIDを付与
+          modified_flag: false,
+        }))
       }
 
-      // ========================================
-      // データをstateに保存
-      // ========================================
-      setFirstPlanShifts(firstPlanWithStaffInfo) // 第1案（左側表示用）
-      setCsvShifts(secondPlanWithStaffInfo) // 第2案の元データ（詳細表示用）
-      setShiftData(secondPlanWithStaffInfo) // 第2案の編集データ
+      // 日付別にグループ化
+      const shiftsByDate = {}
+      secondPlanWithStaffInfo.forEach(shift => {
+        const date = new Date(shift.shift_date)
+        const day = date.getDate()
+        if (!shiftsByDate[day]) {
+          shiftsByDate[day] = []
+        }
+        shiftsByDate[day].push(shift)
+      })
 
-      // ★変更: 新API形式（date_from, date_to）で希望シフトを取得
+      // 月の情報を計算
+      const date = new Date(year, month - 1, 1)
+      const daysInMonth = new Date(year, month, 0).getDate()
+      const firstDay = date.getDay()
+
+      setCalendarData({
+        daysInMonth,
+        firstDay,
+        shiftsByDate,
+        year,
+        month,
+      })
+
+      setShiftData(secondPlanWithStaffInfo)
+      setFirstPlanShifts(firstPlanWithStaffInfo)
+
+      // 希望シフトを取得
       const dateFrom = `${year}-${String(month).padStart(2, '0')}-01`
       const lastDay = new Date(year, month, 0).getDate()
       const dateTo = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
@@ -296,37 +304,28 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
         dateFrom,
         dateTo,
       })
-      console.log(`希望シフト取得: ${preferencesData.length}件`)
-
       setPreferences(preferencesData)
 
-      // 第1案と希望シフトを突合してアラートを判定
-      checkPreferenceConflicts(firstPlanWithStaffInfo, preferencesData, staffMapping, year, month)
+      // 希望シフトとの突合チェック
+      checkPreferenceConflicts(secondPlanWithStaffInfo, preferencesData, staffMapping)
 
-      // データが正常に読み込まれたら生成済みフラグをON
-      // （第1案をコピーしたデータが表示される）
-      setGenerated(true)
+      // DB読み込み完了後は未保存変更なし状態にリセット
+      resetChanges()
+
       setLoading(false)
-    } catch (error) {
-      console.error('❌ 初期データ読み込みエラー:', error)
-      console.error('エラー詳細:', error.message)
-      console.error('スタック:', error.stack)
+    } catch (err) {
+      console.error('データ読み込みエラー:', err)
       setLoading(false)
-      // エラーが発生した場合は generated = false のまま（生成ボタン表示）
-      alert(MESSAGES.ERROR.LOAD_FAILED + '\n\n' + error.message)
+      alert(MESSAGES.ERROR.SHIFT_DATA_LOAD_FAILED)
     }
   }
 
   // 希望シフトとの突合チェック
-  const checkPreferenceConflicts = (shifts, prefs, staffMapping, year, month) => {
-    console.log('=== 希望シフト突合開始 ===')
-    console.log('第1案シフト数:', shifts.length)
-    console.log('希望シフト数:', prefs.length)
-
-    const conflicts = []
+  const checkPreferenceConflicts = (shifts, prefs, staffMapping) => {
+    const newConflicts = []
     const daysInMonth = new Date(year, month, 0).getDate()
 
-    // ★変更: 新API形式（1日1レコード）でスタッフごとの希望日をマップに変換
+    // スタッフごとの希望日をマップに変換
     const staffPreferencesMap = {}
     prefs.forEach(pref => {
       if (!staffPreferencesMap[pref.staff_id]) {
@@ -335,36 +334,25 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
           ngDays: new Set(),
         }
       }
-
-      // preference_dateからYYYY-MM-DD形式を取得（JSTで正しくパース）
       const dateStr = isoToJSTDateString(pref.preference_date)
-
       if (pref.is_ng) {
-        // NG日
         staffPreferencesMap[pref.staff_id].ngDays.add(dateStr)
       } else {
-        // 勤務希望日
         staffPreferencesMap[pref.staff_id].preferredDays.add(dateStr)
       }
     })
 
-    console.log('スタッフごとの希望日マップ:', staffPreferencesMap)
-
     // 日付ごとにチェック
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-
-      // その日のシフト
       const dayShifts = shifts.filter(s => s.shift_date && s.shift_date.startsWith(dateStr))
 
-      // スタッフごとにチェック
       dayShifts.forEach(shift => {
         const staffPref = staffPreferencesMap[shift.staff_id]
         const staffName = staffMapping[shift.staff_id]?.name || `スタッフID: ${shift.staff_id}`
 
         if (!staffPref) {
-          // 希望シフトが未登録 → 第1案を実現できない
-          conflicts.push({
+          newConflicts.push({
             date: day,
             staffId: shift.staff_id,
             staffName: staffName,
@@ -372,19 +360,16 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
             message: '希望シフト未登録',
           })
         } else {
-          // NGの日に配置されている場合
           if (staffPref.ngDays.has(dateStr)) {
-            conflicts.push({
+            newConflicts.push({
               date: day,
               staffId: shift.staff_id,
               staffName: staffName,
               type: 'NG_DAY',
               message: 'NG希望の日に配置',
             })
-          }
-          // 希望日が設定されているのに、希望日以外に配置されている場合
-          else if (staffPref.preferredDays.size > 0 && !staffPref.preferredDays.has(dateStr)) {
-            conflicts.push({
+          } else if (staffPref.preferredDays.size > 0 && !staffPref.preferredDays.has(dateStr)) {
+            newConflicts.push({
               date: day,
               staffId: shift.staff_id,
               staffName: staffName,
@@ -396,32 +381,19 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       })
     }
 
-    console.log('不一致件数:', conflicts.length)
-    if (conflicts.length > 0) {
-      console.log('不一致詳細:', conflicts.slice(0, 10)) // 最初の10件のみ表示
-    }
+    setConflicts(newConflicts)
 
-    // アラートがある場合は問題のある日付として記録
-    if (conflicts.length > 0) {
-      const problemDatesSet = new Set(conflicts.map(c => c.date))
-      setProblemDates(problemDatesSet)
-      setConflicts(conflicts) // conflictsをstateに保存
+    // メッセージに追加
+    if (newConflicts.length > 0) {
+      const ngCount = newConflicts.filter(c => c.type === 'NG_DAY').length
+      const notPreferredCount = newConflicts.filter(c => c.type === 'NOT_PREFERRED').length
+      const noPreferenceCount = newConflicts.filter(c => c.type === 'NO_PREFERENCE').length
+      const problemDatesSet = new Set(newConflicts.map(c => c.date))
 
-      const ngCount = conflicts.filter(c => c.type === 'NG_DAY').length
-      const notPreferredCount = conflicts.filter(c => c.type === 'NOT_PREFERRED').length
-      const noPreferenceCount = conflicts.filter(c => c.type === 'NO_PREFERENCE').length
-
-      // メッセージに追加（Strict Mode対策：重複チェック）
-      const warningContent = `⚠️ 希望との不一致が${conflicts.length}件あります\n・NG日に配置: ${ngCount}件\n・希望日以外に配置: ${notPreferredCount}件\n・希望シフト未登録: ${noPreferenceCount}件\n問題のある日付: ${Array.from(
-        problemDatesSet
-      )
-        .sort((a, b) => a - b)
-        .join('日, ')}日`
+      const warningContent = `⚠️ 希望との不一致が${newConflicts.length}件あります\n・NG日に配置: ${ngCount}件\n・希望日以外に配置: ${notPreferredCount}件\n・希望シフト未登録: ${noPreferenceCount}件`
       setMessages(prev => {
-        // 同じ内容のメッセージが既に存在するかチェック
         const isDuplicate = prev.some(msg => msg.content === warningContent)
         if (isDuplicate) return prev
-
         return [
           ...prev,
           {
@@ -432,30 +404,486 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
           },
         ]
       })
-    } else {
-      console.log('全てのシフトが希望通りに配置されています')
-      setConflicts([]) // conflictsをクリア
-      // メッセージに追加（Strict Mode対策：重複チェック）
-      const successContent = '✅ 全てのシフトが希望通りに配置されています。'
-      setMessages(prev => {
-        // 同じ内容のメッセージが既に存在するかチェック
-        const isDuplicate = prev.some(msg => msg.content === successContent)
-        if (isDuplicate) return prev
+    }
+  }
 
-        return [
-          ...prev,
-          {
-            id: prev.length + 1,
-            type: 'system',
-            content: successContent,
-            time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-          },
-        ]
+  const handleDayClick = (day, storeId = null) => {
+    let dayShiftsData = calendarData?.shiftsByDate[day] || []
+    if (storeId !== null) {
+      dayShiftsData = dayShiftsData.filter(shift => shift.store_id === storeId)
+    }
+    setSelectedDay(day)
+    setSelectedStoreId(storeId)
+    setDayShifts(dayShiftsData)
+  }
+
+  const closeDayView = () => {
+    setSelectedDay(null)
+    setSelectedStoreId(null)
+    setDayShifts([])
+  }
+
+  const handleMaximize = () => {
+    if (windowState.isMaximized) {
+      setWindowState(prev => ({
+        ...prev,
+        width: Math.max(window.innerWidth * 0.9, 1200),
+        height: window.innerHeight * 0.6,
+        isMaximized: false,
+      }))
+    } else {
+      setWindowState(prev => ({
+        ...prev,
+        width: window.innerWidth * 0.95,
+        height: window.innerHeight * 0.95,
+        isMaximized: true,
+      }))
+    }
+  }
+
+  // 下書き保存ハンドラー - FirstPlanEditorと同じ構造
+  const handleSaveDraft = async () => {
+    if (!confirm('下書きを保存しますか？')) {
+      return
+    }
+
+    try {
+      // 第2案がまだ保存されていない場合（planIdsStateが空）
+      if (planIdsState.length === 0) {
+        // shiftDataを店舗ごとにグループ化
+        const storeShiftsMap = {}
+        shiftData.forEach(shift => {
+          const storeId = shift.store_id
+          if (!storeShiftsMap[storeId]) {
+            storeShiftsMap[storeId] = []
+          }
+          storeShiftsMap[storeId].push({
+            staff_id: shift.staff_id,
+            shift_date: shift.shift_date,
+            pattern_id: shift.pattern_id || defaultPatternId,
+            start_time: shift.start_time,
+            end_time: shift.end_time,
+            break_minutes: shift.break_minutes || 0,
+          })
+        })
+
+        const stores = Object.entries(storeShiftsMap).map(([storeId, shifts]) => ({
+          store_id: parseInt(storeId),
+          shifts,
+        }))
+
+        // SECONDプランを一括作成
+        const result = await shiftRepository.createPlansWithShifts({
+          target_year: year,
+          target_month: month,
+          created_by: 1,
+          stores,
+          plan_type: 'SECOND',
+        })
+
+        if (result.data?.errors?.length > 0) {
+          console.error('プラン作成でエラーが発生しました:', result.data.errors)
+          const errorMessages = result.data.errors
+            .map(e => `店舗${e.store_id}: ${e.error}`)
+            .join('\n')
+          throw new Error(`プラン作成でエラーが発生しました:\n${errorMessages}`)
+        }
+
+        if (!result.success || !result.data?.created_plans?.length) {
+          throw new Error('プランの作成に失敗しました。作成されたプランがありません。')
+        }
+
+        setHasSavedDraft(true)
+        setHasUnsavedChanges(false)
+        alert(MESSAGES.SUCCESS.SAVED)
+
+        // データをリロード
+        await loadShiftData()
+      } else {
+        // 既存のプラン編集の場合
+        if (!hasUnsavedChanges) {
+          alert(MESSAGES.SUCCESS.NO_CHANGES)
+          return
+        }
+
+        const result = await saveChanges()
+        if (result.success) {
+          setHasSavedDraft(true)
+          alert(MESSAGES.SUCCESS.SAVED)
+          await loadShiftData()
+        } else {
+          throw new Error(result.message)
+        }
+      }
+    } catch (error) {
+      console.error('下書き保存エラー:', error)
+      alert(`下書きの保存に失敗しました\n\nエラー: ${error.message}`)
+    }
+  }
+
+  // 承認ハンドラー
+  const handleApprove = async () => {
+    // 第2案がまだ保存されていない場合
+    if (planIdsState.length === 0) {
+      if (!confirm('第2案を承認しますか？\n（まだ保存されていないため、保存してから承認します）')) {
+        return
+      }
+
+      try {
+        // shiftDataを店舗ごとにグループ化
+        const storeShiftsMap = {}
+        shiftData.forEach(shift => {
+          const storeId = shift.store_id
+          if (!storeShiftsMap[storeId]) {
+            storeShiftsMap[storeId] = []
+          }
+          storeShiftsMap[storeId].push({
+            staff_id: shift.staff_id,
+            shift_date: shift.shift_date,
+            pattern_id: shift.pattern_id || defaultPatternId,
+            start_time: shift.start_time,
+            end_time: shift.end_time,
+            break_minutes: shift.break_minutes || 0,
+          })
+        })
+
+        const stores = Object.entries(storeShiftsMap).map(([storeId, shifts]) => ({
+          store_id: parseInt(storeId),
+          shifts,
+        }))
+
+        const result = await shiftRepository.createPlansWithShifts({
+          target_year: year,
+          target_month: month,
+          created_by: 1,
+          stores,
+          plan_type: 'SECOND',
+        })
+
+        if (!result.success || !result.data?.created_plans?.length) {
+          throw new Error('プランの作成に失敗しました')
+        }
+
+        const createdPlanIds = result.data.created_plans.map(p => p.plan_id)
+
+        for (const id of createdPlanIds) {
+          await shiftRepository.updatePlanStatus(id, 'APPROVED')
+        }
+
+        setHasSavedDraft(true)
+        alert(MESSAGES.SUCCESS.APPROVE_SECOND_PLAN)
+        if (onNext) {
+          onNext()
+        }
+      } catch (error) {
+        console.error('承認処理エラー:', error)
+        alert(`承認処理に失敗しました\n\nエラー: ${error.message}`)
+      }
+      return
+    }
+
+    // 既存プランの場合
+    const confirmMessage = hasUnsavedChanges
+      ? '未保存の変更を保存して承認します。よろしいですか？'
+      : '第2案を承認しますか？'
+
+    if (!confirm(confirmMessage)) {
+      return
+    }
+
+    try {
+      if (hasUnsavedChanges) {
+        const saveResult = await saveChanges()
+        if (!saveResult.success) {
+          throw new Error(saveResult.message)
+        }
+      }
+
+      for (const id of planIdsState) {
+        await shiftRepository.updatePlanStatus(id, 'APPROVED')
+      }
+
+      setHasSavedDraft(true)
+      alert(MESSAGES.SUCCESS.APPROVE_SECOND_PLAN)
+      if (onNext) {
+        onNext()
+      }
+    } catch (error) {
+      console.error('承認処理エラー:', error)
+      alert(`承認処理に失敗しました\n\nエラー: ${error.message}`)
+    }
+  }
+
+  // 削除ハンドラー
+  const handleDelete = async () => {
+    // 第2案のplanIdを取得
+    let planIdsToDelete = []
+    if (planIdsState.length > 0) {
+      planIdsToDelete = [...planIdsState]
+    } else {
+      // 第2案が保存されていない場合は単に画面を閉じる
+      if (onPrev) {
+        onPrev()
+      }
+      return
+    }
+
+    const confirmMessage =
+      planIdsToDelete.length === 1
+        ? 'この第2案シフト計画を削除してもよろしいですか？'
+        : `${planIdsToDelete.length}件の第2案シフト計画を削除してもよろしいですか？`
+
+    if (!confirm(confirmMessage)) {
+      return
+    }
+
+    try {
+      const tenantId = getCurrentTenantId()
+
+      // 各planIdに対して削除リクエストを送信
+      const deletePromises = planIdsToDelete.map(async id => {
+        const url = `${BACKEND_API_URL}/api/shifts/plans/${id}?tenant_id=${tenantId}`
+        const response = await fetch(url, { method: 'DELETE' })
+        const data = await response.json()
+
+        if (!response.ok) {
+          throw new Error(data.message || `プラン ${id} の削除に失敗しました`)
+        }
+        return data
+      })
+
+      await Promise.all(deletePromises)
+      alert('第2案を削除しました')
+
+      // 削除後、画面を閉じる
+      if (onPrev) {
+        onPrev()
+      }
+    } catch (error) {
+      console.error('削除処理エラー:', error)
+      alert(`シフト計画の削除中にエラーが発生しました: ${error.message}`)
+    }
+  }
+
+  // シフト更新ハンドラー
+  const handleUpdateShift = (shiftId, updates) => {
+    const updateUI = () => {
+      setCalendarData(prev => {
+        if (!prev) return prev
+        const updatedShiftsByDate = { ...prev.shiftsByDate }
+        Object.keys(updatedShiftsByDate).forEach(day => {
+          updatedShiftsByDate[day] = updatedShiftsByDate[day].map(shift => {
+            if (shift.shift_id === shiftId) {
+              return { ...shift, ...updates, modified_flag: true }
+            }
+            return shift
+          })
+        })
+        return { ...prev, shiftsByDate: updatedShiftsByDate }
+      })
+
+      setShiftData(prev =>
+        prev.map(shift =>
+          shift.shift_id === shiftId ? { ...shift, ...updates, modified_flag: true } : shift
+        )
+      )
+
+      if (selectedDay) {
+        setDayShifts(prev =>
+          prev.map(shift =>
+            shift.shift_id === shiftId ? { ...shift, ...updates, modified_flag: true } : shift
+          )
+        )
+      }
+    }
+
+    handleModifyShift(shiftId, updates, updateUI)
+  }
+
+  // シフト削除ハンドラー
+  const handleDeleteShift = shiftId => {
+    const updateUI = () => {
+      setCalendarData(prev => {
+        if (!prev) return prev
+        const updatedShiftsByDate = { ...prev.shiftsByDate }
+        Object.keys(updatedShiftsByDate).forEach(day => {
+          updatedShiftsByDate[day] = updatedShiftsByDate[day].filter(
+            shift => shift.shift_id !== shiftId
+          )
+        })
+        return { ...prev, shiftsByDate: updatedShiftsByDate }
+      })
+
+      setShiftData(prev => prev.filter(shift => shift.shift_id !== shiftId))
+
+      if (selectedDay) {
+        const updatedShifts = dayShifts.filter(s => s.shift_id !== shiftId)
+        setDayShifts(updatedShifts)
+        if (updatedShifts.length === 0) {
+          closeDayView()
+        }
+      }
+    }
+
+    handleDeleteShiftBase(shiftId, updateUI)
+  }
+
+  // シフト追加ハンドラー - FirstPlanEditorと同じ構造
+  const handleAddShift = newShiftData => {
+    const staffInfo = staffMap[newShiftData.staff_id] || { name: '不明', role_name: 'スタッフ' }
+
+    const dynamicPatternId =
+      modalState.selectedPattern?.pattern_id ||
+      defaultPatternId ||
+      (shiftData.length > 0 ? shiftData[0].pattern_id : null) ||
+      (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1)
+
+    // ★重要: planIdは現在の第2案のplanId（存在しない場合はnull）
+    // getCurrentTenantId()でテナントIDを取得
+    const currentPlanId = planIdsState.length > 0 ? planIdsState[0] : null
+
+    const shiftDataToAdd = {
+      tenant_id: getCurrentTenantId(),
+      store_id: newShiftData.store_id,
+      plan_id: currentPlanId,
+      staff_id: newShiftData.staff_id,
+      shift_date: newShiftData.date || newShiftData.shift_date,
+      pattern_id: dynamicPatternId,
+      start_time: newShiftData.start_time,
+      end_time: newShiftData.end_time,
+      break_minutes: newShiftData.break_minutes || 0,
+      is_preferred: false,
+      staff_name: staffInfo.name,
+      role: staffInfo.role_name,
+      modified_flag: true,
+    }
+
+    const updateUI = newShift => {
+      const date = new Date(newShift.shift_date)
+      const day = date.getDate()
+
+      setCalendarData(prev => {
+        if (!prev) return prev
+        const updatedShiftsByDate = { ...prev.shiftsByDate }
+        if (!updatedShiftsByDate[day]) {
+          updatedShiftsByDate[day] = []
+        }
+        updatedShiftsByDate[day].push(newShift)
+        return { ...prev, shiftsByDate: updatedShiftsByDate }
+      })
+
+      setShiftData(prev => [...prev, newShift])
+
+      if (selectedDay === day) {
+        setDayShifts(prev => [...prev, newShift])
+      }
+    }
+
+    handleAddShiftBase(shiftDataToAdd, updateUI)
+  }
+
+  // セルクリック時のハンドラー
+  const handleShiftClick = ({ mode, shift, date, staffId, storeId, event }) => {
+    const rect = event?.target.getBoundingClientRect()
+    const position = rect
+      ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
+      : { x: window.innerWidth / 2, y: window.innerHeight / 2 }
+
+    const formattedDate =
+      typeof date === 'string' && date.includes('-')
+        ? date
+        : `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+
+    if (mode === 'add') {
+      const staffStoreId = staffMap[staffId]?.store_id
+      const storeData =
+        storesMap instanceof Map
+          ? storesMap.get(parseInt(staffStoreId))
+          : storesMap[parseInt(staffStoreId)]
+
+      setModalState({
+        isOpen: true,
+        mode: 'add',
+        shift: {
+          date: formattedDate,
+          staff_id: staffId,
+          store_id: staffStoreId,
+          staff_name: staffMap[staffId]?.name || '不明',
+          store_name: storeData?.store_name || '不明',
+        },
+        position,
+      })
+    } else {
+      setModalState({
+        isOpen: true,
+        mode: 'edit',
+        shift: { ...shift, date: shift.date || formattedDate },
+        position,
       })
     }
   }
 
-  // チャット自動スクロール関数
+  const handleModalSave = timeData => {
+    if (modalState.mode === 'add') {
+      handleAddShift({ ...modalState.shift, ...timeData })
+    } else {
+      handleUpdateShift(modalState.shift.shift_id, timeData)
+    }
+    setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })
+  }
+
+  const handleModalDelete = () => {
+    if (!confirm('このシフトを削除しますか？')) return
+    handleDeleteShift(modalState.shift.shift_id)
+    setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })
+  }
+
+  const handleBack = async () => {
+    if (hasUnsavedChanges) {
+      if (confirm('未保存の変更があります。変更を破棄して戻りますか？')) {
+        onPrev()
+      }
+      return
+    }
+    onPrev()
+  }
+
+  // CSVエクスポート
+  const handleExportCSV = () => {
+    if (!shiftData || shiftData.length === 0) {
+      alert(MESSAGES.ERROR.NO_EXPORT_DATA)
+      return
+    }
+
+    const exportData = shiftData
+      .map(shift => {
+        const date = new Date(shift.shift_date)
+        const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()]
+        return {
+          日付: shift.shift_date,
+          曜日: dayOfWeek,
+          店舗名: storesMap[shift.store_id]?.store_name || '',
+          スタッフ名: shift.staff_name || '',
+          役職: shift.role || '',
+          開始時刻: shift.start_time || '',
+          終了時刻: shift.end_time || '',
+          休憩時間: shift.break_minutes || 0,
+          勤務時間: shift.total_hours || 0,
+        }
+      })
+      .sort((a, b) => a.日付.localeCompare(b.日付))
+
+    const filename = `shift_second_${year}_${String(month).padStart(2, '0')}.csv`
+    const result = exportCSV(exportData, filename)
+
+    if (result.success) {
+      alert(MESSAGES.SUCCESS.CSV_EXPORT_SUCCESS(year, month))
+    } else {
+      alert(MESSAGES.ERROR.EXPORT_ERROR(result.error))
+    }
+  }
+
+  // チャット関連ハンドラー
   const scrollToBottom = () => {
     setTimeout(() => {
       if (chatEndRef.current) {
@@ -464,8 +892,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     }, 100)
   }
 
-  // ドラッグハンドラー
-  const handleDragStart = e => {
+  const handleChatDragStart = e => {
     setIsDragging(true)
     setDragStart({
       x: e.clientX - chatPosition.x,
@@ -473,7 +900,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     })
   }
 
-  const handleDrag = e => {
+  const handleChatDrag = e => {
     if (isDragging) {
       setChatPosition({
         x: e.clientX - dragStart.x,
@@ -482,11 +909,10 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     }
   }
 
-  const handleDragEnd = () => {
+  const handleChatDragEnd = () => {
     setIsDragging(false)
   }
 
-  // リサイズハンドラー
   const handleResizeStart = e => {
     e.stopPropagation()
     setIsResizing(true)
@@ -509,14 +935,13 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     setIsResizing(false)
   }
 
-  // マウスイベントリスナー
   useEffect(() => {
     if (isDragging) {
-      window.addEventListener('mousemove', handleDrag)
-      window.addEventListener('mouseup', handleDragEnd)
+      window.addEventListener('mousemove', handleChatDrag)
+      window.addEventListener('mouseup', handleChatDragEnd)
       return () => {
-        window.removeEventListener('mousemove', handleDrag)
-        window.removeEventListener('mouseup', handleDragEnd)
+        window.removeEventListener('mousemove', handleChatDrag)
+        window.removeEventListener('mouseup', handleChatDragEnd)
       }
     }
   }, [isDragging, dragStart, chatPosition])
@@ -532,322 +957,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     }
   }, [isResizing, dragStart, chatSize])
 
-  const generateSecondPlan = async () => {
-    try {
-      // シフト希望提出状況を確認（APIから取得）
-      const [staffResult, preferencesResult] = await Promise.all([
-        masterRepository.getStaff(),
-        shiftRepository.getShifts({ planId: 4 }), // 仮のplan_id、実際には出勤可否APIが必要
-      ])
-
-      const activeStaff = staffResult.filter(s => s.is_active)
-      const totalStaffCount = activeStaff.length
-
-      // 提出済みのスタッフIDを抽出（submitted_atがあるスタッフ）
-      const submittedStaffIds = new Set(
-        preferencesResult.filter(req => req.submitted_at).map(req => req.staff_id)
-      )
-      const submittedCount = submittedStaffIds.size
-
-      // 全員提出していない場合は確認アラート
-      if (submittedCount < totalStaffCount) {
-        const unsubmittedCount = totalStaffCount - submittedCount
-        const unsubmittedStaff = activeStaff
-          .filter(staff => !submittedStaffIds.has(staff.staff_id))
-          .map(s => s.name)
-          .join('、')
-
-        const confirmMessage = `⚠️ シフト希望の提出が完了していません\n\n提出済み: ${submittedCount}名 / 全${totalStaffCount}名\n未提出: ${unsubmittedCount}名（${unsubmittedStaff}）\n\nシフト希望が未提出のスタッフがいますが、第2案を作成しますか？\n※未提出のスタッフは自動配置されます`
-
-        if (!window.confirm(confirmMessage)) {
-          return // キャンセルされた場合は中止
-        }
-      }
-
-      setGenerating(true)
-
-      // マスターデータとシフトデータをAPIから読み込み
-      const [rolesData, shiftsData] = await Promise.all([
-        masterRepository.getRoles(),
-        shiftRepository.getShifts({ planId: 4 }), // plan_id=4のシフトデータ
-      ])
-
-      // issues と solutions は将来実装予定のAPIから取得
-      const issuesData = []
-      const solutionsData = []
-
-      // staffDataは既に読み込み済み
-      const staffData = staffResult
-      console.log('generateSecondPlan - staffData件数:', staffData.length)
-      console.log('generateSecondPlan - staffDataサンプル:', staffData.slice(0, 2))
-
-      // スタッフマップとロールマップを作成
-      const newRolesMap = {}
-      rolesData.forEach(role => {
-        newRolesMap[role.role_id] = role.role_name
-      })
-
-      const newStaffMap = {}
-      staffData.forEach(staff => {
-        newStaffMap[staff.staff_id] = {
-          name: staff.name,
-          role_id: staff.role_id,
-          role_name: newRolesMap[staff.role_id] || 'スタッフ',
-          skill_level: staff.skill_level,
-          is_active: staff.is_active,
-          store_id: staff.store_id,
-        }
-      })
-      console.log('generateSecondPlan - newStaffMap件数:', Object.keys(newStaffMap).length)
-      console.log(
-        'generateSecondPlan - newStaffMapサンプル:',
-        newStaffMap[Object.keys(newStaffMap)[0]]
-      )
-
-      setCsvShifts(shiftsData)
-      setCsvIssues(issuesData)
-      setCsvSolutions(solutionsData)
-
-      // シフトデータを日付ごとにグループ化
-      const groupedByDate = {}
-      shiftsData.forEach(shift => {
-        if (!groupedByDate[shift.date]) {
-          groupedByDate[shift.date] = []
-        }
-        const staffInfo = newStaffMap[shift.staff_id] || { name: '不明', skill_level: 1 }
-        groupedByDate[shift.date].push({
-          name: staffInfo.name,
-          time: `${shift.start_time}-${shift.end_time}`, // VARCHAR(5)形式: "09:00-18:00"
-          skill: shift.skill_level || staffInfo.skill_level,
-          preferred: shift.is_preferred,
-          changed: false,
-        })
-      })
-
-      // 日付順にソート
-      const formattedData = Object.keys(groupedByDate)
-        .map(date => parseInt(date))
-        .sort((a, b) => a - b)
-        .map(date => ({
-          date,
-          shifts: groupedByDate[date],
-        }))
-
-      // 問題のある日付を抽出
-      const problemDatesSet = new Set(issuesData.map(issue => issue.date))
-      setProblemDates(problemDatesSet)
-
-      // 第1案データを読み込み（localStorageまたはCSV）
-      const approvedFirstPlan = localStorage.getItem('approved_first_plan_2024_10')
-      if (approvedFirstPlan) {
-        const firstPlanApprovedData = JSON.parse(approvedFirstPlan)
-        setFirstPlanShifts(firstPlanApprovedData.shifts)
-      } else {
-        // 第1案がlocalStorageにない場合は、shift.csvから読み込む
-        try {
-          const firstPlanResult = await csvRepository.loadCSV('data/transactions/shift.csv')
-
-          // 第1案データを日付ごとにグループ化
-          const firstPlanGrouped = {}
-          firstPlanResult.forEach(shift => {
-            if (!firstPlanGrouped[shift.date]) {
-              firstPlanGrouped[shift.date] = []
-            }
-            const staffInfo = newStaffMap[shift.staff_id] || {
-              name: '不明',
-              skill_level: 1,
-              role_name: 'スタッフ',
-            }
-            firstPlanGrouped[shift.date].push({
-              name: staffInfo.name,
-              time: `${shift.start_time}-${shift.end_time}`, // VARCHAR(5)形式: "09:00-18:00"
-              skill: shift.skill_level || staffInfo.skill_level,
-              role: staffInfo.role_name,
-              preferred: shift.is_preferred,
-              changed: false,
-            })
-          })
-
-          const firstPlanFormatted = Object.keys(firstPlanGrouped)
-            .map(date => parseInt(date))
-            .sort((a, b) => a - b)
-            .map(date => ({
-              date,
-              day: ['日', '月', '火', '水', '木', '金', '土'][
-                new Date(2024, 10 - 1, date).getDay()
-              ],
-              shifts: firstPlanGrouped[date],
-            }))
-
-          setFirstPlanShifts(firstPlanFormatted)
-        } catch (err) {
-          console.error('第1案データ読み込みエラー:', err)
-          setFirstPlanShifts([])
-        }
-      }
-
-      setShiftData(formattedData)
-      setGenerated(true)
-      setComparison({
-        first: { satisfaction: 72, coverage: 85, cost: 52000 },
-        second: { satisfaction: 89, coverage: 92, cost: 48000 },
-      })
-    } catch (err) {
-      console.error('第2案データ読み込みエラー:', err)
-      alert(MESSAGES.ERROR.SECOND_PLAN_LOAD_FAILED)
-    } finally {
-      setGenerating(false)
-    }
-  }
-
-  const applyShiftChanges = changes => {
-    // 変更があったことをマーク
-    if (onMarkUnsaved) {
-      onMarkUnsaved()
-    }
-
-    // スタッフ名からstaff_idを逆引きするマップを作成
-    const nameToIdMap = {}
-    Object.entries(staffMap).forEach(([id, info]) => {
-      nameToIdMap[info.name] = parseInt(id)
-    })
-
-    setShiftData(prevData => {
-      const newData = [...prevData]
-      const newChangedDates = new Set(changedDates)
-      const newProblemDates = new Set(problemDates)
-      const newResolvedProblems = new Set(resolvedProblems)
-
-      changes.forEach(change => {
-        const dayIndex = newData.findIndex(d => d.date === change.date)
-        if (dayIndex !== -1) {
-          newChangedDates.add(change.date)
-          // すべての変更アクションで問題を解決済みとマーク
-          newProblemDates.delete(change.date)
-          newResolvedProblems.add(change.date)
-
-          if (change.action === 'remove') {
-            newData[dayIndex].shifts = newData[dayIndex].shifts.filter(s => s.name !== change.staff)
-          } else if (change.action === 'add') {
-            newData[dayIndex].shifts.push({
-              name: change.staff,
-              time: change.time,
-              skill: change.skill,
-              preferred: true,
-              changed: true,
-            })
-          } else if (change.action === 'modify') {
-            const shiftIndex = newData[dayIndex].shifts.findIndex(s => s.name === change.staff)
-            if (shiftIndex !== -1) {
-              if (change.newStaff) {
-                // スタッフ変更
-                newData[dayIndex].shifts[shiftIndex] = {
-                  name: change.newStaff,
-                  time: change.time,
-                  skill: change.skill,
-                  preferred: true,
-                  changed: true,
-                }
-              } else {
-                // 時間変更
-                newData[dayIndex].shifts[shiftIndex] = {
-                  ...newData[dayIndex].shifts[shiftIndex],
-                  time: change.time,
-                  preferred: true,
-                  changed: true,
-                }
-              }
-            }
-          }
-        }
-      })
-
-      // 状態更新
-      setChangedDates(newChangedDates)
-      setProblemDates(newProblemDates)
-      setResolvedProblems(newResolvedProblems)
-
-      return newData
-    })
-
-    // csvShiftsも更新
-    setCsvShifts(prevCsvShifts => {
-      const newCsvShifts = [...prevCsvShifts]
-      const dayOfWeekMap = ['日', '月', '火', '水', '木', '金', '土']
-
-      changes.forEach(change => {
-        const date = new Date(2024, 10 - 1, change.date)
-        const dayOfWeek = dayOfWeekMap[date.getDay()]
-
-        if (change.action === 'remove') {
-          // 削除
-          const staffId = nameToIdMap[change.staff]
-          const removeIndex = newCsvShifts.findIndex(
-            s => s.date === change.date && s.staff_id === staffId
-          )
-          if (removeIndex !== -1) {
-            newCsvShifts.splice(removeIndex, 1)
-          }
-        } else if (change.action === 'add') {
-          // 追加
-          const staffId = nameToIdMap[change.staff]
-          const [startHour, endHour] = change.time.split('-')
-          const newShift = {
-            shift_id: `SP2_NEW_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-            date: change.date,
-            day_of_week: dayOfWeek,
-            staff_id: staffId,
-            staff_name: change.staff,
-            start_time: `${startHour.padStart(2, '0')}:00`,
-            end_time: `${endHour.padStart(2, '0')}:00`,
-            skill_level: change.skill,
-            is_preferred: 'TRUE',
-            is_modified: 'TRUE',
-            has_issue: 'FALSE',
-            issue_type: '',
-          }
-          newCsvShifts.push(newShift)
-        } else if (change.action === 'modify') {
-          // 変更
-          const oldStaffId = nameToIdMap[change.staff]
-          const modifyIndex = newCsvShifts.findIndex(
-            s => s.date === change.date && s.staff_id === oldStaffId
-          )
-          if (modifyIndex !== -1) {
-            const [startHour, endHour] = change.time.split('-')
-            if (change.newStaff) {
-              // スタッフ変更
-              const newStaffId = nameToIdMap[change.newStaff]
-              newCsvShifts[modifyIndex] = {
-                ...newCsvShifts[modifyIndex],
-                staff_id: newStaffId,
-                staff_name: change.newStaff,
-                start_time: `${startHour.padStart(2, '0')}:00`,
-                end_time: `${endHour.padStart(2, '0')}:00`,
-                skill_level: change.skill,
-                is_modified: 'TRUE',
-                has_issue: 'FALSE',
-                issue_type: '',
-              }
-            } else {
-              // 時間変更
-              newCsvShifts[modifyIndex] = {
-                ...newCsvShifts[modifyIndex],
-                start_time: `${startHour.padStart(2, '0')}:00`,
-                end_time: `${endHour.padStart(2, '0')}:00`,
-                is_modified: 'TRUE',
-                has_issue: 'FALSE',
-                issue_type: '',
-              }
-            }
-          }
-        }
-      })
-
-      return newCsvShifts
-    })
-  }
-
   const sendMessage = async (messageText = null) => {
     const textToSend = messageText || inputValue
     if (!textToSend.trim()) return
@@ -860,63 +969,18 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     }
 
     setMessages(prev => [...prev, newMessage])
-    const currentInput = textToSend
     setInputValue('')
     setIsTyping(true)
     scrollToBottom()
 
-    // 承認待ち状態の処理
-    if (
-      pendingChange &&
-      (currentInput.toLowerCase().includes('ok') ||
-        currentInput.includes('はい') ||
-        currentInput.includes('実行'))
-    ) {
-      setTimeout(() => {
-        applyShiftChanges(pendingChange.changes)
-        const aiResponse = {
-          id: messages.length + 2,
-          type: 'assistant',
-          content: pendingChange.response,
-          time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-        }
-        setMessages(prev => [...prev, aiResponse])
-        setIsTyping(false)
-        setPendingChange(null)
-        scrollToBottom()
-      }, 1500)
-      return
-    }
-
     try {
-      // ChatGPT APIを呼び出す
       const systemPrompt = `あなたはシフト管理アシスタントです。現在、第2案を作成中です。
-
-現在のシフト情報:
-- 年月: ${selectedShift?.year}年${selectedShift?.month}月
-- 問題: ${csvIssues.map(i => `${i.date}日: ${i.description}`).join(', ')}
-
-ユーザーの質問に答え、必要に応じてシフトの修正を提案してください。
-修正を提案する場合は、以下のJSON形式で提案を含めてください:
-
-{
-  "message": "修正の説明",
-  "changes": [
-    {
-      "date": 15,
-      "action": "modify",
-      "shift_id": 123,
-      "start_time": "09:00",
-      "end_time": "18:00"
-    }
-  ]
-}`
+年月: ${year}年${month}月
+ユーザーの質問に答え、必要に応じてシフトの修正を提案してください。`
 
       const response = await fetch('http://localhost:3001/api/openai/chat/completions', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
@@ -925,37 +989,20 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
               role: m.type === 'user' ? 'user' : 'assistant',
               content: m.content,
             })),
-            { role: 'user', content: currentInput },
+            { role: 'user', content: textToSend },
           ],
           temperature: 0.7,
         }),
       })
 
       const data = await response.json()
-      let aiContent = data.choices[0].message.content
-
-      // JSON形式の修正提案を解析
-      let suggestedChanges = null
-      const jsonMatch = aiContent.match(/```json\n([\s\S]*?)\n```/)
-      if (jsonMatch) {
-        try {
-          const parsed = JSON.parse(jsonMatch[1])
-          if (parsed.changes) {
-            suggestedChanges = parsed.changes
-            // JSONコードブロックを表示から除去
-            aiContent = aiContent.replace(/```json\n[\s\S]*?\n```/, '').trim()
-          }
-        } catch (e) {
-          console.error('JSON解析エラー:', e)
-        }
-      }
+      const aiContent = data.choices[0].message.content
 
       const aiResponse = {
         id: messages.length + 2,
         type: 'assistant',
         content: aiContent,
         time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
-        suggestedChanges: suggestedChanges,
       }
 
       setMessages(prev => [...prev, aiResponse])
@@ -966,398 +1013,12 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       const aiResponse = {
         id: messages.length + 2,
         type: 'assistant',
-        content: `エラーが発生しました: ${error.message}\n\n申し訳ございませんが、再度お試しください。`,
+        content: `エラーが発生しました: ${error.message}`,
         time: new Date().toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' }),
       }
       setMessages(prev => [...prev, aiResponse])
       setIsTyping(false)
       scrollToBottom()
-    }
-  }
-
-  const handleDayClick = (date, storeId = null) => {
-    // selectedShiftから年月を取得
-    const year = selectedShift?.year || new Date().getFullYear()
-    const month = selectedShift?.month || new Date().getMonth() + 1
-    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-
-    // CSVデータから該当日のシフトを取得
-    let dayShiftsData = csvShifts.filter(s => {
-      // s.dateが数値の場合と文字列の場合の両方に対応
-      if (typeof s.date === 'number') {
-        return s.date === date
-      } else if (typeof s.shift_date === 'string') {
-        return s.shift_date.startsWith(dateStr)
-      }
-      return s.date === date
-    })
-
-    // storeIdが指定されている場合は、その店舗のシフトのみにフィルタリング
-    if (storeId) {
-      dayShiftsData = dayShiftsData.filter(s => s.store_id === storeId)
-    }
-
-    // ShiftTimelineコンポーネント用のフォーマットに変換
-    const formattedShifts = dayShiftsData.map(shift => {
-      const staffInfo = staffMap[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
-      return {
-        shift_id: shift.shift_id,
-        staff_id: shift.staff_id,
-        store_id: shift.store_id,
-        staff_name: staffInfo.name,
-        role: staffInfo.role_name,
-        start_time: shift.start_time,
-        end_time: shift.end_time,
-        skill_level: shift.skill_level,
-        modified_flag: shift.is_modified,
-      }
-    })
-
-    setDayShifts(formattedShifts)
-    setSelectedDate(date)
-    setSelectedStoreId(storeId)
-  }
-
-  const closeDayView = () => {
-    setSelectedDate(null)
-    setSelectedStoreId(null)
-    setDayShifts([])
-  }
-
-  // ウィンドウ操作ハンドラー
-  const handleMaximize = () => {
-    if (windowState.isMaximized) {
-      // 元のサイズに戻す
-      setWindowState(prev => ({
-        ...prev,
-        width: Math.max(window.innerWidth * 0.9, 1200),
-        height: window.innerHeight * 0.6,
-        isMaximized: false,
-      }))
-    } else {
-      // 最大化
-      setWindowState(prev => ({
-        ...prev,
-        width: window.innerWidth * 0.95,
-        height: window.innerHeight * 0.95,
-        isMaximized: true,
-      }))
-    }
-  }
-
-  // シフト更新ハンドラー（メモリに保存のみ、FirstPlanEditorと同じ仕組み）
-  const handleUpdateShift = (shiftId, updates) => {
-    setHasUnsavedChanges(true)
-
-    // ローカルの変更を保持
-    setModifiedShifts(prev => ({
-      ...prev,
-      [shiftId]: {
-        ...prev[shiftId],
-        ...updates,
-      },
-    }))
-
-    // ローカルステートを更新（UIを即座に更新）
-    setCsvShifts(prev =>
-      prev.map(shift =>
-        shift.shift_id === shiftId ? { ...shift, ...updates, modified_flag: true } : shift
-      )
-    )
-
-    // 表示中の日のシフトも更新
-    if (selectedDate) {
-      setDayShifts(prev =>
-        prev.map(shift =>
-          shift.shift_id === shiftId ? { ...shift, ...updates, modified_flag: true } : shift
-        )
-      )
-    }
-  }
-
-  // シフト削除ハンドラー（メモリに保存のみ、FirstPlanEditorと同じ仕組み）
-  const handleDeleteShift = shiftId => {
-    setHasUnsavedChanges(true)
-
-    // Tempシフト（未保存）かどうかを判定
-    if (String(shiftId).startsWith('temp_')) {
-      // Tempシフトの場合：addedShiftsから削除（バックエンドへの削除リクエストは不要）
-      setAddedShifts(prev => prev.filter(shift => shift.shift_id !== shiftId))
-    } else {
-      // 既存シフト（DB保存済み）の場合：削除リストに追加（バックエンドで削除）
-      setDeletedShiftIds(prev => new Set([...prev, shiftId]))
-    }
-
-    // ローカルステートから削除（UIから削除）
-    setCsvShifts(prev => prev.filter(shift => shift.shift_id !== shiftId))
-
-    // 表示中の日のシフトからも削除
-    if (selectedDate) {
-      const updatedShifts = dayShifts.filter(s => s.shift_id !== shiftId)
-      setDayShifts(updatedShifts)
-
-      // その日のシフトがなくなったら閉じる
-      if (updatedShifts.length === 0) {
-        closeDayView()
-      }
-    }
-  }
-
-  // 下書き保存ハンドラー（FirstPlanEditorと同じ仕組み）
-  const handleSaveDraft = async () => {
-    if (!confirm('下書きを保存しますか？')) {
-      return
-    }
-
-    try {
-      setSaving(true)
-
-      if (!hasUnsavedChanges) {
-        alert(MESSAGES.SUCCESS.NO_CHANGES)
-        setSaving(false)
-        return
-      }
-
-      // すべての変更をバックエンドに送信
-      const updatePromises = []
-
-      // 新規追加されたシフトを作成
-      for (const newShift of addedShifts) {
-        // バックエンドAPIに必要なフィールドのみを抽出
-        const shiftData = {
-          tenant_id: newShift.tenant_id,
-          store_id: newShift.store_id,
-          plan_id: newShift.plan_id,
-          staff_id: newShift.staff_id,
-          shift_date: newShift.shift_date,
-          pattern_id: newShift.pattern_id,
-          start_time: newShift.start_time,
-          end_time: newShift.end_time,
-          break_minutes: newShift.break_minutes,
-          is_preferred: newShift.is_preferred,
-          is_modified: newShift.is_modified,
-        }
-        updatePromises.push(shiftRepository.createShift(shiftData))
-      }
-
-      // 修正されたシフトを更新
-      for (const [shiftId, updates] of Object.entries(modifiedShifts)) {
-        updatePromises.push(shiftRepository.updateShift(Number(shiftId), updates))
-      }
-
-      // 削除されたシフトを削除
-      for (const shiftId of deletedShiftIds) {
-        updatePromises.push(shiftRepository.deleteShift(shiftId))
-      }
-
-      // すべての変更を並行実行
-      if (updatePromises.length > 0) {
-        await Promise.all(updatePromises)
-      }
-
-      // ローカルステートをリセット
-      setModifiedShifts({})
-      setDeletedShiftIds(new Set())
-      setAddedShifts([])
-      setHasUnsavedChanges(false)
-
-      alert(MESSAGES.SUCCESS.SAVED)
-      // データをリロードして最新の状態を表示
-      await loadInitialData()
-
-      setSaving(false)
-    } catch (error) {
-      setSaving(false)
-      console.error('下書き保存エラー:', error)
-      console.error('エラー詳細:', error.message, error.stack)
-      alert(`下書きの保存に失敗しました\n\nエラー: ${error.message}`)
-    }
-  }
-
-  // シフト新規追加ハンドラー（メモリに保存のみ）
-  const handleAddShift = shiftData => {
-    const year = selectedShift?.year || new Date().getFullYear()
-    const month = selectedShift?.month || new Date().getMonth() + 1
-    const planId = selectedShift?.plan_id || selectedShift?.planId || planIdState
-    const tenantId = selectedShift?.tenant_id || 3 // デフォルトでテナント3
-
-    // 仮IDを生成
-    const tempId = `temp_${Date.now()}_${Math.random()}`
-
-    // pattern_id を動的に取得（マルチテナント対応）
-    // 優先順位: 選択されたパターン > 既存シフトの最初のパターン > デフォルト
-    const defaultPatternId =
-      modalState.selectedPattern?.pattern_id ||
-      (csvShifts.length > 0 ? csvShifts[0].pattern_id : null) ||
-      (firstPlanShifts.length > 0 ? firstPlanShifts[0].pattern_id : null) ||
-      (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1)
-
-    const newShift = {
-      shift_id: tempId,
-      tenant_id: tenantId,
-      store_id: shiftData.store_id,
-      plan_id: planId,
-      staff_id: shiftData.staff_id,
-      shift_date: shiftData.date, // MultiStoreShiftTableで使用されるフィールド名
-      pattern_id: defaultPatternId, // 動的に取得（マルチテナント対応）
-      start_time: shiftData.start_time,
-      end_time: shiftData.end_time,
-      break_minutes: shiftData.break_minutes || 0,
-      is_preferred: false,
-      is_modified: true,
-      year: year,
-      month: month,
-      plan_type: 'SECOND',
-      staff_name: shiftData.staff_name,
-      role: staffMap[shiftData.staff_id]?.role_name || 'スタッフ',
-      modified_flag: true,
-    }
-
-    setHasUnsavedChanges(true)
-
-    // addedShifts配列に追加
-    setAddedShifts(prev => [...prev, newShift])
-
-    // csvShiftsに追加（画面に即座に反映）
-    setCsvShifts(prev => [...prev, newShift])
-
-    // 表示中の日のシフトに追加
-    if (selectedDate && shiftData.date === selectedDate) {
-      setDayShifts(prev => [...prev, newShift])
-    }
-  }
-
-  // セルクリック時のハンドラー
-  const handleShiftClick = ({ mode, shift, date, staffId, storeId, event }) => {
-    // クリック位置を取得
-    const rect = event?.target.getBoundingClientRect()
-    const position = rect
-      ? {
-          x: rect.left + rect.width / 2,
-          y: rect.top + rect.height / 2,
-        }
-      : {
-          x: window.innerWidth / 2,
-          y: window.innerHeight / 2,
-        }
-
-    // 日付フォーマットを統一（"2024-11-29" 形式）
-    const formattedDate =
-      typeof date === 'string' && date.includes('-')
-        ? date
-        : `${selectedShift?.year || new Date().getFullYear()}-${String(selectedShift?.month || new Date().getMonth() + 1).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-
-    if (mode === 'add') {
-      // 新規追加モード
-      const storeData =
-        storesMap instanceof Map ? storesMap.get(parseInt(storeId)) : storesMap[parseInt(storeId)]
-
-      setModalState({
-        isOpen: true,
-        mode: 'add',
-        shift: {
-          date: formattedDate,
-          staff_id: staffId,
-          store_id: storeId,
-          staff_name: staffMap[staffId]?.name || '不明',
-          store_name: storeData?.store_name || '不明',
-        },
-        position,
-      })
-    } else {
-      // 編集モード
-      setModalState({
-        isOpen: true,
-        mode: 'edit',
-        shift: {
-          ...shift,
-          date: shift.date || formattedDate,
-        },
-        position,
-      })
-    }
-  }
-
-  // モーダルからの保存処理
-  const handleModalSave = timeData => {
-    if (modalState.mode === 'add') {
-      handleAddShift({
-        ...modalState.shift,
-        ...timeData,
-      })
-    } else {
-      handleUpdateShift(modalState.shift.shift_id, timeData)
-    }
-
-    setModalState({ isOpen: false, mode: 'add', shift: null })
-  }
-
-  // モーダルからの削除処理
-  const handleModalDelete = () => {
-    if (!confirm('このシフトを削除しますか？')) return
-
-    handleDeleteShift(modalState.shift.shift_id)
-    setModalState({ isOpen: false, mode: 'add', shift: null })
-  }
-
-  // AI提案の修正を適用するハンドラー
-  const handleApplySuggestedChanges = async changes => {
-    try {
-      let successCount = 0
-      let errorCount = 0
-
-      for (const change of changes) {
-        try {
-          if (change.action === 'modify' && change.shift_id) {
-            const updates = {}
-            if (change.start_time) updates.start_time = change.start_time
-            if (change.end_time) updates.end_time = change.end_time
-            if (change.staff_id) updates.staff_id = change.staff_id
-
-            await handleUpdateShift(change.shift_id, updates)
-            successCount++
-          }
-        } catch (error) {
-          console.error('シフト修正エラー:', change, error)
-          errorCount++
-        }
-      }
-
-      if (errorCount > 0) {
-        alert(MESSAGES.SUCCESS.AI_MODIFICATION_APPLIED_WITH_ERRORS(successCount, errorCount))
-      } else {
-        alert(MESSAGES.SUCCESS.AI_MODIFICATION_APPLIED(successCount))
-      }
-    } catch (error) {
-      console.error('AI提案適用エラー:', error)
-      alert(MESSAGES.ERROR.AI_MODIFICATION_FAILED)
-    }
-  }
-
-  const handleApprove = async () => {
-    try {
-      // selectedShiftからplan_idを取得
-      const planId = selectedShift?.plan_id || selectedShift?.planId || planIdState
-
-      if (!planId) {
-        alert(MESSAGES.ERROR.NO_PLAN_ID)
-        console.error('selectedShift:', selectedShift)
-        return
-      }
-
-      // ステータスをAPPROVEDに更新
-      await shiftRepository.updatePlanStatus(planId, 'APPROVED')
-
-      console.log('第2案を承認しました。plan_id:', planId)
-      alert(MESSAGES.SUCCESS.APPROVE_SECOND_PLAN)
-
-      // 親コンポーネントの承認処理を呼び出し（シフト管理画面に戻る）
-      if (onNext) {
-        onNext()
-      }
-    } catch (error) {
-      console.error('第2案承認エラー:', error)
-      alert(MESSAGES.ERROR.SHIFT_APPROVE_FAILED)
     }
   }
 
@@ -1384,7 +1045,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
     const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 })
 
-    // shift が変更されたときにフォームの値をリセット
     useEffect(() => {
       if (shift) {
         setStartTime(shift.start_time || '')
@@ -1395,10 +1055,8 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       }
     }, [shift])
 
-    // パターン選択ハンドラー（時刻を自動入力）
     const handlePatternSelect = patternId => {
       setSelectedPatternId(patternId)
-
       if (patternId && shiftPatterns) {
         const pattern = shiftPatterns.find(p => p.pattern_id === Number(patternId))
         if (pattern) {
@@ -1409,7 +1067,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       }
     }
 
-    // ドラッグハンドラー
     const handleDragStart = e => {
       setIsDragging(true)
       setDragStart({
@@ -1431,7 +1088,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       setIsDragging(false)
     }
 
-    // ドラッグイベントリスナー
     useEffect(() => {
       if (isDragging) {
         window.addEventListener('mousemove', handleDrag)
@@ -1443,45 +1099,36 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       }
     }, [isDragging, dragStart, popupPosition])
 
-    // ポップアップの位置を計算（画面端で見切れないように調整）
     useEffect(() => {
       if (isOpen && position) {
         const popupWidth = 320
-        const popupHeight = mode === 'edit' ? 320 : 300 // 編集モードは削除ボタン分高い
+        const popupHeight = mode === 'edit' ? 320 : 300
         const margin = 20
 
         let x = position.x
         let y = position.y
 
-        // 右端チェック
         if (x + popupWidth / 2 > window.innerWidth - margin) {
           x = window.innerWidth - popupWidth - margin
         } else if (x - popupWidth / 2 < margin) {
-          // 左端チェック
           x = margin
         } else {
-          // 中央配置
           x = x - popupWidth / 2
         }
 
-        // 下端チェック
         if (y + popupHeight > window.innerHeight - margin) {
-          // 上に表示
           y = position.y - popupHeight - 20
           if (y < margin) {
             y = margin
           }
         } else {
-          // 上寄りに表示（クリック位置から少し上）
           y = position.y - 30
         }
 
-        // 初期位置を設定
         setPopupPosition({ x, y })
       }
     }, [isOpen, position, mode])
 
-    // スタイルを更新
     useEffect(() => {
       setPopupStyle({
         position: 'fixed',
@@ -1492,60 +1139,40 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       })
     }, [popupPosition, isDragging])
 
-    // 希望シフトのチェック
     const checkPreference = () => {
-      if (!shift || !preferences) return null
-
-      const pref = preferences.find(p => parseInt(p.staff_id) === parseInt(shift.staff_id))
+      if (!shift || !preferences || preferences.length === 0) return null
+      const dateStr = shift.date
+      const pref = preferences.find(p => {
+        const prefDate = isoToJSTDateString(p.preference_date)
+        return parseInt(p.staff_id) === parseInt(shift.staff_id) && prefDate === dateStr
+      })
       if (!pref) return null
-
-      const dateStr = shift.date // "2024-11-29" 形式
-
-      // NG日チェック
-      if (pref.ng_days) {
-        const ngDays = pref.ng_days.split(',').map(d => d.trim())
-        if (ngDays.includes(dateStr)) {
-          return 'ng'
-        }
+      if (pref.is_ng) {
+        return 'ng'
+      } else {
+        return 'preferred'
       }
-
-      // 希望日チェック
-      if (pref.preferred_days) {
-        const preferredDays = pref.preferred_days.split(',').map(d => d.trim())
-        if (preferredDays.includes(dateStr)) {
-          return 'preferred'
-        }
-      }
-
-      return null
     }
 
     const handleSave = () => {
-      // 必須項目チェック
       if (!startTime || !endTime) {
         alert('開始時刻と終了時刻を入力してください')
         return
       }
-
       if (!storeId) {
         alert('勤務店舗を選択してください')
         return
       }
-
-      // 時刻の妥当性チェック
       if (startTime >= endTime) {
         alert('終了時刻は開始時刻より後にしてください')
         return
       }
-
-      // 休憩時間の妥当性チェック
       const breakMins = parseInt(breakMinutes) || 0
       if (breakMins < 0) {
         alert('休憩時間は0以上の値を入力してください')
         return
       }
 
-      // 希望シフトチェック
       const prefStatus = checkPreference()
       if (prefStatus === 'ng') {
         const confirmMsg =
@@ -1569,7 +1196,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
 
     return (
       <>
-        {/* 背景オーバーレイ（薄く半透明） */}
         <AnimatePresence>
           {isOpen && (
             <motion.div
@@ -1583,7 +1209,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
           )}
         </AnimatePresence>
 
-        {/* ポップアップ本体 */}
         <AnimatePresence>
           {isOpen && (
             <motion.div
@@ -1595,7 +1220,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
               style={popupStyle}
               onClick={e => e.stopPropagation()}
             >
-              {/* ヘッダー */}
               <div
                 className="flex items-center justify-between mb-2 cursor-move select-none"
                 onMouseDown={handleDragStart}
@@ -1612,7 +1236,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
                 </button>
               </div>
 
-              {/* スタッフ・日付情報の表示 */}
               <div className="bg-blue-50 border border-blue-200 p-2 rounded mb-2 text-xs">
                 <div className="flex justify-between mb-1">
                   <span className="text-gray-600">スタッフ</span>
@@ -1624,9 +1247,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
                 </div>
               </div>
 
-              {/* フォーム入力 */}
               <div className="space-y-2">
-                {/* 店舗選択 */}
                 <div>
                   <label className="block text-xs font-medium text-gray-700 mb-1">
                     勤務店舗 <span className="text-red-500">*</span>
@@ -1646,18 +1267,14 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
                   </select>
                 </div>
 
-                {/* シフトパターン選択（店舗選択後に表示） */}
                 {storeId &&
                   shiftPatterns &&
                   shiftPatterns.length > 0 &&
                   (() => {
-                    // 選択された店舗のパターン、またはテナント共通パターン（store_id=null）をフィルタリング
                     const filteredPatterns = shiftPatterns.filter(
                       pattern => pattern.store_id === null || pattern.store_id === Number(storeId)
                     )
-
                     if (filteredPatterns.length === 0) return null
-
                     return (
                       <div>
                         <label className="block text-xs font-medium text-gray-700 mb-1">
@@ -1678,6 +1295,7 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
                       </div>
                     )
                   })()}
+
                 <TimeInput
                   value={startTime}
                   onChange={setStartTime}
@@ -1714,7 +1332,6 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
                 </div>
               </div>
 
-              {/* ボタン群 */}
               <div className="flex gap-2 mt-3">
                 {mode === 'edit' && (
                   <Button
@@ -1751,6 +1368,24 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
     )
   }
 
+  if (loading) {
+    return (
+      <motion.div
+        initial="initial"
+        animate="in"
+        exit="out"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="h-screen overflow-hidden flex flex-col px-4 py-8"
+      >
+        <div className="flex flex-col items-center justify-center min-h-[400px]">
+          <Loader2 className="h-12 w-12 animate-spin text-blue-600 mb-4" />
+          <p className="text-lg text-gray-600">データを読み込んでいます...</p>
+        </div>
+      </motion.div>
+    )
+  }
+
   return (
     <motion.div
       initial="initial"
@@ -1763,18 +1398,17 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
       {/* ヘッダー */}
       <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 py-4 bg-white border-b border-gray-200">
         <div className="flex items-center gap-4">
-          <Button onClick={onPrev} variant="outline" size="sm">
-            <ChevronLeft className="mr-1 h-4 w-4" />
+          <Button variant="outline" size="sm" onClick={handleBack}>
+            <ArrowLeft className="h-4 w-4 mr-1" />
             戻る
           </Button>
           <div>
             <h1 className="text-xl font-bold text-gray-900">
-              希望取り込み後修正
+              {year}年{month}月のシフト（第2案）
               <span className="text-sm font-normal text-gray-600 ml-3">
-                {selectedShift?.store_name ? `${selectedShift.store_name} · ` : '全店舗 · '}
-                スタッフ希望を反映したシフト
+                {isViewMode ? '閲覧モード' : '編集可能'}
               </span>
-              {hasUnsavedChanges && (
+              {isEditMode && hasUnsavedChanges && (
                 <span className="text-sm font-semibold text-orange-600 ml-3 animate-pulse">
                   ● 未保存の変更があります
                 </span>
@@ -1782,688 +1416,431 @@ const SecondPlanEditor = ({ onNext, onPrev, onMarkUnsaved, onMarkSaved, selected
             </h1>
           </div>
         </div>
-        <div className="flex gap-3 items-center">
+        <div className="flex gap-2 items-center">
           {/* 色分け凡例 */}
-          {generated && (
-            <>
-              {/* セル背景色の凡例 */}
-              <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-md border border-gray-200">
-                <span className="text-[0.65rem] font-semibold text-gray-600">セル:</span>
-                <div className="flex items-center gap-1">
-                  <div className="w-3.5 h-3.5 bg-green-50 border border-green-300 rounded"></div>
-                  <span className="text-[0.65rem] text-gray-700">希望日</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3.5 h-3.5 bg-gray-100 border border-gray-400 rounded"></div>
-                  <span className="text-[0.65rem] text-gray-700">NG日</span>
-                </div>
-              </div>
-
-              {/* シフトカードの凡例 */}
-              <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-md border border-gray-200">
-                <span className="text-[0.65rem] font-semibold text-gray-600">シフト:</span>
-                <div className="flex items-center gap-1">
-                  <div className="w-3.5 h-3.5 bg-green-100 border border-green-400 rounded"></div>
-                  <span className="text-[0.65rem] text-gray-700">希望通り</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3.5 h-3.5 bg-red-200 border border-red-500 rounded"></div>
-                  <span className="text-[0.65rem] text-gray-700">希望不一致</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <span className="text-[0.65rem]">⚠️</span>
-                  <span className="text-[0.65rem] text-gray-700">修正済</span>
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* 表示切り替えボタン */}
-          {generated && (
-            <>
-              <Button
-                variant={viewMode === 'second' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('second')}
-              >
-                <CalendarIcon className="h-4 w-4 mr-1" />
-                希望反映版
-              </Button>
-              <Button
-                variant={viewMode === 'first' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('first')}
-              >
-                <Eye className="h-4 w-4 mr-1" />
-                元のシフト
-              </Button>
-              <Button
-                variant={viewMode === 'compare' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setViewMode('compare')}
-              >
-                <GitCompare className="h-4 w-4 mr-1" />
-                比較
-              </Button>
-            </>
-          )}
-          <Button
-            onClick={handleSaveDraft}
-            disabled={saving || !hasUnsavedChanges}
-            size="sm"
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            {saving ? (
-              <Loader2 className="h-4 w-4 mr-1 animate-spin" />
-            ) : (
-              <Save className="h-4 w-4 mr-1" />
-            )}
-            {saving ? '保存中...' : '下書き保存'}
-          </Button>
-          <Button
-            onClick={handleApprove}
-            size="sm"
-            className="bg-gradient-to-r from-green-600 to-green-700"
-          >
-            <CheckCircle className="mr-1 h-4 w-4" />
-            承認
-          </Button>
-        </div>
-      </div>
-
-      {!generated ? (
-        <Card className="shadow-lg border-0 flex-1 flex flex-col overflow-hidden mx-8 mb-4">
-          <CardContent className="flex-1 overflow-hidden p-12 text-center flex items-center justify-center">
-            {generating || loading ? (
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
-                  >
-                    <Zap className="h-12 w-12 text-blue-600" />
-                  </motion.div>
-                </div>
-                <h3 className="text-2xl font-bold mb-4">第1案と希望シフトを読み込み中...</h3>
-                <div className="max-w-md mx-auto">
-                  <div className="bg-gray-200 rounded-full h-2 mb-4">
-                    <motion.div
-                      className="bg-gradient-to-r from-blue-600 to-purple-600 h-2 rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: '100%' }}
-                      transition={{ duration: 3 }}
-                    />
-                  </div>
-                  <p className="text-gray-600">第1案データと希望シフトを読み込んでいます...</p>
-                </div>
-              </motion.div>
-            ) : (
-              <>
-                <div className="w-24 h-24 bg-gradient-to-br from-blue-100 to-purple-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                  <RefreshCw className="h-12 w-12 text-blue-600" />
-                </div>
-                <h3 className="text-2xl font-bold mb-4">希望反映シフトを生成</h3>
-                <p className="text-gray-600 mb-8">
-                  収集したスタッフ希望を基に、満足度を向上させた第2案を生成します
-                </p>
-                <Button
-                  onClick={generateSecondPlan}
-                  size="lg"
-                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700"
-                >
-                  <Zap className="mr-2 h-5 w-5" />
-                  第2案を生成
-                </Button>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="flex-1 overflow-y-auto px-8 pb-4 space-y-4">
-          {/* 店舗チェックボックス */}
-          <div className="px-4 mb-4">
-            <div className="flex flex-wrap gap-3">
-              {availableStores.map(store => {
-                const storeIdNum = parseInt(store.store_id)
-                return (
-                  <label key={store.store_id} className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={selectedStores.has(storeIdNum)}
-                      onChange={e => {
-                        const newSelected = new Set(selectedStores)
-                        if (e.target.checked) {
-                          newSelected.add(storeIdNum)
-                        } else {
-                          newSelected.delete(storeIdNum)
-                        }
-                        setSelectedStores(newSelected)
-                      }}
-                      className="w-4 h-4 text-blue-600 rounded"
-                    />
-                    <span className="text-sm font-medium text-gray-700">{store.store_name}</span>
-                  </label>
-                )
-              })}
+          <div className="flex items-center gap-2 px-2.5 py-1.5 bg-gray-50 rounded-md border border-gray-200">
+            <span className="text-[0.65rem] font-semibold text-gray-600">セル:</span>
+            <div className="flex items-center gap-1">
+              <div className="w-3.5 h-3.5 bg-green-50 border border-green-300 rounded"></div>
+              <span className="text-[0.65rem] text-gray-700">希望日</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3.5 h-3.5 bg-gray-100 border border-gray-400 rounded"></div>
+              <span className="text-[0.65rem] text-gray-700">NG日</span>
             </div>
           </div>
 
-          {/* カレンダー表示を横いっぱいに */}
-          {viewMode === 'second' && (
-            <div style={{ height: 'calc(100vh - 160px)' }} className="flex flex-col">
-              <div className="mb-2 px-4">
-                <div className="flex items-center">
-                  <CalendarIcon className="h-5 w-5 mr-2 text-green-600" />
-                  <span className="font-semibold">第2案（希望反映版）</span>
-                  <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                    改善版
-                  </span>
-                </div>
-              </div>
-              <div className="flex-1 overflow-hidden px-4">
-                <MultiStoreShiftTable
-                  year={selectedShift?.year || new Date().getFullYear()}
-                  month={selectedShift?.month || new Date().getMonth() + 1}
-                  shiftData={csvShifts}
-                  staffMap={staffMap}
-                  storesMap={storesMap}
-                  selectedStores={selectedStores}
-                  readonly={false}
-                  onUpdateShift={handleUpdateShift}
-                  onDeleteShift={handleDeleteShift}
-                  onDayClick={handleDayClick}
-                  conflicts={conflicts}
-                  onConflictClick={setSelectedConflict}
-                  preferences={preferences}
-                  onShiftClick={handleShiftClick}
+          <Button size="sm" variant="outline" onClick={handleExportCSV}>
+            <Download className="h-3 w-3 mr-1" />
+            CSV
+          </Button>
+
+          {isEditMode && (
+            <>
+              <Button
+                size="sm"
+                onClick={handleSaveDraft}
+                disabled={saving}
+                className="bg-blue-600 hover:bg-blue-700"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-1" />
+                )}
+                {saving ? '保存中...' : '下書き保存'}
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleApprove}
+                disabled={saving}
+                className="bg-green-600 hover:bg-green-700"
+              >
+                {saving ? (
+                  <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                ) : (
+                  <CheckCircle className="h-4 w-4 mr-1" />
+                )}
+                {saving ? '処理中...' : '第2案承認'}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleDelete}
+                className="border-red-300 text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="h-4 w-4 mr-1" />
+                削除
+              </Button>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* 店舗チェックボックス */}
+      <div className="px-8 mb-4">
+        <div className="flex flex-wrap gap-3">
+          {availableStores.map(store => {
+            const storeIdNum = parseInt(store.store_id)
+            return (
+              <label key={store.store_id} className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={selectedStores.has(storeIdNum)}
+                  onChange={e => {
+                    const newSelected = new Set(selectedStores)
+                    if (e.target.checked) {
+                      newSelected.add(storeIdNum)
+                    } else {
+                      newSelected.delete(storeIdNum)
+                    }
+                    setSelectedStores(newSelected)
+                  }}
+                  className="w-4 h-4 text-blue-600 rounded"
                 />
+                <span className="text-sm font-medium text-gray-700">{store.store_name}</span>
+              </label>
+            )
+          })}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-hidden mx-8 mb-4">
+        <MultiStoreShiftTable
+          year={year}
+          month={month}
+          shiftData={shiftData}
+          staffMap={staffMap}
+          storesMap={storesMap}
+          selectedStores={selectedStores}
+          readonly={isViewMode}
+          onAddShift={isEditMode ? handleAddShift : undefined}
+          onUpdateShift={isEditMode ? handleUpdateShift : undefined}
+          onDeleteShift={isEditMode ? handleDeleteShift : undefined}
+          onDayClick={handleDayClick}
+          onShiftClick={isEditMode ? handleShiftClick : undefined}
+          preferences={preferences}
+          conflicts={conflicts}
+          onConflictClick={setSelectedConflict}
+          showPreferenceColoring={true}
+        />
+      </div>
+
+      {/* タイムライン表示ウィンドウ */}
+      {selectedDay && (
+        <Rnd
+          size={{ width: windowState.width, height: windowState.height }}
+          position={{ x: windowState.x, y: windowState.y }}
+          onDragStop={(e, d) => {
+            setWindowState(prev => ({ ...prev, x: d.x, y: d.y }))
+          }}
+          onResizeStop={(e, direction, ref, delta, position) => {
+            setWindowState(prev => ({
+              ...prev,
+              width: parseInt(ref.style.width),
+              height: parseInt(ref.style.height),
+              ...position,
+            }))
+          }}
+          minWidth={1000}
+          minHeight={400}
+          dragHandleClassName="window-header"
+          style={{ zIndex: 9999 }}
+          resizeHandleStyles={{
+            bottom: { cursor: 'ns-resize', height: '8px' },
+            right: { cursor: 'ew-resize', width: '8px' },
+            bottomRight: { cursor: 'nwse-resize', width: '16px', height: '16px' },
+            bottomLeft: { cursor: 'nesw-resize', width: '16px', height: '16px' },
+            topRight: { cursor: 'nesw-resize', width: '16px', height: '16px' },
+            topLeft: { cursor: 'nwse-resize', width: '16px', height: '16px' },
+          }}
+        >
+          <div className="flex flex-col h-full bg-white rounded-lg shadow-2xl border border-gray-300 overflow-hidden">
+            <div className="window-header bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 flex justify-between items-center cursor-move select-none">
+              <div className="font-semibold text-sm">
+                📅 {month}月{selectedDay}日 -{' '}
+                {selectedStoreId === null ? '全店舗' : storesMap[selectedStoreId]?.store_name || ''}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleMaximize}
+                  className="hover:bg-blue-700 p-1 rounded transition-colors"
+                  title={windowState.isMaximized ? '元のサイズに戻す' : '最大化'}
+                >
+                  {windowState.isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+                <button
+                  onClick={closeDayView}
+                  className="hover:bg-red-600 p-1 rounded transition-colors"
+                  title="閉じる"
+                >
+                  <X size={16} />
+                </button>
               </div>
             </div>
-          )}
-
-          {viewMode === 'first' && (
-            <div style={{ height: 'calc(100vh - 160px)' }} className="flex flex-col">
-              <div className="mb-2 px-4 flex items-center justify-between">
-                <div className="flex items-center">
-                  <CalendarIcon className="h-5 w-5 mr-2 text-blue-600" />
-                  <span className="font-semibold">第1案（AI自動生成）</span>
-                </div>
-                <Button variant="ghost" size="sm" onClick={() => setViewMode('second')}>
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  第2案に戻る
-                </Button>
-              </div>
-              <div className="flex-1 overflow-hidden px-4">
-                <MultiStoreShiftTable
-                  year={selectedShift?.year || new Date().getFullYear()}
-                  month={selectedShift?.month || new Date().getMonth() + 1}
-                  shiftData={firstPlanShifts}
-                  staffMap={staffMap}
-                  storesMap={storesMap}
-                  selectedStores={selectedStores}
-                  readonly={true}
-                  onDayClick={handleDayClick}
-                  conflicts={conflicts}
-                  onConflictClick={setSelectedConflict}
-                  preferences={preferences}
-                />
-              </div>
+            <div className="flex-1 overflow-auto">
+              <ShiftTableView
+                date={selectedDay}
+                year={year}
+                month={month}
+                shifts={dayShifts}
+                onClose={closeDayView}
+                editable={isEditMode}
+                onUpdate={isEditMode ? handleUpdateShift : undefined}
+                onDelete={isEditMode ? handleDeleteShift : undefined}
+                onShiftClick={isEditMode ? handleShiftClick : undefined}
+                storesMap={storesMap}
+                storeName={
+                  selectedStoreId === null ? undefined : storesMap[selectedStoreId]?.store_name
+                }
+              />
             </div>
-          )}
+          </div>
+        </Rnd>
+      )}
 
-          {viewMode === 'compare' && (
-            <div
-              className="grid grid-cols-1 xl:grid-cols-2 gap-4"
-              style={{ height: 'calc(100vh - 160px)' }}
+      {/* チャットボット */}
+      {isChatMinimized ? (
+        <motion.div
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="fixed bottom-4 right-4 z-50"
+        >
+          <Button
+            onClick={() => setIsChatMinimized(false)}
+            size="lg"
+            className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-16 h-16 shadow-2xl flex items-center justify-center"
+          >
+            <MessageSquare className="h-6 w-6" />
+          </Button>
+        </motion.div>
+      ) : (
+        <motion.div
+          ref={chatRef}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="fixed z-50 bg-white rounded-lg shadow-2xl border border-gray-200"
+          style={{
+            left: `${chatPosition.x}px`,
+            top: `${chatPosition.y}px`,
+            width: `${chatSize.width}px`,
+            height: `${chatSize.height}px`,
+            cursor: isDragging ? 'move' : 'default',
+          }}
+        >
+          <div
+            className="flex items-center justify-between p-4 border-b border-gray-200 bg-blue-600 text-white rounded-t-lg cursor-move"
+            onMouseDown={handleChatDragStart}
+          >
+            <div className="flex items-center">
+              <GripVertical className="h-4 w-4 mr-2 opacity-70" />
+              <MessageSquare className="h-5 w-5 mr-2" />
+              <span className="font-medium">AI修正アシスタント</span>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsChatMinimized(true)}
+              className="text-white hover:bg-blue-700 h-8 w-8 p-0"
             >
-              {/* 第1案 */}
-              <div className="flex flex-col">
-                <div className="mb-2 px-4">
-                  <div className="flex items-center">
-                    <CalendarIcon className="h-5 w-5 mr-2 text-blue-600" />
-                    <span className="font-semibold">第1案（AI自動生成）</span>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-hidden px-4">
-                  <MultiStoreShiftTable
-                    year={selectedShift?.year || new Date().getFullYear()}
-                    month={selectedShift?.month || new Date().getMonth() + 1}
-                    shiftData={firstPlanShifts}
-                    staffMap={staffMap}
-                    storesMap={storesMap}
-                    selectedStores={selectedStores}
-                    readonly={true}
-                    onDayClick={handleDayClick}
-                    conflicts={conflicts}
-                    onConflictClick={setSelectedConflict}
-                    preferences={preferences}
-                  />
-                </div>
-              </div>
-
-              {/* 第2案 */}
-              <div className="flex flex-col ring-2 ring-green-200 rounded-lg">
-                <div className="mb-2 px-4 pt-2">
-                  <div className="flex items-center">
-                    <CalendarIcon className="h-5 w-5 mr-2 text-green-600" />
-                    <span className="font-semibold">第2案（希望反映版）</span>
-                    <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                      改善版
-                    </span>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-hidden px-4">
-                  <MultiStoreShiftTable
-                    year={selectedShift?.year || new Date().getFullYear()}
-                    month={selectedShift?.month || new Date().getMonth() + 1}
-                    shiftData={csvShifts}
-                    staffMap={staffMap}
-                    storesMap={storesMap}
-                    selectedStores={selectedStores}
-                    readonly={false}
-                    onUpdateShift={handleUpdateShift}
-                    onDeleteShift={handleDeleteShift}
-                    onDayClick={handleDayClick}
-                    conflicts={conflicts}
-                    onConflictClick={setSelectedConflict}
-                    preferences={preferences}
-                    onShiftClick={handleShiftClick}
-                  />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* 右下固定チャットボット */}
-          {generated &&
-            (isChatMinimized ? (
-              // 最小化状態
-              <motion.div
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="fixed bottom-4 right-4 z-50"
-              >
-                <Button
-                  onClick={() => setIsChatMinimized(false)}
-                  size="lg"
-                  className="bg-blue-600 hover:bg-blue-700 text-white rounded-full w-16 h-16 shadow-2xl flex items-center justify-center"
-                >
-                  <MessageSquare className="h-6 w-6" />
-                </Button>
-              </motion.div>
-            ) : (
-              // 展開状態
-              <motion.div
-                ref={chatRef}
-                initial={{ scale: 0.8, opacity: 0 }}
-                animate={{ scale: 1, opacity: 1 }}
-                className="fixed z-50 bg-white rounded-lg shadow-2xl border border-gray-200"
-                style={{
-                  left: `${chatPosition.x}px`,
-                  top: `${chatPosition.y}px`,
-                  width: `${chatSize.width}px`,
-                  height: `${chatSize.height}px`,
-                  cursor: isDragging ? 'move' : 'default',
-                }}
-              >
-                <div
-                  className="flex items-center justify-between p-4 border-b border-gray-200 bg-blue-600 text-white rounded-t-lg cursor-move"
-                  onMouseDown={handleDragStart}
-                >
-                  <div className="flex items-center">
-                    <GripVertical className="h-4 w-4 mr-2 opacity-70" />
-                    <MessageSquare className="h-5 w-5 mr-2" />
-                    <span className="font-medium">AI修正アシスタント</span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setIsChatMinimized(true)}
-                    className="text-white hover:bg-blue-700 h-8 w-8 p-0"
-                  >
-                    <Minimize2 className="h-4 w-4" />
-                  </Button>
-                </div>
-                <div className="flex flex-col" style={{ height: `${chatSize.height - 60}px` }}>
-                  <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                    {messages.map(message => (
-                      <motion.div
-                        key={message.id}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div
-                          className={`max-w-xs px-3 py-2 rounded-lg text-sm whitespace-pre-line ${
-                            message.type === 'user'
-                              ? 'bg-blue-600 text-white'
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          <div>{message.content}</div>
-                          <div
-                            className={`text-xs mt-1 ${
-                              message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
-                            }`}
-                          >
-                            {message.time}
-                          </div>
-                          {message.type === 'assistant' && message.suggestedChanges && (
-                            <button
-                              onClick={() => handleApplySuggestedChanges(message.suggestedChanges)}
-                              className="mt-2 w-full px-3 py-1.5 bg-blue-600 text-white text-xs rounded hover:bg-blue-700 transition-colors"
-                            >
-                              修正する
-                            </button>
-                          )}
-                        </div>
-                      </motion.div>
-                    ))}
-                    {isTyping && (
-                      <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        className="flex justify-start"
-                      >
-                        <div className="bg-gray-100 px-3 py-2 rounded-lg">
-                          <div className="flex space-x-1">
-                            <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                            <div
-                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                              style={{ animationDelay: '0.1s' }}
-                            ></div>
-                            <div
-                              className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
-                              style={{ animationDelay: '0.2s' }}
-                            ></div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    )}
-                    <div ref={chatEndRef} />
-                  </div>
-                  <div className="p-4 border-t border-gray-200">
-                    {pendingChange ? (
-                      // 承認待ち状態の時はOKボタンを表示
-                      <div className="flex space-x-2">
-                        <Button
-                          onClick={() => sendMessage('OK')}
-                          className="flex-1 bg-green-600 hover:bg-green-700 text-white"
-                        >
-                          ✓ OK（変更を実行）
-                        </Button>
-                        <Button
-                          onClick={() => {
-                            setPendingChange(null)
-                            const cancelMessage = {
-                              id: messages.length + 1,
-                              type: 'assistant',
-                              content: '変更をキャンセルしました。',
-                              time: new Date().toLocaleTimeString('ja-JP', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              }),
-                            }
-                            setMessages(prev => [...prev, cancelMessage])
-                          }}
-                          variant="outline"
-                          className="border-gray-300"
-                        >
-                          キャンセル
-                        </Button>
-                      </div>
-                    ) : (
-                      // 通常状態
-                      <div className="flex space-x-2">
-                        <input
-                          type="text"
-                          value={inputValue}
-                          onChange={e => setInputValue(e.target.value)}
-                          placeholder="修正指示を入力..."
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                          onKeyPress={e => e.key === 'Enter' && sendMessage()}
-                        />
-                        <Button
-                          onClick={sendMessage}
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          <Send className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-                {/* リサイズハンドル */}
-                <div
-                  className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize"
-                  onMouseDown={handleResizeStart}
-                  style={{
-                    background: 'linear-gradient(135deg, transparent 50%, #cbd5e1 50%)',
-                    borderBottomRightRadius: '0.5rem',
-                  }}
-                />
-              </motion.div>
-            ))}
-
-          {/* タイムライン表示（ドラッグ・リサイズ可能なウィンドウ） */}
-          {selectedDate &&
-            (() => {
-              console.log('📅 Rendering Rnd window:', { selectedDate, windowState })
-              return (
-                <Rnd
-                  size={{ width: windowState.width, height: windowState.height }}
-                  position={{ x: windowState.x, y: windowState.y }}
-                  onDragStop={(e, d) => {
-                    setWindowState(prev => ({ ...prev, x: d.x, y: d.y }))
-                  }}
-                  onResizeStop={(e, direction, ref, delta, position) => {
-                    setWindowState(prev => ({
-                      ...prev,
-                      width: parseInt(ref.style.width),
-                      height: parseInt(ref.style.height),
-                      ...position,
-                    }))
-                  }}
-                  minWidth={1000}
-                  minHeight={400}
-                  dragHandleClassName="window-header"
-                  style={{ zIndex: 9999 }}
-                  resizeHandleStyles={{
-                    bottom: { cursor: 'ns-resize', height: '8px' },
-                    right: { cursor: 'ew-resize', width: '8px' },
-                    bottomRight: { cursor: 'nwse-resize', width: '16px', height: '16px' },
-                    bottomLeft: { cursor: 'nesw-resize', width: '16px', height: '16px' },
-                    topRight: { cursor: 'nesw-resize', width: '16px', height: '16px' },
-                    topLeft: { cursor: 'nwse-resize', width: '16px', height: '16px' },
-                  }}
-                >
-                  <div className="flex flex-col h-full bg-white rounded-lg shadow-2xl border border-gray-300 overflow-hidden">
-                    {/* ウィンドウヘッダー */}
-                    <div className="window-header bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 flex justify-between items-center cursor-move select-none">
-                      <div className="font-semibold text-sm">
-                        📅 {selectedShift?.month || new Date().getMonth() + 1}月{selectedDate}日 -{' '}
-                        {selectedStoreId === null
-                          ? '全店舗'
-                          : storesMap[selectedStoreId]?.store_name || ''}
-                      </div>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={handleMaximize}
-                          className="hover:bg-blue-700 p-1 rounded transition-colors"
-                          title={windowState.isMaximized ? '元のサイズに戻す' : '最大化'}
-                        >
-                          {windowState.isMaximized ? (
-                            <Minimize2 size={16} />
-                          ) : (
-                            <Maximize2 size={16} />
-                          )}
-                        </button>
-                        <button
-                          onClick={closeDayView}
-                          className="hover:bg-red-600 p-1 rounded transition-colors"
-                          title="閉じる"
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* ウィンドウコンテンツ */}
-                    <div className="flex-1 overflow-auto">
-                      <ShiftTableView
-                        date={selectedDate}
-                        year={selectedShift?.year || new Date().getFullYear()}
-                        month={selectedShift?.month || new Date().getMonth() + 1}
-                        shifts={dayShifts}
-                        onClose={closeDayView}
-                        editable={true}
-                        onUpdate={handleUpdateShift}
-                        onDelete={handleDeleteShift}
-                        onShiftClick={handleShiftClick}
-                        storesMap={storesMap}
-                        storeName={
-                          selectedStoreId === null
-                            ? undefined
-                            : storesMap[selectedStoreId]?.store_name
-                        }
-                      />
-                    </div>
-                  </div>
-                </Rnd>
-              )
-            })()}
-
-          {/* Conflict解消モーダル */}
-          <AnimatePresence>
-            {selectedConflict && (
-              <motion.div
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-                onClick={() => setSelectedConflict(null)}
-              >
+              <Minimize2 className="h-4 w-4" />
+            </Button>
+          </div>
+          <div className="flex flex-col" style={{ height: `${chatSize.height - 60}px` }}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {messages.map(message => (
                 <motion.div
-                  initial={{ scale: 0.9, opacity: 0 }}
-                  animate={{ scale: 1, opacity: 1 }}
-                  exit={{ scale: 0.9, opacity: 0 }}
-                  className="bg-white rounded-lg shadow-2xl p-6 max-w-lg w-full mx-4"
-                  onClick={e => e.stopPropagation()}
+                  key={message.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}
                 >
-                  {/* ヘッダー */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div>
-                      <h3 className="text-lg font-bold text-gray-900">
-                        {selectedConflict.date}日 {selectedConflict.staffName}
-                      </h3>
-                      <p className="text-sm text-gray-600 mt-1">配置の問題</p>
+                  <div
+                    className={`max-w-xs px-3 py-2 rounded-lg text-sm whitespace-pre-line ${
+                      message.type === 'user'
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}
+                  >
+                    <div>{message.content}</div>
+                    <div
+                      className={`text-xs mt-1 ${
+                        message.type === 'user' ? 'text-blue-100' : 'text-gray-500'
+                      }`}
+                    >
+                      {message.time}
                     </div>
-                    <button
-                      onClick={() => setSelectedConflict(null)}
-                      className="text-gray-400 hover:text-gray-600"
-                    >
-                      ×
-                    </button>
-                  </div>
-
-                  {/* 問題の詳細 */}
-                  <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="flex items-start gap-2">
-                      <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-                      <div>
-                        <p className="font-semibold text-red-900">
-                          {selectedConflict.type === 'NG_DAY' && 'NG日に配置'}
-                          {selectedConflict.type === 'NOT_PREFERRED' && '希望日以外に配置'}
-                          {selectedConflict.type === 'NO_PREFERENCE' && '希望シフト未登録'}
-                        </p>
-                        <p className="text-sm text-red-800 mt-1">{selectedConflict.message}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* 解決策 */}
-                  <div className="space-y-3">
-                    <h4 className="font-semibold text-gray-900 mb-3">解決策を選択</h4>
-
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left"
-                      onClick={() => {
-                        alert('別のスタッフに変更（実装予定）')
-                      }}
-                    >
-                      <Users className="h-4 w-4 mr-2" />
-                      別のスタッフに変更
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left"
-                      onClick={() => {
-                        alert('LINEで確認（実装予定）')
-                      }}
-                    >
-                      <MessageSquare className="h-4 w-4 mr-2" />
-                      スタッフに確認
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300"
-                      onClick={() => {
-                        alert('AIで解消（実装予定）')
-                      }}
-                    >
-                      <Zap className="h-4 w-4 mr-2 text-blue-600" />
-                      <span className="font-semibold text-blue-900">AIで解消</span>
-                    </Button>
-
-                    <Button
-                      variant="outline"
-                      className="w-full justify-start text-left"
-                      onClick={() => {
-                        alert('問題を承認（実装予定）')
-                        setSelectedConflict(null)
-                      }}
-                    >
-                      <CheckCircle className="h-4 w-4 mr-2" />
-                      承知の上で配置
-                    </Button>
-                  </div>
-
-                  {/* キャンセルボタン */}
-                  <div className="mt-6 pt-4 border-t">
-                    <Button
-                      variant="ghost"
-                      className="w-full"
-                      onClick={() => setSelectedConflict(null)}
-                    >
-                      キャンセル
-                    </Button>
                   </div>
                 </motion.div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* シフト編集ポップアップ */}
-          <ShiftEditModal
-            isOpen={modalState.isOpen}
-            mode={modalState.mode}
-            shift={modalState.shift}
-            preferences={preferences}
-            position={modalState.position}
-            availableStores={availableStores}
-            shiftPatterns={shiftPatterns}
-            onClose={() =>
-              setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })
-            }
-            onSave={handleModalSave}
-            onDelete={handleModalDelete}
+              ))}
+              {isTyping && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex justify-start"
+                >
+                  <div className="bg-gray-100 px-3 py-2 rounded-lg">
+                    <div className="flex space-x-1">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: '0.1s' }}
+                      ></div>
+                      <div
+                        className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"
+                        style={{ animationDelay: '0.2s' }}
+                      ></div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+            <div className="p-4 border-t border-gray-200">
+              <div className="flex space-x-2">
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={e => setInputValue(e.target.value)}
+                  placeholder="修正指示を入力..."
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onKeyPress={e => e.key === 'Enter' && sendMessage()}
+                />
+                <Button
+                  onClick={() => sendMessage()}
+                  size="sm"
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+          </div>
+          <div
+            className="absolute bottom-0 right-0 w-4 h-4 cursor-nwse-resize"
+            onMouseDown={handleResizeStart}
+            style={{
+              background: 'linear-gradient(135deg, transparent 50%, #cbd5e1 50%)',
+              borderBottomRightRadius: '0.5rem',
+            }}
           />
-        </div>
+        </motion.div>
       )}
+
+      {/* Conflict解消モーダル */}
+      <AnimatePresence>
+        {selectedConflict && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+            onClick={() => setSelectedConflict(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-lg shadow-2xl p-6 max-w-lg w-full mx-4"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900">
+                    {selectedConflict.date}日 {selectedConflict.staffName}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1">配置の問題</p>
+                </div>
+                <button
+                  onClick={() => setSelectedConflict(null)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  ×
+                </button>
+              </div>
+
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div>
+                    <p className="font-semibold text-red-900">
+                      {selectedConflict.type === 'NG_DAY' && 'NG日に配置'}
+                      {selectedConflict.type === 'NOT_PREFERRED' && '希望日以外に配置'}
+                      {selectedConflict.type === 'NO_PREFERENCE' && '希望シフト未登録'}
+                    </p>
+                    <p className="text-sm text-red-800 mt-1">{selectedConflict.message}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold text-gray-900 mb-3">解決策を選択</h4>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left"
+                  onClick={() => alert('別のスタッフに変更（実装予定）')}
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  別のスタッフに変更
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left"
+                  onClick={() => alert('スタッフに確認（実装予定）')}
+                >
+                  <MessageSquare className="h-4 w-4 mr-2" />
+                  スタッフに確認
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300"
+                  onClick={() => alert('AIで解消（実装予定）')}
+                >
+                  <Zap className="h-4 w-4 mr-2 text-blue-600" />
+                  <span className="font-semibold text-blue-900">AIで解消</span>
+                </Button>
+                <Button
+                  variant="outline"
+                  className="w-full justify-start text-left"
+                  onClick={() => {
+                    alert('問題を承認しました')
+                    setSelectedConflict(null)
+                  }}
+                >
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  承知の上で配置
+                </Button>
+              </div>
+
+              <div className="mt-6 pt-4 border-t">
+                <Button
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setSelectedConflict(null)}
+                >
+                  キャンセル
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* シフト編集ポップアップ */}
+      <ShiftEditModal
+        isOpen={modalState.isOpen}
+        mode={modalState.mode}
+        shift={modalState.shift}
+        preferences={preferences}
+        position={modalState.position}
+        availableStores={availableStores}
+        shiftPatterns={shiftPatterns}
+        onClose={() =>
+          setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })
+        }
+        onSave={handleModalSave}
+        onDelete={handleModalDelete}
+      />
     </motion.div>
   )
 }

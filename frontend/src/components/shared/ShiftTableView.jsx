@@ -332,26 +332,13 @@ const ShiftTableView = ({
                               className={`border border-gray-300 px-0.5 py-1 ${roleColor.bg} text-white text-center ${editable && onShiftClick ? 'cursor-pointer hover:opacity-90' : ''} transition-opacity`}
                               colSpan={colSpan}
                               onClick={e => {
-                                console.log('🖱️ Shift cell clicked:', {
-                                  shift,
-                                  editable,
-                                  hasOnShiftClick: !!onShiftClick,
-                                })
                                 if (editable && onShiftClick) {
-                                  console.log('✅ Calling onShiftClick')
                                   onShiftClick({
                                     mode: 'edit',
                                     shift: shift,
                                     date: date,
                                     event: e,
                                   })
-                                } else {
-                                  console.log(
-                                    '❌ Click ignored - editable:',
-                                    editable,
-                                    'onShiftClick:',
-                                    !!onShiftClick
-                                  )
                                 }
                               }}
                             >

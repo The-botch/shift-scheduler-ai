@@ -25,6 +25,7 @@ import { BACKEND_API_URL } from '../../../config/api'
 import { getCurrentTenantId } from '../../../config/tenant'
 import { isoToJSTDateString } from '../../../utils/dateUtils'
 import { useShiftEditorBase } from '../../../hooks/useShiftEditorBase'
+import { useShiftEditing } from '../../../hooks/useShiftEditing'
 import { exportCSV } from '../../../utils/csvHelper'
 
 const shiftRepository = new ShiftRepository()
@@ -58,6 +59,7 @@ const FirstPlanEditor = ({
   onBack,
   onApprove,
   onDelete,
+  onStatusChange, // 保存後の状態更新コールバック
   mode = 'edit', // 'view' or 'edit'
 }) => {
   const isViewMode = mode === 'view'
@@ -78,13 +80,39 @@ const FirstPlanEditor = ({
     setSelectedStores,
   } = useShiftEditorBase(selectedShift)
 
+  // 共通ロジック（シフト編集・保存・承認）
+  const {
+    modifiedShifts,
+    deletedShiftIds,
+    addedShifts,
+    hasUnsavedChanges,
+    saving,
+    planIds: planIdsState,
+    modalState,
+    setPlanId: setPlanIdsState,
+    getPlanId,
+    handleDeleteShift: handleDeleteShiftBase,
+    handleAddShift: handleAddShiftBase,
+    handleModifyShift,
+    saveChanges,
+    saveDraft,
+    approve,
+    deletePlan,
+    openModal,
+    closeModal,
+    setModalState,
+    resetChanges,
+    setHasUnsavedChanges,
+  } = useShiftEditing({
+    planType: 'FIRST',
+    onApproveComplete: onApprove,
+  })
+
   const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [calendarData, setCalendarData] = useState(null)
   const [selectedDay, setSelectedDay] = useState(null)
   const [selectedStoreId, setSelectedStoreId] = useState(null) // クリックされた店舗ID（nullは全店舗）
   const [dayShifts, setDayShifts] = useState([])
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [hasSavedDraft, setHasSavedDraft] = useState(false) // 下書き保存を押したかどうか
 
   // カレンダービューのウィンドウ状態
@@ -96,30 +124,19 @@ const FirstPlanEditor = ({
     isMaximized: false,
   })
 
-  // ローカルで保持する変更
-  const [modifiedShifts, setModifiedShifts] = useState({}) // { shiftId: { start_time, end_time, ... } }
-  const [deletedShiftIds, setDeletedShiftIds] = useState(new Set())
-  const [addedShifts, setAddedShifts] = useState([]) // 新規追加されたシフト
-
   // シフトデータ
   const [shiftData, setShiftData] = useState([])
-  const [planIdState, setPlanIdState] = useState(null) // 状態として保持するplanId
   const [defaultPatternId, setDefaultPatternId] = useState(null)
   const [preferences, setPreferences] = useState([]) // 希望シフト
   const [shiftPatterns, setShiftPatterns] = useState([]) // シフトパターンマスタ
 
-  // シフト編集ポップアップの状態
-  const [modalState, setModalState] = useState({
-    isOpen: false,
-    mode: 'add', // 'add' | 'edit'
-    shift: null,
-    selectedPattern: null, // 選択されたシフトパターン
-    position: { x: 0, y: 0 }, // ポップアップ表示位置
-  })
-
   const year = selectedShift?.year || new Date().getFullYear()
   const month = selectedShift?.month || new Date().getMonth() + 1
-  const planId = selectedShift?.planId || selectedShift?.plan_id || planIdState
+  // 単一のplanId（後方互換性のため）- 最初のplan_idを使用
+  const planId =
+    selectedShift?.planId ||
+    selectedShift?.plan_id ||
+    (planIdsState.length > 0 ? planIdsState[0] : null)
   const planType = selectedShift?.planType || 'FIRST'
 
   useEffect(() => {
@@ -138,20 +155,22 @@ const FirstPlanEditor = ({
       // マスタデータを取得
       const { staffMapping } = await loadMasterData()
 
-      console.log('FirstPlanEditor - initialDataから読み込み:', initialData)
-
       // initialDataからシフトデータを抽出（全店舗分）
       const allShifts = []
-      let extractedPlanId = null
+      const extractedPlanIds = new Set() // 全店舗のplan_idを収集
+      let tempIdCounter = 0
       initialData.stores.forEach(store => {
         store.shifts.forEach(shift => {
-          // 最初のシフトからplan_idを抽出
-          if (!extractedPlanId && shift.plan_id) {
-            extractedPlanId = shift.plan_id
+          // plan_idを収集
+          if (shift.plan_id) {
+            extractedPlanIds.add(shift.plan_id)
           }
           const staffInfo = staffMapping[shift.staff_id] || { name: '不明', role_name: 'スタッフ' }
+          // shift_idがない場合は一時的なIDを生成
+          const shiftId = shift.shift_id || `init_${Date.now()}_${tempIdCounter++}`
           allShifts.push({
             ...shift,
+            shift_id: shiftId,
             staff_name: staffInfo.name,
             role: staffInfo.role_name,
             modified_flag: false,
@@ -159,9 +178,9 @@ const FirstPlanEditor = ({
         })
       })
 
-      // plan_idを状態に保存
-      if (extractedPlanId) {
-        setPlanIdState(extractedPlanId)
+      // plan_idsを状態に保存（全店舗分）
+      if (extractedPlanIds.size > 0) {
+        setPlanIdsState([...extractedPlanIds])
       }
 
       // 日付別にグループ化
@@ -198,7 +217,6 @@ const FirstPlanEditor = ({
       try {
         const patterns = await masterRepository.getShiftPatterns()
         setShiftPatterns(patterns)
-        console.log('シフトパターン取得完了:', patterns.length, '件')
       } catch (error) {
         console.error('シフトパターン取得エラー:', error)
       }
@@ -219,19 +237,17 @@ const FirstPlanEditor = ({
       // マルチストア環境では、常に全店舗のシフトを取得
       const shiftsResult = await shiftRepository.getShifts({ year, month, plan_type: planType })
 
-      // シフトデータからpattern_id、plan_idを取得（最初のシフトから使用）
+      // シフトデータからpattern_idを取得（最初のシフトから使用）
       const fetchedPatternId = shiftsResult.length > 0 ? shiftsResult[0].pattern_id : null
-      const fetchedPlanId = shiftsResult.length > 0 ? shiftsResult[0].plan_id : null
+      // 全シフトからユニークなplan_idを抽出（全店舗分）
+      const fetchedPlanIds = [...new Set(shiftsResult.map(s => s.plan_id).filter(Boolean))]
 
       // ステートに保存
       setDefaultPatternId(fetchedPatternId)
-      setPlanIdState(fetchedPlanId)
+      setPlanIdsState(fetchedPlanIds)
 
       // マスタデータを取得（カスタムhook経由）
       const { staffMapping } = await loadMasterData()
-
-      console.log('FirstPlanEditor - staffMap作成完了:', Object.keys(staffMapping).length, '件')
-      console.log('FirstPlanEditor - staffMapサンプル:', staffMapping[Object.keys(staffMapping)[0]])
 
       // 日付別にグループ化
       const shiftsByDate = {}
@@ -271,6 +287,7 @@ const FirstPlanEditor = ({
           ...shift,
           staff_name: staffMapping[shift.staff_id]?.name || '不明',
           role: staffMapping[shift.staff_id]?.role_name || 'スタッフ',
+          modified_flag: false, // DBから取得したシフトは未変更
         }))
       )
 
@@ -280,10 +297,12 @@ const FirstPlanEditor = ({
       try {
         const patterns = await masterRepository.getShiftPatterns()
         setShiftPatterns(patterns)
-        console.log('シフトパターン取得完了:', patterns.length, '件')
       } catch (error) {
         console.error('シフトパターン取得エラー:', error)
       }
+
+      // DB読み込み完了後は未保存変更なし状態にリセット
+      resetChanges()
 
       setLoading(false)
     } catch (err) {
@@ -301,7 +320,6 @@ const FirstPlanEditor = ({
       dayShiftsData = dayShiftsData.filter(shift => shift.store_id === storeId)
     }
 
-    console.log('🔍 handleDayClick called:', { day, storeId, shiftsCount: dayShiftsData.length })
     setSelectedDay(day)
     setSelectedStoreId(storeId)
     setDayShifts(dayShiftsData)
@@ -334,149 +352,124 @@ const FirstPlanEditor = ({
     }
   }
 
-  // 下書き保存ハンドラー（ステータスを変更せずに保存）
+  // 下書き保存ハンドラー（共通フックを使用）
   const handleSaveDraft = async () => {
     if (!confirm('下書きを保存しますか？')) {
       return
     }
 
     try {
-      setSaving(true)
-      console.log('下書き保存処理開始')
-
-      // initialDataから作成された未保存データの場合
+      // initialDataから作成された未保存データの場合（特殊ケース）
       if (selectedShift?.status === 'unsaved' && selectedShift?.initialData) {
-        console.log('メモリ上のデータをDBに保存')
+        // addedShiftsをinitialData.storesにマージ
+        const mergedStores = selectedShift.initialData.stores.map(store => {
+          // この店舗に追加されたシフトを抽出
+          const storeAddedShifts = addedShifts.filter(s => s.store_id === store.store_id)
+          return {
+            ...store,
+            shifts: [
+              ...store.shifts,
+              ...storeAddedShifts.map(s => ({
+                staff_id: s.staff_id,
+                shift_date: s.shift_date,
+                pattern_id: s.pattern_id,
+                start_time: s.start_time,
+                end_time: s.end_time,
+                break_minutes: s.break_minutes || 0,
+              })),
+            ],
+          }
+        })
 
-        // メモリ上のデータをそのままDBに保存
+        // メモリ上のデータをDBに保存（addedShiftsをマージ）
         const result = await shiftRepository.createPlansWithShifts({
           target_year: year,
           target_month: month,
           created_by: 1, // TODO: 実際のユーザーIDに置き換え
-          stores: selectedShift.initialData.stores,
+          stores: mergedStores,
+          plan_type: 'FIRST',
         })
 
-        if (result.success) {
-          console.log('DBへの保存完了')
-          setHasSavedDraft(true)
-          alert(MESSAGES.SUCCESS.SAVED)
-
-          // データをリロードして最新の状態を表示
-          await loadShiftData()
+        // エラーチェック: success=trueでもerrorsがある場合やcreated_plansが空の場合はエラー
+        if (result.data?.errors?.length > 0) {
+          console.error('プラン作成でエラーが発生しました:', result.data.errors)
+          const errorMessages = result.data.errors
+            .map(e => `店舗${e.store_id}: ${e.error}`)
+            .join('\n')
+          throw new Error(`プラン作成でエラーが発生しました:\n${errorMessages}`)
         }
+
+        if (!result.success || !result.data?.created_plans?.length) {
+          throw new Error('プランの作成に失敗しました。作成されたプランがありません。')
+        }
+
+        setHasSavedDraft(true)
+        setHasUnsavedChanges(false)
+        alert(MESSAGES.SUCCESS.SAVED)
+
+        // 親コンポーネントに状態変更を通知（DRAFT状態、作成されたplan_id）
+        const createdPlanIds = result.data.created_plans.map(p => p.plan_id)
+        if (onStatusChange) {
+          onStatusChange('DRAFT', createdPlanIds)
+        }
+
+        // データをリロードして最新の状態を表示
+        await loadShiftData()
       } else {
-        // 既存のプラン編集の場合
+        // 既存のプラン編集の場合 - 共通フックを使用
         if (!hasUnsavedChanges) {
           alert(MESSAGES.SUCCESS.NO_CHANGES)
-          setSaving(false)
           return
         }
 
-        console.log('新規追加:', addedShifts.length, '件')
-        console.log('修正:', Object.keys(modifiedShifts).length, '件')
-        console.log('削除:', deletedShiftIds.size, '件')
+        // 共通フックの保存処理を使用
+        const result = await saveChanges()
 
-        // すべての変更をバックエンドに送信
-        const updatePromises = []
-
-        // 新規追加されたシフトを作成
-        for (const newShift of addedShifts) {
-          // バックエンドAPIに必要なフィールドのみを抽出
-          const shiftData = {
-            tenant_id: newShift.tenant_id,
-            store_id: newShift.store_id,
-            plan_id: newShift.plan_id,
-            staff_id: newShift.staff_id,
-            shift_date: newShift.shift_date,
-            pattern_id: newShift.pattern_id,
-            start_time: newShift.start_time,
-            end_time: newShift.end_time,
-            break_minutes: newShift.break_minutes,
-            is_preferred: newShift.is_preferred,
-            is_modified: newShift.is_modified,
-          }
-          console.log('新規シフト作成:', shiftData)
-          updatePromises.push(shiftRepository.createShift(shiftData))
+        if (result.success) {
+          setHasSavedDraft(true)
+          alert(MESSAGES.SUCCESS.SAVED)
+          // データをリロードして最新の状態を表示
+          await loadShiftData()
+        } else {
+          throw new Error(result.message)
         }
-
-        // 修正されたシフトを更新
-        for (const [shiftId, updates] of Object.entries(modifiedShifts)) {
-          console.log('シフト更新:', shiftId, updates)
-          updatePromises.push(shiftRepository.updateShift(Number(shiftId), updates))
-        }
-
-        // 削除されたシフトを削除
-        for (const shiftId of deletedShiftIds) {
-          console.log('シフト削除:', shiftId)
-          updatePromises.push(shiftRepository.deleteShift(shiftId))
-        }
-
-        // すべての変更を並行実行
-        if (updatePromises.length > 0) {
-          console.log('変更をバックエンドに送信中...')
-          const results = await Promise.all(updatePromises)
-          console.log('保存完了:', results)
-        }
-
-        // ローカルステートをリセット
-        setModifiedShifts({})
-        setDeletedShiftIds(new Set())
-        setAddedShifts([])
-        setHasUnsavedChanges(false)
-
-        console.log('下書き保存処理完了')
-
-        setHasSavedDraft(true) // 下書き保存済みフラグを立てる
-        alert(MESSAGES.SUCCESS.SAVED)
-        // データをリロードして最新の状態を表示
-        await loadShiftData()
       }
-
-      setSaving(false)
     } catch (error) {
-      setSaving(false)
       console.error('下書き保存エラー:', error)
-      console.error('エラー詳細:', error.message, error.stack)
       alert(`下書きの保存に失敗しました\n\nエラー: ${error.message}`)
     }
   }
 
+  // 承認ハンドラー（共通フックを使用）
   const handleApprove = async () => {
-    // initialDataから作成された未保存データの場合
+    // initialDataから作成された未保存データの場合（特殊ケース）
     if (selectedShift?.status === 'unsaved' && selectedShift?.initialData) {
       if (!confirm('第1案を承認しますか？承認後は第2案の作成に進めます。')) {
         return
       }
 
       try {
-        setSaving(true)
-        console.log('メモリ上のデータをDBに保存して承認')
-
-        // メモリ上のデータをDBに保存（DRAFT状態で）
+        // メモリ上のデータをDBに保存
         const createResult = await shiftRepository.createPlansWithShifts({
           target_year: year,
           target_month: month,
-          created_by: 1, // TODO: 実際のユーザーIDに置き換え
+          created_by: 1,
           stores: selectedShift.initialData.stores,
+          plan_type: 'FIRST',
         })
 
         if (createResult.success) {
-          console.log('DB保存完了、ステータスをAPPROVEDに更新')
-
           // 作成されたプランIDを取得してAPPROVEDに更新
-          const planIds = createResult.data.created_plans.map(p => p.plan_id)
-          for (const id of planIds) {
+          const createdPlanIds = createResult.data.created_plans.map(p => p.plan_id)
+          for (const id of createdPlanIds) {
             await shiftRepository.updatePlanStatus(id, 'APPROVED')
           }
 
-          console.log('承認処理完了')
           setHasSavedDraft(true)
-          setSaving(false)
           alert(MESSAGES.SUCCESS.APPROVE_FIRST_PLAN)
           onApprove()
         }
       } catch (error) {
-        setSaving(false)
         console.error('承認処理エラー:', error)
         alert(`承認処理に失敗しました\n\nエラー: ${error.message}`)
       }
@@ -487,222 +480,150 @@ const FirstPlanEditor = ({
     const isAlreadyApproved =
       selectedShift?.status === 'APPROVED' && selectedShift?.planType === 'FIRST'
 
-    if (hasUnsavedChanges) {
-      if (
-        !confirm(
-          isAlreadyApproved
-            ? '変更を保存しますか？'
-            : '未保存の変更をバックエンドに保存して承認します。よろしいですか？'
-        )
-      ) {
-        return
-      }
-    } else if (!isAlreadyApproved) {
-      if (!confirm('第1案を承認しますか？承認後は第2案の作成に進めます。')) {
-        return
-      }
-    } else {
-      // 承認済みで変更なしの場合は何もしない
+    // 承認済みで変更なしの場合
+    if (isAlreadyApproved && !hasUnsavedChanges) {
       alert(MESSAGES.SUCCESS.NO_CHANGES)
       return
     }
 
+    // 確認ダイアログ
+    const confirmMessage = isAlreadyApproved
+      ? '変更を保存しますか？'
+      : hasUnsavedChanges
+        ? '未保存の変更を保存して承認します。よろしいですか？'
+        : '第1案を承認しますか？承認後は第2案の作成に進めます。'
+
+    if (!confirm(confirmMessage)) {
+      return
+    }
+
     try {
-      setSaving(true)
-      console.log('保存処理開始')
-      console.log('新規追加:', addedShifts.length, '件')
-      console.log('修正:', Object.keys(modifiedShifts).length, '件')
-      console.log('削除:', deletedShiftIds.size, '件')
-
-      // 1. すべての変更をバックエンドに送信
-      const updatePromises = []
-
-      // 新規追加されたシフトを作成
-      for (const newShift of addedShifts) {
-        // バックエンドAPIに必要なフィールドのみを抽出
-        const shiftData = {
-          tenant_id: newShift.tenant_id,
-          store_id: newShift.store_id,
-          plan_id: newShift.plan_id,
-          staff_id: newShift.staff_id,
-          shift_date: newShift.shift_date,
-          pattern_id: newShift.pattern_id,
-          start_time: newShift.start_time,
-          end_time: newShift.end_time,
-          break_minutes: newShift.break_minutes,
-          is_preferred: newShift.is_preferred,
-          is_modified: newShift.is_modified,
+      // 変更があれば先に保存（共通フックを使用）
+      if (hasUnsavedChanges) {
+        const saveResult = await saveChanges()
+        if (!saveResult.success) {
+          throw new Error(saveResult.message)
         }
-        console.log('新規シフト作成:', shiftData)
-        updatePromises.push(shiftRepository.createShift(shiftData))
       }
 
-      // 修正されたシフトを更新
-      for (const [shiftId, updates] of Object.entries(modifiedShifts)) {
-        console.log('シフト更新:', shiftId, updates)
-        updatePromises.push(shiftRepository.updateShift(Number(shiftId), updates))
-      }
-
-      // 削除されたシフトを削除
-      for (const shiftId of deletedShiftIds) {
-        console.log('シフト削除:', shiftId)
-        updatePromises.push(shiftRepository.deleteShift(shiftId))
-      }
-
-      // すべての変更を並行実行
-      if (updatePromises.length > 0) {
-        console.log('変更をバックエンドに送信中...')
-        const results = await Promise.all(updatePromises)
-        console.log('保存完了:', results)
-      }
-
-      // 2. プランのステータスを更新（承認済みでない場合のみ）
+      // 承認済みでない場合はステータスを更新（全店舗分）
       if (!isAlreadyApproved) {
-        // planId がある場合はそれを使用、ない場合は shiftData から plan_id を抽出
-        const planIdsToUpdate = planId
-          ? [planId]
-          : [...new Set(shiftData.map(shift => shift.plan_id).filter(Boolean))]
+        // planIdsState（全店舗分）を優先的に使用
+        const planIdsToUpdate =
+          planIdsState.length > 0
+            ? planIdsState
+            : [...new Set(shiftData.map(shift => shift.plan_id).filter(Boolean))]
 
-        console.log('プランステータス更新:', planIdsToUpdate, 'APPROVED')
-
-        // 各プランのステータスを更新
         for (const id of planIdsToUpdate) {
           await shiftRepository.updatePlanStatus(id, 'APPROVED')
         }
       }
 
-      // 3. ローカルステートをリセット
-      setModifiedShifts({})
-      setDeletedShiftIds(new Set())
-      setAddedShifts([])
-      setHasUnsavedChanges(false)
+      setHasSavedDraft(true)
 
-      console.log('保存処理完了')
-
-      setHasSavedDraft(true) // 承認済みフラグを立てる（削除されないように）
-
-      // 4. 承認済みの場合はデータをリロードして画面に留まる、承認の場合は戻る
       if (isAlreadyApproved) {
         alert(MESSAGES.SUCCESS.SAVED)
-        // データをリロードして最新の状態を表示
         await loadShiftData()
-        setSaving(false)
       } else {
-        setSaving(false)
         alert(MESSAGES.SUCCESS.APPROVE_FIRST_PLAN)
         onApprove()
       }
     } catch (error) {
-      setSaving(false)
       console.error('承認処理エラー:', error)
-      console.error('エラー詳細:', error.message, error.stack)
       alert(`${MESSAGES.ERROR.SAVE_APPROVE_FAILED}\n\nエラー: ${error.message}`)
     }
   }
 
-  // シフト更新ハンドラー（ローカルステートのみ更新）
+  // シフト更新ハンドラー（共通フック + UI更新）
   const handleUpdateShift = (shiftId, updates) => {
-    setHasUnsavedChanges(true)
+    // UI更新のコールバック
+    const updateUI = () => {
+      // UIを即座に更新
+      setCalendarData(prev => {
+        if (!prev) return prev
+        const updatedShiftsByDate = { ...prev.shiftsByDate }
 
-    // ローカルの変更を保持
-    setModifiedShifts(prev => ({
-      ...prev,
-      [shiftId]: {
-        ...prev[shiftId],
-        ...updates,
-      },
-    }))
-
-    // UIを即座に更新
-    setCalendarData(prev => {
-      const updatedShiftsByDate = { ...prev.shiftsByDate }
-
-      // すべての日付のシフトを更新
-      Object.keys(updatedShiftsByDate).forEach(day => {
-        updatedShiftsByDate[day] = updatedShiftsByDate[day].map(shift => {
-          if (shift.shift_id === shiftId) {
-            return {
-              ...shift,
-              ...updates,
-              modified_flag: true,
+        // すべての日付のシフトを更新
+        Object.keys(updatedShiftsByDate).forEach(day => {
+          updatedShiftsByDate[day] = updatedShiftsByDate[day].map(shift => {
+            if (shift.shift_id === shiftId) {
+              return {
+                ...shift,
+                ...updates,
+                modified_flag: true,
+              }
             }
-          }
-          return shift
+            return shift
+          })
         })
+
+        return {
+          ...prev,
+          shiftsByDate: updatedShiftsByDate,
+        }
       })
 
-      return {
-        ...prev,
-        shiftsByDate: updatedShiftsByDate,
-      }
-    })
-
-    // shiftDataも更新（StaffTimeTable用）
-    setShiftData(prev =>
-      prev.map(shift =>
-        shift.shift_id === shiftId ? { ...shift, ...updates, modified_flag: true } : shift
-      )
-    )
-
-    // 現在表示中の日のシフトも更新
-    if (selectedDay) {
-      setDayShifts(prev =>
+      // shiftDataも更新（StaffTimeTable用）
+      setShiftData(prev =>
         prev.map(shift =>
           shift.shift_id === shiftId ? { ...shift, ...updates, modified_flag: true } : shift
         )
       )
+
+      // 現在表示中の日のシフトも更新
+      if (selectedDay) {
+        setDayShifts(prev =>
+          prev.map(shift =>
+            shift.shift_id === shiftId ? { ...shift, ...updates, modified_flag: true } : shift
+          )
+        )
+      }
     }
+
+    // 共通フックの関数を使用
+    handleModifyShift(shiftId, updates, updateUI)
   }
 
-  // シフト削除ハンドラー（ローカルステートのみ更新）
+  // シフト削除ハンドラー（共通フック + UI更新）
   const handleDeleteShift = shiftId => {
-    setHasUnsavedChanges(true)
+    // UI更新のコールバック
+    const updateUI = () => {
+      // UIから削除
+      setCalendarData(prev => {
+        if (!prev) return prev
+        const updatedShiftsByDate = { ...prev.shiftsByDate }
 
-    // Tempシフト（未保存）かどうかを判定
-    if (String(shiftId).startsWith('temp_')) {
-      // Tempシフトの場合：addedShiftsから削除（バックエンドへの削除リクエストは不要）
-      setAddedShifts(prev => prev.filter(shift => shift.shift_id !== shiftId))
-    } else {
-      // 既存シフト（DB保存済み）の場合：削除リストに追加（バックエンドで削除）
-      setDeletedShiftIds(prev => new Set([...prev, shiftId]))
-    }
+        // すべての日付のシフトから削除
+        Object.keys(updatedShiftsByDate).forEach(day => {
+          updatedShiftsByDate[day] = updatedShiftsByDate[day].filter(
+            shift => shift.shift_id !== shiftId
+          )
+        })
 
-    // UIから削除
-    setCalendarData(prev => {
-      const updatedShiftsByDate = { ...prev.shiftsByDate }
-
-      // すべての日付のシフトから削除
-      Object.keys(updatedShiftsByDate).forEach(day => {
-        updatedShiftsByDate[day] = updatedShiftsByDate[day].filter(
-          shift => shift.shift_id !== shiftId
-        )
+        return {
+          ...prev,
+          shiftsByDate: updatedShiftsByDate,
+        }
       })
 
-      return {
-        ...prev,
-        shiftsByDate: updatedShiftsByDate,
-      }
-    })
+      // 現在表示中の日のシフトも削除
+      if (selectedDay) {
+        const updatedShifts = dayShifts.filter(s => s.shift_id !== shiftId)
+        setDayShifts(updatedShifts)
 
-    // 現在表示中の日のシフトも削除
-    if (selectedDay) {
-      const updatedShifts = dayShifts.filter(s => s.shift_id !== shiftId)
-      setDayShifts(updatedShifts)
-
-      // その日のシフトがなくなったら閉じる
-      if (updatedShifts.length === 0) {
-        closeDayView()
+        // その日のシフトがなくなったら閉じる
+        if (updatedShifts.length === 0) {
+          closeDayView()
+        }
       }
     }
+
+    // 共通フックの関数を使用
+    handleDeleteShiftBase(shiftId, updateUI)
   }
 
-  // シフト追加ハンドラー（ローカルステートのみ更新）
+  // シフト追加ハンドラー（共通フック + UI更新）
   const handleAddShift = newShiftData => {
-    setHasUnsavedChanges(true)
-
-    // 一時的なシフトIDを生成
-    const tempShiftId = `temp_${Date.now()}_${Math.random()}`
-
     // スタッフ情報を取得
     const staffInfo = staffMap[newShiftData.staff_id] || { name: '不明', role_name: 'スタッフ' }
 
@@ -715,8 +636,7 @@ const FirstPlanEditor = ({
       (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1)
 
     // 新しいシフトオブジェクトを作成（バックエンド保存用の必須フィールドを含む）
-    const newShift = {
-      shift_id: tempShiftId,
+    const shiftDataToAdd = {
       tenant_id: getCurrentTenantId(), // 必須
       store_id: newShiftData.store_id, // 必須（ポップアップから渡される）
       plan_id: planId, // 必須
@@ -727,41 +647,44 @@ const FirstPlanEditor = ({
       end_time: newShiftData.end_time, // 必須
       break_minutes: newShiftData.break_minutes || 0, // 必須
       is_preferred: false,
-      is_modified: true,
       staff_name: staffInfo.name,
       role: staffInfo.role_name,
       modified_flag: true,
     }
 
-    // 追加シフトリストに追加
-    setAddedShifts(prev => [...prev, newShift])
+    // UI更新のコールバック
+    const updateUI = newShift => {
+      // UIに即座に反映
+      const date = new Date(newShift.shift_date)
+      const day = date.getDate()
 
-    // UIに即座に反映
-    const date = new Date(newShift.shift_date)
-    const day = date.getDate()
+      setCalendarData(prev => {
+        if (!prev) return prev
+        const updatedShiftsByDate = { ...prev.shiftsByDate }
 
-    setCalendarData(prev => {
-      const updatedShiftsByDate = { ...prev.shiftsByDate }
+        if (!updatedShiftsByDate[day]) {
+          updatedShiftsByDate[day] = []
+        }
 
-      if (!updatedShiftsByDate[day]) {
-        updatedShiftsByDate[day] = []
+        updatedShiftsByDate[day].push(newShift)
+
+        return {
+          ...prev,
+          shiftsByDate: updatedShiftsByDate,
+        }
+      })
+
+      // shiftDataにも追加
+      setShiftData(prev => [...prev, newShift])
+
+      // 現在表示中の日の場合は dayShifts にも追加
+      if (selectedDay === day) {
+        setDayShifts(prev => [...prev, newShift])
       }
-
-      updatedShiftsByDate[day].push(newShift)
-
-      return {
-        ...prev,
-        shiftsByDate: updatedShiftsByDate,
-      }
-    })
-
-    // shiftDataにも追加
-    setShiftData(prev => [...prev, newShift])
-
-    // 現在表示中の日の場合は dayShifts にも追加
-    if (selectedDay === day) {
-      setDayShifts(prev => [...prev, newShift])
     }
+
+    // 共通フックの関数を使用
+    handleAddShiftBase(shiftDataToAdd, updateUI)
   }
 
   // セルクリック時のハンドラー
@@ -868,10 +791,15 @@ const FirstPlanEditor = ({
   }
 
   const handleDelete = async (skipConfirm = false) => {
-    // planId がある場合はそれを使用、ない場合は shiftData から plan_id を抽出
-    const planIdsToDelete = planId
-      ? [planId]
-      : [...new Set(shiftData.map(shift => shift.plan_id).filter(Boolean))]
+    // planIdsState（全店舗分）を優先的に使用、なければ shiftData から抽出
+    let planIdsToDelete = []
+    if (planIdsState.length > 0) {
+      planIdsToDelete = [...planIdsState]
+    } else if (selectedShift?.planIds?.length > 0) {
+      planIdsToDelete = [...selectedShift.planIds]
+    } else {
+      planIdsToDelete = [...new Set(shiftData.map(shift => shift.plan_id).filter(Boolean))]
+    }
 
     if (planIdsToDelete.length === 0) {
       // 削除するプランがない場合（何も保存していない場合）
@@ -902,7 +830,6 @@ const FirstPlanEditor = ({
       // 各 planId に対して削除リクエストを送信
       const deletePromises = planIdsToDelete.map(async id => {
         const url = `${BACKEND_API_URL}/api/shifts/plans/${id}?tenant_id=${tenantId}`
-        console.log('削除リクエスト:', url)
 
         const response = await fetch(url, {
           method: 'DELETE',
@@ -918,8 +845,6 @@ const FirstPlanEditor = ({
       })
 
       await Promise.all(deletePromises)
-
-      console.log('削除成功:', planIdsToDelete.length, '件')
 
       // 削除成功後、シフト管理画面に戻る
       if (onDelete) {
@@ -1531,86 +1456,80 @@ const FirstPlanEditor = ({
       </div>
 
       {/* タイムライン表示（ドラッグ・リサイズ可能なウィンドウ） */}
-      {selectedDay &&
-        (() => {
-          console.log('📅 Rendering Rnd window:', { selectedDay, windowState })
-          return (
-            <Rnd
-              size={{ width: windowState.width, height: windowState.height }}
-              position={{ x: windowState.x, y: windowState.y }}
-              onDragStop={(e, d) => {
-                setWindowState(prev => ({ ...prev, x: d.x, y: d.y }))
-              }}
-              onResizeStop={(e, direction, ref, delta, position) => {
-                setWindowState(prev => ({
-                  ...prev,
-                  width: parseInt(ref.style.width),
-                  height: parseInt(ref.style.height),
-                  ...position,
-                }))
-              }}
-              minWidth={1000}
-              minHeight={400}
-              dragHandleClassName="window-header"
-              style={{ zIndex: 9999 }}
-              resizeHandleStyles={{
-                bottom: { cursor: 'ns-resize', height: '8px' },
-                right: { cursor: 'ew-resize', width: '8px' },
-                bottomRight: { cursor: 'nwse-resize', width: '16px', height: '16px' },
-                bottomLeft: { cursor: 'nesw-resize', width: '16px', height: '16px' },
-                topRight: { cursor: 'nesw-resize', width: '16px', height: '16px' },
-                topLeft: { cursor: 'nwse-resize', width: '16px', height: '16px' },
-              }}
-            >
-              <div className="flex flex-col h-full bg-white rounded-lg shadow-2xl border border-gray-300 overflow-hidden">
-                {/* ウィンドウヘッダー */}
-                <div className="window-header bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 flex justify-between items-center cursor-move select-none">
-                  <div className="font-semibold text-sm">
-                    📅 {month}月{selectedDay}日 -{' '}
-                    {selectedStoreId === null
-                      ? '全店舗'
-                      : storesMap[selectedStoreId]?.store_name || ''}
-                  </div>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={handleMaximize}
-                      className="hover:bg-blue-700 p-1 rounded transition-colors"
-                      title={windowState.isMaximized ? '元のサイズに戻す' : '最大化'}
-                    >
-                      {windowState.isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
-                    </button>
-                    <button
-                      onClick={closeDayView}
-                      className="hover:bg-red-600 p-1 rounded transition-colors"
-                      title="閉じる"
-                    >
-                      <X size={16} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* ウィンドウコンテンツ */}
-                <div className="flex-1 overflow-auto">
-                  <ShiftTableView
-                    date={selectedDay}
-                    year={year}
-                    month={month}
-                    shifts={dayShifts}
-                    onClose={closeDayView}
-                    editable={isEditMode}
-                    onUpdate={isEditMode ? handleUpdateShift : undefined}
-                    onDelete={isEditMode ? handleDeleteShift : undefined}
-                    onShiftClick={isEditMode ? handleShiftClick : undefined}
-                    storesMap={storesMap}
-                    storeName={
-                      selectedStoreId === null ? undefined : storesMap[selectedStoreId]?.store_name
-                    }
-                  />
-                </div>
+      {selectedDay && (
+        <Rnd
+          size={{ width: windowState.width, height: windowState.height }}
+          position={{ x: windowState.x, y: windowState.y }}
+          onDragStop={(e, d) => {
+            setWindowState(prev => ({ ...prev, x: d.x, y: d.y }))
+          }}
+          onResizeStop={(e, direction, ref, delta, position) => {
+            setWindowState(prev => ({
+              ...prev,
+              width: parseInt(ref.style.width),
+              height: parseInt(ref.style.height),
+              ...position,
+            }))
+          }}
+          minWidth={1000}
+          minHeight={400}
+          dragHandleClassName="window-header"
+          style={{ zIndex: 9999 }}
+          resizeHandleStyles={{
+            bottom: { cursor: 'ns-resize', height: '8px' },
+            right: { cursor: 'ew-resize', width: '8px' },
+            bottomRight: { cursor: 'nwse-resize', width: '16px', height: '16px' },
+            bottomLeft: { cursor: 'nesw-resize', width: '16px', height: '16px' },
+            topRight: { cursor: 'nesw-resize', width: '16px', height: '16px' },
+            topLeft: { cursor: 'nwse-resize', width: '16px', height: '16px' },
+          }}
+        >
+          <div className="flex flex-col h-full bg-white rounded-lg shadow-2xl border border-gray-300 overflow-hidden">
+            {/* ウィンドウヘッダー */}
+            <div className="window-header bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 flex justify-between items-center cursor-move select-none">
+              <div className="font-semibold text-sm">
+                📅 {month}月{selectedDay}日 -{' '}
+                {selectedStoreId === null ? '全店舗' : storesMap[selectedStoreId]?.store_name || ''}
               </div>
-            </Rnd>
-          )
-        })()}
+              <div className="flex gap-2">
+                <button
+                  onClick={handleMaximize}
+                  className="hover:bg-blue-700 p-1 rounded transition-colors"
+                  title={windowState.isMaximized ? '元のサイズに戻す' : '最大化'}
+                >
+                  {windowState.isMaximized ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+                </button>
+                <button
+                  onClick={closeDayView}
+                  className="hover:bg-red-600 p-1 rounded transition-colors"
+                  title="閉じる"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            </div>
+
+            {/* ウィンドウコンテンツ */}
+            <div className="flex-1 overflow-auto">
+              <ShiftTableView
+                date={selectedDay}
+                year={year}
+                month={month}
+                shifts={dayShifts}
+                onClose={closeDayView}
+                editable={isEditMode}
+                onUpdate={isEditMode ? handleUpdateShift : undefined}
+                onDelete={isEditMode ? handleDeleteShift : undefined}
+                onShiftClick={isEditMode ? handleShiftClick : undefined}
+                storesMap={storesMap}
+                storeName={
+                  selectedStoreId === null ? undefined : storesMap[selectedStoreId]?.store_name
+                }
+              />
+            </div>
+          </div>
+        </Rnd>
+      )}
 
       {/* シフト編集ポップアップ */}
       <ShiftEditModal

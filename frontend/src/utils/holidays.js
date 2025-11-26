@@ -58,9 +58,9 @@ async function getHolidays() {
 /**
  * フォールバックの祝日データ（空のデータ構造）
  * バックエンドAPIから取得失敗時に使用
+ * ※ 警告ログは無限ループを防ぐため削除
  */
 function getFallbackHolidays() {
-  console.warn('祝日データ取得失敗: バックエンドAPIから祝日データを取得できませんでした')
   return {}
 }
 

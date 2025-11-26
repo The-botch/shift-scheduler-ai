@@ -184,7 +184,7 @@ const StaffManagement = () => {
             })
           }
         } catch (err) {
-          console.log(`実績データ取得エラー (${staff.name}):`, err)
+          // 実績データ取得エラーは無視
         }
       }
 

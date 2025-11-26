@@ -41,11 +41,6 @@ const StaffTimeTable = ({
     }
   }
 
-  // デバッグ: 受け取ったstaffMapの内容を確認
-  console.log('=== StaffTimeTable受け取ったstaffMap ===')
-  console.log('staffMap件数:', Object.keys(staffMap).length)
-  console.log('staffMapの最初の2件:', Object.entries(staffMap).slice(0, 2))
-
   // 月の日数を計算（JST対応）
   const daysInMonth = getDaysInMonth(year, month)
   const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1)
@@ -102,25 +97,12 @@ const StaffTimeTable = ({
     ...info,
   }))
 
-  console.log('StaffTimeTable - allStaff[0]:', allStaff[0])
-  console.log(
-    'StaffTimeTable - allStaff[0]のis_active:',
-    allStaff[0]?.is_active,
-    'typeof:',
-    typeof allStaff[0]?.is_active
-  )
-
   const staffList = allStaff
     .filter(staff => {
-      console.log(
-        `スタッフ ${staff.name || staff.staff_id}: is_active=${staff.is_active} (型: ${typeof staff.is_active})`
-      )
       // is_activeがundefinedの場合は一旦全員表示
       return staff.is_active !== false
     })
     .sort((a, b) => a.staff_id - b.staff_id)
-
-  console.log('StaffTimeTable - フィルタ後のstaffList件数:', staffList.length)
 
   // 時間帯による色分け
   const getTimeSlotColor = startTime => {
@@ -195,12 +177,6 @@ const StaffTimeTable = ({
 
   // 保存処理
   const handleSave = () => {
-    console.log('=== StaffTimeTable handleSave called ===')
-    console.log('editingCell:', editingCell)
-    console.log('editForm:', editForm)
-    console.log('onUpdateShift:', typeof onUpdateShift)
-    console.log('onAddShift:', typeof onAddShift)
-
     if (!editForm.start_time || !editForm.end_time) {
       alert('開始時間と終了時間を入力してください')
       return
@@ -210,17 +186,14 @@ const StaffTimeTable = ({
 
     if (editingCell.shift) {
       // 既存シフトの更新
-      console.log('既存シフトを更新:', editingCell.shift.shift_id)
       const updates = {
         start_time: editForm.start_time, // VARCHAR(5)形式: "09:00", "25:00"
         end_time: editForm.end_time,
         break_minutes: parseInt(editForm.break_minutes),
       }
-      console.log('更新内容:', updates)
       onUpdateShift && onUpdateShift(editingCell.shift.shift_id, updates)
     } else {
       // 新規シフトの追加
-      console.log('新規シフトを追加')
       const newShift = {
         staff_id: editingCell.staffId,
         shift_date: dateStr,
@@ -228,7 +201,6 @@ const StaffTimeTable = ({
         end_time: editForm.end_time,
         break_minutes: parseInt(editForm.break_minutes),
       }
-      console.log('新規シフト:', newShift)
       onAddShift && onAddShift(newShift)
     }
 

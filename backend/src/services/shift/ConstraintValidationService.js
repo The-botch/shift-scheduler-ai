@@ -10,8 +10,6 @@ class ConstraintValidationService {
    * @returns {Promise<Object>} { violations: [...], summary: {...} }
    */
   async validateShifts(shifts, masterData) {
-    console.log('[ConstraintValidator] 制約検証開始')
-
     const violations = []
 
     // 1. 週の労働時間チェック (労働基準法: 40時間/週)
@@ -44,8 +42,6 @@ class ConstraintValidationService {
 
     // サマリー作成
     const summary = this.createSummary(violations)
-
-    console.log('[ConstraintValidator] 検証完了:', summary)
 
     return {
       violations,
