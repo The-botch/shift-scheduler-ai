@@ -81,10 +81,6 @@ const ShiftManagement = () => {
       const summaryData = await shiftRepository.getSummary({ year: selectedYear })
       setSummary(summaryData)
 
-      // デバッグ: 11月のデータを確認
-      const novemberData = summaryData.filter(s => parseInt(s.month) === 11)
-      console.log('11月のサマリーデータ:', novemberData)
-
       // 店舗リストを抽出してグローバル状態に保存
       const stores = Array.from(
         new Map(
@@ -218,9 +214,11 @@ const ShiftManagement = () => {
     setViewMode('detail')
   }
 
-  const handleBackToMatrix = () => {
+  const handleBackToMatrix = async () => {
     setViewingShift(null)
     setViewMode('matrix')
+    // トップ画面に戻る際にシフトサマリーを再読み込み
+    await loadShiftSummary()
   }
 
   const handleViewHistory = (shift, planType = 'SECOND') => {
@@ -237,6 +235,18 @@ const ShiftManagement = () => {
     // 承認後にシフトサマリーを再読み込みしてマトリックス画面に戻る
     await loadShiftSummary()
     handleBackToMatrix()
+  }
+
+  // FirstPlanEditorから呼ばれる状態変更コールバック
+  const handleStatusChange = (newStatus, planIds) => {
+    // viewingShiftの状態を更新（unsaved → DRAFT）
+    // initialDataをクリアして、次回はDBからフェッチするようにする
+    setViewingShift(prev => ({
+      ...prev,
+      status: newStatus,
+      planIds: planIds, // 作成されたplan_idを保持
+      initialData: null, // DBに保存されたので、メモリ上のデータをクリア
+    }))
   }
 
   const handleViewRecruitmentStatus = shift => {
@@ -462,6 +472,7 @@ const ShiftManagement = () => {
         mode={isViewMode ? 'view' : 'edit'}
         onBack={handleBackToMatrix}
         onApprove={handleDraftApprove}
+        onStatusChange={handleStatusChange}
       />
     )
   }

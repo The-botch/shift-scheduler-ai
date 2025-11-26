@@ -77,7 +77,6 @@ const BudgetActualManagement = () => {
             map[store.store_code] = store.store_id
           })
           setStoreCodeToIdMap(map)
-          console.log('店舗マッピング取得完了:', map)
         }
       } catch (error) {
         console.error('店舗マスターデータの取得エラー:', error)
@@ -100,7 +99,6 @@ const BudgetActualManagement = () => {
             map[staff.staff_id] = staff.store_id
           })
           setStaffIdToStoreIdMap(map)
-          console.log('スタッフマッピング取得完了:', Object.keys(map).length, '件')
         }
       } catch (error) {
         console.error('スタッフマスターデータの取得エラー:', error)
@@ -476,9 +474,6 @@ const BudgetActualManagement = () => {
       const formattedData = Array.from(uniqueDataMap.values())
 
       const duplicatesCount = formattedDataWithDuplicates.length - formattedData.length
-      if (duplicatesCount > 0) {
-        console.log(`⚠️ ${duplicatesCount}件の重複レコードを除去しました`)
-      }
 
       // バッチサイズ（1000件ずつ送信してPostgreSQLのパラメータ制限を回避）
       const BATCH_SIZE = 1000

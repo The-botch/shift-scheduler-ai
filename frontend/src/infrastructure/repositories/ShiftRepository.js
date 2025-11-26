@@ -606,7 +606,11 @@ export class ShiftRepository {
    */
   async createPlansWithShifts(data) {
     try {
-      const { target_year, target_month, created_by, stores, tenantId = null } = data
+      const { target_year, target_month, created_by, stores, tenantId = null, plan_type } = data
+
+      if (!plan_type) {
+        throw new Error('plan_type is required')
+      }
 
       const actualTenantId = tenantId ?? getCurrentTenantId()
 
@@ -622,6 +626,7 @@ export class ShiftRepository {
           target_month,
           created_by,
           stores,
+          plan_type,
         }),
       })
 

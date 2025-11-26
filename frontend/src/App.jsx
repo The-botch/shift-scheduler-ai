@@ -403,8 +403,6 @@ function AppContent() {
         const month = selectedShiftForEdit?.month || getCurrentMonth()
         const storeId = selectedShiftForEdit?.storeId || selectedShiftForEdit?.store_id || 1
 
-        console.log('[前月コピー] 開始:', { year, month, storeId })
-
         const response = await fetch('http://localhost:3001/api/shifts/plans/copy-from-previous', {
           method: 'POST',
           headers: {
@@ -426,8 +424,6 @@ function AppContent() {
           alert(`前月のシフトコピーに失敗しました: ${data.error || data.message}`)
           return
         }
-
-        console.log('[前月コピー] 成功:', data)
 
         // バリデーション結果を確認
         const validation = data.data.validation

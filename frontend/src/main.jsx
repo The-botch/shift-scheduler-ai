@@ -1,6 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, useLocation, useNavigate } from 'react-router-dom'
 import './index.css'
 import AppLayout from './AppLayout.jsx'
 import { getCurrentTenantId, setCurrentTenantId, resetTenantId } from './config/tenant'
@@ -32,7 +32,14 @@ const FirstPlanEditorWrapper = () => {
 
 const SecondPlanEditorWrapper = () => {
   const location = useLocation()
-  return <SecondPlanEditor selectedShift={location.state?.shift} />
+  const navigate = useNavigate()
+  return (
+    <SecondPlanEditor
+      selectedShift={location.state?.shift}
+      onNext={() => navigate('/')}
+      onPrev={() => navigate(-1)}
+    />
+  )
 }
 
 createRoot(document.getElementById('root')).render(
