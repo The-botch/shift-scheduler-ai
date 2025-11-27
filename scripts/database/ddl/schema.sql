@@ -110,6 +110,23 @@ CREATE TABLE IF NOT EXISTS core.employment_types (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- core.shift_deadline_settings（シフト希望入力期限設定）
+CREATE TABLE IF NOT EXISTS core.shift_deadline_settings (
+    deadline_setting_id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL,
+    payment_type VARCHAR(50) NOT NULL, -- 'HOURLY', 'MONTHLY'
+    start_day INTEGER, -- 入力開始日（N-1月の何日から）NULL=制限なし
+    deadline_day INTEGER NOT NULL, -- 締切日（N-1月の何日まで）
+    deadline_hour INTEGER NOT NULL DEFAULT 23,
+    deadline_minute INTEGER NOT NULL DEFAULT 59,
+    is_enabled BOOLEAN NOT NULL DEFAULT true, -- 期限チェック有効/無効
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_shift_deadline_settings_tenant_payment
+        UNIQUE(tenant_id, payment_type)
+);
+
 -- core.shift_patterns
 CREATE TABLE IF NOT EXISTS core.shift_patterns (
     pattern_id SERIAL PRIMARY KEY,
@@ -700,6 +717,7 @@ CREATE INDEX IF NOT EXISTS idx_stores_division ON core.stores(division_id);
 CREATE INDEX IF NOT EXISTS idx_roles_tenant ON core.roles(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_skills_tenant ON core.skills(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_employment_types_tenant ON core.employment_types(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_shift_deadline_settings_tenant ON core.shift_deadline_settings(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_shift_patterns_tenant ON core.shift_patterns(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_staff_tenant ON hr.staff(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_staff_store ON hr.staff(store_id);
@@ -764,6 +782,7 @@ CREATE TRIGGER trg_stores_updated_at BEFORE UPDATE ON core.stores FOR EACH ROW E
 CREATE TRIGGER trg_roles_updated_at BEFORE UPDATE ON core.roles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_skills_updated_at BEFORE UPDATE ON core.skills FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_employment_types_updated_at BEFORE UPDATE ON core.employment_types FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER trg_shift_deadline_settings_updated_at BEFORE UPDATE ON core.shift_deadline_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_shift_patterns_updated_at BEFORE UPDATE ON core.shift_patterns FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_staff_updated_at BEFORE UPDATE ON hr.staff FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_staff_skills_updated_at BEFORE UPDATE ON hr.staff_skills FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

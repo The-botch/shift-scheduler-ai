@@ -200,3 +200,36 @@ INSERT INTO core.skills (
 )
 VALUES (3, 'MANAGEMENT', 'マネジメント', '管理', 5, true)
 ON CONFLICT DO NOTHING;
+
+-- ----------------------------------------------------------------------------
+-- 7. シフト希望入力期限設定
+-- ----------------------------------------------------------------------------
+-- 社員（MONTHLY）の期限設定
+INSERT INTO core.shift_deadline_settings
+  (tenant_id, payment_type, start_day, deadline_day, deadline_hour, deadline_minute, is_enabled, description)
+VALUES
+  (3, 'MONTHLY', 1, 10, 23, 59, true, '社員のシフト希望期間（N-1月1日0:00～10日23:59）')
+ON CONFLICT (tenant_id, payment_type) DO UPDATE
+SET
+    start_day = EXCLUDED.start_day,
+    deadline_day = EXCLUDED.deadline_day,
+    deadline_hour = EXCLUDED.deadline_hour,
+    deadline_minute = EXCLUDED.deadline_minute,
+    is_enabled = EXCLUDED.is_enabled,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- アルバイト（HOURLY）の期限設定
+INSERT INTO core.shift_deadline_settings
+  (tenant_id, payment_type, start_day, deadline_day, deadline_hour, deadline_minute, is_enabled, description)
+VALUES
+  (3, 'HOURLY', 1, 15, 23, 59, true, 'アルバイトのシフト希望期間（N-1月1日0:00～15日23:59）')
+ON CONFLICT (tenant_id, payment_type) DO UPDATE
+SET
+    start_day = EXCLUDED.start_day,
+    deadline_day = EXCLUDED.deadline_day,
+    deadline_hour = EXCLUDED.deadline_hour,
+    deadline_minute = EXCLUDED.deadline_minute,
+    is_enabled = EXCLUDED.is_enabled,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP;
