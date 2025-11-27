@@ -1,16 +1,106 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
+import { isoToJSTDateString } from '../../utils/dateUtils'
 
 /**
  * シフトカレンダー表示用の共通コンポーネント
  * History, DraftShiftEditor, SecondPlanEditorで使用
+ *
+ * @param {number} year - 年
+ * @param {number} month - 月
+ * @param {Object} calendarData - カレンダーデータ { daysInMonth, firstDay, shiftsByDate }
+ * @param {Function} onDayClick - 日付クリック時のコールバック
+ * @param {string} storeName - 店舗名
+ * @param {Array} preferences - 希望シフトデータ（オプション）
+ * @param {Object} staffMap - スタッフマップ（オプション、色分け用）
+ * @param {boolean} showPreferenceColoring - 希望シフトベースの色分けを表示するか（デフォルト: false）
  */
-const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => {
+const ShiftCalendar = ({
+  year,
+  month,
+  calendarData,
+  onDayClick,
+  storeName,
+  preferences = [],
+  staffMap = {},
+  showPreferenceColoring = false,
+}) => {
   // 祝日データを事前に読み込む
   useEffect(() => {
     loadHolidays()
   }, [])
+
+  // preferences を Map 化（キー: "staffId_YYYY-MM-DD"）
+  const preferencesMap = useMemo(() => {
+    const map = new Map()
+    preferences.forEach(pref => {
+      const prefDate = isoToJSTDateString(pref.preference_date)
+      const key = `${pref.staff_id}_${prefDate}`
+      map.set(key, pref)
+    })
+    return map
+  }, [preferences])
+
+  // 指定した日付のスタッフの希望情報を取得（O(1) Map lookup）
+  const getStaffPreferenceForDate = (dateStr, staffId) => {
+    return preferencesMap.get(`${staffId}_${dateStr}`)
+  }
+
+  // その日がNG日かチェック（is_ng=true）
+  const isNgDay = (dateStr, staffId) => {
+    const pref = getStaffPreferenceForDate(dateStr, staffId)
+    return pref && pref.is_ng
+  }
+
+  // その日が希望日かチェック（is_ng=false）
+  const isPreferredDay = (dateStr, staffId) => {
+    const pref = getStaffPreferenceForDate(dateStr, staffId)
+    return pref && !pref.is_ng
+  }
+
+  // シフトカードの色分け（MultiStoreShiftTableと同じロジック）
+  const getShiftCardColor = (dateStr, staffId) => {
+    // 希望シフトベースの色分けが無効の場合
+    if (!showPreferenceColoring) {
+      return 'bg-gray-100 border border-gray-300'
+    }
+
+    const staff = staffMap[staffId]
+    const employmentType = staff?.employment_type || ''
+    const isNg = isNgDay(dateStr, staffId)
+    const isPreferred = isPreferredDay(dateStr, staffId)
+
+    // 【PART_TIMEの場合】アルバイト・パートは希望日のみ勤務可能
+    if (employmentType === 'PART_TIME') {
+      if (isPreferred) {
+        // 希望日に配置 → 緑色（OK）
+        return 'bg-green-100 border border-green-400'
+      } else {
+        // 希望日以外に配置 → 赤色（要修正）
+        return 'bg-red-200 border border-red-500'
+      }
+    }
+
+    // 【FULL_TIMEの場合】正社員はNG日以外なら勤務可能
+    if (isNg) {
+      // NG日に配置 → 赤色（要修正）
+      return 'bg-red-200 border border-red-500'
+    } else {
+      // NG日以外に配置 → 緑色（OK）
+      return 'bg-green-100 border border-green-400'
+    }
+  }
+
+  // 希望シフトの時刻を取得
+  const getPreferenceTime = (dateStr, staffId) => {
+    const pref = getStaffPreferenceForDate(dateStr, staffId)
+    if (!pref) return null
+    if (pref.start_time && pref.end_time) {
+      return `${pref.start_time.substring(0, 5)}-${pref.end_time.substring(0, 5)}`
+    }
+    return null
+  }
 
   // calendarDataがnullの場合は空の状態を表示
   if (!calendarData) {
@@ -113,34 +203,56 @@ const ShiftCalendar = ({ year, month, calendarData, onDayClick, storeName }) => 
                   </div>
                 )}
               </div>
-              {dayShifts.slice(0, 2).map((shift, idx) => (
-                <motion.div
-                  key={shift.shift_id}
-                  className={`text-xs md:text-sm px-1 py-0.5 rounded mb-0.5 ${
-                    shift.modified_flag
-                      ? 'bg-yellow-200 border border-yellow-400'
-                      : 'bg-green-100 border border-green-300'
-                  }`}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: index * 0.01 + idx * 0.05 }}
-                >
-                  <div
-                    className={`font-medium text-xs md:text-sm leading-tight ${
-                      shift.modified_flag ? 'text-yellow-900' : 'text-green-800'
-                    }`}
+              {dayShifts.slice(0, 2).map((shift, idx) => {
+                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                const shiftCardColor = shift.modified_flag
+                  ? 'bg-yellow-200 border border-yellow-400'
+                  : getShiftCardColor(dateStr, shift.staff_id)
+                const preferenceTime = showPreferenceColoring
+                  ? getPreferenceTime(dateStr, shift.staff_id)
+                  : null
+                const isNg = isNgDay(dateStr, shift.staff_id)
+
+                // 色分け有効時のテキストカラー
+                const textColorClass = shift.modified_flag
+                  ? 'text-yellow-900'
+                  : isNg
+                    ? 'text-red-900'
+                    : 'text-green-800'
+                const subTextColorClass = shift.modified_flag
+                  ? 'text-yellow-700'
+                  : isNg
+                    ? 'text-red-700'
+                    : 'text-green-700'
+
+                return (
+                  <motion.div
+                    key={shift.shift_id}
+                    className={`text-xs md:text-sm px-1 py-0.5 rounded mb-0.5 ${shiftCardColor}`}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ delay: index * 0.01 + idx * 0.05 }}
                   >
-                    {shift.staff_name}
-                  </div>
-                  <div
-                    className={`text-xs md:text-sm leading-tight ${
-                      shift.modified_flag ? 'text-yellow-700' : 'text-green-700'
-                    }`}
-                  >
-                    {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
-                  </div>
-                </motion.div>
-              ))}
+                    <div
+                      className={`font-medium text-xs md:text-sm leading-tight ${textColorClass}`}
+                    >
+                      {shift.staff_name}
+                    </div>
+                    <div className={`text-xs md:text-sm leading-tight ${subTextColorClass}`}>
+                      {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
+                    </div>
+                    {preferenceTime && (
+                      <div
+                        className={`text-[0.5rem] leading-tight ${
+                          isNg ? 'text-red-600' : 'text-blue-600'
+                        }`}
+                      >
+                        {isNg ? 'NG' : '希望'}: {preferenceTime}
+                      </div>
+                    )}
+                  </motion.div>
+                )
+              })}
               {dayShifts.length > 2 && (
                 <div className="text-xs md:text-sm leading-tight text-gray-500">
                   +{dayShifts.length - 2}

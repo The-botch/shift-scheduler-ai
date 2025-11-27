@@ -23,6 +23,8 @@ import ShiftCalendar from './ShiftCalendar'
  * @param {Function} props.onDeleteShift - シフト削除ハンドラー
  * @param {Function} props.onCellClick - セルクリックハンドラー
  * @param {Function} props.onDayClick - 日付クリックハンドラー
+ * @param {Array} props.preferences - 希望シフトデータ（オプション）
+ * @param {boolean} props.showPreferenceColoring - 希望シフトベースの色分けを表示するか
  */
 const ShiftViewEditor = ({
   year,
@@ -38,6 +40,8 @@ const ShiftViewEditor = ({
   onDeleteShift,
   onCellClick,
   onDayClick,
+  preferences = [],
+  showPreferenceColoring = false,
 }) => {
   const [viewMode, setViewMode] = useState('staff') // 'staff' | 'calendar'
 
@@ -78,6 +82,35 @@ const ShiftViewEditor = ({
       return parseInt(shift.store_id) === parseInt(storeId)
     })
   }, [shiftData, storeId])
+
+  // カレンダー用のデータ形式に変換
+  const calendarData = useMemo(() => {
+    if (!filteredShiftData) return null
+
+    // 月の情報を計算
+    const date = new Date(year, month - 1, 1)
+    const daysInMonth = new Date(year, month, 0).getDate()
+    const firstDay = date.getDay()
+
+    // 日付別にグループ化
+    const shiftsByDate = {}
+    filteredShiftData.forEach(shift => {
+      if (shift.shift_date) {
+        const shiftDate = new Date(shift.shift_date)
+        const day = shiftDate.getDate()
+        if (!shiftsByDate[day]) {
+          shiftsByDate[day] = []
+        }
+        shiftsByDate[day].push(shift)
+      }
+    })
+
+    return {
+      daysInMonth,
+      firstDay,
+      shiftsByDate,
+    }
+  }, [filteredShiftData, year, month])
 
   return (
     <div className="flex flex-col h-full">
@@ -122,10 +155,12 @@ const ShiftViewEditor = ({
             <ShiftCalendar
               year={year}
               month={month}
-              shiftData={filteredShiftData}
-              staffMap={filteredStaffMap}
+              calendarData={calendarData}
               onDayClick={onDayClick}
               storeName={storeName}
+              preferences={preferences}
+              staffMap={filteredStaffMap}
+              showPreferenceColoring={showPreferenceColoring}
             />
           )}
         </CardContent>
