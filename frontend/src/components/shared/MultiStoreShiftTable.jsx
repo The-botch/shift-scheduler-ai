@@ -1,4 +1,4 @@
-import React, { useRef } from 'react'
+import React, { useRef, useMemo } from 'react'
 import { isHoliday, getHolidayName } from '../../utils/holidays'
 import { getDaysInMonth, getDayOfWeek, isoToJSTDateString } from '../../utils/dateUtils'
 
@@ -39,6 +39,57 @@ const MultiStoreShiftTable = ({
     }
   }
 
+  // ===============================================
+  // パフォーマンス最適化: O(n)検索をO(1)に変換するMap
+  // ===============================================
+
+  // shiftData を Map 化（キー: "YYYY-MM-DD_staffId"）
+  const shiftDataMap = useMemo(() => {
+    const map = new Map()
+    shiftData.forEach(shift => {
+      if (shift.shift_date) {
+        const dateStr = shift.shift_date.substring(0, 10)
+        const key = `${dateStr}_${shift.staff_id}`
+        map.set(key, shift)
+      }
+    })
+    return map
+  }, [shiftData])
+
+  // conflicts を Map 化（キー: "date_staffId"）
+  const conflictsMap = useMemo(() => {
+    const map = new Map()
+    conflicts.forEach(c => {
+      const key = `${c.date}_${c.staffId}`
+      map.set(key, c)
+    })
+    return map
+  }, [conflicts])
+
+  // hopeShifts を Map 化（キー: "YYYY-MM-DD_staffId"）
+  const hopeShiftsMap = useMemo(() => {
+    const map = new Map()
+    hopeShifts.forEach(hope => {
+      if (hope.shift_date) {
+        const dateStr = hope.shift_date.substring(0, 10)
+        const key = `${dateStr}_${hope.staff_id}`
+        map.set(key, hope)
+      }
+    })
+    return map
+  }, [hopeShifts])
+
+  // preferences を Map 化（キー: "staffId_YYYY-MM-DD"）
+  const preferencesMap = useMemo(() => {
+    const map = new Map()
+    preferences.forEach(pref => {
+      const prefDate = isoToJSTDateString(pref.preference_date)
+      const key = `${pref.staff_id}_${prefDate}`
+      map.set(key, pref)
+    })
+    return map
+  }, [preferences])
+
   // 月の日数を計算（JST対応）
   const daysInMonth = getDaysInMonth(year, month)
   const dates = Array.from({ length: daysInMonth }, (_, i) => i + 1)
@@ -63,15 +114,10 @@ const MultiStoreShiftTable = ({
     return store ? store.store_name : ''
   }
 
-  // 日付とスタッフIDからシフトを検索
+  // 日付とスタッフIDからシフトを検索（O(1) Map lookup）
   const getShiftForDateAndStaff = (date, staffId) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-    return shiftData.find(
-      shift =>
-        shift.shift_date &&
-        shift.shift_date.startsWith(dateStr) &&
-        parseInt(shift.staff_id) === parseInt(staffId)
-    )
+    return shiftDataMap.get(`${dateStr}_${staffId}`)
   }
 
   // 勤務時間を計算
@@ -219,34 +265,22 @@ const MultiStoreShiftTable = ({
     return { totalDays, totalHours }
   }
 
-  // 特定の日付とスタッフに対してconflictを取得
+  // 特定の日付とスタッフに対してconflictを取得（O(1) Map lookup）
   const getConflict = (date, staffId) => {
-    return conflicts.find(c => {
-      const dateMatch = c.date === date
-      const staffMatch = parseInt(c.staffId) === parseInt(staffId)
-      return dateMatch && staffMatch
-    })
+    return conflictsMap.get(`${date}_${staffId}`)
   }
 
-  // 特定の日付とスタッフに対してhopeShiftを取得
+  // 特定の日付とスタッフに対してhopeShiftを取得（O(1) Map lookup）
   const getHopeShift = (date, staffId) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-    return hopeShifts.find(
-      hope =>
-        hope.shift_date &&
-        hope.shift_date.startsWith(dateStr) &&
-        parseInt(hope.staff_id) === parseInt(staffId)
-    )
+    return hopeShiftsMap.get(`${dateStr}_${staffId}`)
   }
 
   // ★変更: 新API形式（1日1レコード）でのスタッフ希望シフト情報取得
-  // 指定した日付のスタッフの希望情報を取得（JSTで正しくパース）
+  // 指定した日付のスタッフの希望情報を取得（O(1) Map lookup）
   const getStaffPreferenceForDate = (date, staffId) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-    return preferences.find(pref => {
-      const prefDate = isoToJSTDateString(pref.preference_date)
-      return parseInt(pref.staff_id) === parseInt(staffId) && prefDate === dateStr
-    })
+    return preferencesMap.get(`${staffId}_${dateStr}`)
   }
 
   // その日が勤務希望日かチェック（is_ng=false）
