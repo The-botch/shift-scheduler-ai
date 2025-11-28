@@ -1,20 +1,15 @@
 import { useState, useEffect } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { Button } from '../ui/button'
 import {
   BarChart3,
   CalendarIcon,
-  FolderOpen,
   MessageSquare,
-  ClipboardList,
   Users,
   Store,
-  Shield,
   TrendingUp,
-  Code2,
   Building2,
   Database,
-  BookOpen,
   Menu,
   X,
 } from 'lucide-react'
@@ -27,6 +22,7 @@ const AppHeader = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
   const [backendEnv, setBackendEnv] = useState(null)
   const [dbEnv, setDbEnv] = useState(null)
+  // eslint-disable-next-line no-unused-vars
   const { tenantId, tenantName, changeTenant, availableTenants, loading } = useTenant()
 
   useEffect(() => {

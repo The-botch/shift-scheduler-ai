@@ -16,7 +16,7 @@ const MultiStoreShiftTable = ({
   selectedStores, // 選択された店舗IDのSet
   onDayClick,
   conflicts = [], // 希望シフトとの不一致情報
-  onConflictClick, // conflictセルがクリックされたときのコールバック
+  onConflictClick: _onConflictClick, // conflictセルがクリックされたときのコールバック
   hopeShifts = [], // 希望シフトデータ
   onCellClick, // セルクリック時のコールバック（全セル対応）
   preferences = [], // 希望シフトのpreferredDays/ngDays情報
@@ -462,7 +462,8 @@ const MultiStoreShiftTable = ({
                       </div>
                     </td>
                     {group.staff.map(staff => {
-                      const { totalDays, totalHours } = getStaffMonthlyTotal(staff.staff_id)
+                      // eslint-disable-next-line no-unused-vars
+                      const { totalDays: _totalDays, totalHours } = getStaffMonthlyTotal(staff.staff_id)
                       return (
                         <td
                           key={staff.staff_id}
@@ -503,6 +504,7 @@ const MultiStoreShiftTable = ({
           </colgroup>
           <tbody>
             {dates.map((date, index) => {
+              // eslint-disable-next-line no-unused-vars
               const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
               const holiday = isHoliday(year, month, date)
               const holidayName = getHolidayName(year, month, date)

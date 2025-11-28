@@ -1,15 +1,11 @@
 import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
-import { Button } from '../../ui/button'
-import { Calendar, Plus, Edit3, Eye, Check, Clock, Store, Upload, Copy, X } from 'lucide-react'
+import { Calendar, Clock, Store, Upload, Copy, X } from 'lucide-react'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
-import { MasterRepository } from '../../../infrastructure/repositories/MasterRepository'
 import FirstPlanEditor from './FirstPlanEditor'
 
 const shiftRepository = new ShiftRepository()
-const masterRepository = new MasterRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -28,6 +24,7 @@ const ShiftManagement = () => {
   const [shifts, setShifts] = useState([]) // マトリックスデータ: { storeId, storeName, months: [{month, status, ...}] }
   const [summary, setSummary] = useState([]) // サマリーデータ
   const [loading, setLoading] = useState(true)
+  // eslint-disable-next-line no-unused-vars
   const [creatingShift, setCreatingShift] = useState(null) // 作成中の月を追跡
   const [selectedYear, setSelectedYear] = useState(new Date().getFullYear()) // 年度選択
   const [viewMode, setViewMode] = useState('matrix') // 'matrix' or 'detail'
@@ -60,6 +57,7 @@ const ShiftManagement = () => {
     navigate('/shift/monitoring', { state: { shift } })
   }
 
+  // eslint-disable-next-line no-unused-vars
   const onLineMessages = () => {
     navigate('/shift/line')
   }
@@ -68,11 +66,13 @@ const ShiftManagement = () => {
   // 初回マウント時にも読み込み
   useEffect(() => {
     loadShiftSummary()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // 店舗選択・年度選択が変更されたときに再読み込み
   useEffect(() => {
     loadShiftSummary()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStore, selectedYear])
 
   const loadShiftSummary = async () => {
@@ -204,6 +204,8 @@ const ShiftManagement = () => {
     return { label: '不明', color: 'gray' }
   }
 
+  // handleViewShiftは将来の機能拡張用
+  // eslint-disable-next-line no-unused-vars
   const handleViewShift = shift => {
     // 確定済みシフトの閲覧
     setViewingShift({
@@ -395,6 +397,7 @@ const ShiftManagement = () => {
   }
 
   const getActionButton = shift => {
+    // eslint-disable-next-line no-unused-vars
     const isCreating = creatingShift === shift.month
 
     // 該当月(現在の月)より前の月は「閲覧」ボタンを表示

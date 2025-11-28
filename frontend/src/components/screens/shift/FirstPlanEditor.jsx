@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Card, CardContent } from '../../ui/card'
 import { Button } from '../../ui/button'
 import {
   ArrowLeft,
@@ -16,7 +15,6 @@ import {
 } from 'lucide-react'
 import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
-import ShiftTimeline from '../../shared/ShiftTimeline'
 import ShiftTableView from '../../shared/ShiftTableView'
 import TimeInput from '../../shared/TimeInput'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
@@ -68,38 +66,25 @@ const FirstPlanEditor = ({
   // 共通ロジック（マスタデータ取得・店舗選択管理）
   const {
     staffMap,
-    rolesMap,
     storesMap,
     availableStores,
     selectedStores,
-    loading: masterLoading,
     loadMasterData,
-    toggleStoreSelection,
-    selectAllStores,
-    deselectAllStores,
     setSelectedStores,
   } = useShiftEditorBase(selectedShift)
 
   // 共通ロジック（シフト編集・保存・承認）
   const {
-    modifiedShifts,
-    deletedShiftIds,
     addedShifts,
     hasUnsavedChanges,
     saving,
     planIds: planIdsState,
     modalState,
     setPlanId: setPlanIdsState,
-    getPlanId,
     handleDeleteShift: handleDeleteShiftBase,
     handleAddShift: handleAddShiftBase,
     handleModifyShift,
     saveChanges,
-    saveDraft,
-    approve,
-    deletePlan,
-    openModal,
-    closeModal,
     setModalState,
     resetChanges,
     setHasUnsavedChanges,
@@ -127,7 +112,7 @@ const FirstPlanEditor = ({
   // シフトデータ
   const [shiftData, setShiftData] = useState([])
   const [defaultPatternId, setDefaultPatternId] = useState(null)
-  const [preferences, setPreferences] = useState([]) // 希望シフト
+  const [preferences] = useState([]) // 希望シフト（将来使用予定）
   const [shiftPatterns, setShiftPatterns] = useState([]) // シフトパターンマスタ
 
   // パフォーマンス最適化: preferences を Map 化（O(1) lookup）
@@ -157,6 +142,7 @@ const FirstPlanEditor = ({
     } else if (planId || (year && month && planType)) {
       loadShiftData()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [planId, year, month, planType, selectedShift?.initialData])
 
   const loadInitialData = async initialData => {
@@ -699,7 +685,7 @@ const FirstPlanEditor = ({
   }
 
   // セルクリック時のハンドラー
-  const handleShiftClick = ({ mode, shift, date, staffId, storeId, event }) => {
+  const handleShiftClick = ({ mode, shift, date, staffId, storeId: _storeId, event }) => {
     // クリック位置を取得
     const rect = event?.target.getBoundingClientRect()
     const position = rect
@@ -986,6 +972,7 @@ const FirstPlanEditor = ({
           window.removeEventListener('mouseup', handleDragEnd)
         }
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isDragging, dragStart, popupPosition])
 
     // ポップアップの位置を計算（画面端で見切れないように調整）

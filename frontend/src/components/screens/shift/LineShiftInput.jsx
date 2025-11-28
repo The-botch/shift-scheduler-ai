@@ -1,25 +1,10 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { MESSAGES } from '../../../constants/messages'
 import { motion } from 'framer-motion'
-import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
+import { Card } from '../../ui/card'
 import { Button } from '../../ui/button'
-import {
-  ChevronLeft,
-  ArrowRight,
-  Check,
-  X,
-  Calendar,
-  MessageSquare,
-  Copy,
-  Edit3,
-} from 'lucide-react'
-import {
-  DEMO_PARAMS,
-  getCurrentYearMonth,
-  getNextMonthYearMonth,
-  DEFAULT_CONFIG,
-} from '../../../config/defaults'
-import { SHIFT_PREFERENCE_STATUS } from '../../../config/constants'
+import { Check, X, MessageSquare, Copy } from 'lucide-react'
+import { DEMO_PARAMS, getNextMonthYearMonth } from '../../../config/defaults'
 import { useTenant } from '../../../contexts/TenantContext'
 import { isoToJSTDateParts } from '../../../utils/dateUtils'
 
@@ -190,7 +175,7 @@ const DetailInputModal = ({ date, shiftPatterns, onSave, onCancel, existing, yea
   )
 }
 
-const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
+const LineShiftInput = ({ onNext: _onNext, onPrev: _onPrev, shiftStatus }) => {
   const { tenantId } = useTenant()
   const [datePreferences, setDatePreferences] = useState({}) // { date: { patterns: ['EARLY', 'MID'], comment: '' } }
   const [showLineMessage, setShowLineMessage] = useState(true)
@@ -232,6 +217,7 @@ const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
     loadStaffList()
     loadStoreList()
     loadTenantInfo()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
 
   useEffect(() => {
@@ -246,6 +232,7 @@ const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
       // シフトパターンは「曜日ごとのパターン設定」ボタンを押したときに読み込む
       // loadShiftPatterns()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedStaffId, selectedYear, selectedMonth])
 
   const loadStaffList = async () => {
@@ -520,6 +507,8 @@ const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
 
   const selectedDatesCount = Object.keys(datePreferences).length
 
+  // getDayOfWeekは将来の機能拡張用（カレンダー表示の曜日ラベル等）
+  // eslint-disable-next-line no-unused-vars
   const getDayOfWeek = date => {
     const day = new Date(selectedYear, selectedMonth - 1, date).getDay()
     const weekdays = ['日', '月', '火', '水', '木', '金', '土']

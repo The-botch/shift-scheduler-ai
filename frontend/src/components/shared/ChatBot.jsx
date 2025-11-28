@@ -14,7 +14,7 @@ import {
 /**
  * AI対話チャットボット（右下固定表示）
  */
-const ChatBot = ({ assistantId, onClose }) => {
+const ChatBot = ({ assistantId, onClose: _onClose }) => {
   const [isOpen, setIsOpen] = useState(false)
   const [isMinimized, setIsMinimized] = useState(false)
   const [messages, setMessages] = useState([])

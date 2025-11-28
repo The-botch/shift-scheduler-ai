@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import { useMemo } from 'react'
 
 /**
  * 24時超過対応の時刻入力コンポーネント

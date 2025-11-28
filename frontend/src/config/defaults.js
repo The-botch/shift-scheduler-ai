@@ -5,11 +5,7 @@
  * 環境変数で上書き可能です。
  */
 
-import {
-  getCurrentYear,
-  getCurrentMonth,
-  getCurrentYearMonth as getJSTYearMonth,
-} from '../utils/dateUtils'
+import { getCurrentYearMonth as getJSTYearMonth } from '../utils/dateUtils'
 
 export const DEFAULT_CONFIG = {
   // テナント・店舗設定

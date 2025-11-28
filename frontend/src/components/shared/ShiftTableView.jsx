@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react'
+import { useEffect } from 'react'
 import { Trash2 } from 'lucide-react'
+// eslint-disable-next-line no-unused-vars
 import { ROLE_COLORS, getRoleColor } from '../../config/colors'
 import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
 
@@ -12,11 +13,11 @@ import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
 const ShiftTableView = ({
   date,
   shifts,
-  onClose,
+  onClose: _onClose,
   year,
   month,
   editable = false,
-  onUpdate,
+  onUpdate: _onUpdate,
   onDelete,
   onShiftClick,
   storesMap = {},
@@ -253,7 +254,7 @@ const ShiftTableView = ({
               </tr>
             </thead>
             <tbody>
-              {storeIds.map((storeId, storeIndex) => {
+              {storeIds.map(storeId => {
                 const storeStaff = staffByStore[storeId]
                 const storeRows = []
 

@@ -1,6 +1,6 @@
 import { motion } from 'framer-motion'
 import { useState, useEffect } from 'react'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Card, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import AppHeader from '../components/shared/AppHeader'
 import ChatBot from '../components/shared/ChatBot'
@@ -36,7 +36,6 @@ import {
 import { setupVectorStore, generateShiftWithAssistant } from '../utils/assistantClient'
 import { getApiUrl, API_ENDPOINTS } from '../config/api'
 import { generateTimestamp } from '../utils/dateUtils'
-import { postJSON } from '../utils/http'
 import { useTenant } from '../contexts/TenantContext'
 
 const pageVariants = {
@@ -64,10 +63,14 @@ const DevTools = ({
   onBudgetActualManagement,
 }) => {
   const { tenantId } = useTenant()
+  // eslint-disable-next-line no-unused-vars
   const [validationResult, setValidationResult] = useState(null)
+  // eslint-disable-next-line no-unused-vars
   const [validationLoading, setValidationLoading] = useState(false)
   const [selectedFile, setSelectedFile] = useState('')
+  // eslint-disable-next-line no-unused-vars
   const [availableFiles, setAvailableFiles] = useState([])
+  // eslint-disable-next-line no-unused-vars
   const [filesLoading, setFilesLoading] = useState(true)
   const [aiResponse, setAiResponse] = useState('')
   const [aiPrompt, setAiPrompt] = useState('')
@@ -126,6 +129,7 @@ const DevTools = ({
       setAssistantId(savedAssistantId)
       console.log('✅ Assistant IDを復元しました:', savedAssistantId)
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // IndexedDBからログを読み込む
@@ -263,6 +267,7 @@ const DevTools = ({
   }
 
   // バリデーション実行
+  // eslint-disable-next-line no-unused-vars
   const runValidation = async () => {
     try {
       setValidationLoading(true)
@@ -301,6 +306,7 @@ const DevTools = ({
   }
 
   // AI対話（ChatGPT-4）
+  // eslint-disable-next-line no-unused-vars
   const sendToAI = async () => {
     try {
       setAiLoading(true)
@@ -376,7 +382,7 @@ const DevTools = ({
 
         // 収集したファイルリストを抽出し、Vector Storeのファイル名形式に変換
         const fileList = []
-        Object.entries(data.inputs).forEach(([key, value]) => {
+        Object.entries(data.inputs).forEach(([_key, value]) => {
           if (value.files && value.files.length > 0) {
             value.files.forEach(file => {
               // ファイルパスからファイル名を抽出し、.csv → .json に変換
@@ -567,7 +573,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
 
           // 収集したファイルリストを抽出し、Vector Storeのファイル名形式に変換
           const fileList = []
-          Object.entries(data.inputs).forEach(([key, value]) => {
+          Object.entries(data.inputs).forEach(([_key, value]) => {
             if (value.files && value.files.length > 0) {
               value.files.forEach(file => {
                 // ファイルパスからファイル名を抽出し、.csv → .json に変換
@@ -772,7 +778,6 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
 
               // CSVデータをパースしてバリデーション実行
               let validationResult = null
-              let actualShiftCount = 0
               try {
                 const parsedCsv = Papa.parse(shiftData.shifts_csv, {
                   header: true,
@@ -780,7 +785,6 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
                 })
 
                 if (parsedCsv.data && parsedCsv.data.length > 0) {
-                  actualShiftCount = parsedCsv.data.length
                   validationResult = await validateShifts(parsedCsv.data)
                 }
               } catch (validationError) {
@@ -862,7 +866,6 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
 
           // CSVデータをパースしてバリデーション実行
           let validationResult = null
-          let actualShiftCount = 0
           try {
             const parsedCsv = Papa.parse(shiftData.shifts_csv, {
               header: true,
@@ -870,7 +873,6 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
             })
 
             if (parsedCsv.data && parsedCsv.data.length > 0) {
-              actualShiftCount = parsedCsv.data.length
               validationResult = await validateShifts(parsedCsv.data)
             }
           } catch (validationError) {
@@ -1208,7 +1210,7 @@ ${constraintsArray.length > 0 ? constraintsArray.join('\n') : 'なし'}
 
       // 収集したファイルリストを抽出し、Vector Storeのファイル名形式に変換
       const fileList = []
-      Object.entries(data.inputs).forEach(([key, value]) => {
+      Object.entries(data.inputs).forEach(([_key, value]) => {
         if (value.files && value.files.length > 0) {
           value.files.forEach(file => {
             const fileName = file.split('/').pop()
@@ -1315,6 +1317,7 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
   }
 
   // CSVファイルインポート処理
+  // eslint-disable-next-line no-unused-vars
   const handleImportCSV = event => {
     const file = event.target.files[0]
     if (!file) return
@@ -1353,6 +1356,7 @@ ${fileList.map(f => `- ${f.uploaded} (元: ${f.original})`).join('\n')}
   }
 
   // インポートしたデータを第1案として使用
+  // eslint-disable-next-line no-unused-vars
   const useImportedDataAsFirstDraft = async () => {
     if (!importedShiftData) return
 

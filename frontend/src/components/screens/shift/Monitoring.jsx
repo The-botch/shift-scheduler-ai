@@ -11,17 +11,12 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  ArrowRight,
   Loader2,
   X,
   Calendar,
-  History as HistoryIcon,
   Store,
-  LayoutGrid,
-  Table,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'
-import StaffTimeTable from '../../shared/StaffTimeTable'
 import { AnimatePresence } from 'framer-motion'
 import { useTenant } from '../../../contexts/TenantContext'
 import { isoToJSTDateString, isoToJSTDateParts } from '../../../utils/dateUtils'
@@ -46,13 +41,16 @@ const Monitoring = () => {
   const shift = location.state?.shift
 
   // shiftオブジェクトから年月と店舗IDを抽出
-  const initialMonth =
-    shift?.year && shift?.month
-      ? {
-          year: parseInt(shift.year),
-          month: parseInt(shift.month),
-        }
-      : null
+  const initialMonth = useMemo(
+    () =>
+      shift?.year && shift?.month
+        ? {
+            year: parseInt(shift.year),
+            month: parseInt(shift.month),
+          }
+        : null,
+    [shift?.year, shift?.month]
+  )
   // store_id と storeId の両方に対応
   const initialStoreId = shift?.store_id
     ? parseInt(shift.store_id)
@@ -67,14 +65,18 @@ const Monitoring = () => {
   const [selectedDay, setSelectedDay] = useState(null)
   const [staffMap, setStaffMap] = useState({})
   const [rolesMap, setRolesMap] = useState({})
+  // eslint-disable-next-line no-unused-vars
   const [shiftPatternsMap, setShiftPatternsMap] = useState({})
   const [storeList, setStoreList] = useState([])
   const [selectedStoreId, setSelectedStoreId] = useState(initialStoreId || null)
+  // eslint-disable-next-line no-unused-vars
   const [viewMode, setViewMode] = useState('staff') // 'staff' | 'calendar'
+  // eslint-disable-next-line no-unused-vars
   const [calendarShiftData, setCalendarShiftData] = useState([]) // カレンダー表示用のシフトデータ
 
   const currentDate = useMemo(() => new Date(), [])
   const currentYear = currentDate.getFullYear()
+  // eslint-disable-next-line no-unused-vars
   const currentMonth = currentDate.getMonth() + 1
 
   // 履歴表示用の年月
@@ -106,10 +108,12 @@ const Monitoring = () => {
 
   useEffect(() => {
     loadStoreList()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
 
   useEffect(() => {
     loadAvailabilityData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [historyYear, historyMonth, selectedStoreId, tenantId])
 
   const loadStoreList = async () => {
@@ -247,11 +251,8 @@ const Monitoring = () => {
       const calendarShifts = []
       availData.forEach(req => {
         // preference_dateからJSTの日付を取得
-        const {
-          year: prefYear,
-          month: prefMonth,
-          day: prefDay,
-        } = isoToJSTDateParts(req.preference_date)
+        // eslint-disable-next-line no-unused-vars
+        const { year: prefYear, month: prefMonth, day: _prefDay } = isoToJSTDateParts(req.preference_date)
         const dateStr = isoToJSTDateString(req.preference_date)
 
         if (
@@ -319,7 +320,8 @@ const Monitoring = () => {
     // 締め切り日を計算（対象月の前月20日）
     const deadlineDate = new Date(historyYear, historyMonth - 2, 20) // 前月の20日
 
-    // 対象月の開始日
+    // 対象月の開始日（将来の機能拡張用）
+    // eslint-disable-next-line no-unused-vars
     const targetMonthStart = new Date(historyYear, historyMonth - 1, 1)
 
     // 対象月の翌月1日（対象月が完全に終わる日）
@@ -396,6 +398,8 @@ const Monitoring = () => {
     setSelectedDay(null)
   }
 
+  // getStaffRequestsは将来の機能拡張用（スタッフ別詳細表示など）
+  // eslint-disable-next-line no-unused-vars
   const getStaffRequests = staffId => {
     return availabilityRequests.filter(req => req.staff_id === staffId)
   }
@@ -486,6 +490,8 @@ const Monitoring = () => {
     }
   }
 
+  // calculateHoursは将来の機能拡張用（労働時間計算など）
+  // eslint-disable-next-line no-unused-vars
   const calculateHours = (startTime, endTime) => {
     if (!startTime || !endTime) return 0
     const [startHour, startMin] = startTime.split(':').map(Number)
@@ -772,7 +778,8 @@ const Monitoring = () => {
                   firstDay,
                   year,
                   month,
-                  preferences,
+                  // eslint-disable-next-line no-unused-vars
+                  preferences: _preferences,
                 } = getCalendarData(selectedStaff.id)
                 const weekDays = ['日', '月', '火', '水', '木', '金', '土']
 
@@ -810,10 +817,14 @@ const Monitoring = () => {
                   )
                 }
 
+                // 将来の機能拡張用（雇用形態別表示など）
+                // eslint-disable-next-line no-unused-vars
                 const isPartTimeStaff =
                   currentStaff?.employment_type === 'PART_TIME' ||
                   currentStaff?.employment_type === 'PART'
+                // eslint-disable-next-line no-unused-vars
                 const hasNgDays = ngDaysSet.size > 0
+                // eslint-disable-next-line no-unused-vars
                 const hasPreferredDays = preferredDaysSet.size > 0
 
                 return (

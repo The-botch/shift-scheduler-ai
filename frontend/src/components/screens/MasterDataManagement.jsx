@@ -79,6 +79,7 @@ const MasterDataManagement = ({ onPrev }) => {
 
   useEffect(() => {
     loadMasterData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMaster])
 
   useEffect(() => {

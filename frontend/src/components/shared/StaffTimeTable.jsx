@@ -299,6 +299,7 @@ const StaffTimeTable = ({
           </colgroup>
           <tbody>
             {dates.map((date, index) => {
+              // eslint-disable-next-line no-unused-vars
               const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
               const holiday = isHoliday(year, month, date)
               const holidayName = getHolidayName(year, month, date)

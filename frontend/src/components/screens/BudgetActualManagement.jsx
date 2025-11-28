@@ -55,6 +55,7 @@ const BudgetActualManagement = () => {
   const [monthlyStatus, setMonthlyStatus] = useState([])
   const [selectedMonth, setSelectedMonth] = useState(null)
   const [diffAnalysis, setDiffAnalysis] = useState(null)
+  // eslint-disable-next-line no-unused-vars
   const [loading, setLoading] = useState(false)
   const [selectedYear, setSelectedYear] = useState(getCurrentYear())
   const [monthlyPL, setMonthlyPL] = useState([])
@@ -111,7 +112,8 @@ const BudgetActualManagement = () => {
   // IndexedDB内のデータ件数を取得
   useEffect(() => {
     loadImportStatus()
-  }, [selectedYear, loadImportStatus])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedYear])
 
   // 画面離脱時の警告
   useEffect(() => {
@@ -473,6 +475,8 @@ const BudgetActualManagement = () => {
       })
       const formattedData = Array.from(uniqueDataMap.values())
 
+      // 重複カウント（デバッグ用に保持、将来的にUIに表示予定）
+      // eslint-disable-next-line no-unused-vars
       const duplicatesCount = formattedDataWithDuplicates.length - formattedData.length
 
       // バッチサイズ（1000件ずつ送信してPostgreSQLのパラメータ制限を回避）

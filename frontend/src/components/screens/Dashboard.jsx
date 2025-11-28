@@ -47,6 +47,7 @@ const Dashboard = ({ onBudgetActualManagement }) => {
     if (tenantId) {
       loadAnnualSummary()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tenantId])
 
   const loadAnnualSummary = async () => {

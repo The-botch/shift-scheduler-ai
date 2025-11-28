@@ -4,7 +4,7 @@
 
 import Papa from 'papaparse'
 import DEFAULT_CONFIG from '../config/defaults.js'
-import { SHIFT_PREFERENCE_STATUS, PRIORITY } from '../config/constants'
+import { PRIORITY } from '../config/constants'
 import { isoToJSTDateString } from './dateUtils'
 
 /**

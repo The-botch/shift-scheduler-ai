@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react'
+import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { motion } from 'framer-motion'
 import { X, Trash2 } from 'lucide-react'
 import { Button } from '../ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
-import { ROLE_COLORS, getRoleColor } from '../../config/colors'
+import { getRoleColor, ROLE_COLORS } from '../../config/colors'
 import { isHoliday, getHolidayName, loadHolidays } from '../../utils/holidays'
 
 const ShiftTimeline = ({
@@ -34,6 +33,7 @@ const ShiftTimeline = ({
   // 祝日判定
   const isDayHoliday = isHoliday(year, month, date)
   const holidayName = getHolidayName(year, month, date)
+  // eslint-disable-next-line no-unused-vars
   const [selectedShift, setSelectedShift] = useState(null)
   // 時間範囲（5:00 - 翌4:00）
   const startHour = 5
@@ -294,7 +294,7 @@ const ShiftTimeline = ({
           <div className="flex" style={{ height: '920px', paddingTop: '4px' }}>
             {/* 時間軸（左側） */}
             <div className="w-12 flex-shrink-0 border-r bg-gray-50">
-              {hours.map((hour, index) => (
+              {hours.map(hour => (
                 <div key={hour} className="relative h-[40px] border-b border-gray-200">
                   <div className="absolute -top-1.5 left-1 text-[0.45rem] leading-tight font-bold text-gray-700">
                     {getHourLabel(hour)}

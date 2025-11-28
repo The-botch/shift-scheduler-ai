@@ -12,9 +12,6 @@ import {
   Maximize2,
   Minimize2,
   X,
-  Eye,
-  GitCompare,
-  Calendar as CalendarIcon,
   MessageSquare,
   Send,
   Users,
@@ -67,38 +64,24 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   // 共通ロジック（マスタデータ取得・店舗選択管理）
   const {
     staffMap,
-    rolesMap,
     storesMap,
     availableStores,
     selectedStores,
-    loading: masterLoading,
     loadMasterData,
-    toggleStoreSelection,
-    selectAllStores,
-    deselectAllStores,
     setSelectedStores,
   } = useShiftEditorBase(selectedShift)
 
   // 共通ロジック（シフト編集・保存・承認）- planType: 'SECOND'
   const {
-    modifiedShifts,
-    deletedShiftIds,
-    addedShifts,
     hasUnsavedChanges,
     saving,
     planIds: planIdsState,
     modalState,
     setPlanId: setPlanIdsState,
-    getPlanId,
     handleDeleteShift: handleDeleteShiftBase,
     handleAddShift: handleAddShiftBase,
     handleModifyShift,
     saveChanges,
-    saveDraft,
-    approve,
-    deletePlan,
-    openModal,
-    closeModal,
     setModalState,
     resetChanges,
     setHasUnsavedChanges,
@@ -112,7 +95,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const [selectedDay, setSelectedDay] = useState(null)
   const [selectedStoreId, setSelectedStoreId] = useState(null)
   const [dayShifts, setDayShifts] = useState([])
-  const [hasSavedDraft, setHasSavedDraft] = useState(false)
+  // eslint-disable-next-line no-unused-vars
+  const [_hasSavedDraft, setHasSavedDraft] = useState(false)
 
   // カレンダービューのウィンドウ状態
   const [windowState, setWindowState] = useState({
@@ -125,7 +109,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
   // シフトデータ - FirstPlanEditorと同じ構造
   const [shiftData, setShiftData] = useState([])
-  const [firstPlanShifts, setFirstPlanShifts] = useState([]) // 第1案（比較表示用）
+  // eslint-disable-next-line no-unused-vars
+  const [_firstPlanShifts, setFirstPlanShifts] = useState([]) // 第1案（比較表示用）
   const [defaultPatternId, setDefaultPatternId] = useState(null)
   const [preferences, setPreferences] = useState([])
   const [shiftPatterns, setShiftPatterns] = useState([])
@@ -142,7 +127,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   }, [preferences])
 
   // 表示モード: 'second', 'first', 'compare'
-  const [viewMode, setViewMode] = useState('second')
+  // viewModeは将来の比較機能用（現在未使用）
+  // const [viewMode, setViewMode] = useState('second')
 
   // 希望シフトとの不一致情報
   const [conflicts, setConflicts] = useState([])
@@ -173,13 +159,16 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
   const year = selectedShift?.year || new Date().getFullYear()
   const month = selectedShift?.month || new Date().getMonth() + 1
-  const planId =
+  // planIdは将来の機能で使用予定
+  // eslint-disable-next-line no-unused-vars
+  const _planId =
     selectedShift?.planId ||
     selectedShift?.plan_id ||
     (planIdsState.length > 0 ? planIdsState[0] : null)
 
   useEffect(() => {
     loadShiftData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month])
 
   const loadShiftData = async () => {
@@ -399,6 +388,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
       const ngCount = newConflicts.filter(c => c.type === 'NG_DAY').length
       const notPreferredCount = newConflicts.filter(c => c.type === 'NOT_PREFERRED').length
       const noPreferenceCount = newConflicts.filter(c => c.type === 'NO_PREFERENCE').length
+      // problemDatesSetは将来の機能拡張用（カレンダーハイライトなど）
+      // eslint-disable-next-line no-unused-vars
       const problemDatesSet = new Set(newConflicts.map(c => c.date))
 
       const warningContent = `⚠️ 希望との不一致が${newConflicts.length}件あります\n・NG日に配置: ${ngCount}件\n・希望日以外に配置: ${notPreferredCount}件\n・希望シフト未登録: ${noPreferenceCount}件`
@@ -794,7 +785,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   }
 
   // セルクリック時のハンドラー
-  const handleShiftClick = ({ mode, shift, date, staffId, storeId, event }) => {
+  const handleShiftClick = ({ mode, shift, date, staffId, storeId: _storeId, event }) => {
     const rect = event?.target.getBoundingClientRect()
     const position = rect
       ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 }
@@ -955,6 +946,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         window.removeEventListener('mouseup', handleChatDragEnd)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isDragging, dragStart, chatPosition])
 
   useEffect(() => {
@@ -966,6 +958,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         window.removeEventListener('mouseup', handleResizeEnd)
       }
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isResizing, dragStart, chatSize])
 
   const sendMessage = async (messageText = null) => {
@@ -1108,6 +1101,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
           window.removeEventListener('mouseup', handleDragEnd)
         }
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isDragging, dragStart, popupPosition])
 
     useEffect(() => {
