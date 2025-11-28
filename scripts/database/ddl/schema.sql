@@ -111,21 +111,31 @@ CREATE TABLE IF NOT EXISTS core.employment_types (
 );
 
 -- core.shift_deadline_settings（シフト希望入力期限設定）
+-- 入力開始: 第1案作成完了時、締切: N-1月のdeadline_day deadline_hour:deadline_minute
 CREATE TABLE IF NOT EXISTS core.shift_deadline_settings (
     deadline_setting_id SERIAL PRIMARY KEY,
     tenant_id INTEGER NOT NULL,
-    payment_type VARCHAR(50) NOT NULL, -- 'HOURLY', 'MONTHLY'
-    start_day INTEGER, -- 入力開始日（N-1月の何日から）NULL=制限なし
-    deadline_day INTEGER NOT NULL, -- 締切日（N-1月の何日まで）
-    deadline_hour INTEGER NOT NULL DEFAULT 23,
-    deadline_minute INTEGER NOT NULL DEFAULT 59,
+    employment_type VARCHAR(50) NOT NULL, -- 'FULL_TIME', 'PART_TIME'
+    deadline_day INTEGER NOT NULL CHECK (deadline_day BETWEEN 1 AND 31), -- 締切日（N-1月の何日まで）
+    deadline_hour INTEGER NOT NULL DEFAULT 23 CHECK (deadline_hour BETWEEN 0 AND 23),
+    deadline_minute INTEGER NOT NULL DEFAULT 59 CHECK (deadline_minute BETWEEN 0 AND 59),
     is_enabled BOOLEAN NOT NULL DEFAULT true, -- 期限チェック有効/無効
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT uq_shift_deadline_settings_tenant_payment
-        UNIQUE(tenant_id, payment_type)
+    CONSTRAINT uq_shift_deadline_settings_tenant_employment
+        UNIQUE(tenant_id, employment_type),
+    CONSTRAINT fk_shift_deadline_settings_tenant
+        FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE
 );
+
+COMMENT ON TABLE core.shift_deadline_settings IS 'シフト希望入力締切設定（契約形態別）。入力開始は第1案作成完了時';
+COMMENT ON COLUMN core.shift_deadline_settings.employment_type IS '契約形態（FULL_TIME=正社員、PART_TIME=アルバイト・パート）';
+COMMENT ON COLUMN core.shift_deadline_settings.deadline_day IS 'シフト希望入力締切日（N-1月の1-31日）';
+COMMENT ON COLUMN core.shift_deadline_settings.deadline_hour IS '締切時刻（時）0-23';
+COMMENT ON COLUMN core.shift_deadline_settings.deadline_minute IS '締切時刻（分）0-59';
+COMMENT ON COLUMN core.shift_deadline_settings.is_enabled IS '期限チェック有効/無効フラグ';
+COMMENT ON COLUMN core.shift_deadline_settings.description IS '備考（運用メモなど）';
 
 -- core.shift_patterns
 CREATE TABLE IF NOT EXISTS core.shift_patterns (
