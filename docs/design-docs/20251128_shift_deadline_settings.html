@@ -424,9 +424,9 @@ SET
 
 <h3>4.3 将来実装予定のバックエンドAPI</h3>
 
-<div class="warning">
-<strong>⚠️ 注意: 将来実装予定のバックエンドAPI</strong>
-<p>以下のAPIで期限チェックロジックの実装が必要です（現在は未実装）:</p>
+<div class="info">
+<strong>ℹ️ 将来実装予定: マスター管理API</strong>
+<p>ユーザー側から期限設定を確認・変更できるようにする際に実装予定です。</p>
 </div>
 
 <table>
@@ -435,99 +435,67 @@ SET
         <th>エンドポイント</th>
         <th>必要な修正</th>
         <th>優先度</th>
-    </tr>
-    <tr>
-        <td rowspan="3">backend/src/routes/shifts.js</td>
-        <td>POST /api/shifts/preferences<br>(行1410)</td>
-        <td rowspan="3">DeadlineValidationService による期限チェック追加<br>• staff_id から employment_type 取得<br>• core.shift_deadline_settings から期限取得<br>• 現在日時と比較<br>• 期限超過時は400エラー</td>
-        <td rowspan="3">🔴 高</td>
-    </tr>
-    <tr>
-        <td>PUT /api/shifts/preferences/:id<br>(行1544)</td>
-    </tr>
-    <tr>
-        <td>POST /api/shifts/preferences/bulk<br>(行1678)</td>
-    </tr>
-    <tr>
-        <td>backend/src/routes/liff.js</td>
-        <td>POST /api/liff/shift-request<br>(行20)</td>
-        <td>同上（LINE BOT経由のシフト希望入力）</td>
-        <td>🔴 高</td>
-    </tr>
-    <tr>
-        <td>backend/src/services/shift/<br>DeadlineValidationService.js</td>
-        <td>-</td>
-        <td><span class="added">新規作成</span><br>• getDeadlineSettings(tenantId, employmentType)<br>• isWithinDeadline(tenantId, staffId, targetYear, targetMonth)<br>• getEmploymentType(staffId)</td>
-        <td>🔴 高</td>
+        <th>目的</th>
     </tr>
     <tr>
         <td>backend/src/routes/master.js</td>
         <td>GET/POST/PUT/DELETE<br>/api/master/shift-deadline-settings</td>
-        <td><span class="added">新規追加</span><br>期限設定のCRUD API</td>
+        <td><span class="added">新規追加</span><br>期限設定のCRUD API<br>• GET: 全期限設定取得<br>• POST: 新規期限設定作成<br>• PUT: 既存期限設定更新<br>• DELETE: 期限設定削除</td>
         <td>🟢 低</td>
+        <td>管理画面からの期限設定変更を可能にする<br>（現在はDMLで直接データベース操作）</td>
     </tr>
 </table>
 
-<h3>4.4 将来実装予定のフロントエンド修正</h3>
+<div class="warning">
+<strong>📌 Backend側の期限チェックロジックについて</strong>
+<p><strong>現在は実装不要</strong>と判断しています。理由は以下の通りです:</p>
+<ul>
+    <li>LIFF版で期限チェックを実装済み（期限超過時は入力UI無効化）</li>
+    <li>ユーザーは期限後にそもそも入力できない仕組み</li>
+    <li>セキュリティ要件が変更された場合は、DeadlineValidationServiceを実装して各エンドポイントでチェックを追加</li>
+</ul>
+</div>
 
-<div class="info">
-<strong>ℹ️ 将来実装予定: バックエンドAPIから取得したデータを利用するフロントエンド</strong>
-<p>以下のフロントエンド修正は現在未実装です。新規エンドポイント /api/liff/deadline-settings を活用する予定です。</p>
+<h3>4.4 LIFF側の実装状況</h3>
+
+<div class="success">
+<strong>✅ LIFF側の実装完了</strong>
+<p>shift-scheduler-ai-liff リポジトリでの実装が完了しています。</p>
 </div>
 
 <table>
     <tr>
         <th>ファイルパス</th>
         <th>役割</th>
-        <th>必要な修正</th>
-        <th>優先度</th>
+        <th>実装内容</th>
         <th>状態</th>
     </tr>
     <tr>
         <td>shift-scheduler-ai-liff/<br>index.html</td>
         <td>LINE LIFF<br>シフト希望入力画面</td>
-        <td>• payment_type → employment_type に変更 <span class="modified">完了 PR #12</span><br>• start_day フィールド削除 <span class="removed">完了 PR #13</span><br>• /api/liff/deadline-settings エンドポイントに修正 <span class="modified">完了 PR #13</span><br>• APIから期限情報を動的取得 <span class="success">実装済み</span><br>• 期限超過時の入力禁止UI <span class="success">実装済み</span></td>
-        <td>🔴 高</td>
-        <td><span class="success">✅ PR #12, #13 作成済</span></td>
-    </tr>
-    <tr>
-        <td>frontend/src/components/screens/<br>shift/LineShiftInput.jsx</td>
-        <td>React版<br>シフト希望入力画面</td>
-        <td>• calculateDeadline() をハードコードから動的取得に変更（行33）<br>• APIから期限情報を取得<br>• 期限超過時の入力禁止UI</td>
-        <td>🔴 高</td>
-        <td><span class="warning">⚠️ 未実装</span></td>
-    </tr>
-    <tr>
-        <td>frontend/src/infrastructure/<br>repositories/ShiftRepository.js</td>
-        <td>シフトAPI通信</td>
-        <td><span class="added">新規メソッド追加</span><br>• getDeadlineSettings(tenantId, employmentType)</td>
-        <td>🔴 高</td>
-        <td><span class="warning">⚠️ 未実装</span></td>
-    </tr>
-    <tr>
-        <td>frontend/src/components/screens/<br>shift/Monitoring.jsx</td>
-        <td>シフト監視画面</td>
-        <td>期限超過スタッフの警告表示</td>
-        <td>🟡 中</td>
-        <td><span class="warning">⚠️ 未実装</span></td>
-    </tr>
-    <tr>
-        <td>frontend/src/components/screens/<br>shift/FirstPlanEditor.jsx</td>
-        <td>第1案エディタ</td>
-        <td>期限情報の表示</td>
-        <td>🟡 中</td>
-        <td><span class="warning">⚠️ 未実装</span></td>
-    </tr>
-    <tr>
-        <td>frontend/src/components/screens/<br>MasterDataManagement.jsx</td>
-        <td>マスターデータ管理画面</td>
-        <td>shift_deadline_settings 管理UI追加</td>
-        <td>🟢 低</td>
-        <td><span class="warning">⚠️ 未実装</span></td>
+        <td>
+            <strong>PR #12 (MERGED):</strong><br>
+            • payment_type → employment_type に変更<br>
+            <br>
+            <strong>PR #13 (OPEN):</strong><br>
+            • start_day フィールド削除<br>
+            • /api/liff/deadline-settings エンドポイントに修正<br>
+            <br>
+            <strong>実装済み機能:</strong><br>
+            • APIから期限情報を動的取得<br>
+            • 期限超過時の入力禁止UI<br>
+            • 契約形態別の期限表示
+        </td>
+        <td><span class="success">✅ 完了</span></td>
     </tr>
 </table>
 
-<h3>4.3 データフロー図</h3>
+<div class="info">
+<strong>📌 React版フロントエンドについて</strong>
+<p>現在の運用では<strong>LIFF版のみ</strong>を使用しています。React版（frontend/src/components/screens/shift/LineShiftInput.jsx等）への対応は、将来的にReact版を使用する場合に実施します。</p>
+</div>
+
+<h3>4.5 データフロー図</h3>
 
 <div class="code-block">
 <pre>
@@ -602,7 +570,7 @@ SET
 </pre>
 </div>
 
-<h3>4.4 employment_type のマッピング</h3>
+<h3>4.6 employment_type のマッピング</h3>
 
 <table>
     <tr>
@@ -704,7 +672,7 @@ ORDER BY employment_type;
 </pre>
 </div>
 
-<h3>5.3 今後の実装・テスト計画</h3>
+<h3>5.3 デプロイメント計画</h3>
 
 <table>
     <tr>
@@ -715,35 +683,26 @@ ORDER BY employment_type;
     </tr>
     <tr>
         <td><strong>Phase 1</strong></td>
-        <td>DDL/DML実行（STG環境）</td>
+        <td>STG環境へのデプロイ<br>• DDL/DML実行<br>• Backend API動作確認<br>• LIFF側からのAPI呼び出し確認</td>
         <td>🔴 高</td>
         <td><span class="warning">⚠️ 未実施</span></td>
     </tr>
     <tr>
         <td><strong>Phase 2</strong></td>
-        <td>DeadlineValidationService 実装</td>
+        <td>本番環境へのデプロイ<br>• DDL/DML実行<br>• 既存データへの影響がないことを確認<br>• LIFF側PR #13のマージとデプロイ</td>
         <td>🔴 高</td>
-        <td><span class="warning">⚠️ 未実装</span></td>
-    </tr>
-    <tr>
-        <td><strong>Phase 3</strong></td>
-        <td>shifts.js / liff.js に期限チェック追加</td>
-        <td>🔴 高</td>
-        <td><span class="warning">⚠️ 未実装</span></td>
-    </tr>
-    <tr>
-        <td><strong>Phase 4</strong></td>
-        <td>React版 LineShiftInput.jsx 修正</td>
-        <td>🔴 高</td>
-        <td><span class="warning">⚠️ 未実装</span></td>
-    </tr>
-    <tr>
-        <td><strong>Phase 5</strong></td>
-        <td>マスター管理API・UI実装</td>
-        <td>🟢 低</td>
-        <td><span class="warning">⚠️ 未実装</span></td>
+        <td><span class="warning">⚠️ 未実施</span></td>
     </tr>
 </table>
+
+<div class="info">
+<strong>📌 将来的な拡張フェーズ（優先度低）</strong>
+<ul>
+    <li><strong>Phase 3:</strong> マスター管理API実装（/api/master/shift-deadline-settings）</li>
+    <li><strong>Phase 4:</strong> 管理画面UI実装（期限設定のCRUD画面）</li>
+    <li><strong>Phase 5:</strong> React版フロントエンドへの対応（必要に応じて）</li>
+</ul>
+</div>
 
 <h2>6. まとめ</h2>
 
@@ -763,11 +722,18 @@ ORDER BY employment_type;
 <div class="warning">
 <h3>⚠️ 今後の作業</h3>
 <ul>
-    <li><strong>Backend:</strong> DeadlineValidationService の実装</li>
-    <li><strong>Backend:</strong> shifts.js / liff.js への期限チェック組み込み</li>
-    <li><strong>Frontend (React):</strong> LineShiftInput.jsx の動的期限取得実装</li>
     <li><strong>STG環境:</strong> DDL/DML実行とデータ確認</li>
     <li><strong>本番環境:</strong> マイグレーション実施</li>
+    <li><strong>LIFF側:</strong> PR #13のマージ</li>
+</ul>
+</div>
+
+<div class="info">
+<h3>📝 将来的な拡張（優先度低）</h3>
+<ul>
+    <li><strong>マスター管理API:</strong> /api/master/shift-deadline-settings の実装（管理画面からの期限設定変更用）</li>
+    <li><strong>React版フロントエンド:</strong> React版を使用する場合は、LineShiftInput.jsx等への対応が必要</li>
+    <li><strong>Backend期限チェック:</strong> セキュリティ要件が変更された場合、DeadlineValidationServiceを実装</li>
 </ul>
 </div>
 
@@ -785,10 +751,6 @@ ORDER BY employment_type;
     <tr>
         <td>DML</td>
         <td>scripts/database/dml/01_core_master.sql</td>
-    </tr>
-    <tr>
-        <td>テストスクリプト</td>
-        <td>scripts/database/test_complete.sql</td>
     </tr>
     <tr>
         <td>LIFF PR</td>
