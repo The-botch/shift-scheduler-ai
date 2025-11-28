@@ -315,7 +315,54 @@ router.get('/check-link', verifyLineToken, async (req, res) => {
     client.release()
   }
 })
+  /**
+   * シフト希望入力期限設定を取得するエンドポイント
+   * GET /api/liff/deadline-settings?tenant_id=3
+   */
+  router.get('/deadline-settings', async (req, res) => {
+    const client = await pool.connect()
 
+    try {
+      const { tenant_id } = req.query
+
+      // バリデーション
+      if (!tenant_id) {
+        return res.status(400).json({
+          success: false,
+          error: 'tenant_idの指定が必要です'
+        })
+      }
+
+      // 期限設定を取得
+      const settingsResult = await client.query(
+        `SELECT
+          employment_type,
+          deadline_day,
+          deadline_hour,
+          deadline_minute,
+          is_enabled,
+          description
+         FROM core.shift_deadline_settings
+         WHERE tenant_id = $1
+         ORDER BY employment_type`,
+        [tenant_id]
+      )
+
+      res.json({
+        success: true,
+        data: settingsResult.rows
+      })
+    } catch (error) {
+      console.error('期限設定取得エラー:', error)
+
+      res.status(500).json({
+        success: false,
+        error: '期限設定の取得中にエラーが発生しました'
+      })
+    } finally {
+      client.release()
+    }
+  })
 /**
  * 新規スタッフ登録（LINE User ID紐づけ）
  * POST /api/liff/register-staff
