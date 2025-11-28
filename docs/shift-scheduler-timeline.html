@@ -1,0 +1,1940 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シフトスケジューラーAI | 本番稼働スケジュール</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #f8fafc;
+      --bg-secondary: #ffffff;
+      --text-primary: #1e293b;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      
+      --color-dev: #0891b2;
+      --color-dev-bg: #cffafe;
+      --color-test: #7c3aed;
+      --color-test-bg: #ede9fe;
+      --color-prep: #d97706;
+      --color-prep-bg: #fef3c7;
+      --color-parallel: #059669;
+      --color-parallel-bg: #d1fae5;
+      --color-prod: #db2777;
+      --color-prod-bg: #fce7f3;
+      --color-line: #06c755;
+      --color-line-bg: #dcfce7;
+      --color-notify: #2563eb;
+      --color-notify-bg: #dbeafe;
+      --color-staff: #f59e0b;
+      --color-staff-bg: #fef3c7;
+      --color-deadline: #ef4444;
+      --color-deadline-bg: #fef2f2;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.6;
+      padding: 40px 24px;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    header {
+      margin-bottom: 24px;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 0.95rem;
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex;
+      gap: 4px;
+      margin-bottom: 24px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .tab-btn {
+      padding: 12px 24px;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-muted);
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: all 0.2s;
+    }
+
+    .tab-btn:hover {
+      color: var(--text-primary);
+      background: #f1f5f9;
+    }
+
+    .tab-btn.active {
+      color: #0891b2;
+      border-bottom-color: #0891b2;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    /* Section */
+    .section {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      padding: 24px;
+      margin-bottom: 32px;
+      overflow-x: auto;
+    }
+
+    .section-title {
+      font-size: 0.75rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-muted);
+      margin-bottom: 16px;
+    }
+
+    /* Dependency Chart */
+    .dep-gantt-table {
+      width: 100%;
+      min-width: 1100px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .dep-gantt-table th,
+    .dep-gantt-table td {
+      border: 1px solid var(--border);
+      padding: 0;
+      vertical-align: middle;
+    }
+
+    .dep-gantt-table thead th {
+      background: #f1f5f9;
+      padding: 8px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .dep-gantt-table thead th:first-child {
+      text-align: left;
+      padding-left: 12px;
+    }
+
+    /* Gantt Table (担当者別) */
+    .gantt-table {
+      width: 100%;
+      min-width: 1100px;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .gantt-table th,
+    .gantt-table td {
+      border: 1px solid var(--border);
+      padding: 0;
+      vertical-align: middle;
+    }
+
+    .gantt-table thead th {
+      background: #f1f5f9;
+      padding: 8px 4px;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-align: center;
+    }
+
+    .gantt-table thead th:first-child,
+    .gantt-table thead th:nth-child(2) {
+      text-align: left;
+      padding-left: 12px;
+    }
+
+    .gantt-table .month-label {
+      font-size: 9px;
+      opacity: 0.7;
+      display: block;
+    }
+
+    /* Group cell - GRAY */
+    .group-cell {
+      background: #e2e8f0;
+      font-weight: 700;
+      font-size: 11px;
+      text-align: center;
+      writing-mode: vertical-rl;
+      text-orientation: mixed;
+      padding: 12px 8px;
+      letter-spacing: 0.05em;
+      width: 40px;
+      min-width: 40px;
+      color: #475569;
+    }
+
+    /* Name cell */
+    .name-cell {
+      font-weight: 600;
+      font-size: 11px;
+      padding: 8px 10px;
+      background: #fafbfc;
+      min-width: 90px;
+      width: 90px;
+      text-align: left;
+    }
+
+    .name-sub {
+      font-size: 9px;
+      font-weight: 400;
+      color: var(--text-muted);
+      display: block;
+    }
+
+    /* Task cell */
+    .task-cell {
+      padding: 4px 2px;
+      height: 52px;
+      vertical-align: middle;
+      min-width: 70px;
+    }
+
+    /* Assignee Table */
+    .assignee-table {
+      width: 100%;
+      min-width: 1000px;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .assignee-table th,
+    .assignee-table td {
+      border: 1px solid var(--border);
+      padding: 6px 4px;
+      vertical-align: top;
+      text-align: center;
+    }
+
+    .assignee-table thead th {
+      background: #f1f5f9;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      padding: 10px 6px;
+    }
+
+    .assignee-table thead th.group-header {
+      background: #e2e8f0;
+      color: #475569;
+      font-size: 11px;
+    }
+
+    .assignee-table thead th.name-header {
+      background: #f8fafc;
+      min-width: 80px;
+    }
+
+    .date-cell {
+      background: #fafbfc;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: left;
+      padding: 8px 10px;
+      white-space: nowrap;
+    }
+
+    .date-cell.month-start {
+      border-top: 2px solid var(--border);
+    }
+
+    .date-cell .month-label {
+      font-size: 9px;
+      color: var(--text-secondary);
+      font-weight: 700;
+    }
+
+    .dep-row-label {
+      font-weight: 600;
+      font-size: 11px;
+      padding: 8px 10px;
+      background: #fafbfc;
+      min-width: 100px;
+    }
+
+    .dep-task-cell {
+      padding: 4px 2px;
+      height: 44px;
+      vertical-align: middle;
+      position: relative;
+    }
+
+    .gantt-bar {
+      display: block;
+      font-size: 9px;
+      font-weight: 600;
+      padding: 4px 6px;
+      border-radius: 4px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin: 2px;
+    }
+
+    .bar-dev { background: var(--color-dev-bg); color: var(--color-dev); border: 1px solid var(--color-dev); }
+    .bar-line { background: var(--color-line-bg); color: var(--color-line); border: 1px solid var(--color-line); }
+    .bar-test { background: var(--color-test-bg); color: var(--color-test); border: 1px solid var(--color-test); }
+    .bar-prep { background: var(--color-prep-bg); color: var(--color-prep); border: 1px solid var(--color-prep); }
+    .bar-parallel { background: var(--color-parallel-bg); color: var(--color-parallel); border: 1px solid var(--color-parallel); }
+    .bar-prod { background: var(--color-prod-bg); color: var(--color-prod); border: 1px solid var(--color-prod); }
+    .bar-staff { background: var(--color-staff-bg); color: #b45309; border: 1px solid var(--color-staff); }
+    .bar-deadline { background: var(--color-deadline-bg); color: var(--color-deadline); border: 1px solid var(--color-deadline); }
+
+    .milestone-cell {
+      text-align: center;
+    }
+
+    .milestone {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      font-size: 10px;
+      font-weight: bold;
+      color: white;
+      background: var(--color-notify);
+      margin: 2px;
+    }
+
+    /* Assignee Table (rows=dates, cols=assignees) */
+    .assignee-table {
+      width: 100%;
+      min-width: 900px;
+      border-collapse: collapse;
+      font-size: 11px;
+    }
+
+    .assignee-table th,
+    .assignee-table td {
+      border: 1px solid var(--border);
+      padding: 6px 4px;
+      vertical-align: top;
+      text-align: center;
+    }
+
+    .assignee-table thead th {
+      background: #f1f5f9;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      padding: 10px 6px;
+    }
+
+    .assignee-table thead th.group-header {
+      background: #e2e8f0;
+      color: #475569;
+      font-size: 11px;
+    }
+
+    .assignee-table thead th.name-header {
+      background: #f8fafc;
+      min-width: 80px;
+    }
+
+    .date-cell {
+      background: #fafbfc;
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-align: left;
+      padding: 8px 10px;
+      white-space: nowrap;
+    }
+
+    .date-cell.month-start {
+      border-top: 2px solid var(--border);
+    }
+
+    .date-cell .month-label {
+      font-size: 9px;
+      color: var(--text-secondary);
+      font-weight: 700;
+    }
+
+    .task-cell {
+      min-height: 36px;
+      vertical-align: middle;
+    }
+
+    .task-chip {
+      display: inline-block;
+      font-size: 8px;
+      font-weight: 600;
+      padding: 2px 5px;
+      border-radius: 3px;
+      white-space: nowrap;
+      margin: 1px;
+    }
+
+    .chip-dev { background: var(--color-dev-bg); color: var(--color-dev); }
+    .chip-line { background: var(--color-line-bg); color: var(--color-line); }
+    .chip-test { background: var(--color-test-bg); color: var(--color-test); }
+    .chip-prep { background: var(--color-prep-bg); color: var(--color-prep); }
+    .chip-parallel { background: var(--color-parallel-bg); color: var(--color-parallel); }
+    .chip-prod { background: var(--color-prod-bg); color: var(--color-prod); }
+    .chip-staff { background: var(--color-staff-bg); color: #b45309; }
+    .chip-notify { background: var(--color-notify-bg); color: var(--color-notify); }
+    .chip-deadline { background: var(--color-deadline-bg); color: var(--color-deadline); }
+
+    /* Legend */
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: var(--text-secondary);
+    }
+
+    .legend-color {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+    }
+
+    .legend-color.dev { background: var(--color-dev-bg); border: 1px solid var(--color-dev); }
+    .legend-color.line { background: var(--color-line-bg); border: 1px solid var(--color-line); }
+    .legend-color.test { background: var(--color-test-bg); border: 1px solid var(--color-test); }
+    .legend-color.prep { background: var(--color-prep-bg); border: 1px solid var(--color-prep); }
+    .legend-color.parallel { background: var(--color-parallel-bg); border: 1px solid var(--color-parallel); }
+    .legend-color.prod { background: var(--color-prod-bg); border: 1px solid var(--color-prod); }
+    .legend-color.staff { background: var(--color-staff-bg); border: 1px solid var(--color-staff); }
+    .legend-color.notify { background: var(--color-notify); border-radius: 50%; }
+    .legend-color.deadline { background: var(--color-deadline-bg); border: 1px solid var(--color-deadline); }
+
+    /* Details */
+    .details-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 24px;
+      margin-top: 24px;
+    }
+
+    .details-column h3 {
+      font-size: 0.85rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 2px solid var(--border);
+    }
+
+    .detail-item {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.8rem;
+    }
+
+    .detail-date {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 10px;
+      color: var(--text-muted);
+      min-width: 70px;
+    }
+
+    .detail-content {
+      flex: 1;
+    }
+
+    .detail-title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+
+    .detail-desc {
+      color: var(--text-secondary);
+      font-size: 0.75rem;
+    }
+
+    .detail-assignee {
+      font-size: 10px;
+      color: var(--color-dev);
+      margin-top: 2px;
+    }
+
+    footer {
+      text-align: center;
+      padding: 32px 0;
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    /* ==================== レスポンシブ対応 ==================== */
+    @media screen and (max-width: 768px) {
+      body {
+        padding: 12px;
+      }
+
+      .container {
+        padding: 16px;
+      }
+
+      h1 {
+        font-size: 1.3rem;
+      }
+
+      .subtitle {
+        font-size: 0.85rem;
+      }
+
+      /* タブナビゲーション */
+      .tab-nav {
+        flex-wrap: wrap;
+        gap: 2px;
+      }
+
+      .tab-btn {
+        padding: 10px 16px;
+        font-size: 12px;
+        flex: 1;
+        min-width: 140px;
+        text-align: center;
+      }
+
+      /* セクション */
+      .section {
+        padding: 16px;
+        margin-bottom: 20px;
+      }
+
+      .section-title {
+        font-size: 15px;
+        margin-bottom: 16px;
+      }
+
+      /* テーブル横スクロール */
+      .table-scroll {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        margin: 0 -16px;
+        padding: 0 16px;
+      }
+
+      .gantt-table,
+      .assignee-table {
+        min-width: 900px;
+      }
+
+      /* オーナー依頼テーブル */
+      .owner-table-wrap {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      .owner-table-wrap table {
+        min-width: 500px;
+      }
+
+      /* フォントサイズ調整 */
+      .task-chip {
+        font-size: 8px;
+        padding: 2px 4px;
+      }
+
+      .gantt-table th,
+      .gantt-table td {
+        font-size: 9px;
+        padding: 4px 2px;
+      }
+
+      .gantt-table .task-cell {
+        min-width: 50px;
+        height: auto;
+        padding: 2px;
+      }
+
+      .name-cell {
+        font-size: 10px;
+        padding: 4px;
+      }
+
+      .group-cell {
+        font-size: 9px;
+        padding: 2px;
+      }
+
+      /* 凡例 */
+      .legend {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .legend-item {
+        font-size: 10px;
+      }
+
+      .legend-color {
+        width: 10px;
+        height: 10px;
+      }
+    }
+
+    /* さらに小さい画面 */
+    @media screen and (max-width: 480px) {
+      body {
+        padding: 8px;
+      }
+
+      .container {
+        padding: 12px;
+      }
+
+      h1 {
+        font-size: 1.1rem;
+      }
+
+      .tab-btn {
+        padding: 8px 10px;
+        font-size: 11px;
+        min-width: 100px;
+      }
+
+      .section {
+        padding: 12px;
+      }
+
+      .section-title {
+        font-size: 14px;
+      }
+
+      /* テーブルヘッダー */
+      .gantt-table th {
+        font-size: 8px;
+      }
+
+      /* タイムライン縦表示 */
+      .timeline-steps {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 20px !important;
+      }
+
+      .timeline-line {
+        display: none !important;
+      }
+
+      .timeline-item {
+        display: flex !important;
+        align-items: center !important;
+        text-align: left !important;
+        gap: 12px !important;
+        width: 100% !important;
+      }
+
+      .timeline-item > div:first-child {
+        margin: 0 !important;
+        flex-shrink: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>シフトスケジューラーAI 本番稼働スケジュール</h1>
+      <p class="subtitle">2025年11月〜2026年2月 マスタースケジュール</p>
+    </header>
+
+    <!-- Tab Navigation -->
+    <nav class="tab-nav">
+      <button class="tab-btn active" onclick="showTab('owner')">📋 オーナー様向け</button>
+      <button class="tab-btn" onclick="showTab('dev')">🔧 開発チーム向け</button>
+    </nav>
+
+    <!-- ==================== オーナー向けタブ ==================== -->
+    <div id="owner-tab" class="tab-content active">
+      
+      <!-- 概要 -->
+      <section class="section" style="border: 2px solid #0891b2; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
+        <h2 class="section-title" style="color: #0891b2;">🎯 プロジェクト概要</h2>
+        
+        <div style="font-size: 15px; line-height: 1.9; margin-bottom: 20px;">
+          <div style="background: white; padding: 20px; border-radius: 8px; border-left: 4px solid #0891b2;">
+            <p style="margin-bottom: 12px;"><strong>1. 11〜12月</strong>：システム開発・テスト ＆ スタッフのLINE登録・データ整備を進めます</p>
+            <p style="margin-bottom: 12px;"><strong>2. 1月</strong>：2月分のシフトを新システムで作成します（オーナー様と一緒に操作しながら）</p>
+            <p><strong>3. 2月〜</strong>：本番運用開始。以降は毎月このシステムでシフト管理を行います</p>
+          </div>
+        </div>
+
+        <div style="background: #fef3c7; padding: 16px; border-radius: 8px; font-size: 13px;">
+          <strong>💡 LINE構成について</strong><br>
+          「シフトスケジューラー公式アカウント」を作成し、テナントの既存LINEグループに追加します。<br>
+          通知（シフト入力のお願い、リマインド、確定連絡など）はこの公式アカウントから送信されます。
+        </div>
+      </section>
+
+      <!-- 年末年始ルール -->
+      <section class="section" style="border: 2px solid #ef4444;">
+        <h2 class="section-title" style="color: #ef4444;">🎍 年末年始のお約束</h2>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+          <div style="background: #fef2f2; padding: 16px; border-radius: 8px;">
+            <p style="font-weight: 700; color: #dc2626; margin-bottom: 8px;">❌ やらないこと</p>
+            <ul style="margin-left: 16px; font-size: 13px; line-height: 1.8; color: #991b1b;">
+              <li>12/28〜1/2の間、スタッフへの業務連絡は送りません</li>
+              <li>オーナー様の新年挨拶より先にシフト通知を送りません</li>
+            </ul>
+          </div>
+          
+          <div style="background: #f0fdf4; padding: 16px; border-radius: 8px;">
+            <p style="font-weight: 700; color: #059669; margin-bottom: 8px;">✅ やること</p>
+            <ul style="margin-left: 16px; font-size: 13px; line-height: 1.8; color: #166534;">
+              <li>12/27に「年明け1/3から入力開始」と予告します</li>
+              <li>1/3はオーナー様の挨拶後に通知を送信します</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <!-- オーナーへのお願い -->
+      <section class="section">
+        <h2 class="section-title">🤝 オーナー様にお願いしたいこと</h2>
+        
+        <div style="overflow-x: auto; -webkit-overflow-scrolling: touch;">
+        <table style="width: 100%; border-collapse: collapse; font-size: 14px; min-width: 500px;">
+          <thead>
+            <tr style="background: #f1f5f9;">
+              <th style="border: 1px solid #e2e8f0; padding: 12px; text-align: left; width: 120px;">時期</th>
+              <th style="border: 1px solid #e2e8f0; padding: 12px; text-align: left;">お願いしたいこと</th>
+              <th style="border: 1px solid #e2e8f0; padding: 12px; text-align: left; width: 200px;">補足</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background: #f0fdf4;">
+              <td style="border: 1px solid #e2e8f0; padding: 12px; font-weight: 600;">12月頭</td>
+              <td style="border: 1px solid #e2e8f0; padding: 12px;">
+                <strong>公式LINEアカウントをテナントのLINEグループに追加</strong><br>
+                <span style="color: #64748b; font-size: 12px;">開発チームが作成した公式アカウントを、店舗のLINEグループに招待してください</span>
+              </td>
+              <td style="border: 1px solid #e2e8f0; padding: 12px; font-size: 12px; color: #64748b;">追加方法は別途ご案内します。開発チームも一時的にグループに参加させてください</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #e2e8f0; padding: 12px; font-weight: 600;">12月頭</td>
+              <td style="border: 1px solid #e2e8f0; padding: 12px;">
+                <strong>スタッフへ友だち追加・アカウント登録の声がけ</strong><br>
+                <span style="color: #64748b; font-size: 12px;">「LINE公式アカウントを友だち追加して、アカウント登録してね」</span>
+              </td>
+              <td style="border: 1px solid #e2e8f0; padding: 12px; font-size: 12px; color: #64748b;">口頭や既存の連絡手段でOKです</td>
+            </tr>
+            <tr style="background: #fef3c7;">
+              <td style="border: 1px solid #e2e8f0; padding: 12px; font-weight: 600;">12/18(水)頃<br><span style="font-size: 11px; color: #64748b;">🔄日程調整中</span></td>
+              <td style="border: 1px solid #e2e8f0; padding: 12px;">
+                <strong>名寄せ確認ミーティング（対面）</strong><br>
+                <span style="color: #64748b; font-size: 12px;">各スタッフの区分（社員/業務委託/アルバイト）とデフォルト店舗の確認</span>
+              </td>
+              <td style="border: 1px solid #e2e8f0; padding: 12px; font-size: 12px; color: #64748b;">1〜2時間程度、対面でお願いします</td>
+            </tr>
+            <tr>
+              <td style="border: 1px solid #e2e8f0; padding: 12px; font-weight: 600;">1/3(金)</td>
+              <td style="border: 1px solid #e2e8f0; padding: 12px;">
+                <strong>スタッフへ新年のご挨拶</strong><br>
+                <span style="color: #64748b; font-size: 12px;">シフト通知より先にお願いします</span>
+              </td>
+              <td style="border: 1px solid #e2e8f0; padding: 12px; font-size: 12px; color: #64748b;">挨拶後にシフト入力の通知を送ります</td>
+            </tr>
+            <tr style="background: #dcfce7;">
+              <td style="border: 1px solid #e2e8f0; padding: 12px; font-weight: 600;">1/11〜17</td>
+              <td style="border: 1px solid #e2e8f0; padding: 12px;">
+                <strong>最終シフトの作成・承認（一緒に操作）</strong><br>
+                <span style="color: #64748b; font-size: 12px;">スタッフの希望/NGを反映した最終シフトを一緒に作成します</span>
+              </td>
+              <td style="border: 1px solid #e2e8f0; padding: 12px; font-size: 12px; color: #64748b;">システムの使い方をお見せしながら進めます</td>
+            </tr>
+          </tbody>
+        </table>
+        </div>
+      </section>
+
+      <!-- シンプルなスケジュール -->
+      <section class="section">
+        <h2 class="section-title">📅 全体スケジュール（概要）</h2>
+        
+        <div class="timeline-container" style="position: relative; padding: 20px 0;">
+          <!-- Timeline -->
+          <div class="timeline-steps" style="display: flex; justify-content: space-between; margin-bottom: 40px; position: relative; flex-wrap: wrap; gap: 16px;">
+            <div class="timeline-line" style="position: absolute; top: 20px; left: 5%; right: 5%; height: 4px; background: linear-gradient(to right, #0891b2, #7c3aed, #d97706, #059669, #db2777); border-radius: 2px;"></div>
+            
+            <div class="timeline-item" style="text-align: center; z-index: 1; flex: 1; min-width: 100px;">
+              <div style="width: 40px; height: 40px; background: #0891b2; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">1</div>
+              <div style="font-weight: 700; font-size: 13px;">11月</div>
+              <div style="font-size: 11px; color: #64748b;">開発・LINE準備</div>
+            </div>
+            
+            <div class="timeline-item" style="text-align: center; z-index: 1; flex: 1; min-width: 100px;">
+              <div style="width: 40px; height: 40px; background: #7c3aed; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">2</div>
+              <div style="font-weight: 700; font-size: 13px;">12月前半</div>
+              <div style="font-size: 11px; color: #64748b;">テスト・検証</div>
+            </div>
+            
+            <div class="timeline-item" style="text-align: center; z-index: 1; flex: 1; min-width: 100px;">
+              <div style="width: 40px; height: 40px; background: #d97706; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">3</div>
+              <div style="font-weight: 700; font-size: 13px;">12月後半</div>
+              <div style="font-size: 11px; color: #64748b;">データ整備<br>名寄せMTG</div>
+            </div>
+            
+            <div class="timeline-item" style="text-align: center; z-index: 1; flex: 1; min-width: 100px;">
+              <div style="width: 40px; height: 40px; background: #059669; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">4</div>
+              <div style="font-weight: 700; font-size: 13px;">1月</div>
+              <div style="font-size: 11px; color: #64748b;">シフト作成<br>（Ownerと一緒に）</div>
+            </div>
+            
+            <div class="timeline-item" style="text-align: center; z-index: 1; flex: 1; min-width: 100px;">
+              <div style="width: 40px; height: 40px; background: #db2777; border-radius: 50%; margin: 0 auto 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold;">5</div>
+              <div style="font-weight: 700; font-size: 13px;">2月〜</div>
+              <div style="font-size: 11px; color: #64748b;">本番運用開始</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- LINE構成の説明 -->
+      <section class="section">
+        <h2 class="section-title">📱 LINEシステム構成</h2>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 24px;">
+          <div style="background: #f0fdf4; padding: 20px; border-radius: 12px; border: 2px solid #06c755;">
+            <h3 style="color: #06c755; margin-bottom: 12px; font-size: 15px;">🤖 LINE公式アカウント</h3>
+            <p style="font-size: 13px; color: #334155; line-height: 1.7;">
+              <strong>「シフトスケジューラー」</strong>という名前の公式アカウントを作成します。<br>
+              このアカウントから以下の通知が届きます：
+            </p>
+            <ul style="font-size: 12px; color: #475569; margin-left: 16px; margin-top: 8px; line-height: 1.8;">
+              <li>アカウント登録のご案内</li>
+              <li>シフト希望入力のお願い</li>
+              <li>入力リマインド（未提出者向け）</li>
+              <li>シフト確定のお知らせ</li>
+            </ul>
+            <!-- プレースホルダー：LINE公式アカウントのアイコンイメージ -->
+            <div style="margin-top: 16px; background: #e2e8f0; border-radius: 8px; padding: 40px; text-align: center; color: #64748b; font-size: 12px;">
+              📷 LINE公式アカウントのアイコン画像<br>
+              <span style="font-size: 10px;">（準備中）</span>
+            </div>
+          </div>
+          
+          <div style="background: #eff6ff; padding: 20px; border-radius: 12px; border: 2px solid #3b82f6;">
+            <h3 style="color: #3b82f6; margin-bottom: 12px; font-size: 15px;">👥 テナントのLINEグループ</h3>
+            <p style="font-size: 13px; color: #334155; line-height: 1.7;">
+              既存の店舗LINEグループに公式アカウントを<strong>メンバーとして追加</strong>します。<br>
+              グループ内で通知を受け取れるようになります。
+            </p>
+            <div style="margin-top: 12px; background: white; padding: 12px; border-radius: 8px; font-size: 12px;">
+              <strong>イメージ：</strong><br>
+              グループ「〇〇店スタッフ」<br>
+              　├ オーナー様<br>
+              　├ スタッフA<br>
+              　├ スタッフB<br>
+              　├ <span style="color: #06c755; font-weight: 600;">🤖 シフトスケジューラー（公式）</span><br>
+              　├ <span style="color: #64748b;">👨‍💻 開発チーム（初期のみ）</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="background: #fef3c7; padding: 16px; border-radius: 8px; font-size: 13px; margin-bottom: 12px;">
+          <strong>💡 ポイント</strong>：公式アカウントをグループに追加することで、グループ内の全員が通知を受け取れます。個別にアカウントを追加してもらう手間が減ります。
+        </div>
+
+        <div style="background: #e0f2fe; padding: 16px; border-radius: 8px; font-size: 13px;">
+          <strong>🙏 お願い</strong>：初期は開発チームもグループに参加させてください。通知の様子や問題が起きていないかを把握するためです。安定したら退出します。
+        </div>
+      </section>
+
+      <!-- スタッフ向けインストラクション -->
+      <section class="section">
+        <h2 class="section-title">📝 スタッフ向け：アカウント登録の手順</h2>
+        
+        <div style="margin-bottom: 20px;">
+          <!-- プレースホルダー：説明動画 -->
+          <div style="background: #1e293b; border-radius: 12px; padding: 60px 40px; text-align: center; color: white; margin-bottom: 16px;">
+            <div style="font-size: 48px; margin-bottom: 12px;">▶️</div>
+            <p style="font-size: 14px; opacity: 0.9;">アカウント登録の説明動画</p>
+            <p style="font-size: 11px; opacity: 0.6;">（準備中 - 完成次第ここに埋め込みます）</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px;">
+          <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center;">
+            <div style="background: #06c755; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 700;">1</div>
+            <p style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">友だち追加</p>
+            <p style="font-size: 11px; color: #64748b;">QRコードを読み取るか、<br>グループ内のリンクをタップ</p>
+            <div style="margin-top: 12px; background: #f1f5f9; border-radius: 8px; padding: 30px; font-size: 10px; color: #94a3b8;">
+              📱 画面イメージ
+            </div>
+          </div>
+          
+          <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center;">
+            <div style="background: #06c755; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 700;">2</div>
+            <p style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">LINEログイン</p>
+            <p style="font-size: 11px; color: #64748b;">「許可する」をタップして<br>LINEアカウントで認証</p>
+            <div style="margin-top: 12px; background: #f1f5f9; border-radius: 8px; padding: 30px; font-size: 10px; color: #94a3b8;">
+              📱 画面イメージ
+            </div>
+          </div>
+          
+          <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center;">
+            <div style="background: #06c755; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 700;">3</div>
+            <p style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">スタッフ情報入力</p>
+            <p style="font-size: 11px; color: #64748b;">店舗を選択し、<br>リストから自分の名前を選択</p>
+            <div style="margin-top: 12px; background: #f1f5f9; border-radius: 8px; padding: 30px; font-size: 10px; color: #94a3b8;">
+              📱 画面イメージ
+            </div>
+          </div>
+          
+          <div style="background: white; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; text-align: center;">
+            <div style="background: #06c755; color: white; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 12px; font-weight: 700;">4</div>
+            <p style="font-size: 13px; font-weight: 600; margin-bottom: 8px;">登録完了！</p>
+            <p style="font-size: 11px; color: #64748b;">これで準備完了です。<br>1月から希望入力ができます</p>
+            <div style="margin-top: 12px; background: #f1f5f9; border-radius: 8px; padding: 30px; font-size: 10px; color: #94a3b8;">
+              📱 画面イメージ
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- スタッフ向け：シフト希望入力 -->
+      <section class="section">
+        <h2 class="section-title">📅 スタッフ向け：シフト希望の入力方法</h2>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; margin-bottom: 20px;">
+          <div style="background: #fef3c7; padding: 20px; border-radius: 12px;">
+            <h4 style="color: #d97706; margin-bottom: 8px;">👔 社員・業務委託の方</h4>
+            <p style="font-size: 13px; color: #334155; line-height: 1.7;">
+              シフトを閲覧し、<strong>出勤できない日</strong>を選択してください。
+            </p>
+            <div style="margin-top: 12px; background: #fef9e7; border-radius: 8px; padding: 30px; text-align: center; font-size: 10px; color: #94a3b8;">
+              📱 画面イメージ
+            </div>
+          </div>
+          
+          <div style="background: #dbeafe; padding: 20px; border-radius: 12px;">
+            <h4 style="color: #2563eb; margin-bottom: 8px;">👕 アルバイトの方</h4>
+            <p style="font-size: 13px; color: #334155; line-height: 1.7;">
+              カレンダーで<strong>出勤したい日と時間帯</strong>を選択してください。
+            </p>
+            <div style="margin-top: 12px; background: #eff6ff; border-radius: 8px; padding: 30px; text-align: center; font-size: 10px; color: #94a3b8;">
+              📱 画面イメージ
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- オーナー向け：シフト作成方法 -->
+      <section class="section">
+        <h2 class="section-title">🗓️ オーナー様向け：シフト作成の流れ</h2>
+        
+        <div style="margin-bottom: 20px;">
+          <!-- プレースホルダー：説明動画 -->
+          <div style="background: #1e293b; border-radius: 12px; padding: 60px 40px; text-align: center; color: white; margin-bottom: 16px;">
+            <div style="font-size: 48px; margin-bottom: 12px;">▶️</div>
+            <p style="font-size: 14px; opacity: 0.9;">オーナー様向け：シフト作成の説明動画</p>
+            <p style="font-size: 11px; opacity: 0.6;">（準備中 - 完成次第ここに埋め込みます）</p>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 16px;">
+          <div style="background: linear-gradient(135deg, #f0f9ff, #e0f2fe); border-radius: 12px; padding: 20px;">
+            <div style="font-size: 28px; margin-bottom: 8px;">1️⃣</div>
+            <h4 style="font-size: 14px; margin-bottom: 8px;">シフト案を確認</h4>
+            <p style="font-size: 12px; color: #475569; line-height: 1.6;">
+              システムが作成したシフト案を確認します。
+            </p>
+          </div>
+          
+          <div style="background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 12px; padding: 20px;">
+            <div style="font-size: 28px; margin-bottom: 8px;">2️⃣</div>
+            <h4 style="font-size: 14px; margin-bottom: 8px;">スタッフの希望を確認</h4>
+            <p style="font-size: 12px; color: #475569; line-height: 1.6;">
+              スタッフが入力した希望/NGを画面で確認できます。
+            </p>
+          </div>
+          
+          <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); border-radius: 12px; padding: 20px;">
+            <div style="font-size: 28px; margin-bottom: 8px;">3️⃣</div>
+            <h4 style="font-size: 14px; margin-bottom: 8px;">最終シフトの作成（一緒に）</h4>
+            <p style="font-size: 12px; color: #475569; line-height: 1.6;">
+              希望/NGを反映した最終シフトを、<strong>開発チームと一緒に</strong>作成します。
+            </p>
+          </div>
+          
+          <div style="background: linear-gradient(135deg, #fce7f3, #fbcfe8); border-radius: 12px; padding: 20px;">
+            <div style="font-size: 28px; margin-bottom: 8px;">4️⃣</div>
+            <h4 style="font-size: 14px; margin-bottom: 8px;">承認 → 確定通知</h4>
+            <p style="font-size: 12px; color: #475569; line-height: 1.6;">
+              最終シフトを承認すると、スタッフ全員に確定通知が届きます。
+            </p>
+          </div>
+        </div>
+
+        <div style="margin-top: 20px; background: #f0fdf4; padding: 16px; border-radius: 8px; font-size: 13px; border: 1px solid #86efac;">
+          <strong>✨ 安心ポイント</strong>：1月のシフト作成（1/11〜17）は、開発チームが同席してサポートします。初回は一緒に操作しながら進めますので、ご安心ください。
+        </div>
+      </section>
+
+    </div>
+
+    <!-- ==================== 開発チーム向けタブ ==================== -->
+    <div id="dev-tab" class="tab-content">
+
+    <!-- 開発チーム向け概要 -->
+    <section class="section" style="border: 2px solid #0891b2; background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);">
+      <h2 class="section-title" style="color: #0891b2;">📋 プロジェクト概要（開発チーム向け）</h2>
+      
+      <div style="font-size: 15px; line-height: 1.8; margin-bottom: 20px;">
+        <div style="background: white; padding: 16px; border-radius: 8px; border-left: 4px solid #0891b2;">
+          <ol style="margin-left: 20px;">
+            <li><strong>11〜12月</strong>：システム開発・テスト＆スタッフのLINE登録・データ整備を進める</li>
+            <li><strong>1月</strong>：2月分のシフトを新システムで作成（Ownerと一緒に操作しながら）</li>
+            <li><strong>2月〜</strong>：本番運用開始</li>
+          </ol>
+        </div>
+      </div>
+
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+        <div style="background: white; padding: 16px; border-radius: 8px;">
+          <p style="font-weight: 700; color: #059669; margin-bottom: 8px;">✅ 守る方針・制約</p>
+          <ul style="margin-left: 16px; font-size: 13px; line-height: 1.8; color: #334155;">
+            <li>年末年始（12/28〜1/2）はスタッフへの業務連絡を送らない</li>
+            <li>1/3の入力開始通知は、Owner新年挨拶の後に送信</li>
+            <li>名寄せ確認は対面MTGで実施</li>
+          </ul>
+        </div>
+        
+        <div style="background: white; padding: 16px; border-radius: 8px;">
+          <p style="font-weight: 700; color: #d97706; margin-bottom: 8px;">🤝 Ownerにお願いすること</p>
+          <ul style="margin-left: 16px; font-size: 13px; line-height: 1.8; color: #334155;">
+            <li>スタッフへの友だち追加の声がけ（11月中）</li>
+            <li>名寄せ確認MTGへの参加（12/18予定）</li>
+            <li>第2案の作成・承認（1/11〜17、一緒に操作）</li>
+          </ul>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; background: #fef3c7; padding: 12px; border-radius: 8px; font-size: 12px;">
+        <strong>💡 LINE構成</strong>：「シフトスケジューラー公式アカウント」を作成し、テナントの既存LINEグループに追加。通知はこの公式アカウントから送信。
+      </div>
+    </section>
+
+    <!-- 年末年始コミュニケーションルール（概要の直後） -->
+    <section class="section" style="border: 2px solid #ef4444;">
+      <h2 class="section-title" style="color: #ef4444;">🎍 年末年始コミュニケーションルール【厳守】</h2>
+      
+      <div style="background: #fef2f2; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+        <p style="font-weight: 700; color: #ef4444; margin-bottom: 8px;">❌ 絶対にやってはいけないこと</p>
+        <ul style="margin-left: 20px; color: #991b1b; font-size: 14px;">
+          <li><strong>1/3より前に希望入力開始の通知を送らない</strong>（年末に送る、1/1深夜に送る等は厳禁）</li>
+          <li>年始一発目のOwner→メンバーへのコミュニケーションを「シフトの話」で先取りしない</li>
+          <li>12/29〜1/2の間にスタッフへの業務連絡を送らない</li>
+        </ul>
+      </div>
+
+      <div style="background: #f0fdf4; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+        <p style="font-weight: 700; color: #059669; margin-bottom: 8px;">✅ 推奨するコミュニケーション</p>
+        <ul style="margin-left: 20px; color: #166534; font-size: 14px;">
+          <li><strong>1/3（金）の日中</strong>に希望入力開始通知を送信（Ownerの新年挨拶の後）</li>
+          <li>Ownerが先に新年の挨拶をした後で、システム通知を送る流れにする</li>
+          <li>年末（12/27頃）に「年明け1/3から入力開始です」と予告しておくのはOK</li>
+        </ul>
+      </div>
+
+      <div style="background: #fffbeb; padding: 16px; border-radius: 8px;">
+        <p style="font-weight: 700; color: #d97706; margin-bottom: 8px;">📅 年末年始の連絡タイムライン</p>
+        <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 8px; font-weight: 600; width: 100px;">12/27頃</td>
+            <td style="padding: 8px;">（任意）年明けの予告「1/3から入力開始予定です」</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 8px; font-weight: 600; background: #fef2f2; color: #ef4444;">12/28〜1/2</td>
+            <td style="padding: 8px; background: #fef2f2; color: #ef4444;">🚫 業務連絡禁止期間</td>
+          </tr>
+          <tr style="border-bottom: 1px solid #e2e8f0;">
+            <td style="padding: 8px; font-weight: 600;">1/3 午前</td>
+            <td style="padding: 8px;">Owner → スタッフへ新年挨拶（先に実施）</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px; font-weight: 600; background: #dcfce7;">1/3 日中</td>
+            <td style="padding: 8px; background: #dcfce7;">Moriya → 希望入力開始通知（Ownerの挨拶後）</td>
+          </tr>
+        </table>
+      </div>
+    </section>
+
+    <!-- タスク依存関係（先に表示） -->
+    <section class="section">
+      <h2 class="section-title">タスク依存関係</h2>
+      
+      <table class="dep-gantt-table">
+        <thead>
+          <tr>
+            <th style="width:100px;">カテゴリ</th>
+            <th>11/24〜</th>
+            <th>12/1〜</th>
+            <th>12/8〜</th>
+            <th>12/15〜</th>
+            <th>12/22〜</th>
+            <th>12/29〜</th>
+            <th>1/3〜</th>
+            <th>1/10</th>
+            <th>1/11〜17</th>
+            <th>1/19〜</th>
+            <th>2/1〜</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="dep-row-label">開発タスク</td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-dev">MVP開発</span></td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-test">モンキー</span></td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-test">総合テスト</span></td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-prep">バグ修正</span></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-prep">リリース準備</span></td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-parallel">1月運用</span></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-parallel">1月運用</span></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-prod">本番運用→</span></td>
+          </tr>
+          <tr>
+            <td class="dep-row-label">LINE準備</td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-line">公式作成・依頼</span></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+          </tr>
+          <tr>
+            <td class="dep-row-label">データ整備</td>
+            <td class="dep-task-cell">
+              <span class="gantt-bar bar-line">友だち追加</span>
+              <span class="gantt-bar bar-staff">アカウント登録</span>
+            </td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell">
+              <span class="gantt-bar bar-prep">名寄せ</span>
+            </td>
+            <td class="dep-task-cell">
+              <span class="gantt-bar bar-prep">名寄せ</span>
+              <span class="gantt-bar bar-staff">名寄せ確認</span>
+            </td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-prep">マスター整理</span></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+          </tr>
+          <tr>
+            <td class="dep-row-label">シフト作成</td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-parallel">第1案作成</span></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell">
+              <span class="gantt-bar bar-parallel">第2案作成</span>
+              <span class="gantt-bar bar-parallel">第2案承認</span>
+            </td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+          </tr>
+          <tr>
+            <td class="dep-row-label">スタッフ入力</td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-staff">NG/希望入力</span></td>
+            <td class="dep-task-cell"><span class="gantt-bar bar-deadline">締切</span></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+            <td class="dep-task-cell"></td>
+          </tr>
+          <tr>
+            <td class="dep-row-label">LINE通知</td>
+            <td class="dep-task-cell milestone-cell"></td>
+            <td class="dep-task-cell milestone-cell"><span class="milestone">①</span></td>
+            <td class="dep-task-cell milestone-cell"></td>
+            <td class="dep-task-cell milestone-cell"></td>
+            <td class="dep-task-cell milestone-cell"></td>
+            <td class="dep-task-cell milestone-cell"><span class="milestone">②</span></td>
+            <td class="dep-task-cell milestone-cell">
+              <span class="milestone">③</span>
+              <span class="milestone">④</span>
+              <span class="milestone">⑤</span>
+            </td>
+            <td class="dep-task-cell milestone-cell"></td>
+            <td class="dep-task-cell milestone-cell"><span class="milestone">⑥</span></td>
+            <td class="dep-task-cell milestone-cell"></td>
+            <td class="dep-task-cell milestone-cell"></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top: 16px; display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; font-size: 11px; color: var(--text-secondary);">
+        <div><strong>① 12/1</strong> アカウント登録案内</div>
+        <div><strong>② 1/3</strong> 希望入力開始通知</div>
+        <div><strong>③ 1/5</strong> リマインド①</div>
+        <div><strong>④ 1/7</strong> リマインド②</div>
+        <div><strong>⑤ 1/9</strong> リマインド③</div>
+        <div><strong>⑥ 1/17</strong> シフト確定通知</div>
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><div class="legend-color dev"></div>開発</div>
+        <div class="legend-item"><div class="legend-color line"></div>LINE準備</div>
+        <div class="legend-item"><div class="legend-color test"></div>テスト</div>
+        <div class="legend-item"><div class="legend-color prep"></div>修正・準備</div>
+        <div class="legend-item"><div class="legend-color parallel"></div>シフト作成</div>
+        <div class="legend-item"><div class="legend-color prod"></div>本番運用</div>
+        <div class="legend-item"><div class="legend-color staff"></div>スタッフ作業</div>
+        <div class="legend-item"><div class="legend-color deadline"></div>締切</div>
+        <div class="legend-item"><div class="legend-color notify"></div>LINE通知</div>
+      </div>
+    </section>
+
+    <!-- 担当者別タスク（行=担当者、列=日付） -->
+    <section class="section">
+      <h2 class="section-title">担当者別タスク（日単位）</h2>
+      
+      <div style="overflow-x: auto;">
+      <table class="gantt-table">
+        <thead>
+          <tr>
+            <th style="width:40px;"></th>
+            <th style="width:80px;">担当者</th>
+            <th>〜11/27</th>
+            <th>11/28〜30</th>
+            <th>12/1〜5</th>
+            <th style="background:#ede9fe;">12/6🔄</th>
+            <th style="background:#ede9fe;">12/11🔄</th>
+            <th style="background:#ede9fe;">12/18🔄</th>
+            <th>12/19〜26</th>
+            <th style="background:#dcfce7;">12/27</th>
+            <th style="background:#fef2f2;">12/28〜1/2</th>
+            <th>1/3</th>
+            <th>1/5</th>
+            <th>1/7</th>
+            <th>1/9</th>
+            <th style="background:#fef2f2;">1/10締切</th>
+            <th>1/11〜16</th>
+            <th>1/17</th>
+            <th>2/1〜</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 開発チーム -->
+          <tr>
+            <td class="group-cell" rowspan="3">開発チーム</td>
+            <td class="name-cell">Yuuki</td>
+            <td class="task-cell"><span class="task-chip chip-dev">MVP</span></td>
+            <td class="task-cell"><span class="task-chip chip-dev">MVP</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell" style="background:#ede9fe;"><span class="task-chip chip-test">モンキー</span></td>
+            <td class="task-cell" style="background:#ede9fe;"><span class="task-chip chip-test">総合①</span></td>
+            <td class="task-cell" style="background:#ede9fe;">
+              <span class="task-chip chip-test">総合②</span>
+              <span class="task-chip chip-prep">MTG</span>
+            </td>
+            <td class="task-cell"><span class="task-chip chip-prep">バグ修正</span></td>
+            <td class="task-cell" style="background:#dcfce7;"><span class="task-chip chip-prep">リリース</span></td>
+            <td class="task-cell" style="background:#fef2f2;"><span style="font-size:8px;color:#ef4444;">🚫</span></td>
+            <td class="task-cell">
+              <span class="task-chip chip-parallel">第1案</span>
+              <span class="task-chip chip-notify">挨拶確認</span>
+            </td>
+            <td class="task-cell"></td>
+            <td class="task-cell"></td>
+            <td class="task-cell"></td>
+            <td class="task-cell" style="background:#fef2f2;"></td>
+            <td class="task-cell"><span class="task-chip chip-parallel">第2案</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell"><span class="task-chip chip-prod">本番</span></td>
+          </tr>
+          <tr>
+            <td class="name-cell">Keisuke</td>
+            <td class="task-cell"><span class="task-chip chip-dev">MVP</span></td>
+            <td class="task-cell"><span class="task-chip chip-dev">MVP</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell" style="background:#ede9fe;"><span class="task-chip chip-test">モンキー</span></td>
+            <td class="task-cell" style="background:#ede9fe;">
+              <span class="task-chip chip-test">総合①</span>
+              <span class="task-chip chip-prep">名寄せ</span>
+              <span class="task-chip chip-notify">登録確認</span>
+            </td>
+            <td class="task-cell" style="background:#ede9fe;">
+              <span class="task-chip chip-test">総合②</span>
+              <span class="task-chip chip-prep">MTG</span>
+            </td>
+            <td class="task-cell">
+              <span class="task-chip chip-prep">バグ修正</span>
+              <span class="task-chip chip-prep">マスター</span>
+            </td>
+            <td class="task-cell" style="background:#dcfce7;"><span class="task-chip chip-prep">リリース</span></td>
+            <td class="task-cell" style="background:#fef2f2;"><span style="font-size:8px;color:#ef4444;">🚫</span></td>
+            <td class="task-cell"><span class="task-chip chip-parallel">サポート</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell"></td>
+            <td class="task-cell"></td>
+            <td class="task-cell" style="background:#fef2f2;"></td>
+            <td class="task-cell"><span class="task-chip chip-parallel">サポート</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell"><span class="task-chip chip-prod">本番</span></td>
+          </tr>
+          <tr>
+            <td class="name-cell">Moriya</td>
+            <td class="task-cell"><span class="task-chip chip-dev">MVP</span></td>
+            <td class="task-cell">
+              <span class="task-chip chip-dev">MVP</span>
+              <span class="task-chip chip-line">LINE作成</span>
+            </td>
+            <td class="task-cell"><span class="task-chip chip-notify">登録案内</span></td>
+            <td class="task-cell" style="background:#ede9fe;"><span class="task-chip chip-test">モンキー</span></td>
+            <td class="task-cell" style="background:#ede9fe;">
+              <span class="task-chip chip-test">総合①</span>
+              <span class="task-chip chip-prep">名寄せ</span>
+              <span class="task-chip chip-notify">登録確認</span>
+            </td>
+            <td class="task-cell" style="background:#ede9fe;">
+              <span class="task-chip chip-test">総合②</span>
+              <span class="task-chip chip-prep">MTG</span>
+            </td>
+            <td class="task-cell">
+              <span class="task-chip chip-prep">バグ修正</span>
+              <span class="task-chip chip-prep">マスター</span>
+            </td>
+            <td class="task-cell" style="background:#dcfce7;">
+              <span class="task-chip chip-prep">リリース</span>
+              <span class="task-chip chip-notify">年明け予告</span>
+            </td>
+            <td class="task-cell" style="background:#fef2f2;"><span style="font-size:8px;color:#ef4444;">🚫</span></td>
+            <td class="task-cell">
+              <span class="task-chip chip-parallel">サポート</span>
+              <span class="task-chip chip-notify">入力開始</span>
+            </td>
+            <td class="task-cell"><span class="task-chip chip-notify">リマ①</span></td>
+            <td class="task-cell"><span class="task-chip chip-notify">リマ②</span></td>
+            <td class="task-cell"><span class="task-chip chip-notify">リマ③</span></td>
+            <td class="task-cell" style="background:#fef2f2;"><span class="task-chip chip-deadline">締切確認</span></td>
+            <td class="task-cell"><span class="task-chip chip-parallel">サポート</span></td>
+            <td class="task-cell"><span class="task-chip chip-notify">確定通知</span></td>
+            <td class="task-cell"><span class="task-chip chip-prod">本番</span></td>
+          </tr>
+
+          <!-- テナント -->
+          <tr>
+            <td class="group-cell" rowspan="3">テナント</td>
+            <td class="name-cell">Owner</td>
+            <td class="task-cell"></td>
+            <td class="task-cell"><span class="task-chip chip-staff">友だち依頼</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell" style="background:#ede9fe;"></td>
+            <td class="task-cell" style="background:#ede9fe;"></td>
+            <td class="task-cell" style="background:#ede9fe;"><span class="task-chip chip-staff">名寄せ確認</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell" style="background:#dcfce7;"></td>
+            <td class="task-cell" style="background:#fef2f2;"></td>
+            <td class="task-cell"><span class="task-chip chip-staff">新年挨拶</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell"></td>
+            <td class="task-cell"></td>
+            <td class="task-cell" style="background:#fef2f2;"></td>
+            <td class="task-cell"><span class="task-chip chip-parallel">第2案（一緒）</span></td>
+            <td class="task-cell"><span class="task-chip chip-parallel">承認</span></td>
+            <td class="task-cell"></td>
+          </tr>
+          <tr>
+            <td class="name-cell">Staff<span class="name-sub">社員・業務委託</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell">
+              <span class="task-chip chip-staff">友だち依頼</span>
+              <span class="task-chip chip-line">友だち追加</span>
+              <span class="task-chip chip-staff">登録</span>
+            </td>
+            <td class="task-cell"></td>
+            <td class="task-cell" style="background:#ede9fe;"></td>
+            <td class="task-cell" style="background:#ede9fe;"></td>
+            <td class="task-cell" style="background:#ede9fe;"></td>
+            <td class="task-cell"></td>
+            <td class="task-cell" style="background:#dcfce7;"></td>
+            <td class="task-cell" style="background:#fef2f2;"></td>
+            <td class="task-cell"><span class="task-chip chip-staff">NG入力</span></td>
+            <td class="task-cell"><span class="task-chip chip-staff">NG入力</span></td>
+            <td class="task-cell"><span class="task-chip chip-staff">NG入力</span></td>
+            <td class="task-cell"><span class="task-chip chip-staff">NG入力</span></td>
+            <td class="task-cell" style="background:#fef2f2;"><span class="task-chip chip-deadline">締切</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell"></td>
+            <td class="task-cell"></td>
+          </tr>
+          <tr>
+            <td class="name-cell">Part-Time<span class="name-sub">アルバイト</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell">
+              <span class="task-chip chip-line">友だち追加</span>
+              <span class="task-chip chip-staff">登録</span>
+            </td>
+            <td class="task-cell"></td>
+            <td class="task-cell" style="background:#ede9fe;"></td>
+            <td class="task-cell" style="background:#ede9fe;"></td>
+            <td class="task-cell" style="background:#ede9fe;"></td>
+            <td class="task-cell"></td>
+            <td class="task-cell" style="background:#dcfce7;"></td>
+            <td class="task-cell" style="background:#fef2f2;"></td>
+            <td class="task-cell"><span class="task-chip chip-staff">希望入力</span></td>
+            <td class="task-cell"><span class="task-chip chip-staff">希望入力</span></td>
+            <td class="task-cell"><span class="task-chip chip-staff">希望入力</span></td>
+            <td class="task-cell"><span class="task-chip chip-staff">希望入力</span></td>
+            <td class="task-cell" style="background:#fef2f2;"><span class="task-chip chip-deadline">締切</span></td>
+            <td class="task-cell"></td>
+            <td class="task-cell"></td>
+            <td class="task-cell"></td>
+          </tr>
+        </tbody>
+      </table>
+      </div>
+
+      <div style="margin-top: 12px; font-size: 11px; color: var(--text-muted);">
+        🔄 = 日程調整中（集合での実施予定）
+      </div>
+
+      <div class="legend">
+        <div class="legend-item"><div class="legend-color dev"></div>開発</div>
+        <div class="legend-item"><div class="legend-color line"></div>LINE準備</div>
+        <div class="legend-item"><div class="legend-color test"></div>テスト</div>
+        <div class="legend-item"><div class="legend-color prep"></div>修正・準備</div>
+        <div class="legend-item"><div class="legend-color parallel"></div>シフト作成</div>
+        <div class="legend-item"><div class="legend-color prod"></div>本番運用</div>
+        <div class="legend-item"><div class="legend-color staff"></div>テナント作業</div>
+        <div class="legend-item"><div class="legend-color deadline"></div>締切</div>
+        <div class="legend-item"><div class="legend-color notify"></div>LINE通知</div>
+      </div>
+    </section>
+
+    <!-- 詳細タスク一覧 -->
+    <section class="section">
+      <h2 class="section-title">詳細タスク一覧</h2>
+      
+      <div class="details-grid">
+        <div class="details-column">
+          <h3 style="border-color: var(--color-dev);">👨‍💻 開発チームタスク</h3>
+          
+          <div class="detail-item">
+            <div class="detail-date">11/28〜30</div>
+            <div class="detail-content">
+              <div class="detail-title">LINE公式アカウント作成</div>
+              <div class="detail-desc">アカウント作成・設定（今週中に完了）</div>
+              <div class="detail-assignee">👤 Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">〜11/30</div>
+            <div class="detail-content">
+              <div class="detail-title">MVP開発完了</div>
+              <div class="detail-desc">MVP仕様の実装、CI設定</div>
+              <div class="detail-assignee">👤 Yuuki, Keisuke, Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date" style="color:#7c3aed;">12/6(金) 🔄</div>
+            <div class="detail-content">
+              <div class="detail-title">モンキーテスト</div>
+              <div class="detail-desc">とにかく触りまくるテスト（集合）</div>
+              <div class="detail-assignee">👤 Yuuki, Keisuke, Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date" style="color:#7c3aed;">12/11(水) 🔄</div>
+            <div class="detail-content">
+              <div class="detail-title">総合テスト①</div>
+              <div class="detail-desc">1ヶ月の運用フロー再現（集合）</div>
+              <div class="detail-assignee">👤 Yuuki, Keisuke, Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date" style="color:#7c3aed;">12/18(水) 🔄</div>
+            <div class="detail-content">
+              <div class="detail-title">総合テスト②</div>
+              <div class="detail-desc">2回目の総合テスト（集合）</div>
+              <div class="detail-assignee">👤 Yuuki, Keisuke, Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">12/13(金)</div>
+            <div class="detail-content">
+              <div class="detail-title">アカウント登録状況確認</div>
+              <div class="detail-desc">未登録者リスト作成、フォロー方針決定</div>
+              <div class="detail-assignee">👤 Keisuke, Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">12/11〜20</div>
+            <div class="detail-content">
+              <div class="detail-title">名寄せ作業</div>
+              <div class="detail-desc">登録アカウントと過去データの名寄せ</div>
+              <div class="detail-assignee">👤 Keisuke, Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date" style="color:#d97706;">12/18(水) 🔄</div>
+            <div class="detail-content">
+              <div class="detail-title">名寄せ確認MTG（対面）</div>
+              <div class="detail-desc">Ownerと対面で区分・店舗を確認</div>
+              <div class="detail-assignee">👤 Owner, Yuuki, Keisuke, Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">12/19〜26</div>
+            <div class="detail-content">
+              <div class="detail-title">バグ修正</div>
+              <div class="detail-desc">テストで見つかったバグの修正</div>
+              <div class="detail-assignee">👤 Yuuki, Keisuke, Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">12/21〜27</div>
+            <div class="detail-content">
+              <div class="detail-title">マスターデータ整理</div>
+              <div class="detail-desc">名寄せ完了後のマスターデータ投入</div>
+              <div class="detail-assignee">👤 Keisuke, Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/3</div>
+            <div class="detail-content">
+              <div class="detail-title">第1案作成・承認</div>
+              <div class="detail-desc">2月シフト第1案の作成と承認</div>
+              <div class="detail-assignee">👤 Yuuki</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/11〜16</div>
+            <div class="detail-content">
+              <div class="detail-title">第2案作成</div>
+              <div class="detail-desc">希望/NGを反映した最終案</div>
+              <div class="detail-assignee">👤 Yuuki, Owner</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="details-column">
+          <h3 style="border-color: var(--color-line);">📱 LINE通知タスク（Moriya）</h3>
+
+          <div class="detail-item">
+            <div class="detail-date">12/1</div>
+            <div class="detail-content">
+              <div class="detail-title">① アカウント登録案内</div>
+              <div class="detail-desc">スタッフ全員にアカウント登録の案内を送信</div>
+              <div class="detail-assignee">👤 Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date" style="color:#059669;">12/27(金)</div>
+            <div class="detail-content">
+              <div class="detail-title">📢 年明け予告通知</div>
+              <div class="detail-desc">「1/3から希望入力開始予定です」と予告</div>
+              <div class="detail-assignee">👤 Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/3</div>
+            <div class="detail-content">
+              <div class="detail-title">② 希望入力開始通知</div>
+              <div class="detail-desc">社員：NG入力開始 / アルバイト：希望シフト入力開始<br><span style="color:#ef4444;font-weight:600;">※Owner新年挨拶の後に送信</span></div>
+              <div class="detail-assignee">👤 Moriya（Yuukiがダブルチェック）</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/5</div>
+            <div class="detail-content">
+              <div class="detail-title">③ リマインド①</div>
+              <div class="detail-desc">未提出者への1回目リマインド</div>
+              <div class="detail-assignee">👤 Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/7</div>
+            <div class="detail-content">
+              <div class="detail-title">④ リマインド②</div>
+              <div class="detail-desc">未提出者への2回目リマインド</div>
+              <div class="detail-assignee">👤 Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/9</div>
+            <div class="detail-content">
+              <div class="detail-title">⑤ リマインド③</div>
+              <div class="detail-desc">未提出者への最終リマインド（バイネーム＋個別通知）</div>
+              <div class="detail-assignee">👤 Moriya</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/17</div>
+            <div class="detail-content">
+              <div class="detail-title">⑥ シフト確定通知</div>
+              <div class="detail-desc">2月シフト確定の全体通知</div>
+              <div class="detail-assignee">👤 Moriya</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="details-column">
+          <h3 style="border-color: var(--color-staff);">🏢 テナントタスク</h3>
+
+          <div class="detail-item">
+            <div class="detail-date">11月中</div>
+            <div class="detail-content">
+              <div class="detail-title">友だち追加依頼</div>
+              <div class="detail-desc">口頭・既存連絡手段でスタッフに依頼</div>
+              <div class="detail-assignee">👤 Owner, Staff</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">11月中</div>
+            <div class="detail-content">
+              <div class="detail-title">友だち追加・アカウント登録</div>
+              <div class="detail-desc">LINE友だち追加→LINEログイン→アカウント登録</div>
+              <div class="detail-assignee">👤 Staff, Part-Time</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date" style="color:#d97706;">12/18(水) 🔄</div>
+            <div class="detail-content">
+              <div class="detail-title">名寄せ確認MTG（対面）</div>
+              <div class="detail-desc">社員/業務委託/アルバイト区分、デフォルト店舗の確認</div>
+              <div class="detail-assignee">👤 Owner</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/3(金)</div>
+            <div class="detail-content">
+              <div class="detail-title">新年挨拶</div>
+              <div class="detail-desc">Ownerからスタッフへ新年の挨拶（シフト通知より先に）</div>
+              <div class="detail-assignee">👤 Owner</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/3〜10</div>
+            <div class="detail-content">
+              <div class="detail-title">NG入力</div>
+              <div class="detail-desc">出勤不可日の入力</div>
+              <div class="detail-assignee">👤 Staff（社員・業務委託）</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/3〜10</div>
+            <div class="detail-content">
+              <div class="detail-title">希望シフト入力</div>
+              <div class="detail-desc">希望勤務日の入力</div>
+              <div class="detail-assignee">👤 Part-Time</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date" style="color:#ef4444;font-weight:bold;">1/10</div>
+            <div class="detail-content">
+              <div class="detail-title" style="color:#ef4444;">入力締切</div>
+              <div class="detail-desc">NG入力・希望シフト入力の締切</div>
+              <div class="detail-assignee">👤 Staff, Part-Time</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/11〜16</div>
+            <div class="detail-content">
+              <div class="detail-title">第2案作成</div>
+              <div class="detail-desc">Yuukiと一緒に最終案作成</div>
+              <div class="detail-assignee">👤 Owner</div>
+            </div>
+          </div>
+
+          <div class="detail-item">
+            <div class="detail-date">1/17</div>
+            <div class="detail-content">
+              <div class="detail-title">第2案承認</div>
+              <div class="detail-desc">最終シフトの承認</div>
+              <div class="detail-assignee">👤 Owner</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 名寄せ確認MTG アジェンダ -->
+    <section class="section" style="border: 2px solid #d97706;">
+      <h2 class="section-title" style="color: #d97706;">📅 名寄せ確認MTG（対面）🔄日程調整中</h2>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
+        <div>
+          <p style="font-weight: 700; margin-bottom: 12px;">📋 会議概要</p>
+          <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px; font-weight: 600; width: 100px; background: #fafbfc;">候補日</td>
+              <td style="padding: 8px;">12/18(水) 🔄調整中</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px; font-weight: 600; background: #fafbfc;">参加者</td>
+              <td style="padding: 8px;">Owner, Yuuki, Keisuke, Moriya</td>
+            </tr>
+            <tr style="border-bottom: 1px solid #e2e8f0;">
+              <td style="padding: 8px; font-weight: 600; background: #fafbfc;">所要時間</td>
+              <td style="padding: 8px;">1〜2時間（目安）</td>
+            </tr>
+            <tr>
+              <td style="padding: 8px; font-weight: 600; background: #fafbfc;">場所</td>
+              <td style="padding: 8px;">対面（場所TBD）</td>
+            </tr>
+          </table>
+        </div>
+        
+        <div>
+          <p style="font-weight: 700; margin-bottom: 12px;">✅ 確認事項（アジェンダ）</p>
+          <div style="background: #fffbeb; padding: 12px; border-radius: 8px; font-size: 13px;">
+            <ol style="margin-left: 16px; line-height: 2;">
+              <li><strong>スタッフ区分の確認</strong><br>
+                <span style="color: #64748b;">各スタッフが「社員」「業務委託」「アルバイト」のどれか</span></li>
+              <li><strong>デフォルト店舗の確認</strong><br>
+                <span style="color: #64748b;">各スタッフの主な勤務店舗はどこか</span></li>
+              <li><strong>名寄せ結果の確認</strong><br>
+                <span style="color: #64748b;">既存データと新規登録アカウントの紐付けが正しいか</span></li>
+              <li><strong>不明点・例外ケースの確認</strong><br>
+                <span style="color: #64748b;">退職者、休職者、複数店舗勤務者の扱い</span></li>
+            </ol>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 16px; background: #f0fdf4; padding: 12px; border-radius: 8px; font-size: 12px;">
+        <strong>📌 事前準備（開発チーム）</strong>：名寄せ候補リストを作成し、MTG前日までにOwnerへ共有
+      </div>
+    </section>
+
+    <!-- リスク管理表 -->
+    <section class="section">
+      <h2 class="section-title">⚠️ リスク管理表</h2>
+      
+      <table style="width: 100%; border-collapse: collapse; font-size: 12px;">
+        <thead>
+          <tr style="background: #f1f5f9;">
+            <th style="border: 1px solid #e2e8f0; padding: 10px; text-align: left; width: 20%;">リスク項目</th>
+            <th style="border: 1px solid #e2e8f0; padding: 10px; text-align: center; width: 8%;">発生確率</th>
+            <th style="border: 1px solid #e2e8f0; padding: 10px; text-align: center; width: 8%;">影響度</th>
+            <th style="border: 1px solid #e2e8f0; padding: 10px; text-align: center; width: 8%;">リスク</th>
+            <th style="border: 1px solid #e2e8f0; padding: 10px; text-align: left; width: 28%;">発生時の影響</th>
+            <th style="border: 1px solid #e2e8f0; padding: 10px; text-align: left; width: 28%;">対策</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- 高リスク -->
+          <tr style="background: #fef2f2;">
+            <td style="border: 1px solid #e2e8f0; padding: 10px; font-weight: 600;">MVP開発遅延</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-weight: 600;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef2f2; color: #dc2626; padding: 2px 8px; border-radius: 4px; font-weight: 600;">高</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #dc2626; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700;">高</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">全体スケジュールが崩壊。テスト期間短縮 or 本番稼働延期の二択になる</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">11月中旬に進捗確認ポイントを設定。遅延兆候があればスコープ調整を即判断</td>
+          </tr>
+          <tr style="background: #fef2f2;">
+            <td style="border: 1px solid #e2e8f0; padding: 10px; font-weight: 600;">アカウント登録率が低い</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-weight: 600;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef2f2; color: #dc2626; padding: 2px 8px; border-radius: 4px; font-weight: 600;">高</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #dc2626; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700;">高</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">名寄せ対象が不完全になり、1月のシフト作成に支障。最悪の場合、一部スタッフを手動管理</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">Owner/社員から口頭で強くプッシュ。12/1のLINE通知後、登録状況を週次で確認し未登録者をフォロー</td>
+          </tr>
+          <tr style="background: #fef2f2;">
+            <td style="border: 1px solid #e2e8f0; padding: 10px; font-weight: 600;">名寄せ確認が年内に終わらない</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-weight: 600;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-weight: 600;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #dc2626; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700;">高</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">マスターデータ整理が1月にずれ込み、シフト作成開始に影響</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">12/14にOwnerへ確認依頼を送付。12/20を完了期限として設定し、早めにリマインド</td>
+          </tr>
+
+          <!-- 中リスク -->
+          <tr>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; font-weight: 600;">テスト期間でバグ修正が間に合わない</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-weight: 600;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-weight: 600;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">重大バグが残ったまま1月運用に突入。運用でカバーが必要になる</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">テスト期間中は即日対応体制を確保。クリティカルなバグは最優先で修正</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; font-weight: 600;">希望/NG入力の締切に間に合わない人</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef2f2; color: #dc2626; padding: 2px 8px; border-radius: 4px; font-weight: 600;">高</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 4px; font-weight: 600;">低</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">未入力者の希望が反映されないまま第2案を作成。後から調整が発生</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">リマインド3回実施。1/9の最終リマインドはバイネーム＋個別連絡で確実に届ける</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; font-weight: 600;">LINE公式アカウント作成の遅延</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 4px; font-weight: 600;">低</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-weight: 600;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">友だち追加・アカウント登録の開始が遅れ、名寄せ作業の時間が短縮</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">11月上旬に着手。審査等で時間がかかる可能性を考慮し、早めに完了させる</td>
+          </tr>
+          <tr>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; font-weight: 600;">バグ修正と名寄せの並行作業負荷</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-weight: 600;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 4px; font-weight: 600;">低</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #f59e0b; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">Keisuke, Moriyaの12月中旬の負荷が高く、どちらかのタスクが遅延</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">タスク優先順位を明確化。Yuukiがバグ修正をカバーし、Keisuke/Moriyaは名寄せに集中</td>
+          </tr>
+
+          <!-- 低リスク -->
+          <tr style="background: #f8fafc;">
+            <td style="border: 1px solid #e2e8f0; padding: 10px; font-weight: 600;">第2案作成でOwnerとの認識ズレ</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 4px; font-weight: 600;">低</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 4px; font-weight: 600;">低</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #16a34a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700;">低</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">作成した案がOwnerの意図と合わず、やり直しが発生</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">1/11〜16の間にOwnerと密にコミュニケーション。途中経過を共有しながら進める</td>
+          </tr>
+          <tr style="background: #f8fafc;">
+            <td style="border: 1px solid #e2e8f0; padding: 10px; font-weight: 600;">本番稼働後の運用トラブル</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-weight: 600;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 4px; font-weight: 600;">低</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #16a34a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700;">低</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">2月シフト運用で想定外の問題が発生</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">12月のテスト期間で十分に検証。2月初旬は緊急対応できる体制を維持</td>
+          </tr>
+          <tr style="background: #f8fafc;">
+            <td style="border: 1px solid #e2e8f0; padding: 10px; font-weight: 600;">年末年始の連絡ミス</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #dcfce7; color: #16a34a; padding: 2px 8px; border-radius: 4px; font-weight: 600;">低</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #fef3c7; color: #b45309; padding: 2px 8px; border-radius: 4px; font-weight: 600;">中</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px; text-align: center;"><span style="background: #16a34a; color: white; padding: 4px 8px; border-radius: 4px; font-weight: 700;">低</span></td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">1/3より前に通知を送ってしまい、Ownerの新年挨拶を先取りしてしまう</td>
+            <td style="border: 1px solid #e2e8f0; padding: 10px;">下記「年末年始コミュニケーションルール」を厳守。通知送信前にダブルチェック</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div style="margin-top: 16px; display: flex; gap: 24px; font-size: 11px; color: var(--text-muted);">
+        <div><span style="background: #dc2626; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">高</span> 発生確率×影響度が高い。最優先で対策</div>
+        <div><span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">中</span> 注意が必要。対策を準備しておく</div>
+        <div><span style="background: #16a34a; color: white; padding: 2px 8px; border-radius: 4px; font-weight: 600;">低</span> 発生しても影響は限定的</div>
+      </div>
+    </section>
+
+    <footer>
+      <p>シフトスケジューラーAI プロジェクト | Last updated: 2025</p>
+    </footer>
+
+    </div><!-- End of dev-tab -->
+
+    <script>
+      function showTab(tabName) {
+        // Hide all tabs
+        document.querySelectorAll('.tab-content').forEach(tab => {
+          tab.classList.remove('active');
+        });
+        
+        // Remove active from all buttons
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+          btn.classList.remove('active');
+        });
+        
+        // Show selected tab
+        document.getElementById(tabName + '-tab').classList.add('active');
+        
+        // Activate button
+        event.target.classList.add('active');
+      }
+    </script>
+  </div>
+</body>
+</html>
