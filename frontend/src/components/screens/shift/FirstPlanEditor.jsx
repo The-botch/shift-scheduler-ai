@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent } from '../../ui/card'
@@ -129,6 +129,17 @@ const FirstPlanEditor = ({
   const [defaultPatternId, setDefaultPatternId] = useState(null)
   const [preferences, setPreferences] = useState([]) // 希望シフト
   const [shiftPatterns, setShiftPatterns] = useState([]) // シフトパターンマスタ
+
+  // パフォーマンス最適化: preferences を Map 化（O(1) lookup）
+  const preferencesMap = useMemo(() => {
+    const map = new Map()
+    preferences.forEach(pref => {
+      const prefDate = isoToJSTDateString(pref.preference_date)
+      const key = `${pref.staff_id}_${prefDate}`
+      map.set(key, pref)
+    })
+    return map
+  }, [preferences])
 
   const year = selectedShift?.year || new Date().getFullYear()
   const month = selectedShift?.month || new Date().getMonth() + 1
@@ -901,7 +912,7 @@ const FirstPlanEditor = ({
     onClose,
     mode,
     shift,
-    preferences,
+    preferencesMap,
     onSave,
     onDelete,
     position,
@@ -1026,17 +1037,13 @@ const FirstPlanEditor = ({
       })
     }, [popupPosition, isDragging])
 
-    // ★変更: 新API形式（1日1レコード）での希望シフトチェック
+    // ★変更: 新API形式（1日1レコード）での希望シフトチェック（O(1) Map lookup）
     const checkPreference = () => {
-      if (!shift || !preferences || preferences.length === 0) return null
+      if (!shift || !preferencesMap || preferencesMap.size === 0) return null
 
       const dateStr = shift.date
-
-      // 新API形式: staff_id と preference_date の両方でマッチング（JSTで正しくパース）
-      const pref = preferences.find(p => {
-        const prefDate = isoToJSTDateString(p.preference_date)
-        return parseInt(p.staff_id) === parseInt(shift.staff_id) && prefDate === dateStr
-      })
+      const key = `${shift.staff_id}_${dateStr}`
+      const pref = preferencesMap.get(key)
 
       if (!pref) return null
 
@@ -1536,7 +1543,7 @@ const FirstPlanEditor = ({
         isOpen={modalState.isOpen}
         mode={modalState.mode}
         shift={modalState.shift}
-        preferences={preferences}
+        preferencesMap={preferencesMap}
         position={modalState.position}
         availableStores={availableStores}
         shiftPatterns={shiftPatterns}
