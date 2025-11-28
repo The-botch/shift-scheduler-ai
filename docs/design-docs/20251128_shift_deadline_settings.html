@@ -126,7 +126,24 @@
 <ol>
     <li><a href="#changelog">変更履歴（v2.0.0）</a></li>
     <li><a href="#overview">概要</a></li>
-    <li><a href="#table-design">テーブル設計</a></li>
+    <li><a href="#table-design">テーブル設計</a>
+        <ul>
+            <li>3.1 設計方針
+                <ul>
+                    <li>3.1.1 スキーマ選択: なぜ core スキーマを選んだか</li>
+                    <li>3.1.2 粒度の設計: テナント単位 vs 店舗単位</li>
+                    <li>3.1.3 将来的な店舗別設定への拡張方法</li>
+                </ul>
+            </li>
+            <li>3.2 現在の実装
+                <ul>
+                    <li>3.2.1 DDL（最終版）</li>
+                    <li>3.2.2 DML（初期データ）</li>
+                    <li>3.2.3 カラム定義</li>
+                </ul>
+            </li>
+        </ul>
+    </li>
     <li><a href="#impact-analysis">影響範囲分析</a></li>
     <li><a href="#test-results">テスト結果</a></li>
 </ol>
@@ -226,7 +243,215 @@
 
 <h2 id="table-design">3. テーブル設計</h2>
 
-<h3>3.1 DDL（最終版）</h3>
+<h3>3.1 設計方針</h3>
+
+<h4>3.1.1 スキーマ選択: なぜ core スキーマを選んだか</h4>
+
+<div class="success">
+<strong>✅ core.shift_deadline_settings として配置</strong>
+</div>
+
+<table>
+    <tr>
+        <th>観点</th>
+        <th>判断理由</th>
+    </tr>
+    <tr>
+        <td><strong>データの性質</strong></td>
+        <td>
+            • テナント全体のルール・設定データ（マスタデータ）<br>
+            • 複数店舗で共通のビジネスルールを管理<br>
+            • 業務運用データ（ops）やスタッフデータ（hr）ではなく、システム設定
+        </td>
+    </tr>
+    <tr>
+        <td><strong>既存スキーマとの整合性</strong></td>
+        <td>
+            • <strong>core.tenants</strong>: テナント情報<br>
+            • <strong>core.stores</strong>: 店舗マスタ<br>
+            • <strong>core.roles</strong>: 役職マスタ<br>
+            • <strong>core.skills</strong>: スキルマスタ<br>
+            • → 全社的なマスタデータは core スキーマに配置する方針
+        </td>
+    </tr>
+    <tr>
+        <td><strong>外部キー関係</strong></td>
+        <td>
+            • core.tenants への FK 制約を持つ<br>
+            • テナント削除時に CASCADE で期限設定も削除される<br>
+            • core スキーマ内で依存関係が完結
+        </td>
+    </tr>
+    <tr>
+        <td><strong>アクセスパターン</strong></td>
+        <td>
+            • 読み取り頻度: 高（スタッフがシフト入力画面を開くたび）<br>
+            • 更新頻度: 低（設定変更は稀）<br>
+            • → マスタデータとしての特性
+        </td>
+    </tr>
+</table>
+
+<div class="info">
+<strong>📌 他スキーマとの比較</strong>
+<ul>
+    <li><strong>hr スキーマ:</strong> スタッフ、スキル、資格など人事データ → 期限設定は人事データではない</li>
+    <li><strong>ops スキーマ:</strong> シフト実績、勤務記録など業務運用データ → 期限設定は運用データではなくルール設定</li>
+    <li><strong>core スキーマ:</strong> テナント、店舗、役職などマスタデータ → ✅ 期限設定はビジネスルールのマスタデータ</li>
+</ul>
+</div>
+
+<h4>3.1.2 粒度の設計: テナント単位 vs 店舗単位</h4>
+
+<div class="warning">
+<strong>現在の設計: テナント単位（全店舗共通）</strong>
+<p>UNIQUE制約: <code>(tenant_id, employment_type)</code></p>
+<p>→ 同じテナント内のすべての店舗で、同じ契約形態なら同じ期限が適用される</p>
+</div>
+
+<table>
+    <tr>
+        <th>設計</th>
+        <th>メリット</th>
+        <th>デメリット</th>
+        <th>適用ケース</th>
+    </tr>
+    <tr>
+        <td><strong>テナント単位<br>（現在の設計）</strong></td>
+        <td>
+            ✅ 管理がシンプル（設定数が少ない）<br>
+            ✅ 全店舗で統一ルール<br>
+            ✅ データ量が少ない<br>
+            ✅ 設定変更が容易
+        </td>
+        <td>
+            ❌ 店舗ごとのカスタマイズ不可<br>
+            ❌ 地域差・営業形態差に対応できない
+        </td>
+        <td>
+            • 直営店のみの運営<br>
+            • 店舗数が少ない<br>
+            • 全店舗で統一ルールを適用したい
+        </td>
+    </tr>
+    <tr>
+        <td><strong>店舗単位<br>（将来の拡張）</strong></td>
+        <td>
+            ✅ 店舗ごとのカスタマイズ可能<br>
+            ✅ 地域差・営業形態差に対応<br>
+            ✅ 柔軟性が高い
+        </td>
+        <td>
+            ❌ 管理が複雑<br>
+            ❌ 設定数が増加<br>
+            ❌ デフォルト値の扱いが難しい
+        </td>
+        <td>
+            • フランチャイズ形式<br>
+            • 店舗ごとに営業形態が異なる<br>
+            • 地域ごとにルールが異なる
+        </td>
+    </tr>
+</table>
+
+<h4>3.1.3 将来的な店舗別設定への拡張方法</h4>
+
+<div class="info">
+<strong>🚀 拡張案: store_id カラムを追加（NULL許可）</strong>
+</div>
+
+<div class="code-block">
+<pre>
+-- 拡張版: 店舗別設定に対応
+CREATE TABLE IF NOT EXISTS core.shift_deadline_settings (
+    deadline_setting_id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL,
+    store_id INTEGER,  -- ← NULL許可に変更（NULL=テナント全体のデフォルト設定）
+    employment_type VARCHAR(50) NOT NULL,
+    deadline_day INTEGER NOT NULL CHECK (deadline_day BETWEEN 1 AND 31),
+    deadline_hour INTEGER NOT NULL DEFAULT 23 CHECK (deadline_hour BETWEEN 0 AND 23),
+    deadline_minute INTEGER NOT NULL DEFAULT 59 CHECK (deadline_minute BETWEEN 0 AND 59),
+    is_enabled BOOLEAN NOT NULL DEFAULT true,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- ユニーク制約を変更
+    CONSTRAINT uq_shift_deadline_settings_tenant_store_employment
+        UNIQUE(tenant_id, COALESCE(store_id, 0), employment_type),
+
+    -- 外部キー制約
+    CONSTRAINT fk_shift_deadline_settings_tenant
+        FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
+    CONSTRAINT fk_shift_deadline_settings_store
+        FOREIGN KEY (store_id) REFERENCES core.stores(store_id) ON DELETE CASCADE
+);
+
+-- インデックスも更新
+CREATE INDEX idx_shift_deadline_settings_tenant_store
+    ON core.shift_deadline_settings(tenant_id, store_id);
+</pre>
+</div>
+
+<table>
+    <tr>
+        <th>項目</th>
+        <th>詳細</th>
+    </tr>
+    <tr>
+        <td><strong>設定の優先順位</strong></td>
+        <td>
+            1. <strong>店舗固有設定</strong>（store_id に値あり）<br>
+            2. <strong>テナント全体設定</strong>（store_id が NULL）<br>
+            <br>
+            例: 店舗Aに固有設定があればそれを使用、なければテナント全体の設定を使用
+        </td>
+    </tr>
+    <tr>
+        <td><strong>API側の取得ロジック</strong></td>
+        <td>
+<pre style="background-color: #2d2d2d; color: #f8f8f2; padding: 10px; margin: 0;">
+-- 店舗固有設定を優先的に取得
+SELECT employment_type, deadline_day, deadline_hour, deadline_minute, is_enabled
+FROM core.shift_deadline_settings
+WHERE tenant_id = $1
+  AND (store_id = $2 OR store_id IS NULL)
+ORDER BY store_id NULLS LAST, employment_type;
+</pre>
+        </td>
+    </tr>
+    <tr>
+        <td><strong>データ例</strong></td>
+        <td>
+<pre style="background-color: #2d2d2d; color: #f8f8f2; padding: 10px; margin: 0;">
+tenant_id | store_id | employment_type | deadline_day
+----------+----------+-----------------+-------------
+    3     |   NULL   | FULL_TIME       |     10      ← テナント全体のデフォルト
+    3     |   NULL   | PART_TIME       |     15      ← テナント全体のデフォルト
+    3     |    1     | FULL_TIME       |      8      ← 店舗1の固有設定（優先）
+    3     |    2     | PART_TIME       |     20      ← 店舗2の固有設定（優先）
+</pre>
+        </td>
+    </tr>
+    <tr>
+        <td><strong>マイグレーション方法</strong></td>
+        <td>
+            1. <code>ALTER TABLE</code> で store_id カラムを追加（NULL許可、デフォルト NULL）<br>
+            2. UNIQUE制約を削除して新しい制約を追加<br>
+            3. 既存データは store_id = NULL のまま（テナント全体設定として扱われる）<br>
+            4. 必要に応じて店舗固有設定を INSERT
+        </td>
+    </tr>
+</table>
+
+<div class="warning">
+<strong>📌 現時点の方針</strong>
+<p>現在は<strong>テナント単位の設定のみ</strong>で運用開始します。店舗別設定が必要になった時点で、上記の拡張方法を適用します。</p>
+</div>
+
+<h3>3.2 現在の実装</h3>
+
+<h4>3.2.1 DDL（最終版）</h4>
 
 <div class="code-block">
 <pre>
@@ -269,7 +494,7 @@ CREATE TRIGGER trg_shift_deadline_settings_updated_at
 </pre>
 </div>
 
-<h3>3.2 DML（初期データ）</h3>
+<h4>3.2.2 DML（初期データ）</h4>
 
 <div class="code-block">
 <pre>
@@ -305,7 +530,7 @@ SET
 </pre>
 </div>
 
-<h3>3.3 カラム定義</h3>
+<h4>3.2.3 カラム定義</h4>
 
 <table>
     <tr>
