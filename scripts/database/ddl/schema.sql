@@ -111,14 +111,13 @@ CREATE TABLE IF NOT EXISTS core.employment_types (
 );
 
 -- core.shift_deadline_settings（シフト希望入力期限設定）
--- 入力開始: 第1案作成完了時、締切: N-1月のdeadline_day deadline_hour:deadline_minute
+-- 入力開始: 第1案作成完了時、締切: N-1月のdeadline_day deadline_time
 CREATE TABLE IF NOT EXISTS core.shift_deadline_settings (
     deadline_setting_id SERIAL PRIMARY KEY,
     tenant_id INTEGER NOT NULL,
-    employment_type VARCHAR(50) NOT NULL, -- 'FULL_TIME', 'PART_TIME'
+    employment_type VARCHAR(50) NOT NULL, -- 'FULL_TIME', 'PART_TIME', 'CONTRACT', 'TEMPORARY'
     deadline_day INTEGER NOT NULL CHECK (deadline_day BETWEEN 1 AND 31), -- 締切日（N-1月の何日まで）
-    deadline_hour INTEGER NOT NULL DEFAULT 23 CHECK (deadline_hour BETWEEN 0 AND 23),
-    deadline_minute INTEGER NOT NULL DEFAULT 59 CHECK (deadline_minute BETWEEN 0 AND 59),
+    deadline_time VARCHAR(5) NOT NULL DEFAULT '12:00', -- 締切時刻（"HH:MM"形式、例: "23:59", "18:00"）
     is_enabled BOOLEAN NOT NULL DEFAULT true, -- 期限チェック有効/無効
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -130,10 +129,9 @@ CREATE TABLE IF NOT EXISTS core.shift_deadline_settings (
 );
 
 COMMENT ON TABLE core.shift_deadline_settings IS 'シフト希望入力締切設定（契約形態別）。入力開始は第1案作成完了時';
-COMMENT ON COLUMN core.shift_deadline_settings.employment_type IS '契約形態（FULL_TIME=正社員、PART_TIME=アルバイト・パート）';
+COMMENT ON COLUMN core.shift_deadline_settings.employment_type IS '契約形態（FULL_TIME=正社員、PART_TIME=アルバイト・パート、CONTRACT=契約社員、TEMPORARY=派遣社員）';
 COMMENT ON COLUMN core.shift_deadline_settings.deadline_day IS 'シフト希望入力締切日（N-1月の1-31日）';
-COMMENT ON COLUMN core.shift_deadline_settings.deadline_hour IS '締切時刻（時）0-23';
-COMMENT ON COLUMN core.shift_deadline_settings.deadline_minute IS '締切時刻（分）0-59';
+COMMENT ON COLUMN core.shift_deadline_settings.deadline_time IS '締切時刻（"HH:MM"形式、例: "23:59", "18:00"）';
 COMMENT ON COLUMN core.shift_deadline_settings.is_enabled IS '期限チェック有効/無効フラグ';
 COMMENT ON COLUMN core.shift_deadline_settings.description IS '備考（運用メモなど）';
 

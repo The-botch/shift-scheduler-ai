@@ -109,7 +109,7 @@
 
 <div class="metadata">
     <h1>シフト希望入力期限設定機能 - 設計書</h1>
-    <p><strong>バージョン:</strong> 2.0.0</p>
+    <p><strong>バージョン:</strong> 3.0.0</p>
     <p><strong>作成日:</strong> 2025-01-27</p>
     <p><strong>最終更新:</strong> 2025-11-28</p>
     <p><strong>対象システム:</strong> shift-scheduler-ai</p>
@@ -124,7 +124,12 @@
 
 <h2>📋 目次</h2>
 <ol>
-    <li><a href="#changelog">変更履歴（v2.0.0）</a></li>
+    <li><a href="#changelog">変更履歴</a>
+        <ul>
+            <li>v3.0.0 (2025-11-28): 時刻カラム変更 + 雇用形態追加</li>
+            <li>v2.0.0 (2025-11-28): employment_type基準に変更</li>
+        </ul>
+    </li>
     <li><a href="#overview">概要</a></li>
     <li><a href="#table-design">テーブル設計</a>
         <ul>
@@ -148,10 +153,46 @@
     <li><a href="#test-results">テスト結果</a></li>
 </ol>
 
-<h2 id="changelog">1. 変更履歴（v2.0.0）</h2>
+<h2 id="changelog">1. 変更履歴</h2>
 
 <div class="success">
-<h3>v2.0.0 の主要変更点</h3>
+<h3>v3.0.0 の主要変更点（2025-11-28）</h3>
+<table>
+    <tr>
+        <th>変更項目</th>
+        <th>変更前（v2.0.0）</th>
+        <th>変更後（v3.0.0）</th>
+        <th>理由</th>
+    </tr>
+    <tr>
+        <td><strong>時刻カラム</strong></td>
+        <td>deadline_hour INTEGER<br>deadline_minute INTEGER</td>
+        <td>deadline_time VARCHAR(5)<span class="modified">変更</span></td>
+        <td>既存テーブル（ops.shifts, ops.shift_preferences）の時刻形式と統一。"HH:MM"形式で管理。</td>
+    </tr>
+    <tr>
+        <td><strong>デフォルト時刻</strong></td>
+        <td>23:59</td>
+        <td>12:00<span class="modified">変更</span></td>
+        <td>23:59は分単位の指定が不自然。12:00を正午のデフォルトとする。</td>
+    </tr>
+    <tr>
+        <td><strong>対応雇用形態</strong></td>
+        <td>FULL_TIME, PART_TIME</td>
+        <td>FULL_TIME, PART_TIME, CONTRACT, TEMPORARY<span class="added">追加</span></td>
+        <td>契約社員・派遣社員の期限設定に対応</td>
+    </tr>
+    <tr>
+        <td><strong>DML初期データ</strong></td>
+        <td>2レコード（正社員、アルバイト）</td>
+        <td>4レコード（正社員、アルバイト、契約社員、派遣社員）<span class="added">追加</span></td>
+        <td>新規雇用形態に対応</td>
+    </tr>
+</table>
+</div>
+
+<div class="info">
+<h3>v2.0.0 の主要変更点（2025-11-28）</h3>
 <table>
     <tr>
         <th>変更項目</th>
@@ -456,14 +497,13 @@ tenant_id | store_id | employment_type | deadline_day
 <div class="code-block">
 <pre>
 -- core.shift_deadline_settings（シフト希望入力締切設定）
--- 入力開始: 第1案作成完了時、締切: N-1月のdeadline_day deadline_hour:deadline_minute
+-- 入力開始: 第1案作成完了時、締切: N-1月のdeadline_day deadline_time
 CREATE TABLE IF NOT EXISTS core.shift_deadline_settings (
     deadline_setting_id SERIAL PRIMARY KEY,
     tenant_id INTEGER NOT NULL,
-    employment_type VARCHAR(50) NOT NULL, -- 'FULL_TIME', 'PART_TIME'
+    employment_type VARCHAR(50) NOT NULL, -- 'FULL_TIME', 'PART_TIME', 'CONTRACT', 'TEMPORARY'
     deadline_day INTEGER NOT NULL CHECK (deadline_day BETWEEN 1 AND 31),
-    deadline_hour INTEGER NOT NULL DEFAULT 23 CHECK (deadline_hour BETWEEN 0-23),
-    deadline_minute INTEGER NOT NULL DEFAULT 59 CHECK (deadline_minute BETWEEN 0 AND 59),
+    deadline_time VARCHAR(5) NOT NULL DEFAULT '12:00', -- 締切時刻（"HH:MM"形式、例: "23:59", "18:00"）
     is_enabled BOOLEAN NOT NULL DEFAULT true,
     description TEXT,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -475,10 +515,9 @@ CREATE TABLE IF NOT EXISTS core.shift_deadline_settings (
 );
 
 COMMENT ON TABLE core.shift_deadline_settings IS 'シフト希望入力締切設定（契約形態別）。入力開始は第1案作成完了時';
-COMMENT ON COLUMN core.shift_deadline_settings.employment_type IS '契約形態（FULL_TIME=正社員、PART_TIME=アルバイト・パート）';
+COMMENT ON COLUMN core.shift_deadline_settings.employment_type IS '契約形態（FULL_TIME=正社員、PART_TIME=アルバイト・パート、CONTRACT=契約社員、TEMPORARY=派遣社員）';
 COMMENT ON COLUMN core.shift_deadline_settings.deadline_day IS 'シフト希望入力締切日（N-1月の1-31日）';
-COMMENT ON COLUMN core.shift_deadline_settings.deadline_hour IS '締切時刻（時）0-23';
-COMMENT ON COLUMN core.shift_deadline_settings.deadline_minute IS '締切時刻（分）0-59';
+COMMENT ON COLUMN core.shift_deadline_settings.deadline_time IS '締切時刻（"HH:MM"形式、例: "23:59", "18:00"）';
 COMMENT ON COLUMN core.shift_deadline_settings.is_enabled IS '期限チェック有効/無効フラグ';
 COMMENT ON COLUMN core.shift_deadline_settings.description IS '備考（運用メモなど）';
 
@@ -499,31 +538,57 @@ CREATE TRIGGER trg_shift_deadline_settings_updated_at
 <div class="code-block">
 <pre>
 -- 正社員（FULL_TIME）の期限設定
--- 入力開始: 第1案作成完了時、締切: N-1月10日23:59
+-- 入力開始: 第1案作成完了時、締切: N-1月10日12:00
 INSERT INTO core.shift_deadline_settings
-  (tenant_id, employment_type, deadline_day, deadline_hour, deadline_minute, is_enabled, description)
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
 VALUES
-  (3, 'FULL_TIME', 10, 23, 59, true, '正社員のシフト希望締切（第1案作成完了～N-1月10日23:59）')
+  (3, 'FULL_TIME', 10, '12:00', true, '正社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
 ON CONFLICT (tenant_id, employment_type) DO UPDATE
 SET
     deadline_day = EXCLUDED.deadline_day,
-    deadline_hour = EXCLUDED.deadline_hour,
-    deadline_minute = EXCLUDED.deadline_minute,
+    deadline_time = EXCLUDED.deadline_time,
     is_enabled = EXCLUDED.is_enabled,
     description = EXCLUDED.description,
     updated_at = CURRENT_TIMESTAMP;
 
 -- アルバイト・パート（PART_TIME）の期限設定
--- 入力開始: 第1案作成完了時、締切: N-1月15日23:59
+-- 入力開始: 第1案作成完了時、締切: N-1月15日12:00
 INSERT INTO core.shift_deadline_settings
-  (tenant_id, employment_type, deadline_day, deadline_hour, deadline_minute, is_enabled, description)
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
 VALUES
-  (3, 'PART_TIME', 15, 23, 59, true, 'アルバイト・パートのシフト希望締切（第1案作成完了～N-1月15日23:59）')
+  (3, 'PART_TIME', 15, '12:00', true, 'アルバイト・パートのシフト希望締切（第1案作成完了～N-1月15日12:00）')
 ON CONFLICT (tenant_id, employment_type) DO UPDATE
 SET
     deadline_day = EXCLUDED.deadline_day,
-    deadline_hour = EXCLUDED.deadline_hour,
-    deadline_minute = EXCLUDED.deadline_minute,
+    deadline_time = EXCLUDED.deadline_time,
+    is_enabled = EXCLUDED.is_enabled,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- 契約社員（CONTRACT）の期限設定
+-- 入力開始: 第1案作成完了時、締切: N-1月10日12:00
+INSERT INTO core.shift_deadline_settings
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
+VALUES
+  (3, 'CONTRACT', 10, '12:00', true, '契約社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
+ON CONFLICT (tenant_id, employment_type) DO UPDATE
+SET
+    deadline_day = EXCLUDED.deadline_day,
+    deadline_time = EXCLUDED.deadline_time,
+    is_enabled = EXCLUDED.is_enabled,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- 派遣社員（TEMPORARY）の期限設定
+-- 入力開始: 第1案作成完了時、締切: N-1月10日12:00
+INSERT INTO core.shift_deadline_settings
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
+VALUES
+  (3, 'TEMPORARY', 10, '12:00', true, '派遣社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
+ON CONFLICT (tenant_id, employment_type) DO UPDATE
+SET
+    deadline_day = EXCLUDED.deadline_day,
+    deadline_time = EXCLUDED.deadline_time,
     is_enabled = EXCLUDED.is_enabled,
     description = EXCLUDED.description,
     updated_at = CURRENT_TIMESTAMP;
@@ -559,7 +624,7 @@ SET
         <td>VARCHAR(50)</td>
         <td>NOT NULL</td>
         <td>UNIQUE (tenant_id, employment_type)</td>
-        <td>契約形態<br>'FULL_TIME' (正社員)<br>'PART_TIME' (アルバイト・パート)</td>
+        <td>契約形態<br>'FULL_TIME' (正社員)<br>'PART_TIME' (アルバイト・パート)<br>'CONTRACT' (契約社員) <span class="added">v3.0</span><br>'TEMPORARY' (派遣社員) <span class="added">v3.0</span></td>
     </tr>
     <tr>
         <td>deadline_day</td>
@@ -569,18 +634,11 @@ SET
         <td>締切日（N-1月の何日まで）</td>
     </tr>
     <tr>
-        <td>deadline_hour</td>
-        <td>INTEGER</td>
+        <td>deadline_time <span class="modified">v3.0変更</span></td>
+        <td>VARCHAR(5)</td>
         <td>NOT NULL</td>
-        <td>DEFAULT 23<br>CHECK (0-23) <span class="added">追加</span></td>
-        <td>締切時刻（時）</td>
-    </tr>
-    <tr>
-        <td>deadline_minute</td>
-        <td>INTEGER</td>
-        <td>NOT NULL</td>
-        <td>DEFAULT 59<br>CHECK (0-59) <span class="added">追加</span></td>
-        <td>締切時刻（分）</td>
+        <td>DEFAULT '12:00'</td>
+        <td>締切時刻（"HH:MM"形式、例: "23:59", "18:00"）<br><span class="removed">v2.0: deadline_hour/deadline_minute を統合</span></td>
     </tr>
     <tr>
         <td>is_enabled</td>

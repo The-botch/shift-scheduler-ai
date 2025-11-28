@@ -37,6 +37,16 @@ INSERT INTO core.employment_types (tenant_id, employment_code, employment_name, 
 VALUES (3, 'PART_TIME', 'アルバイト', 'HOURLY', true)
 ON CONFLICT DO NOTHING;
 
+-- 契約社員
+INSERT INTO core.employment_types (tenant_id, employment_code, employment_name, payment_type, is_active)
+VALUES (3, 'CONTRACT', '契約社員', 'MONTHLY', true)
+ON CONFLICT DO NOTHING;
+
+-- 派遣社員
+INSERT INTO core.employment_types (tenant_id, employment_code, employment_name, payment_type, is_active)
+VALUES (3, 'TEMPORARY', '派遣社員', 'MONTHLY', true)
+ON CONFLICT DO NOTHING;
+
 -- ----------------------------------------------------------------------------
 -- 4. 役職登録
 -- ----------------------------------------------------------------------------
@@ -205,31 +215,57 @@ ON CONFLICT DO NOTHING;
 -- 7. シフト希望入力期限設定
 -- ----------------------------------------------------------------------------
 -- 正社員（FULL_TIME）の期限設定
--- 入力開始: 第1案作成完了時、締切: N-1月10日23:59
+-- 入力開始: 第1案作成完了時、締切: N-1月10日12:00
 INSERT INTO core.shift_deadline_settings
-  (tenant_id, employment_type, deadline_day, deadline_hour, deadline_minute, is_enabled, description)
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
 VALUES
-  (3, 'FULL_TIME', 10, 23, 59, true, '正社員のシフト希望締切（第1案作成完了～N-1月10日23:59）')
+  (3, 'FULL_TIME', 10, '12:00', true, '正社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
 ON CONFLICT (tenant_id, employment_type) DO UPDATE
 SET
     deadline_day = EXCLUDED.deadline_day,
-    deadline_hour = EXCLUDED.deadline_hour,
-    deadline_minute = EXCLUDED.deadline_minute,
+    deadline_time = EXCLUDED.deadline_time,
     is_enabled = EXCLUDED.is_enabled,
     description = EXCLUDED.description,
     updated_at = CURRENT_TIMESTAMP;
 
 -- アルバイト・パート（PART_TIME）の期限設定
--- 入力開始: 第1案作成完了時、締切: N-1月15日23:59
+-- 入力開始: 第1案作成完了時、締切: N-1月15日12:00
 INSERT INTO core.shift_deadline_settings
-  (tenant_id, employment_type, deadline_day, deadline_hour, deadline_minute, is_enabled, description)
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
 VALUES
-  (3, 'PART_TIME', 15, 23, 59, true, 'アルバイト・パートのシフト希望締切（第1案作成完了～N-1月15日23:59）')
+  (3, 'PART_TIME', 15, '12:00', true, 'アルバイト・パートのシフト希望締切（第1案作成完了～N-1月15日12:00）')
 ON CONFLICT (tenant_id, employment_type) DO UPDATE
 SET
     deadline_day = EXCLUDED.deadline_day,
-    deadline_hour = EXCLUDED.deadline_hour,
-    deadline_minute = EXCLUDED.deadline_minute,
+    deadline_time = EXCLUDED.deadline_time,
+    is_enabled = EXCLUDED.is_enabled,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- 契約社員（CONTRACT）の期限設定
+-- 入力開始: 第1案作成完了時、締切: N-1月10日12:00
+INSERT INTO core.shift_deadline_settings
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
+VALUES
+  (3, 'CONTRACT', 10, '12:00', true, '契約社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
+ON CONFLICT (tenant_id, employment_type) DO UPDATE
+SET
+    deadline_day = EXCLUDED.deadline_day,
+    deadline_time = EXCLUDED.deadline_time,
+    is_enabled = EXCLUDED.is_enabled,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- 派遣社員（TEMPORARY）の期限設定
+-- 入力開始: 第1案作成完了時、締切: N-1月10日12:00
+INSERT INTO core.shift_deadline_settings
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
+VALUES
+  (3, 'TEMPORARY', 10, '12:00', true, '派遣社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
+ON CONFLICT (tenant_id, employment_type) DO UPDATE
+SET
+    deadline_day = EXCLUDED.deadline_day,
+    deadline_time = EXCLUDED.deadline_time,
     is_enabled = EXCLUDED.is_enabled,
     description = EXCLUDED.description,
     updated_at = CURRENT_TIMESTAMP;
