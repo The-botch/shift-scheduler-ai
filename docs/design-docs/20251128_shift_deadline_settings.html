@@ -116,8 +116,9 @@
     <p><strong>関連Issue:</strong> #155 締切日設定の仕様整理と実装</p>
     <p><strong>関連PR:</strong></p>
     <ul>
-        <li>Backend: feature/shift-deadline-settings</li>
-        <li>LIFF: #12 (shift-scheduler-ai-liff)</li>
+        <li>Backend: <a href="https://github.com/The-botch/shift-scheduler-ai/pull/157" target="_blank">#157</a> (feature/shift-deadline-settings)</li>
+        <li>LIFF: <a href="https://github.com/The-botch/shift-scheduler-ai-liff/pull/12" target="_blank">#12</a> (employment_type基準に変更 - MERGED)</li>
+        <li>LIFF: <a href="https://github.com/The-botch/shift-scheduler-ai-liff/pull/13" target="_blank">#13</a> (start_day削除とエンドポイント修正)</li>
     </ul>
 </div>
 
@@ -388,10 +389,43 @@ SET
 
 <h2 id="impact-analysis">4. 影響範囲分析</h2>
 
-<h3>4.1 バックエンドへの影響</h3>
+<h3>4.1 既存システムへの影響</h3>
+
+<div class="success">
+<strong>✅ 既存システムへの影響なし</strong>
+<ul>
+    <li><strong>既存のフロントエンド（React）:</strong> 影響なし（新規テーブルと新規エンドポイントのみ）</li>
+    <li><strong>既存のバックエンドAPI:</strong> 影響なし（完全に独立した新規エンドポイント /api/liff/deadline-settings のみ追加）</li>
+    <li><strong>既存のデータベース:</strong> 影響なし（新規テーブル追加のみ、既存テーブルは無変更）</li>
+</ul>
+</div>
+
+<h3>4.2 新規エンドポイント</h3>
+
+<div class="info">
+<strong>✅ backend/src/routes/liff.js に追加済み</strong>
+<p>GET /api/liff/deadline-settings - シフト希望入力期限設定を取得</p>
+</div>
+
+<table>
+    <tr>
+        <th>エンドポイント</th>
+        <th>メソッド</th>
+        <th>パラメータ</th>
+        <th>レスポンス</th>
+    </tr>
+    <tr>
+        <td>/api/liff/deadline-settings</td>
+        <td>GET</td>
+        <td>tenant_id (required)</td>
+        <td>{ success: true, data: [{ employment_type, deadline_day, deadline_hour, deadline_minute, is_enabled, description }] }</td>
+    </tr>
+</table>
+
+<h3>4.3 将来実装予定のバックエンドAPI</h3>
 
 <div class="warning">
-<strong>⚠️ 注意: このテーブルを参照する予定のバックエンドAPI</strong>
+<strong>⚠️ 注意: 将来実装予定のバックエンドAPI</strong>
 <p>以下のAPIで期限チェックロジックの実装が必要です（現在は未実装）:</p>
 </div>
 
@@ -434,10 +468,11 @@ SET
     </tr>
 </table>
 
-<h3>4.2 フロントエンドへの影響</h3>
+<h3>4.4 将来実装予定のフロントエンド修正</h3>
 
 <div class="info">
-<strong>ℹ️ バックエンドAPIから取得したデータを利用するフロントエンド</strong>
+<strong>ℹ️ 将来実装予定: バックエンドAPIから取得したデータを利用するフロントエンド</strong>
+<p>以下のフロントエンド修正は現在未実装です。新規エンドポイント /api/liff/deadline-settings を活用する予定です。</p>
 </div>
 
 <table>
@@ -451,9 +486,9 @@ SET
     <tr>
         <td>shift-scheduler-ai-liff/<br>index.html</td>
         <td>LINE LIFF<br>シフト希望入力画面</td>
-        <td>• payment_type → employment_type に変更 <span class="modified">完了</span><br>• start_day チェックロジック削除 <span class="removed">完了</span><br>• APIから期限情報を動的取得<br>• 期限超過時の入力禁止UI</td>
+        <td>• payment_type → employment_type に変更 <span class="modified">完了 PR #12</span><br>• start_day フィールド削除 <span class="removed">完了 PR #13</span><br>• /api/liff/deadline-settings エンドポイントに修正 <span class="modified">完了 PR #13</span><br>• APIから期限情報を動的取得 <span class="success">実装済み</span><br>• 期限超過時の入力禁止UI <span class="success">実装済み</span></td>
         <td>🔴 高</td>
-        <td><span class="success">✅ PR #12 作成済</span></td>
+        <td><span class="success">✅ PR #12, #13 作成済</span></td>
     </tr>
     <tr>
         <td>frontend/src/components/screens/<br>shift/LineShiftInput.jsx</td>
@@ -508,8 +543,8 @@ SET
 │                   ▼                                             │
 │  ┌──────────────────────────────────────────────────────┐      │
 │  │ 2. APIリクエスト                                       │      │
-│  │    GET /api/shifts/deadline-settings                  │      │
-│  │    ?tenant_id=3&employment_type=PART_TIME             │      │
+│  │    GET /api/liff/deadline-settings                    │      │
+│  │    ?tenant_id=3                                       │      │
 │  └────────────────┬─────────────────────────────────────┘      │
 └───────────────────┼─────────────────────────────────────────────┘
                     │
@@ -521,18 +556,32 @@ SET
 │  │ 3. core.shift_deadline_settings から期限を取得        │        │
 │  │    SELECT * FROM core.shift_deadline_settings         │        │
 │  │    WHERE tenant_id = 3                                │        │
-│  │      AND employment_type = 'PART_TIME'                │        │
+│  │    ORDER BY employment_type                           │        │
 │  └────────────────┬─────────────────────────────────────┘        │
 │                   │                                               │
 │                   ▼                                               │
 │  ┌──────────────────────────────────────────────────────┐        │
-│  │ 4. レスポンス返却                                      │        │
+│  │ 4. レスポンス返却（全契約形態の期限設定）              │        │
 │  │    {                                                  │        │
-│  │      "deadline_day": 15,                              │        │
-│  │      "deadline_hour": 23,                             │        │
-│  │      "deadline_minute": 59,                           │        │
-│  │      "is_enabled": true,                              │        │
-│  │      "description": "アルバイト・パートの締切..."      │        │
+│  │      "success": true,                                 │        │
+│  │      "data": [                                        │        │
+│  │        {                                              │        │
+│  │          "employment_type": "FULL_TIME",              │        │
+│  │          "deadline_day": 10,                          │        │
+│  │          "deadline_hour": 23,                         │        │
+│  │          "deadline_minute": 59,                       │        │
+│  │          "is_enabled": true,                          │        │
+│  │          "description": "正社員..."                   │        │
+│  │        },                                             │        │
+│  │        {                                              │        │
+│  │          "employment_type": "PART_TIME",              │        │
+│  │          "deadline_day": 15,                          │        │
+│  │          "deadline_hour": 23,                         │        │
+│  │          "deadline_minute": 59,                       │        │
+│  │          "is_enabled": true,                          │        │
+│  │          "description": "アルバイト・パート..."        │        │
+│  │        }                                              │        │
+│  │      ]                                                │        │
 │  │    }                                                  │        │
 │  └────────────────┬─────────────────────────────────────┘        │
 └───────────────────┼───────────────────────────────────────────────┘
@@ -701,11 +750,13 @@ ORDER BY employment_type;
 <div class="success">
 <h3>✅ 完了した作業</h3>
 <ul>
-    <li>DDL設計完了（payment_type → employment_type、start_day削除、制約追加）</li>
-    <li>DML設計完了（初期データ定義）</li>
-    <li>ローカルPostgreSQLでの全制約テスト完了</li>
-    <li>LIFF側の対応完了（PR #12）</li>
-    <li>影響範囲分析完了</li>
+    <li>DDL設計完了（payment_type → employment_type、start_day削除、CHECK/FK/UNIQUE制約追加）</li>
+    <li>DML設計完了（テナントID 3 の初期データ定義）</li>
+    <li>ローカルPostgreSQLでの全制約テスト完了（PostgreSQL 17.7）</li>
+    <li>Backend API実装完了（GET /api/liff/deadline-settings エンドポイント追加）</li>
+    <li>LIFF側の対応完了（PR #12: employment_type基準に変更、PR #13: start_day削除とエンドポイント修正）</li>
+    <li>影響範囲分析完了（既存システムへの影響なし確認）</li>
+    <li>設計書作成完了（v2.0.0）</li>
 </ul>
 </div>
 
@@ -741,11 +792,11 @@ ORDER BY employment_type;
     </tr>
     <tr>
         <td>LIFF PR</td>
-        <td>shift-scheduler-ai-liff #12</td>
+        <td>shift-scheduler-ai-liff #12 (MERGED), #13 (OPEN)</td>
     </tr>
     <tr>
-        <td>Backend Branch</td>
-        <td>feature/shift-deadline-settings</td>
+        <td>Backend PR</td>
+        <td><a href="https://github.com/The-botch/shift-scheduler-ai/pull/157" target="_blank">#157</a> (feature/shift-deadline-settings - OPEN)</td>
     </tr>
     <tr>
         <td>関連Issue</td>
