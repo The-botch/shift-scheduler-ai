@@ -338,8 +338,7 @@ router.get('/check-link', verifyLineToken, async (req, res) => {
         `SELECT
           employment_type,
           deadline_day,
-          deadline_hour,
-          deadline_minute,
+          deadline_time,
           is_enabled,
           description
          FROM core.shift_deadline_settings
