@@ -268,3 +268,90 @@ body {
     @apply gap-3;
   }
 }
+
+/* ===================================
+   印刷用スタイル（PDF出力）
+   =================================== */
+
+@media print {
+  /* 印刷時のページ設定 */
+  @page {
+    size: A4 landscape;
+    margin: 10mm;
+  }
+
+  /* 非表示要素 */
+  .no-print,
+  header,
+  nav,
+  .app-header,
+  button:not(.print-button) {
+    display: none !important;
+  }
+
+  /* 印刷時のみ表示 */
+  .print-only {
+    display: block !important;
+  }
+
+  /* 色を保持 */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+
+  /* 背景色を保持 */
+  .bg-green-50,
+  .bg-blue-50,
+  .bg-gray-50,
+  .bg-gray-100,
+  .bg-red-50,
+  .bg-amber-50,
+  .bg-yellow-50 {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  /* テーブル最適化 */
+  table {
+    font-size: 8px !important;
+    border-collapse: collapse !important;
+    width: 100% !important;
+  }
+
+  th,
+  td {
+    border: 1px solid #ccc !important;
+    padding: 2px 4px !important;
+  }
+
+  /* コンテンツを1ページに収める */
+  body {
+    margin: 0;
+    padding: 0;
+    overflow: visible !important;
+  }
+
+  /* スクロールコンテナのオーバーフローを解除 */
+  .overflow-auto,
+  .overflow-x-auto,
+  .overflow-y-auto,
+  .overflow-hidden {
+    overflow: visible !important;
+    max-height: none !important;
+    height: auto !important;
+  }
+
+  /* sticky要素を解除 */
+  .sticky {
+    position: relative !important;
+  }
+
+  /* テーブルを縮小して1ページに収める */
+  .print-area {
+    transform: scale(0.7);
+    transform-origin: top left;
+    width: 142.857%; /* 1/0.7 = 142.857% */
+  }
+}

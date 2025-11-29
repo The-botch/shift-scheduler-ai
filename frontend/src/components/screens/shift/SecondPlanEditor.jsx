@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '../../ui/button'
@@ -21,7 +21,9 @@ import {
   AlertTriangle,
   Zap,
   GripVertical,
+  FileText,
 } from 'lucide-react'
+import { useReactToPrint } from 'react-to-print'
 import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import ShiftTableView from '../../shared/ShiftTableView'
@@ -161,6 +163,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const chatEndRef = useRef(null)
+  const printRef = useRef(null)
+  const [printingStoreId, setPrintingStoreId] = useState(null)
   const [chatPosition, setChatPosition] = useState({
     x: window.innerWidth - 336,
     y: window.innerHeight - 520,
@@ -894,6 +898,49 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     }
   }
 
+  // PDF出力用の印刷関数
+  const reactToPrintFn = useReactToPrint({
+    contentRef: printRef,
+  })
+
+  // PDF出力ハンドラー（店舗ごとにPDF出力）
+  const handleExportPDF = useCallback(async () => {
+    if (!shiftData || shiftData.length === 0) {
+      alert('出力するシフトデータがありません')
+      return
+    }
+
+    // 選択された店舗を取得
+    const storesToPrint = selectedStores.length > 0 ? selectedStores : availableStores
+
+    if (storesToPrint.length === 0) {
+      alert('出力する店舗がありません')
+      return
+    }
+
+    // 店舗ごとにPDF出力
+    for (const store of storesToPrint) {
+      const storeId = store.store_id || store
+      const storeInfo = storesMap instanceof Map ? storesMap.get(storeId) : storesMap[storeId]
+      const storeName = storeInfo?.store_name || `店舗${storeId}`
+
+      // 印刷対象の店舗をセット
+      setPrintingStoreId(storeId)
+
+      // レンダリング完了を待つ
+      await new Promise(resolve => setTimeout(resolve, 200))
+
+      // PDF出力（印刷ダイアログ）
+      await reactToPrintFn()
+
+      // 次の店舗の前に少し待機
+      await new Promise(resolve => setTimeout(resolve, 500))
+    }
+
+    // 印刷完了後にリセット
+    setPrintingStoreId(null)
+  }, [shiftData, selectedStores, availableStores, storesMap, reactToPrintFn])
+
   // チャット関連ハンドラー
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -1445,6 +1492,11 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
             CSV
           </Button>
 
+          <Button size="sm" variant="outline" onClick={handleExportPDF}>
+            <FileText className="h-3 w-3 mr-1" />
+            PDF
+          </Button>
+
           {isEditMode && (
             <>
               <Button
@@ -1515,14 +1567,32 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden mx-8 mb-4">
+      <div className="flex-1 overflow-hidden mx-8 mb-4" ref={printRef}>
+        {/* 印刷用ヘッダー（画面では非表示、印刷時のみ表示） */}
+        <div className="hidden print:block print:mb-4 print:border-b-2 print:border-gray-300 print:pb-3">
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">
+                {printingStoreId
+                  ? `${(storesMap instanceof Map ? storesMap.get(printingStoreId) : storesMap[printingStoreId])?.store_name || ''} `
+                  : ''}
+                {year}年{month}月 シフト表
+              </h1>
+              <p className="text-xs text-gray-500 mt-0.5">第二案（確定版）</p>
+            </div>
+            <div className="text-right text-xs text-gray-500">
+              <div>出力日: {new Date().toLocaleDateString('ja-JP')}</div>
+            </div>
+          </div>
+        </div>
+
         <MultiStoreShiftTable
           year={year}
           month={month}
           shiftData={shiftData}
           staffMap={staffMap}
           storesMap={storesMap}
-          selectedStores={selectedStores}
+          selectedStores={printingStoreId ? new Set([printingStoreId]) : selectedStores}
           readonly={isViewMode}
           onAddShift={isEditMode ? handleAddShift : undefined}
           onUpdateShift={isEditMode ? handleUpdateShift : undefined}
@@ -1534,6 +1604,12 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
           onConflictClick={setSelectedConflict}
           showPreferenceColoring={true}
         />
+
+        {/* 印刷用フッター（画面では非表示、印刷時のみ表示） */}
+        <div className="hidden print:flex print:justify-between print:text-[8px] print:text-gray-400 print:mt-4 print:pt-2 print:border-t print:border-gray-200">
+          <span>Shift Scheduler AI</span>
+          <span>このシフト表は確定版です</span>
+        </div>
       </div>
 
       {/* タイムライン表示ウィンドウ */}
