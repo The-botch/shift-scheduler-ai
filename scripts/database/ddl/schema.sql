@@ -129,7 +129,7 @@ CREATE TABLE IF NOT EXISTS core.shift_deadline_settings (
 );
 
 COMMENT ON TABLE core.shift_deadline_settings IS 'シフト希望入力締切設定（契約形態別）。入力開始は第1案作成完了時';
-COMMENT ON COLUMN core.shift_deadline_settings.employment_type IS '契約形態（FULL_TIME=正社員、PART_TIME=アルバイト・パート、CONTRACT=契約社員、TEMPORARY=派遣社員）';
+COMMENT ON COLUMN core.shift_deadline_settings.employment_type IS '契約形態（FULL_TIME=正社員、PART_TIME=アルバイト・パート、CONTRACT=業務委託、TEMPORARY=派遣社員）';
 COMMENT ON COLUMN core.shift_deadline_settings.deadline_day IS 'シフト希望入力締切日（N-1月の1-31日）';
 COMMENT ON COLUMN core.shift_deadline_settings.deadline_time IS '締切時刻（"HH:MM"形式、例: "23:59", "18:00"）';
 COMMENT ON COLUMN core.shift_deadline_settings.is_enabled IS '期限チェック有効/無効フラグ';

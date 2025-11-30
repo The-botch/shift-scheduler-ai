@@ -37,9 +37,9 @@ INSERT INTO core.employment_types (tenant_id, employment_code, employment_name, 
 VALUES (3, 'PART_TIME', 'アルバイト', 'HOURLY', true)
 ON CONFLICT DO NOTHING;
 
--- 契約社員
+-- 業務委託
 INSERT INTO core.employment_types (tenant_id, employment_code, employment_name, payment_type, is_active)
-VALUES (3, 'CONTRACT', '契約社員', 'MONTHLY', true)
+VALUES (3, 'CONTRACT', '業務委託', 'MONTHLY', true)
 ON CONFLICT DO NOTHING;
 
 -- 派遣社員
@@ -242,12 +242,12 @@ SET
     description = EXCLUDED.description,
     updated_at = CURRENT_TIMESTAMP;
 
--- 契約社員（CONTRACT）の期限設定
+-- 業務委託（CONTRACT）の期限設定
 -- 入力開始: 第1案作成完了時、締切: N-1月10日12:00
 INSERT INTO core.shift_deadline_settings
   (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
 VALUES
-  (3, 'CONTRACT', 10, '12:00', true, '契約社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
+  (3, 'CONTRACT', 10, '12:00', true, '業務委託のシフト希望締切（第1案作成完了～N-1月10日12:00）')
 ON CONFLICT (tenant_id, employment_type) DO UPDATE
 SET
     deadline_day = EXCLUDED.deadline_day,
