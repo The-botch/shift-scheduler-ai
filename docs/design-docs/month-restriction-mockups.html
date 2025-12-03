@@ -499,5 +499,1188 @@ const getMonthStatus = async (year, month) => {
     </div>
 
   </div>
+
+    <!-- ========================================== -->
+    <!-- 詳細設計書 -->
+    <!-- ========================================== -->
+    <div class="pattern-section mt-12">
+      <div class="pattern-title">詳細設計書（実装仕様）</div>
+
+      <!-- 目次 -->
+      <div class="bg-slate-100 rounded-lg p-4 mb-8">
+        <h3 class="font-bold text-lg mb-3">目次</h3>
+        <ol class="text-sm space-y-1 list-decimal list-inside">
+          <li><a href="#overview" class="text-blue-600 hover:underline">概要・変更方針</a></li>
+          <li><a href="#file-structure" class="text-blue-600 hover:underline">ファイル構成・新規作成ファイル</a></li>
+          <li><a href="#component-details" class="text-blue-600 hover:underline">コンポーネント詳細設計</a></li>
+          <li><a href="#hooks-details" class="text-blue-600 hover:underline">Hooks詳細設計</a></li>
+          <li><a href="#data-flow" class="text-blue-600 hover:underline">データフロー・API連携</a></li>
+          <li><a href="#state-management" class="text-blue-600 hover:underline">状態管理設計</a></li>
+          <li><a href="#routing" class="text-blue-600 hover:underline">ルーティング・画面遷移</a></li>
+          <li><a href="#impact-analysis" class="text-blue-600 hover:underline">影響分析・既存機能への影響</a></li>
+          <li><a href="#migration" class="text-blue-600 hover:underline">移行計画・バックアップ方針</a></li>
+        </ol>
+      </div>
+
+      <!-- 1. 概要・変更方針 -->
+      <div id="overview" class="mb-10">
+        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b-2 border-slate-300 pb-2">1. 概要・変更方針</h3>
+
+        <div class="grid grid-cols-2 gap-6">
+          <div class="bg-white p-4 rounded-lg border">
+            <h4 class="font-semibold text-slate-700 mb-3">現在の構成</h4>
+            <ul class="text-sm space-y-2">
+              <li>• <code class="bg-slate-100 px-1">AppHeader.jsx</code>: 上部ナビゲーション</li>
+              <li>• <code class="bg-slate-100 px-1">ShiftManagement.jsx</code>: マトリックス形式（店舗×月）</li>
+              <li>• サイドメニューなし</li>
+              <li>• 全月が表示され選択可能</li>
+            </ul>
+          </div>
+          <div class="bg-white p-4 rounded-lg border">
+            <h4 class="font-semibold text-slate-700 mb-3">新しい構成</h4>
+            <ul class="text-sm space-y-2">
+              <li>• <code class="bg-slate-100 px-1">Sidebar.jsx</code>: 左サイドメニュー（年月選択）</li>
+              <li>• <code class="bg-slate-100 px-1">ShiftDashboard.jsx</code>: 3カード形式（募集・第一案・第二案）</li>
+              <li>• 対象月のみアクティブ</li>
+              <li>• 既存のマトリックス画面は_BKファイルとしてバックアップ保持</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="mt-4 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+          <h4 class="font-semibold text-amber-800 mb-2">⚠️ 変更方針</h4>
+          <ul class="text-sm text-amber-700 space-y-1">
+            <li>• 既存の <code>ShiftManagement.jsx</code> は <code>_BK</code> としてバックアップ保持</li>
+            <li>• 新規に <code>ShiftDashboard.jsx</code> を作成（新トップ画面）</li>
+            <li>• <code>App.jsx</code> を新UIに対応させる（_BKでバックアップ）</li>
+            <li>• 問題発生時は_BKファイルから即座に復旧可能</li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- 2. ファイル構成 -->
+      <div id="file-structure" class="mb-10">
+        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b-2 border-slate-300 pb-2">2. ファイル構成・新規作成ファイル</h3>
+
+        <div class="bg-slate-900 text-green-400 p-4 rounded-lg text-sm font-mono overflow-x-auto mb-4">
+<pre>frontend/src/
+├── hooks/
+│   ├── useTargetMonth.js          # 【新規】対象月判定ロジック
+│   └── useShiftStatus.js          # 【新規】シフト状態取得Hook
+│
+├── components/
+│   ├── shared/
+│   │   ├── Sidebar.jsx            # 【新規】左サイドメニュー
+│   │   ├── ShiftStatusCards.jsx   # 【新規】3カードコンポーネント
+│   │   └── AppHeader.jsx          # 【変更】MVP非表示メニュー対応
+│   │
+│   └── screens/
+│       └── shift/
+│           ├── ShiftDashboard.jsx  # 【新規】新トップ画面
+│           ├── ShiftManagement.jsx # 【維持】既存マトリックス画面
+│           ├── FirstPlanEditor.jsx # 【変更】props追加
+│           ├── SecondPlanEditor.jsx# 【変更】props追加
+│           └── Monitoring.jsx      # 【変更】props追加
+│
+└── App.jsx                         # 【変更】レイアウト・Sidebar統合</pre>
+        </div>
+
+        <table class="w-full border-collapse text-sm">
+          <thead>
+            <tr class="bg-slate-100">
+              <th class="border p-2 text-left">ファイル</th>
+              <th class="border p-2 text-left">種別</th>
+              <th class="border p-2 text-left">概要</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="border p-2 font-mono">hooks/useTargetMonth.js</td>
+              <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">新規</span></td>
+              <td class="border p-2">対象月の計算、月リスト生成、月ステータス判定</td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">hooks/useShiftStatus.js</td>
+              <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">新規</span></td>
+              <td class="border p-2">募集状況・第一案・第二案のステータス取得</td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">components/shared/Sidebar.jsx</td>
+              <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">新規</span></td>
+              <td class="border p-2">年月選択サイドメニュー（280px固定幅）</td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">components/shared/ShiftStatusCards.jsx</td>
+              <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">新規</span></td>
+              <td class="border p-2">3カード（募集状況・第一案・第二案）</td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">components/screens/shift/ShiftDashboard.jsx</td>
+              <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">新規</span></td>
+              <td class="border p-2">新トップ画面（Sidebar + ShiftStatusCards）</td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">App.jsx</td>
+              <td class="border p-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs">変更</span></td>
+              <td class="border p-2">レイアウト変更、Sidebar統合、画面切替追加</td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">components/shared/AppHeader.jsx</td>
+              <td class="border p-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs">変更</span></td>
+              <td class="border p-2">MVP非表示メニューの制御追加</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- 3. コンポーネント詳細設計 -->
+      <div id="component-details" class="mb-10">
+        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b-2 border-slate-300 pb-2">3. コンポーネント詳細設計</h3>
+
+        <!-- Sidebar.jsx -->
+        <div class="bg-white border rounded-lg p-5 mb-6">
+          <h4 class="font-bold text-lg text-slate-800 mb-3">3.1 Sidebar.jsx</h4>
+          <p class="text-sm text-slate-600 mb-4">左サイドメニューコンポーネント。年月選択とナビゲーションを提供。</p>
+
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <h5 class="font-semibold text-sm text-slate-700 mb-2">Props定義</h5>
+              <pre class="bg-slate-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
+interface SidebarProps {
+  // 選択中の年月
+  selectedYear: number
+  selectedMonth: number
+
+  // 年月選択時のコールバック
+  onMonthSelect: (year: number, month: number) => void
+
+  // ナビゲーション関数
+  onStaffManagement: () => void
+  onMonitoring: () => void
+
+  // 現在のパス（アクティブ状態判定用）
+  currentPath?: string
+}</pre>
+            </div>
+            <div>
+              <h5 class="font-semibold text-sm text-slate-700 mb-2">利用するHooks/Context</h5>
+              <pre class="bg-slate-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
+// Hooks
+import { useTargetMonth } from '../../hooks/useTargetMonth'
+
+// Icons (lucide-react)
+import {
+  Home, Lock, Calendar, Users,
+  BarChart3
+} from 'lucide-react'
+
+// 内部で使用
+const { targetMonth, monthList, isTargetMonth } = useTargetMonth()</pre>
+            </div>
+          </div>
+
+          <h5 class="font-semibold text-sm text-slate-700 mb-2">レンダリング構造</h5>
+          <pre class="bg-slate-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
+&lt;aside className="w-72 bg-slate-800 text-white flex-shrink-0 flex flex-col h-full"&gt;
+  {/* ヘッダー */}
+  &lt;div className="p-4 border-b border-slate-700"&gt;
+    &lt;span className="font-bold text-lg"&gt;シフト管理&lt;/span&gt;
+  &lt;/div&gt;
+
+  {/* ナビゲーション */}
+  &lt;nav className="p-3 flex-1 overflow-y-auto"&gt;
+    {/* ダッシュボードリンク */}
+    &lt;NavItem icon={Home} label="ダッシュボード" onClick={onHome} /&gt;
+
+    {/* 年月選択セクション */}
+    &lt;SectionHeader label="年月選択" /&gt;
+    {monthList.map(month =&gt; (
+      &lt;MonthItem
+        key={`${month.year}-${month.month}`}
+        {...month}
+        isSelected={selectedYear === month.year && selectedMonth === month.month}
+        isAccessible={isTargetMonth(month.year, month.month)}
+        onClick={() =&gt; onMonthSelect(month.year, month.month)}
+      /&gt;
+    ))}
+
+    {/* マスターセクション */}
+    &lt;SectionHeader label="マスター" /&gt;
+    &lt;NavItem icon={Users} label="スタッフ管理" onClick={onStaffManagement} /&gt;
+    &lt;NavItem icon={BarChart3} label="モニタリング" onClick={onMonitoring} /&gt;
+  &lt;/nav&gt;
+&lt;/aside&gt;</pre>
+
+          <h5 class="font-semibold text-sm text-slate-700 mt-4 mb-2">MonthItemの状態別スタイル</h5>
+          <table class="w-full border-collapse text-xs">
+            <thead>
+              <tr class="bg-slate-100">
+                <th class="border p-2">状態</th>
+                <th class="border p-2">className</th>
+                <th class="border p-2">アイコン</th>
+                <th class="border p-2">バッジ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="border p-2">対象月（選択中）</td>
+                <td class="border p-2 font-mono">bg-green-600 text-white shadow-lg</td>
+                <td class="border p-2">Calendar</td>
+                <td class="border p-2">対象月（bg-green-500）</td>
+              </tr>
+              <tr>
+                <td class="border p-2">過去月（確定済み）</td>
+                <td class="border p-2 font-mono">text-slate-500 opacity-50 cursor-not-allowed</td>
+                <td class="border p-2">Lock</td>
+                <td class="border p-2">確定済（bg-slate-600）</td>
+              </tr>
+              <tr>
+                <td class="border p-2">未来月（未開放）</td>
+                <td class="border p-2 font-mono">text-slate-500 opacity-50 cursor-not-allowed</td>
+                <td class="border p-2">Lock</td>
+                <td class="border p-2">未開放（bg-slate-600）</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- ShiftStatusCards.jsx -->
+        <div class="bg-white border rounded-lg p-5 mb-6">
+          <h4 class="font-bold text-lg text-slate-800 mb-3">3.2 ShiftStatusCards.jsx</h4>
+          <p class="text-sm text-slate-600 mb-4">3つのステータスカード（募集状況・第一案・第二案）を表示するコンポーネント。</p>
+
+          <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+              <h5 class="font-semibold text-sm text-slate-700 mb-2">Props定義</h5>
+              <pre class="bg-slate-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
+interface ShiftStatusCardsProps {
+  // 対象年月
+  year: number
+  month: number
+
+  // 各ステータス情報
+  recruitmentStatus: {
+    status: 'recruiting' | 'closed' | 'finished'
+    deadline: string          // "12月20日"
+    submittedCount: number    // 39
+    totalCount: number        // 50
+  }
+
+  firstPlanStatus: {
+    status: 'not_started' | 'draft' | 'approved'
+    updatedAt?: string        // "11/18に承認"
+  }
+
+  secondPlanStatus: {
+    status: 'unavailable' | 'not_started' | 'draft' | 'approved'
+    updatedAt?: string
+  }
+
+  // カードクリック時のコールバック
+  onRecruitmentClick: () => void
+  onFirstPlanClick: () => void
+  onSecondPlanClick: () => void
+}</pre>
+            </div>
+            <div>
+              <h5 class="font-semibold text-sm text-slate-700 mb-2">利用するUI部品</h5>
+              <pre class="bg-slate-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
+// lucide-react icons
+import {
+  Clock,           // 募集状況
+  FileText,        // 第一案
+  ClipboardCheck   // 第二案
+} from 'lucide-react'
+
+// 内部コンポーネント
+&lt;StatusCard
+  variant="recruitment" | "firstPlan" | "secondPlan"
+  status={status}
+  onClick={onClick}
+  disabled={isDisabled}
+&gt;
+  {/* カード内容 */}
+&lt;/StatusCard&gt;</pre>
+            </div>
+          </div>
+
+          <h5 class="font-semibold text-sm text-slate-700 mb-2">カード状態別の表示仕様</h5>
+          <div class="overflow-x-auto">
+            <table class="w-full border-collapse text-xs">
+              <thead>
+                <tr class="bg-slate-100">
+                  <th class="border p-2">カード</th>
+                  <th class="border p-2">ステータス</th>
+                  <th class="border p-2">見出し</th>
+                  <th class="border p-2">サブテキスト</th>
+                  <th class="border p-2">ボタンラベル</th>
+                  <th class="border p-2">カラースキーム</th>
+                </tr>
+              </thead>
+              <tbody>
+                <!-- 募集状況 -->
+                <tr>
+                  <td class="border p-2" rowspan="3">募集状況</td>
+                  <td class="border p-2">recruiting</td>
+                  <td class="border p-2">募集中</td>
+                  <td class="border p-2">締切: {deadline}</td>
+                  <td class="border p-2">詳細を見る →</td>
+                  <td class="border p-2">green-*</td>
+                </tr>
+                <tr>
+                  <td class="border p-2">closed</td>
+                  <td class="border p-2">締切済</td>
+                  <td class="border p-2">変更可能期間</td>
+                  <td class="border p-2">詳細を見る →</td>
+                  <td class="border p-2">orange-*</td>
+                </tr>
+                <tr>
+                  <td class="border p-2">finished</td>
+                  <td class="border p-2">募集終了</td>
+                  <td class="border p-2">確定済み</td>
+                  <td class="border p-2">履歴を見る</td>
+                  <td class="border p-2">slate-*</td>
+                </tr>
+                <!-- 第一案 -->
+                <tr>
+                  <td class="border p-2" rowspan="3">第一案</td>
+                  <td class="border p-2">not_started</td>
+                  <td class="border p-2">未作成</td>
+                  <td class="border p-2">作成を開始してください</td>
+                  <td class="border p-2">作成開始</td>
+                  <td class="border p-2">slate-*</td>
+                </tr>
+                <tr>
+                  <td class="border p-2">draft</td>
+                  <td class="border p-2">作成中</td>
+                  <td class="border p-2">下書き保存済み</td>
+                  <td class="border p-2">編集を続ける →</td>
+                  <td class="border p-2">amber-*</td>
+                </tr>
+                <tr>
+                  <td class="border p-2">approved</td>
+                  <td class="border p-2">承認済</td>
+                  <td class="border p-2">{updatedAt}に承認</td>
+                  <td class="border p-2">編集する</td>
+                  <td class="border p-2">blue-*</td>
+                </tr>
+                <!-- 第二案 -->
+                <tr>
+                  <td class="border p-2" rowspan="4">第二案</td>
+                  <td class="border p-2">unavailable</td>
+                  <td class="border p-2">作成不可</td>
+                  <td class="border p-2">第一案承認後に作成可能</td>
+                  <td class="border p-2">作成不可（disabled）</td>
+                  <td class="border p-2">slate-* + opacity-60</td>
+                </tr>
+                <tr>
+                  <td class="border p-2">not_started</td>
+                  <td class="border p-2">未作成</td>
+                  <td class="border p-2">作成を開始してください</td>
+                  <td class="border p-2">作成開始</td>
+                  <td class="border p-2">slate-*</td>
+                </tr>
+                <tr>
+                  <td class="border p-2">draft</td>
+                  <td class="border p-2">作成中</td>
+                  <td class="border p-2">下書き保存済み</td>
+                  <td class="border p-2">編集を続ける →</td>
+                  <td class="border p-2">amber-*</td>
+                </tr>
+                <tr>
+                  <td class="border p-2">approved</td>
+                  <td class="border p-2">承認済</td>
+                  <td class="border p-2">{updatedAt}に承認</td>
+                  <td class="border p-2">編集する</td>
+                  <td class="border p-2">blue-*</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ShiftDashboard.jsx -->
+        <div class="bg-white border rounded-lg p-5 mb-6">
+          <h4 class="font-bold text-lg text-slate-800 mb-3">3.3 ShiftDashboard.jsx</h4>
+          <p class="text-sm text-slate-600 mb-4">新しいトップ画面。Sidebarと3カードを組み合わせたダッシュボード。</p>
+
+          <h5 class="font-semibold text-sm text-slate-700 mb-2">Props定義</h5>
+          <pre class="bg-slate-900 text-green-400 p-3 rounded text-xs overflow-x-auto mb-4">
+interface ShiftDashboardProps {
+  // ナビゲーション関数（App.jsxから渡される）
+  onMonitoring: (initialData?: { year: number, month: number, storeId?: number }) => void
+  onFirstPlanEdit: (shift: ShiftInfo) => void
+  onSecondPlanEdit: (shift: ShiftInfo) => void
+  onStaffManagement: () => void
+
+  // UI切替（旧マトリックス画面へ）
+  onSwitchToMatrix?: () => void
+}
+
+interface ShiftInfo {
+  year: number
+  month: number
+  planId?: number
+  planType: 'FIRST' | 'SECOND'
+  status: 'DRAFT' | 'APPROVED' | 'not_started'
+}</pre>
+
+          <h5 class="font-semibold text-sm text-slate-700 mb-2">レンダリング構造</h5>
+          <pre class="bg-slate-900 text-green-400 p-3 rounded text-xs overflow-x-auto mb-4">
+&lt;div className="flex h-screen bg-slate-50"&gt;
+  {/* サイドバー */}
+  &lt;Sidebar
+    selectedYear={selectedYear}
+    selectedMonth={selectedMonth}
+    onMonthSelect={handleMonthSelect}
+    onStaffManagement={onStaffManagement}
+    onMonitoring={() =&gt; onMonitoring({ year: selectedYear, month: selectedMonth })}
+    currentPath="/"
+  /&gt;
+
+  {/* メインコンテンツ */}
+  &lt;main className="flex-1 flex flex-col overflow-hidden"&gt;
+    {/* ヘッダー */}
+    &lt;header className="bg-white border-b border-slate-200 px-6 py-4"&gt;
+      &lt;div className="flex items-center justify-between"&gt;
+        &lt;div&gt;
+          &lt;h1 className="text-2xl font-bold text-slate-900"&gt;
+            {selectedYear}年{selectedMonth}月 シフト管理
+          &lt;/h1&gt;
+          &lt;p className="text-slate-600 text-sm"&gt;対象月のシフト作成・管理&lt;/p&gt;
+        &lt;/div&gt;
+        {/* 環境バッジ */}
+        &lt;div className="bg-blue-50 text-blue-700 px-3 py-1 rounded-md text-xs"&gt;
+          {tenantName}
+        &lt;/div&gt;
+      &lt;/div&gt;
+    &lt;/header&gt;
+
+    {/* カードエリア */}
+    &lt;div className="flex-1 p-6 overflow-auto flex items-center justify-center"&gt;
+      &lt;ShiftStatusCards
+        year={selectedYear}
+        month={selectedMonth}
+        recruitmentStatus={recruitmentStatus}
+        firstPlanStatus={firstPlanStatus}
+        secondPlanStatus={secondPlanStatus}
+        onRecruitmentClick={handleRecruitmentClick}
+        onFirstPlanClick={handleFirstPlanClick}
+        onSecondPlanClick={handleSecondPlanClick}
+      /&gt;
+    &lt;/div&gt;
+  &lt;/main&gt;
+&lt;/div&gt;</pre>
+
+          <h5 class="font-semibold text-sm text-slate-700 mb-2">内部ステート</h5>
+          <pre class="bg-slate-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
+// 対象月Hook
+const { targetMonth, isTargetMonth } = useTargetMonth()
+
+// 選択中の年月（初期値は対象月）
+const [selectedYear, setSelectedYear] = useState(targetMonth.year)
+const [selectedMonth, setSelectedMonth] = useState(targetMonth.month)
+
+// シフトステータス取得Hook
+const {
+  recruitmentStatus,
+  firstPlanStatus,
+  secondPlanStatus,
+  loading
+} = useShiftStatus(selectedYear, selectedMonth)
+
+// テナント情報
+const { tenantId, tenantName } = useTenant()</pre>
+        </div>
+      </div>
+
+      <!-- 4. Hooks詳細設計 -->
+      <div id="hooks-details" class="mb-10">
+        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b-2 border-slate-300 pb-2">4. Hooks詳細設計</h3>
+
+        <!-- useTargetMonth -->
+        <div class="bg-white border rounded-lg p-5 mb-6">
+          <h4 class="font-bold text-lg text-slate-800 mb-3">4.1 useTargetMonth.js</h4>
+
+          <pre class="bg-slate-900 text-green-400 p-4 rounded text-xs overflow-x-auto mb-4">
+/**
+ * 対象月を判定するカスタムフック
+ *
+ * ロジック:
+ * - 20日以前: 来月が対象月
+ * - 21日以降: 再来月が対象月
+ */
+import { useMemo } from 'react'
+
+// 対象月を計算
+export const getTargetMonth = (date = new Date()) => {
+  const currentDay = date.getDate()
+  const currentMonth = date.getMonth() + 1
+  const currentYear = date.getFullYear()
+
+  if (currentDay <= 20) {
+    return {
+      year: currentMonth === 12 ? currentYear + 1 : currentYear,
+      month: currentMonth === 12 ? 1 : currentMonth + 1,
+    }
+  } else {
+    const targetMonth = currentMonth + 2
+    return {
+      year: targetMonth > 12 ? currentYear + 1 : currentYear,
+      month: targetMonth > 12 ? targetMonth - 12 : targetMonth,
+    }
+  }
+}
+
+// 月のステータスを判定
+export const getMonthStatus = (year, month, baseDate = new Date()) => {
+  const target = getTargetMonth(baseDate)
+  const targetDate = new Date(year, month - 1, 1)
+  const targetMonthDate = new Date(target.year, target.month - 1, 1)
+
+  if (targetDate.getTime() === targetMonthDate.getTime()) return 'target'
+  if (targetDate < targetMonthDate) return 'past'
+  return 'future'
+}
+
+// 表示用の年月リストを生成（対象月の前後）
+export const getMonthList = (count = 6, baseDate = new Date()) => {
+  const target = getTargetMonth(baseDate)
+  const months = []
+
+  // 対象月の2ヶ月前から開始
+  let startYear = target.year
+  let startMonth = target.month - 2
+  if (startMonth <= 0) {
+    startYear -= 1
+    startMonth += 12
+  }
+
+  for (let i = 0; i < count; i++) {
+    let year = startYear
+    let month = startMonth + i
+    if (month > 12) {
+      year += Math.floor((month - 1) / 12)
+      month = ((month - 1) % 12) + 1
+    }
+    months.push({
+      year, month,
+      status: getMonthStatus(year, month, baseDate),
+      label: `${year}年${month}月`,
+    })
+  }
+  return months
+}
+
+// Hook本体
+export const useTargetMonth = () => {
+  const targetMonth = useMemo(() => getTargetMonth(), [])
+  const monthList = useMemo(() => getMonthList(6), [])
+
+  return {
+    targetMonth,
+    monthList,
+    isTargetMonth: (year, month) =>
+      year === targetMonth.year && month === targetMonth.month,
+    getMonthStatus: (year, month) => getMonthStatus(year, month),
+  }
+}
+
+export default useTargetMonth</pre>
+        </div>
+
+        <!-- useShiftStatus -->
+        <div class="bg-white border rounded-lg p-5 mb-6">
+          <h4 class="font-bold text-lg text-slate-800 mb-3">4.2 useShiftStatus.js</h4>
+
+          <pre class="bg-slate-900 text-green-400 p-4 rounded text-xs overflow-x-auto">
+/**
+ * シフト状態を取得するカスタムフック
+ */
+import { useState, useEffect } from 'react'
+import { ShiftRepository } from '../infrastructure/repositories/ShiftRepository'
+import { useTenant } from '../contexts/TenantContext'
+
+const shiftRepository = new ShiftRepository()
+
+export const useShiftStatus = (year, month) => {
+  const { tenantId } = useTenant()
+  const [loading, setLoading] = useState(true)
+  const [recruitmentStatus, setRecruitmentStatus] = useState(null)
+  const [firstPlanStatus, setFirstPlanStatus] = useState(null)
+  const [secondPlanStatus, setSecondPlanStatus] = useState(null)
+
+  useEffect(() => {
+    const fetchStatus = async () => {
+      if (!year || !month) return
+
+      setLoading(true)
+      try {
+        // シフトサマリー取得
+        const summary = await shiftRepository.getSummary({
+          year, month, tenant_id: tenantId
+        })
+
+        // 第一案・第二案のプランを検索
+        const firstPlan = summary.find(p => p.plan_type === 'FIRST')
+        const secondPlan = summary.find(p => p.plan_type === 'SECOND')
+
+        // 募集状況の計算（締切日: 前月20日）
+        const deadline = new Date(year, month - 2, 20)
+        const now = new Date()
+        let recruitStatus = 'recruiting'
+        if (now > deadline) {
+          const monthEnd = new Date(year, month, 0)
+          recruitStatus = now > monthEnd ? 'finished' : 'closed'
+        }
+
+        // 希望シフト提出状況を取得
+        const preferences = await shiftRepository.getPreferences({
+          dateFrom: `${year}-${String(month).padStart(2, '0')}-01`,
+          dateTo: `${year}-${String(month).padStart(2, '0')}-31`,
+        })
+        const submittedStaffIds = new Set(preferences.map(p => p.staff_id))
+
+        setRecruitmentStatus({
+          status: recruitStatus,
+          deadline: `${month}月20日`,
+          submittedCount: submittedStaffIds.size,
+          totalCount: 50, // TODO: 実際のスタッフ数を取得
+        })
+
+        // 第一案ステータス
+        setFirstPlanStatus({
+          status: !firstPlan ? 'not_started'
+                 : firstPlan.status === 'APPROVED' ? 'approved'
+                 : 'draft',
+          planId: firstPlan?.plan_id,
+          updatedAt: firstPlan?.updated_at,
+        })
+
+        // 第二案ステータス（第一案が承認済みでない場合は作成不可）
+        const isFirstApproved = firstPlan?.status === 'APPROVED'
+        setSecondPlanStatus({
+          status: !isFirstApproved ? 'unavailable'
+                 : !secondPlan ? 'not_started'
+                 : secondPlan.status === 'APPROVED' ? 'approved'
+                 : 'draft',
+          planId: secondPlan?.plan_id,
+          updatedAt: secondPlan?.updated_at,
+        })
+
+      } catch (error) {
+        console.error('シフトステータス取得エラー:', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    fetchStatus()
+  }, [year, month, tenantId])
+
+  return { recruitmentStatus, firstPlanStatus, secondPlanStatus, loading }
+}
+
+export default useShiftStatus</pre>
+        </div>
+      </div>
+
+      <!-- 5. データフロー・API連携 -->
+      <div id="data-flow" class="mb-10">
+        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b-2 border-slate-300 pb-2">5. データフロー・API連携</h3>
+
+        <div class="bg-white border rounded-lg p-5 mb-4">
+          <h4 class="font-bold text-slate-800 mb-3">データフロー図</h4>
+          <pre class="bg-slate-100 p-4 rounded text-xs overflow-x-auto">
+┌─────────────────────────────────────────────────────────────────┐
+│                        ShiftDashboard                           │
+│  ┌─────────────┐    ┌──────────────────────────────────────┐   │
+│  │  Sidebar    │    │         ShiftStatusCards              │   │
+│  │             │    │  ┌────────┐ ┌────────┐ ┌────────┐    │   │
+│  │ MonthList   │    │  │募集状況│ │第一案  │ │第二案  │    │   │
+│  │  ↓ click    │    │  └───┬────┘ └───┬────┘ └───┬────┘    │   │
+│  └─────┬───────┘    └──────┼──────────┼──────────┼─────────┘   │
+│        │                    │          │          │             │
+│        ↓                    ↓          ↓          ↓             │
+│  onMonthSelect       onMonitoring  onFirstPlan  onSecondPlan   │
+└────────┼────────────────────┼──────────┼──────────┼─────────────┘
+         │                    │          │          │
+         ↓                    ↓          ↓          ↓
+┌────────────────────────────────────────────────────────────────┐
+│                          App.jsx                                │
+│   selectedYear/Month     goToMonitoring()  goToFirstPlanEdit() │
+│                                            goToSecondPlanEdit()│
+└────────────────────────────────────────────────────────────────┘
+         │
+         ↓
+┌────────────────────────────────────────────────────────────────┐
+│                      useShiftStatus Hook                        │
+│   ┌──────────────────────────────────────────────────────┐     │
+│   │              ShiftRepository                          │     │
+│   │   getSummary() → GET /api/shifts/summary              │     │
+│   │   getPreferences() → GET /api/shifts/preferences      │     │
+│   └──────────────────────────────────────────────────────┘     │
+└────────────────────────────────────────────────────────────────┘</pre>
+        </div>
+
+        <div class="bg-white border rounded-lg p-5">
+          <h4 class="font-bold text-slate-800 mb-3">使用するAPIエンドポイント</h4>
+          <table class="w-full border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-100">
+                <th class="border p-2 text-left">エンドポイント</th>
+                <th class="border p-2 text-left">メソッド</th>
+                <th class="border p-2 text-left">用途</th>
+                <th class="border p-2 text-left">パラメータ</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="border p-2 font-mono text-xs">/api/shifts/summary</td>
+                <td class="border p-2">GET</td>
+                <td class="border p-2">シフトプラン一覧取得</td>
+                <td class="border p-2 text-xs">tenant_id, year, month</td>
+              </tr>
+              <tr>
+                <td class="border p-2 font-mono text-xs">/api/shifts/preferences</td>
+                <td class="border p-2">GET</td>
+                <td class="border p-2">希望シフト取得（提出率計算）</td>
+                <td class="border p-2 text-xs">tenant_id, dateFrom, dateTo</td>
+              </tr>
+              <tr>
+                <td class="border p-2 font-mono text-xs">/api/staff</td>
+                <td class="border p-2">GET</td>
+                <td class="border p-2">スタッフ一覧（総数取得）</td>
+                <td class="border p-2 text-xs">tenant_id</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- 6. 状態管理設計 -->
+      <div id="state-management" class="mb-10">
+        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b-2 border-slate-300 pb-2">6. 状態管理設計</h3>
+
+        <div class="bg-white border rounded-lg p-5 mb-4">
+          <h4 class="font-bold text-slate-800 mb-3">App.jsx の状態変更</h4>
+
+          <pre class="bg-slate-900 text-green-400 p-4 rounded text-xs overflow-x-auto">
+// 【追加】選択中の年月（ダッシュボード用）
+const [dashboardYear, setDashboardYear] = useState(null)  // 初期値はuseTargetMonthで設定
+const [dashboardMonth, setDashboardMonth] = useState(null)
+
+// 【追加】ダッシュボード表示フラグ
+const [showShiftDashboard, setShowShiftDashboard] = useState(false)
+
+// 【変更】トップページ表示（新UIのみ）
+const goToShiftManagement = () => {
+  // 新UI: ダッシュボードを表示
+  setShowShiftDashboard(true)
+  setShowShiftManagement(false)
+  // ... 他のフラグをfalseに
+}</pre>
+        </div>
+
+        <div class="bg-white border rounded-lg p-5">
+          <h4 class="font-bold text-slate-800 mb-3">状態遷移図</h4>
+          <pre class="bg-slate-100 p-4 rounded text-xs overflow-x-auto">
+                    ┌───────────────────────┐
+                    │   App.jsx (状態管理)   │
+                    └───────────┬───────────┘
+                                │
+          ┌─────────────────────┼─────────────────────┐
+          │                     │                     │
+          ↓                     ↓                     ↓
+┌─────────────────┐                       ┌─────────────────┐
+│ ShiftDashboard  │                       │FirstPlanEditor  │
+│ (新UI・3カード)  │                       │(編集画面)       │
+└────────┬────────┘                       └────────┬────────┘
+         │                    │                    │
+         │ onFirstPlanClick   │ onFirstPlan        │ onBack
+         │ onSecondPlanClick  │ onCreateSecondPlan │
+         │ onMonitoring       │ onMonitoring       │
+         │                    │                    │
+         └────────────────────┴────────────────────┘
+                              │
+                              ↓
+                    画面切替 (navigate + state更新)</pre>
+        </div>
+      </div>
+
+      <!-- 7. ルーティング・画面遷移 -->
+      <div id="routing" class="mb-10">
+        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b-2 border-slate-300 pb-2">7. ルーティング・画面遷移</h3>
+
+        <div class="bg-white border rounded-lg p-5 mb-4">
+          <h4 class="font-bold text-slate-800 mb-3">URL パス一覧</h4>
+          <table class="w-full border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-100">
+                <th class="border p-2 text-left">パス</th>
+                <th class="border p-2 text-left">コンポーネント</th>
+                <th class="border p-2 text-left">説明</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="border p-2 font-mono">/</td>
+                <td class="border p-2">ShiftDashboard</td>
+                <td class="border p-2">トップ画面（新UI）</td>
+              </tr>
+              <tr>
+                <td class="border p-2 font-mono">/shift/draft-editor</td>
+                <td class="border p-2">FirstPlanEditor</td>
+                <td class="border p-2">第一案編集画面</td>
+              </tr>
+              <tr>
+                <td class="border p-2 font-mono">/shift/second-plan</td>
+                <td class="border p-2">SecondPlanEditor</td>
+                <td class="border p-2">第二案編集画面</td>
+              </tr>
+              <tr>
+                <td class="border p-2 font-mono">/shift/monitoring</td>
+                <td class="border p-2">Monitoring</td>
+                <td class="border p-2">モニタリング画面</td>
+              </tr>
+              <tr>
+                <td class="border p-2 font-mono">/staff</td>
+                <td class="border p-2">StaffManagement</td>
+                <td class="border p-2">スタッフ管理画面</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="bg-white border rounded-lg p-5">
+          <h4 class="font-bold text-slate-800 mb-3">画面遷移時のデータ受け渡し</h4>
+          <pre class="bg-slate-900 text-green-400 p-4 rounded text-xs overflow-x-auto">
+// 募集状況カードクリック → モニタリング画面
+const handleRecruitmentClick = () => {
+  onMonitoring({
+    year: selectedYear,
+    month: selectedMonth,
+    // storeIdは指定しない（全店舗）
+  })
+}
+
+// 第一案カードクリック → FirstPlanEditor
+const handleFirstPlanClick = () => {
+  onFirstPlanEdit({
+    year: selectedYear,
+    month: selectedMonth,
+    planId: firstPlanStatus.planId,
+    planType: 'FIRST',
+    status: firstPlanStatus.status === 'approved' ? 'APPROVED'
+          : firstPlanStatus.status === 'draft' ? 'DRAFT'
+          : 'not_started',
+  })
+}
+
+// 第二案カードクリック → SecondPlanEditor
+const handleSecondPlanClick = () => {
+  // 作成不可の場合は何もしない
+  if (secondPlanStatus.status === 'unavailable') return
+
+  onSecondPlanEdit({
+    year: selectedYear,
+    month: selectedMonth,
+    planId: secondPlanStatus.planId,
+    planType: 'SECOND',
+    status: secondPlanStatus.status === 'approved' ? 'APPROVED'
+          : secondPlanStatus.status === 'draft' ? 'DRAFT'
+          : 'not_started',
+  })
+}</pre>
+        </div>
+      </div>
+
+      <!-- 8. 影響分析 -->
+      <div id="impact-analysis" class="mb-10">
+        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b-2 border-slate-300 pb-2">8. 影響分析・既存機能への影響</h3>
+
+        <div class="space-y-4">
+          <!-- App.jsx -->
+          <div class="bg-white border rounded-lg p-5">
+            <h4 class="font-bold text-slate-800 mb-3">8.1 App.jsx への影響</h4>
+            <table class="w-full border-collapse text-sm">
+              <thead>
+                <tr class="bg-red-50">
+                  <th class="border p-2 text-left">変更箇所</th>
+                  <th class="border p-2 text-left">変更内容</th>
+                  <th class="border p-2 text-left">影響度</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="border p-2">import文</td>
+                  <td class="border p-2">ShiftDashboard, Sidebarのimport追加</td>
+                  <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">低</span></td>
+                </tr>
+                <tr>
+                  <td class="border p-2">state追加</td>
+                  <td class="border p-2">showShiftDashboard, dashboardYear/Month追加</td>
+                  <td class="border p-2"><span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs">中</span></td>
+                </tr>
+                <tr>
+                  <td class="border p-2">goToShiftManagement()</td>
+                  <td class="border p-2">ShiftDashboard表示に変更</td>
+                  <td class="border p-2"><span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs">中</span></td>
+                </tr>
+                <tr>
+                  <td class="border p-2">renderCurrentScreen()</td>
+                  <td class="border p-2">ShiftDashboard表示分岐追加</td>
+                  <td class="border p-2"><span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs">中</span></td>
+                </tr>
+                <tr>
+                  <td class="border p-2">レイアウト</td>
+                  <td class="border p-2">Sidebar統合のためflex構造変更</td>
+                  <td class="border p-2"><span class="bg-red-100 text-red-700 px-2 py-0.5 rounded text-xs">高</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- AppHeader.jsx -->
+          <div class="bg-white border rounded-lg p-5">
+            <h4 class="font-bold text-slate-800 mb-3">8.2 AppHeader.jsx への影響</h4>
+            <table class="w-full border-collapse text-sm">
+              <thead>
+                <tr class="bg-red-50">
+                  <th class="border p-2 text-left">変更箇所</th>
+                  <th class="border p-2 text-left">変更内容</th>
+                  <th class="border p-2 text-left">影響度</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="border p-2">メニュー項目</td>
+                  <td class="border p-2">MVP非表示項目の条件付きレンダリング追加</td>
+                  <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">低</span></td>
+                </tr>
+                <tr>
+                  <td class="border p-2">表示条件</td>
+                  <td class="border p-2">Sidebar表示時はヘッダーを簡略化</td>
+                  <td class="border p-2"><span class="bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded text-xs">中</span></td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="mt-3 p-3 bg-amber-50 border border-amber-200 rounded text-sm">
+              <strong>MVP非表示メニュー項目:</strong>
+              <ul class="mt-1 text-amber-700 text-xs space-y-0.5">
+                <li>• 店舗管理 (/store)</li>
+                <li>• 予実管理 (/budget-actual)</li>
+                <li>• 制約管理 (/constraint)</li>
+                <li>• マスターデータ管理 (/master)</li>
+                <li>• LINE関連 (/shift/line)</li>
+                <li>• テナント選択ドロップダウン</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- FirstPlanEditor.jsx -->
+          <div class="bg-white border rounded-lg p-5">
+            <h4 class="font-bold text-slate-800 mb-3">8.3 FirstPlanEditor.jsx への影響</h4>
+            <table class="w-full border-collapse text-sm">
+              <thead>
+                <tr class="bg-red-50">
+                  <th class="border p-2 text-left">変更箇所</th>
+                  <th class="border p-2 text-left">変更内容</th>
+                  <th class="border p-2 text-left">影響度</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="border p-2">Props</td>
+                  <td class="border p-2">selectedShiftの形式は既存互換のため変更なし</td>
+                  <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">なし</span></td>
+                </tr>
+                <tr>
+                  <td class="border p-2">戻るボタン</td>
+                  <td class="border p-2">onBackの遷移先がダッシュボードに変わる可能性</td>
+                  <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">低</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- SecondPlanEditor.jsx -->
+          <div class="bg-white border rounded-lg p-5">
+            <h4 class="font-bold text-slate-800 mb-3">8.4 SecondPlanEditor.jsx への影響</h4>
+            <table class="w-full border-collapse text-sm">
+              <thead>
+                <tr class="bg-red-50">
+                  <th class="border p-2 text-left">変更箇所</th>
+                  <th class="border p-2 text-left">変更内容</th>
+                  <th class="border p-2 text-left">影響度</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="border p-2">Props</td>
+                  <td class="border p-2">selectedShiftの形式は既存互換のため変更なし</td>
+                  <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">なし</span></td>
+                </tr>
+                <tr>
+                  <td class="border p-2">戻るボタン</td>
+                  <td class="border p-2">onPrevの遷移先がダッシュボードに変わる可能性</td>
+                  <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">低</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Monitoring.jsx -->
+          <div class="bg-white border rounded-lg p-5">
+            <h4 class="font-bold text-slate-800 mb-3">8.5 Monitoring.jsx への影響</h4>
+            <table class="w-full border-collapse text-sm">
+              <thead>
+                <tr class="bg-red-50">
+                  <th class="border p-2 text-left">変更箇所</th>
+                  <th class="border p-2 text-left">変更内容</th>
+                  <th class="border p-2 text-left">影響度</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="border p-2">初期表示</td>
+                  <td class="border p-2">initialMonthで指定された年月を初期表示</td>
+                  <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">既存対応済</span></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- ShiftManagement.jsx -->
+          <div class="bg-white border rounded-lg p-5">
+            <h4 class="font-bold text-slate-800 mb-3">8.6 ShiftManagement.jsx への影響</h4>
+            <div class="p-3 bg-green-50 border border-green-200 rounded text-sm text-green-700">
+              <strong>変更なし</strong>: 既存のマトリックス画面はそのまま維持。UI切替で旧画面として利用可能。
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 9. 移行計画 -->
+      <div id="migration" class="mb-10">
+        <h3 class="text-xl font-bold text-slate-800 mb-4 border-b-2 border-slate-300 pb-2">9. 移行計画・バックアップ方針</h3>
+
+        <div class="bg-white border rounded-lg p-5 mb-4">
+          <h4 class="font-bold text-slate-800 mb-3">バックアップファイル方針</h4>
+          <div class="p-4 bg-green-50 border border-green-200 rounded-lg mb-4">
+            <p class="text-green-800 font-semibold mb-2">✅ 実装済み - バックアップ作成完了</p>
+            <p class="text-sm text-green-700">元ファイルは <code class="bg-green-100 px-1">_BK</code> サフィックスでバックアップ済み。新規作成ファイルを削除してバックアップを元の名前に戻すだけで復旧可能。</p>
+          </div>
+
+          <table class="w-full border-collapse text-sm">
+            <thead>
+              <tr class="bg-slate-100">
+                <th class="border p-2 text-left">新規作成ファイル</th>
+                <th class="border p-2 text-left">バックアップ（元ファイルのコピー）</th>
+                <th class="border p-2 text-left">状態</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="border p-2 font-mono text-xs">components/shared/AppHeader.jsx</td>
+                <td class="border p-2 font-mono text-xs">components/shared/AppHeader_BK.jsx</td>
+                <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">BK作成済み</span></td>
+              </tr>
+              <tr>
+                <td class="border p-2 font-mono text-xs">components/screens/shift/ShiftManagement.jsx</td>
+                <td class="border p-2 font-mono text-xs">components/screens/shift/ShiftManagement_BK.jsx</td>
+                <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">BK作成済み</span></td>
+              </tr>
+              <tr>
+                <td class="border p-2 font-mono text-xs">App.jsx</td>
+                <td class="border p-2 font-mono text-xs">App_BK.jsx</td>
+                <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">BK作成済み</span></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded text-sm">
+            <strong class="text-blue-800">復旧手順:</strong>
+            <ol class="mt-2 text-blue-700 space-y-1 list-decimal list-inside">
+              <li>バックアップファイル（*_BK.jsx）の内容を元のファイルにコピー</li>
+              <li>新規作成ファイル（Sidebar.jsx, ShiftDashboard.jsx等）は削除不要（使われなくなるだけ）</li>
+              <li>npm run dev で動作確認</li>
+            </ol>
+          </div>
+
+          <div class="mt-4">
+            <h5 class="font-semibold text-sm text-slate-700 mb-2">復旧コマンド</h5>
+            <pre class="bg-slate-900 text-green-400 p-3 rounded text-xs overflow-x-auto">
+# 復旧時（バックアップから元ファイルに戻す）
+cp frontend/src/components/shared/AppHeader_BK.jsx \
+   frontend/src/components/shared/AppHeader.jsx
+
+cp frontend/src/components/screens/shift/ShiftManagement_BK.jsx \
+   frontend/src/components/screens/shift/ShiftManagement.jsx
+
+cp frontend/src/App_BK.jsx \
+   frontend/src/App.jsx</pre>
+          </div>
+        </div>
+
+        <div class="bg-white border rounded-lg p-5">
+          <h4 class="font-bold text-slate-800 mb-3">実装ステップ</h4>
+          <ol class="space-y-3 text-sm">
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold">✓</span>
+              <div>
+                <strong>バックアップ作成 <span class="text-green-600">（完了）</span></strong>
+                <p class="text-slate-600">AppHeader.jsx, ShiftManagement.jsx, App.jsx を _BK ファイルとしてコピー済み</p>
+              </div>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">1</span>
+              <div>
+                <strong>Hooks作成</strong>
+                <p class="text-slate-600">useTargetMonth.js, useShiftStatus.js を作成</p>
+              </div>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">2</span>
+              <div>
+                <strong>コンポーネント作成</strong>
+                <p class="text-slate-600">Sidebar.jsx, ShiftStatusCards.jsx, ShiftDashboard.jsx を作成</p>
+              </div>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">3</span>
+              <div>
+                <strong>App.jsx 新規作成</strong>
+                <p class="text-slate-600">Sidebar統合、新レイアウト構造で作成</p>
+              </div>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">4</span>
+              <div>
+                <strong>AppHeader.jsx 新規作成</strong>
+                <p class="text-slate-600">MVP非表示対応、シンプルなヘッダーで作成</p>
+              </div>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-xs font-bold">5</span>
+              <div>
+                <strong>動作確認・テスト</strong>
+                <p class="text-slate-600">新UI動作確認、画面遷移テスト、バックアップ復旧テスト</p>
+              </div>
+            </li>
+            <li class="flex gap-3">
+              <span class="flex-shrink-0 w-6 h-6 bg-green-500 text-white rounded-full flex items-center justify-center text-xs font-bold">✓</span>
+              <div>
+                <strong>完了後</strong>
+                <p class="text-slate-600">バックアップファイルは当面残しておく（安定稼働確認後に削除検討）</p>
+              </div>
+            </li>
+          </ol>
+        </div>
+      </div>
+
+    </div>
+  </div>
 </body>
 </html>
