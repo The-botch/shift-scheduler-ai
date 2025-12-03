@@ -95,6 +95,66 @@ async function getPreviousSecondShifts(tenantId, targetYear, targetMonth, storeI
   });
 }
 
+/**
+ * 時間文字列を分に変換
+ * @param {string} timeStr - 時間文字列 (HH:MM または HH:MM:SS)
+ * @returns {number} - 分
+ */
+function parseTimeToMinutes(timeStr) {
+  if (!timeStr) return 0;
+  const parts = timeStr.split(':').map(Number);
+  return parts[0] * 60 + parts[1];
+}
+
+/**
+ * 2つのシフトの時間が重複しているかチェック
+ * @param {Object} shift1 - シフト1 { start_time, end_time }
+ * @param {Object} shift2 - シフト2 { start_time, end_time }
+ * @returns {boolean} - 重複している場合true
+ */
+function isTimeOverlap(shift1, shift2) {
+  const s1Start = parseTimeToMinutes(shift1.start_time);
+  const s1End = parseTimeToMinutes(shift1.end_time);
+  const s2Start = parseTimeToMinutes(shift2.start_time);
+  const s2End = parseTimeToMinutes(shift2.end_time);
+
+  // 重複条件: !(終了1 <= 開始2 || 終了2 <= 開始1)
+  return !(s1End <= s2Start || s2End <= s1Start);
+}
+
+/**
+ * シフト登録・更新時の時間重複チェック
+ * @param {Object} newShift - 新しいシフト { tenant_id, staff_id, shift_date, start_time, end_time, shift_id? }
+ * @returns {Object} - { valid: boolean, error?: string, existingShift?: Object }
+ */
+async function validateShiftTimeOverlap(newShift) {
+  const { tenant_id, staff_id, shift_date, start_time, end_time, shift_id } = newShift;
+
+  // 同一日・同一スタッフの既存シフトを取得（自分自身は除く）
+  const existingShifts = await query(`
+    SELECT s.*, st.store_name
+    FROM ops.shifts s
+    JOIN core.stores st ON s.store_id = st.store_id
+    WHERE s.tenant_id = $1
+      AND s.staff_id = $2
+      AND s.shift_date = $3
+      AND s.shift_id != $4
+  `, [tenant_id, staff_id, shift_date, shift_id || 0]);
+
+  // 時間の重複チェック
+  for (const existing of existingShifts.rows) {
+    if (isTimeOverlap({ start_time, end_time }, existing)) {
+      return {
+        valid: false,
+        error: `${existing.store_name}のシフト(${existing.start_time.slice(0,5)}-${existing.end_time.slice(0,5)})と時間が重複しています`,
+        existingShift: existing
+      };
+    }
+  }
+
+  return { valid: true, error: null };
+}
+
 // ============================================
 // エンドポイント
 // ============================================
@@ -1967,6 +2027,22 @@ router.post('/', async (req, res) => {
       });
     }
 
+    // 時間重複チェック（Issue #165: 複数店舗横断シフト対応）
+    const overlapResult = await validateShiftTimeOverlap({
+      tenant_id,
+      staff_id,
+      shift_date,
+      start_time,
+      end_time
+    });
+    if (!overlapResult.valid) {
+      return res.status(400).json({
+        success: false,
+        error: overlapResult.error,
+        code: 'TIME_OVERLAP'
+      });
+    }
+
     // total_hours の自動計算（未指定の場合）
     let calculatedTotalHours = total_hours;
     if (calculatedTotalHours === undefined || calculatedTotalHours === null) {
@@ -2146,6 +2222,27 @@ router.put('/:id', async (req, res) => {
         success: false,
         error: VALIDATION_MESSAGES.INVALID_BREAK_MINUTES
       });
+    }
+
+    // 時間重複チェック（Issue #165: 複数店舗横断シフト対応）
+    // スタッフ、日付、時間のいずれかが変更された場合にチェック
+    if (staff_id !== undefined || shift_date !== undefined ||
+        start_time !== undefined || end_time !== undefined) {
+      const overlapResult = await validateShiftTimeOverlap({
+        tenant_id,
+        staff_id: newStaffId,
+        shift_date: newShiftDate,
+        start_time: newStartTime,
+        end_time: newEndTime,
+        shift_id: parseInt(id, 10)
+      });
+      if (!overlapResult.valid) {
+        return res.status(400).json({
+          success: false,
+          error: overlapResult.error,
+          code: 'TIME_OVERLAP'
+        });
+      }
     }
 
     // 時間が変更された場合、is_modifiedを自動的にtrueに設定
