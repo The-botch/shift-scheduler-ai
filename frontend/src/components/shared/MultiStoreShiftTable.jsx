@@ -43,14 +43,18 @@ const MultiStoreShiftTable = ({
   // パフォーマンス最適化: O(n)検索をO(1)に変換するMap
   // ===============================================
 
-  // shiftData を Map 化（キー: "YYYY-MM-DD_staffId"）
+  // Issue #165: shiftData を Map 化（キー: "YYYY-MM-DD_staffId" → 配列）
+  // 1日に複数店舗でシフトがある場合に対応
   const shiftDataMap = useMemo(() => {
     const map = new Map()
     shiftData.forEach(shift => {
       if (shift.shift_date) {
         const dateStr = shift.shift_date.substring(0, 10)
         const key = `${dateStr}_${shift.staff_id}`
-        map.set(key, shift)
+        if (!map.has(key)) {
+          map.set(key, [])
+        }
+        map.get(key).push(shift)
       }
     })
     return map
@@ -114,10 +118,17 @@ const MultiStoreShiftTable = ({
     return store ? store.store_name : ''
   }
 
-  // 日付とスタッフIDからシフトを検索（O(1) Map lookup）
-  const getShiftForDateAndStaff = (date, staffId) => {
+  // Issue #165: 日付とスタッフIDからシフト配列を検索（O(1) Map lookup）
+  // 複数店舗勤務の場合は複数のシフトが返される
+  const getShiftsForDateAndStaff = (date, staffId) => {
     const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-    return shiftDataMap.get(`${dateStr}_${staffId}`)
+    return shiftDataMap.get(`${dateStr}_${staffId}`) || []
+  }
+
+  // 後方互換性のため、最初のシフトのみを返す関数も用意
+  const getShiftForDateAndStaff = (date, staffId) => {
+    const shifts = getShiftsForDateAndStaff(date, staffId)
+    return shifts.length > 0 ? shifts[0] : null
   }
 
   // 勤務時間を計算
@@ -314,8 +325,31 @@ const MultiStoreShiftTable = ({
     return 'bg-white'
   }
 
-  // シフトカードの色分け（雇用形態別ロジック）
-  const getShiftCardColor = (date, staffId) => {
+  // 時刻を分に変換するヘルパー関数
+  const parseTimeToMinutes = timeStr => {
+    if (!timeStr) return 0
+    const parts = timeStr.split(':').map(Number)
+    return parts[0] * 60 + (parts[1] || 0)
+  }
+
+  // シフトの時間帯が希望時間内かチェック
+  const isShiftWithinPreferenceTime = (shift, pref) => {
+    // 希望シフトに時間指定がない場合は日付だけで判定（従来通り）
+    if (!pref.start_time && !pref.end_time) {
+      return true
+    }
+
+    const shiftStart = parseTimeToMinutes(shift.start_time)
+    const shiftEnd = parseTimeToMinutes(shift.end_time)
+    const prefStart = parseTimeToMinutes(pref.start_time)
+    const prefEnd = parseTimeToMinutes(pref.end_time)
+
+    // シフトが希望時間内に完全に収まっているかチェック
+    return shiftStart >= prefStart && shiftEnd <= prefEnd
+  }
+
+  // シフトカードの色分け（雇用形態別ロジック）- シフトの時間帯も考慮
+  const getShiftCardColor = (date, staffId, shift = null) => {
     // 希望シフトベースの色分けが無効の場合（第一案）
     if (!showPreferenceColoring) {
       return 'bg-gray-100 border border-gray-300'
@@ -324,12 +358,18 @@ const MultiStoreShiftTable = ({
     const staff = staffMap[staffId]
     const employmentType = staff?.employment_type || ''
     const isNg = isNgDay(date, staffId)
-    const isPreferred = isPreferredDay(date, staffId)
+    const pref = getStaffPreferenceForDate(date, staffId)
+    const isPreferred = pref && !pref.is_ng
 
     // 【PART_TIMEの場合】アルバイト・パートは希望日のみ勤務可能
     if (employmentType === 'PART_TIME') {
       if (isPreferred) {
-        // 希望日に配置 → 緑色（OK）
+        // 希望日だが、時間帯もチェック
+        if (shift && pref && !isShiftWithinPreferenceTime(shift, pref)) {
+          // 希望時間外に配置 → 赤色（要修正）
+          return 'bg-red-200 border border-red-500'
+        }
+        // 希望日・希望時間内に配置 → 緑色（OK）
         return 'bg-green-100 border border-green-400'
       } else {
         // 希望日以外に配置 → 赤色（要修正）
@@ -553,20 +593,27 @@ const MultiStoreShiftTable = ({
                           </div>
                         </td>
 
-                        {/* スタッフごとのシフトセル */}
+                        {/* スタッフごとのシフトセル（Issue #165: 複数シフト対応） */}
                         {group.staff.map(staff => {
-                          const shift = getShiftForDateAndStaff(date, staff.staff_id)
-                          const hours = shift ? calculateHours(shift.start_time, shift.end_time) : 0
+                          // Issue #165: 複数シフトを取得
+                          const allShifts = getShiftsForDateAndStaff(date, staff.staff_id)
+                          // 選択された店舗のシフトのみ表示
+                          const visibleShifts = allShifts.filter(
+                            s =>
+                              selectedStores &&
+                              selectedStores.size > 0 &&
+                              selectedStores.has(parseInt(s.store_id))
+                          )
+                          const shift = visibleShifts.length > 0 ? visibleShifts[0] : null
+                          const hasMultipleShifts = visibleShifts.length > 1
+                          const totalHours = visibleShifts.reduce(
+                            (sum, s) => sum + calculateHours(s.start_time, s.end_time),
+                            0
+                          )
                           const conflict = getConflict(date, staff.staff_id)
                           const hopeShift = getHopeShift(date, staff.staff_id)
                           const cellBgColor = getCellBackgroundColor(date, staff.staff_id)
-
-                          // シフトがあり、かつそのシフトの店舗が選択されている場合のみ表示
-                          const shouldShowShift =
-                            shift &&
-                            selectedStores &&
-                            selectedStores.size > 0 &&
-                            selectedStores.has(parseInt(shift.store_id))
+                          const shouldShowShift = visibleShifts.length > 0
 
                           // セルクリックハンドラ
                           const handleCellClick = e => {
@@ -584,6 +631,7 @@ const MultiStoreShiftTable = ({
                                     staff_name: staff.name,
                                     store_name: getStoreName(shift.store_id),
                                   },
+                                  allShifts: visibleShifts, // Issue #165: 複数シフトも渡す
                                   date: dateStr,
                                   staffId: staff.staff_id,
                                   storeId: shift.store_id,
@@ -621,6 +669,7 @@ const MultiStoreShiftTable = ({
                                 date,
                                 staffId: staff.staff_id,
                                 shift: shouldShowShift ? shift : null,
+                                allShifts: visibleShifts, // Issue #165: 複数シフトも渡す
                                 hopeShift,
                                 conflict,
                                 staff,
@@ -631,30 +680,116 @@ const MultiStoreShiftTable = ({
                           return (
                             <td
                               key={staff.staff_id}
-                              className={`px-0.5 py-0.5 border-r border-b border-gray-200 ${cellBgColor} ${onCellClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+                              className={`px-0.5 py-0.5 border-r border-b border-gray-200 ${cellBgColor} ${hasMultipleShifts ? 'bg-amber-50 border-amber-300' : ''} ${onCellClick ? 'cursor-pointer hover:opacity-80' : ''}`}
                               onClick={handleCellClick}
                             >
                               {shouldShowShift ? (
-                                // シフト表示（読み取り専用）
-                                <div
-                                  className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id)} relative`}
-                                >
-                                  {shift.modified_flag && (
-                                    <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
-                                      !
+                                <div className="relative group">
+                                  {hasMultipleShifts ? (
+                                    // Issue #165: 複数シフト表示（1セル内に縦並び）
+                                    <div className="space-y-0.5">
+                                      {visibleShifts.map((s, idx) => (
+                                        <div
+                                          key={s.shift_id || idx}
+                                          className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id, s)} relative cursor-pointer hover:ring-2 hover:ring-blue-400`}
+                                          onClick={e => {
+                                            // 各シフトカードをクリックしたら、そのシフトを編集
+                                            e.stopPropagation()
+                                            if (onShiftClick) {
+                                              const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+                                              onShiftClick({
+                                                mode: 'edit',
+                                                shift: {
+                                                  ...s,
+                                                  date: dateStr,
+                                                  staff_name: staff.name,
+                                                  store_name: getStoreName(s.store_id),
+                                                },
+                                                allShifts: visibleShifts,
+                                                date: dateStr,
+                                                staffId: staff.staff_id,
+                                                storeId: s.store_id,
+                                                event: e,
+                                              })
+                                            }
+                                          }}
+                                        >
+                                          {s.modified_flag && (
+                                            <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
+                                              !
+                                            </div>
+                                          )}
+                                          <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
+                                            <span className="bg-indigo-600 text-white px-0.5 rounded text-[0.4rem] mr-0.5">
+                                              {getStoreCode(s.store_id)}
+                                            </span>
+                                            {formatTime(s.start_time)}-{formatTime(s.end_time)}
+                                          </div>
+                                        </div>
+                                      ))}
+                                      <div className="text-[0.45rem] text-gray-600 leading-tight text-center">
+                                        計{totalHours.toFixed(1)}h
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    // 単一シフト表示（店舗コードバッジ付き）
+                                    <div
+                                      className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id, shift)} relative`}
+                                    >
+                                      {shift.modified_flag && (
+                                        <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
+                                          !
+                                        </div>
+                                      )}
+                                      <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
+                                        <span className="bg-indigo-600 text-white px-0.5 rounded text-[0.4rem] mr-0.5">
+                                          {getStoreCode(shift.store_id)}
+                                        </span>
+                                        {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
+                                      </div>
+                                      <div className="text-[0.45rem] text-gray-600 leading-tight">
+                                        {calculateHours(shift.start_time, shift.end_time).toFixed(
+                                          1
+                                        )}
+                                        h
+                                      </div>
                                     </div>
                                   )}
-                                  <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                                    {staff.store_id &&
-                                    shift.store_id &&
-                                    parseInt(staff.store_id) !== parseInt(shift.store_id)
-                                      ? `${getStoreCode(shift.store_id)} `
-                                      : ''}
-                                    {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
-                                  </div>
-                                  <div className="text-[0.45rem] text-gray-600 leading-tight">
-                                    {hours.toFixed(1)}h
-                                  </div>
+                                  {/* Issue #165: 既存シフトがある場合でも別店舗シフト追加ボタン */}
+                                  {onShiftClick && (
+                                    <button
+                                      className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-[0.6rem] leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"
+                                      title="別店舗のシフトを追加"
+                                      onClick={e => {
+                                        e.stopPropagation()
+                                        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+                                        const storeId =
+                                          staff.store_id ||
+                                          (selectedStores && selectedStores.size > 0
+                                            ? Array.from(selectedStores)[0]
+                                            : null)
+                                        if (storeId) {
+                                          onShiftClick({
+                                            mode: 'add',
+                                            shift: {
+                                              date: dateStr,
+                                              staff_id: staff.staff_id,
+                                              store_id: storeId,
+                                              staff_name: staff.name,
+                                              store_name: getStoreName(storeId),
+                                            },
+                                            existingShifts: visibleShifts, // 既存シフト情報も渡す
+                                            date: dateStr,
+                                            staffId: staff.staff_id,
+                                            storeId: storeId,
+                                            event: e,
+                                          })
+                                        }
+                                      }}
+                                    >
+                                      +
+                                    </button>
+                                  )}
                                 </div>
                               ) : (
                                 // 空セル
