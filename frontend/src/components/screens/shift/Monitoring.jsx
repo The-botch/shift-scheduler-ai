@@ -21,7 +21,6 @@ import {
   Table,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'
-import StaffTimeTable from '../../shared/StaffTimeTable'
 import { AnimatePresence } from 'framer-motion'
 import { useTenant } from '../../../contexts/TenantContext'
 import { isoToJSTDateString, isoToJSTDateParts } from '../../../utils/dateUtils'
