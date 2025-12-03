@@ -1218,6 +1218,16 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
       }
     }
 
+    // 希望シフト情報を取得（時間帯含む）
+    const getPreferenceInfo = () => {
+      if (!shift || !preferencesMap || preferencesMap.size === 0) return null
+      const dateStr = shift.date
+      const key = `${shift.staff_id}_${dateStr}`
+      return preferencesMap.get(key)
+    }
+
+    const preferenceInfo = getPreferenceInfo()
+
     const handleSave = () => {
       if (!startTime || !endTime) {
         alert('開始時刻と終了時刻を入力してください')
@@ -1309,6 +1319,19 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                   <span className="text-gray-600">日付</span>
                   <span className="font-semibold">{shift.date}</span>
                 </div>
+                {/* 希望シフト情報表示 */}
+                {preferenceInfo && (
+                  <div className={`flex justify-between mt-1 pt-1 border-t ${preferenceInfo.is_ng ? 'border-red-200' : 'border-green-200'}`}>
+                    <span className="text-gray-600">希望</span>
+                    <span className={`font-semibold ${preferenceInfo.is_ng ? 'text-red-600' : 'text-green-600'}`}>
+                      {preferenceInfo.is_ng
+                        ? 'NG'
+                        : preferenceInfo.start_time && preferenceInfo.end_time
+                          ? `${preferenceInfo.start_time.slice(0,5)}-${preferenceInfo.end_time.slice(0,5)}`
+                          : '出勤可'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
