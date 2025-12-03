@@ -495,4 +495,185 @@ router.post('/register-staff', verifyLineToken, async (req, res) => {
   }
 })
 
+/**
+ * スタッフ月次提出情報を取得するエンドポイント
+ * GET /api/liff/monthly-submission?year=2025&month=12
+ */
+router.get('/monthly-submission', verifyLineToken, async (req, res) => {
+  const client = await pool.connect()
+
+  try {
+    const { year, month } = req.query
+    const lineUserId = req.lineUser.userId
+
+    // バリデーション
+    if (!year || !month) {
+      return res.status(400).json({
+        success: false,
+        error: '年月の指定が必要です'
+      })
+    }
+
+    const yearNum = parseInt(year)
+    const monthNum = parseInt(month)
+
+    if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({
+        success: false,
+        error: '年月の値が不正です'
+      })
+    }
+
+    // LINE User IDからスタッフ情報を取得
+    const staffResult = await client.query(
+      `SELECT s.staff_id, s.tenant_id
+       FROM hr.staff_line_accounts sla
+       JOIN hr.staff s ON sla.staff_id = s.staff_id
+       WHERE sla.line_user_id = $1 AND sla.is_active = true`,
+      [lineUserId]
+    )
+
+    if (staffResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'スタッフ情報が見つかりません'
+      })
+    }
+
+    const { staff_id, tenant_id } = staffResult.rows[0]
+
+    // 月次提出情報を取得
+    const submissionResult = await client.query(
+      `SELECT
+        submission_id,
+        year,
+        month,
+        comment,
+        submission_status,
+        created_at,
+        updated_at
+       FROM ops.staff_monthly_submissions
+       WHERE tenant_id = $1 AND staff_id = $2 AND year = $3 AND month = $4`,
+      [tenant_id, staff_id, yearNum, monthNum]
+    )
+
+    if (submissionResult.rows.length === 0) {
+      return res.json({
+        success: true,
+        data: null,
+        message: '該当月の提出情報はありません'
+      })
+    }
+
+    res.json({
+      success: true,
+      data: submissionResult.rows[0]
+    })
+  } catch (error) {
+    console.error('月次提出情報取得エラー:', error)
+
+    res.status(500).json({
+      success: false,
+      error: '月次提出情報の取得中にエラーが発生しました'
+    })
+  } finally {
+    client.release()
+  }
+})
+
+/**
+ * スタッフ月次提出情報を登録/更新するエンドポイント（UPSERT）
+ * POST /api/liff/monthly-submission
+ *
+ * リクエストボディ:
+ * {
+ *   year: 2025,
+ *   month: 12,
+ *   comment: "今月は土日出勤できます"
+ * }
+ */
+router.post('/monthly-submission', verifyLineToken, async (req, res) => {
+  const client = await pool.connect()
+
+  try {
+    const { year, month, comment } = req.body
+    const lineUserId = req.lineUser.userId
+
+    // バリデーション
+    if (!year || !month) {
+      return res.status(400).json({
+        success: false,
+        error: '年月の指定が必要です'
+      })
+    }
+
+    const yearNum = parseInt(year)
+    const monthNum = parseInt(month)
+
+    if (isNaN(yearNum) || isNaN(monthNum) || monthNum < 1 || monthNum > 12) {
+      return res.status(400).json({
+        success: false,
+        error: '年月の値が不正です'
+      })
+    }
+
+    // コメントの長さチェック（500文字まで）
+    if (comment && comment.length > 500) {
+      return res.status(400).json({
+        success: false,
+        error: 'コメントは500文字以内で入力してください'
+      })
+    }
+
+    // LINE User IDからスタッフ情報を取得
+    const staffResult = await client.query(
+      `SELECT s.staff_id, s.tenant_id
+       FROM hr.staff_line_accounts sla
+       JOIN hr.staff s ON sla.staff_id = s.staff_id
+       WHERE sla.line_user_id = $1 AND sla.is_active = true`,
+      [lineUserId]
+    )
+
+    if (staffResult.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'スタッフ情報が見つかりません'
+      })
+    }
+
+    const { staff_id, tenant_id } = staffResult.rows[0]
+
+    // UPSERT: 既存レコードがあれば更新、なければ挿入
+    const upsertResult = await client.query(
+      `INSERT INTO ops.staff_monthly_submissions
+        (tenant_id, staff_id, year, month, comment)
+       VALUES ($1, $2, $3, $4, $5)
+       ON CONFLICT (tenant_id, staff_id, year, month)
+       DO UPDATE SET
+        comment = EXCLUDED.comment,
+        updated_at = CURRENT_TIMESTAMP
+       RETURNING submission_id, year, month, comment, submission_status, created_at, updated_at`,
+      [tenant_id, staff_id, yearNum, monthNum, comment || null]
+    )
+
+    const submission = upsertResult.rows[0]
+    const isNew = submission.created_at.getTime() === submission.updated_at.getTime()
+
+    res.json({
+      success: true,
+      message: isNew ? '月次提出情報を登録しました' : '月次提出情報を更新しました',
+      data: submission
+    })
+  } catch (error) {
+    console.error('月次提出情報登録エラー:', error)
+
+    res.status(500).json({
+      success: false,
+      error: '月次提出情報の登録中にエラーが発生しました'
+    })
+  } finally {
+    client.release()
+  }
+})
+
 export default router
