@@ -1,0 +1,705 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>スタッフ月次提出機能 設計書</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Hiragino Sans', sans-serif;
+      background: #f8f9fa;
+      color: #333;
+      line-height: 1.7;
+      padding: 40px 20px;
+    }
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+    }
+    h1 {
+      color: #2196f3;
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+      padding-bottom: 10px;
+      border-bottom: 3px solid #2196f3;
+    }
+    .meta {
+      color: #666;
+      font-size: 0.9rem;
+      margin-bottom: 30px;
+    }
+    h2 {
+      color: #333;
+      font-size: 1.4rem;
+      margin-top: 40px;
+      margin-bottom: 15px;
+      padding-left: 10px;
+      border-left: 4px solid #2196f3;
+    }
+    h3 {
+      color: #555;
+      font-size: 1.1rem;
+      margin-top: 25px;
+      margin-bottom: 10px;
+    }
+    p {
+      margin-bottom: 15px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+      font-size: 0.9rem;
+    }
+    th, td {
+      border: 1px solid #ddd;
+      padding: 10px 12px;
+      text-align: left;
+    }
+    th {
+      background: #f0f0f0;
+      font-weight: bold;
+    }
+    tr:nth-child(even) {
+      background: #fafafa;
+    }
+    code {
+      background: #f4f4f4;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.9em;
+    }
+    pre {
+      background: #2d2d2d;
+      color: #f8f8f2;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 15px 0;
+      font-size: 0.85rem;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: bold;
+    }
+    .badge-new {
+      background: #ff6b6b;
+      color: white;
+    }
+    .badge-modify {
+      background: #ffa726;
+      color: white;
+    }
+    ul {
+      margin: 10px 0 15px 20px;
+    }
+    li {
+      margin-bottom: 5px;
+    }
+    .usecase {
+      background: #e3f2fd;
+      border: 1px solid #90caf9;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .usecase h3 {
+      color: #1565c0;
+      margin-top: 0;
+    }
+    .impact-section {
+      background: #fff8e1;
+      border: 2px solid #ffb300;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .impact-section h3 {
+      color: #ff8f00;
+      margin-top: 0;
+    }
+    .file-tree {
+      background: #263238;
+      color: #aed581;
+      padding: 15px;
+      border-radius: 8px;
+      font-family: 'Courier New', monospace;
+      font-size: 0.85rem;
+      margin: 15px 0;
+    }
+    .file-tree .new {
+      color: #ff6b6b;
+    }
+    .file-tree .modify {
+      color: #ffa726;
+    }
+    .file-tree .existing {
+      color: #aed581;
+    }
+    .flow-diagram {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 20px;
+      text-align: center;
+      margin: 15px 0;
+    }
+    .flow-step {
+      display: inline-block;
+      background: #e3f2fd;
+      border: 1px solid #90caf9;
+      border-radius: 4px;
+      padding: 8px 15px;
+      margin: 5px;
+    }
+    .flow-arrow {
+      display: inline-block;
+      color: #666;
+      margin: 0 5px;
+    }
+    .mockup {
+      background: #fff;
+      border: 2px solid #ddd;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 15px 0;
+      max-width: 350px;
+    }
+    .mockup-header {
+      background: #06c755;
+      color: white;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      text-align: center;
+      font-weight: bold;
+    }
+    .mockup-textarea {
+      width: 100%;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px;
+      min-height: 80px;
+      font-size: 0.9rem;
+      resize: none;
+    }
+    .mockup-label {
+      font-size: 0.85rem;
+      color: #666;
+      margin-bottom: 5px;
+    }
+    .mockup-hint {
+      font-size: 0.75rem;
+      color: #999;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>スタッフ月次提出機能 設計書</h1>
+    <div class="meta">
+      作成日: 2025-12-03 | ステータス: ドラフト
+    </div>
+
+    <!-- 概要 -->
+    <h2>1. 概要</h2>
+    <p>
+      スタッフがLIFF画面から月ごとにコメント（備考・連絡事項）を入力できる機能を追加する。
+      入力されたコメントはオーナー/管理者がシフト作成時に参考にできる。
+    </p>
+
+    <!-- ユースケース -->
+    <div class="usecase">
+      <h3>ユースケース例</h3>
+      <ul>
+        <li>「来月は資格試験があるため、土日は出勤できません」</li>
+        <li>「12月は帰省するので、年末年始は休み希望です」</li>
+        <li>「今月から週3日勤務に変更したいです」</li>
+        <li>「〇〇店舗のヘルプも可能です」</li>
+      </ul>
+    </div>
+
+    <!-- 決定事項 -->
+    <h2>2. 決定事項</h2>
+
+    <div class="card">
+      <h3 style="color: #4caf50; margin-bottom: 15px;">決定済み仕様</h3>
+      <table>
+        <tr>
+          <th style="width: 200px;">項目</th>
+          <th>決定内容</th>
+        </tr>
+        <tr>
+          <td><strong>Q1: コメントの粒度</strong></td>
+          <td><span class="badge badge-new">案A: 月単位のみ</span><br>シンプルに1テーブルで完結</td>
+        </tr>
+        <tr>
+          <td><strong>Q2: 文字数制限</strong></td>
+          <td><strong>500文字</strong></td>
+        </tr>
+        <tr>
+          <td><strong>Q3: 閲覧権限</strong></td>
+          <td>一旦考慮しない（shift-scheduler-ai側のフロントエンドで閲覧可能）</td>
+        </tr>
+        <tr>
+          <td><strong>Q4: 管理画面での表示</strong></td>
+          <td>
+            <strong>シフト表にホバー表示</strong><br>
+            スタッフ名の上にコメントアイコンを表示し、クリックで内容表示
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- 機能要件 -->
+    <h2>3. 機能要件</h2>
+
+    <h3>3.1 LIFF側（スタッフ向け）</h3>
+    <table>
+      <tr>
+        <th>機能</th>
+        <th>説明</th>
+      </tr>
+      <tr>
+        <td>コメント入力</td>
+        <td>選択した月に対してコメントを入力できる</td>
+      </tr>
+      <tr>
+        <td>コメント表示</td>
+        <td>既に入力済みのコメントを表示</td>
+      </tr>
+      <tr>
+        <td>コメント編集</td>
+        <td>入力済みのコメントを編集できる</td>
+      </tr>
+      <tr>
+        <td>コメント削除</td>
+        <td>入力済みのコメントを削除できる（空にする）</td>
+      </tr>
+    </table>
+
+    <h3>3.2 管理画面側（オーナー向け）</h3>
+    <table>
+      <tr>
+        <th>機能</th>
+        <th>説明</th>
+      </tr>
+      <tr>
+        <td>コメント一覧表示</td>
+        <td>指定月のスタッフコメントを一覧表示</td>
+      </tr>
+      <tr>
+        <td>コメントフィルタ</td>
+        <td>店舗・月でフィルタリング</td>
+      </tr>
+    </table>
+
+    <!-- UIモックアップ -->
+    <h2>4. UIモックアップ</h2>
+
+    <h3>4.1 LIFF画面（スタッフ入力）</h3>
+    <div class="mockup">
+      <div class="mockup-header">12月のシフト希望入力</div>
+      <div class="mockup-label">コメント・連絡事項（任意）</div>
+      <textarea class="mockup-textarea" placeholder="シフトに関する補足や連絡事項があれば入力してください..."></textarea>
+      <div class="mockup-hint">※ 500文字まで入力できます</div>
+    </div>
+
+    <p>シフト希望入力画面の下部に、コメント入力エリアを追加するイメージ。</p>
+
+    <h3>4.2 管理画面（オーナー閲覧）</h3>
+    <div class="card" style="background: #f5f5f5;">
+      <p><strong>シフト表のスタッフ名表示部分：</strong></p>
+      <div style="display: flex; align-items: center; gap: 10px; margin: 15px 0; padding: 10px; background: white; border-radius: 4px;">
+        <span style="background: #e3f2fd; padding: 5px 10px; border-radius: 4px; font-size: 0.9rem;">
+          <span style="color: #1976d2; cursor: pointer;" title="コメントあり">💬</span>
+          松本佳奈
+        </span>
+        <span style="color: #666; font-size: 0.8rem;">← コメントがあるスタッフにはアイコン表示</span>
+      </div>
+      <p><strong>クリック時のポップオーバー/モーダル：</strong></p>
+      <div style="background: white; border: 1px solid #ddd; border-radius: 8px; padding: 15px; max-width: 300px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">
+        <div style="font-weight: bold; margin-bottom: 10px; color: #333;">
+          💬 松本佳奈さんのコメント
+          <span style="font-size: 0.75rem; color: #999; font-weight: normal;">（2025年12月）</span>
+        </div>
+        <div style="font-size: 0.9rem; color: #555; line-height: 1.5;">
+          年末は帰省するため、12/28〜1/3は出勤できません。<br>
+          それ以外の日程は調整可能です。
+        </div>
+        <div style="font-size: 0.75rem; color: #999; margin-top: 10px; text-align: right;">
+          更新: 2025/11/25 14:30
+        </div>
+      </div>
+    </div>
+
+    <!-- データベース設計 -->
+    <h2>5. データベース設計</h2>
+
+    <h3>5.1 カラム定義</h3>
+    <table>
+      <tr>
+        <th>カラム名</th>
+        <th>型</th>
+        <th>NULL</th>
+        <th>デフォルト</th>
+        <th>説明</th>
+      </tr>
+      <tr>
+        <td><code>submission_id</code></td>
+        <td>SERIAL</td>
+        <td>NO</td>
+        <td>-</td>
+        <td>PRIMARY KEY</td>
+      </tr>
+      <tr>
+        <td><code>tenant_id</code></td>
+        <td>INTEGER</td>
+        <td>NO</td>
+        <td>-</td>
+        <td>テナントID (FK: core.tenants)</td>
+      </tr>
+      <tr>
+        <td><code>staff_id</code></td>
+        <td>INTEGER</td>
+        <td>NO</td>
+        <td>-</td>
+        <td>スタッフID (FK: hr.staff)</td>
+      </tr>
+      <tr>
+        <td><code>year</code></td>
+        <td>INTEGER</td>
+        <td>NO</td>
+        <td>-</td>
+        <td>対象年（例: 2025）<br><span style="color:#666; font-size:0.85em;">※ ops.shift_plansのplan_yearと同様</span></td>
+      </tr>
+      <tr>
+        <td><code>month</code></td>
+        <td>INTEGER</td>
+        <td>NO</td>
+        <td>-</td>
+        <td>対象月（1-12）<br><span style="color:#666; font-size:0.85em;">※ ops.shift_plansのplan_monthと同様</span></td>
+      </tr>
+      <tr>
+        <td><code>comment</code></td>
+        <td>VARCHAR(500)</td>
+        <td>YES</td>
+        <td>NULL</td>
+        <td>コメント本文（最大500文字）</td>
+      </tr>
+      <tr>
+        <td><code>submission_status</code></td>
+        <td>VARCHAR(20)</td>
+        <td>YES</td>
+        <td>NULL</td>
+        <td>シフト提出ステータス（将来用）<br><span style="color:#666; font-size:0.85em;">※ 例: 'NOT_SUBMITTED', 'SUBMITTED', 'CONFIRMED'</span></td>
+      </tr>
+      <tr>
+        <td><code>created_at</code></td>
+        <td>TIMESTAMP</td>
+        <td>NO</td>
+        <td>CURRENT_TIMESTAMP</td>
+        <td>作成日時</td>
+      </tr>
+      <tr>
+        <td><code>updated_at</code></td>
+        <td>TIMESTAMP</td>
+        <td>NO</td>
+        <td>CURRENT_TIMESTAMP</td>
+        <td>更新日時（トリガーで自動更新）</td>
+      </tr>
+    </table>
+
+    <div class="card" style="background: #e8f5e9; border: 1px solid #a5d6a7;">
+      <h4 style="color: #2e7d32; margin: 0 0 10px 0;">設計ポイント</h4>
+      <ul style="margin: 0; padding-left: 20px;">
+        <li><code>year</code> + <code>month</code> で <code>ops.shift_plans</code> と同じ形式に統一</li>
+        <li><code>submission_status</code> を追加（将来のシフト提出管理用、初期はNULL）</li>
+      </ul>
+    </div>
+
+    <h3>5.2 DDL（既存ルール準拠）</h3>
+    <pre>
+-- ============================================
+-- ops.staff_monthly_submissions（スタッフ月次提出）
+-- 追加先: scripts/database/ddl/schema.sql の PART 5 に追記
+-- ============================================
+
+-- テーブル作成
+CREATE TABLE IF NOT EXISTS ops.staff_monthly_submissions (
+    submission_id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL,
+    staff_id INTEGER NOT NULL,
+    year INTEGER NOT NULL,                   -- 対象年（例: 2025）
+    month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),  -- 対象月（1-12）
+    comment VARCHAR(500),                    -- コメント本文（最大500文字）
+    submission_status VARCHAR(20),           -- シフト提出ステータス（将来用、初期NULL）
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- 制約
+    CONSTRAINT uq_staff_monthly_submissions_staff_period
+        UNIQUE (tenant_id, staff_id, year, month),
+    CONSTRAINT fk_staff_monthly_submissions_tenant
+        FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
+    CONSTRAINT fk_staff_monthly_submissions_staff
+        FOREIGN KEY (staff_id) REFERENCES hr.staff(staff_id) ON DELETE CASCADE
+);
+
+-- インデックス
+CREATE INDEX IF NOT EXISTS idx_staff_monthly_submissions_tenant
+    ON ops.staff_monthly_submissions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_staff_monthly_submissions_staff
+    ON ops.staff_monthly_submissions(staff_id);
+CREATE INDEX IF NOT EXISTS idx_staff_monthly_submissions_period
+    ON ops.staff_monthly_submissions(year, month);
+
+-- コメント
+COMMENT ON TABLE ops.staff_monthly_submissions IS 'スタッフ月次提出・コメント管理（LIFFから入力）';
+COMMENT ON COLUMN ops.staff_monthly_submissions.submission_id IS '提出ID（PK）';
+COMMENT ON COLUMN ops.staff_monthly_submissions.tenant_id IS 'テナントID';
+COMMENT ON COLUMN ops.staff_monthly_submissions.staff_id IS 'スタッフID';
+COMMENT ON COLUMN ops.staff_monthly_submissions.year IS '対象年';
+COMMENT ON COLUMN ops.staff_monthly_submissions.month IS '対象月（1-12）';
+COMMENT ON COLUMN ops.staff_monthly_submissions.comment IS 'コメント本文（最大500文字）';
+COMMENT ON COLUMN ops.staff_monthly_submissions.submission_status IS 'シフト提出ステータス（将来用: NOT_SUBMITTED/SUBMITTED/CONFIRMED）';
+
+-- トリガー（updated_at自動更新）
+CREATE TRIGGER trg_staff_monthly_submissions_updated_at
+    BEFORE UPDATE ON ops.staff_monthly_submissions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();</pre>
+
+    <h3>5.3 スキーマ選定理由</h3>
+    <table>
+      <tr>
+        <th>スキーマ</th>
+        <th>理由</th>
+      </tr>
+      <tr>
+        <td><code>ops</code></td>
+        <td>シフト運用に関連するデータ。shifts, shift_preferences, shift_plansと同じスキーマ。</td>
+      </tr>
+    </table>
+
+    <!-- 影響範囲 -->
+    <h2>6. 影響範囲</h2>
+
+    <div class="impact-section">
+      <h3>各システムへの影響</h3>
+      <table>
+        <tr>
+          <th>システム</th>
+          <th>種類</th>
+          <th>作業内容</th>
+        </tr>
+        <tr>
+          <td><strong>shift-scheduler-ai</strong><br>DB</td>
+          <td><span class="badge badge-new">新規</span></td>
+          <td>ops.staff_monthly_submissions テーブル作成</td>
+        </tr>
+        <tr>
+          <td><strong>shift-scheduler-ai</strong><br>backend</td>
+          <td><span class="badge badge-new">新規</span></td>
+          <td>提出/コメント CRUD API追加</td>
+        </tr>
+        <tr>
+          <td><strong>shift-scheduler-ai</strong><br>frontend</td>
+          <td><span class="badge badge-modify">修正</span></td>
+          <td>シフト管理画面にコメント表示追加</td>
+        </tr>
+        <tr>
+          <td><strong>shift-scheduler-ai-liff</strong><br>backend</td>
+          <td><span class="badge badge-new">新規</span></td>
+          <td>コメント登録/取得API追加</td>
+        </tr>
+        <tr>
+          <td><strong>shift-scheduler-ai-liff</strong><br>frontend</td>
+          <td><span class="badge badge-modify">修正</span></td>
+          <td>コメント入力UIを追加</td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- ファイル構成 -->
+    <h2>7. 新規作成・修正ファイル</h2>
+
+    <h3>7.1 shift-scheduler-ai（本体）</h3>
+    <div class="file-tree">
+<span class="existing">shift-scheduler-ai/</span>
+<span class="existing">├── scripts/database/</span>
+<span class="existing">│   ├── ddl/</span>
+<span class="new">│   │   └── staff_monthly_submissions.sql  # 【新規】テーブル定義</span>
+<span class="existing">├── backend/src/</span>
+<span class="existing">│   └── routes/</span>
+<span class="new">│       └── staffSubmissions.js             # 【新規】提出API</span>
+<span class="existing">└── frontend/src/</span>
+<span class="modify">    └── components/ShiftTable.jsx           # 【修正】コメント表示追加</span>
+    </div>
+
+    <h3>7.2 shift-scheduler-ai-liff</h3>
+    <div class="file-tree">
+<span class="existing">shift-scheduler-ai-liff/</span>
+<span class="existing">├── backend/src/</span>
+<span class="existing">│   └── routes/</span>
+<span class="new">│       └── submission.js                   # 【新規】提出API</span>
+<span class="modify">└── index.html                              # 【修正】コメント入力UI追加</span>
+    </div>
+
+    <!-- API設計 -->
+    <h2>8. API設計</h2>
+
+    <h3>8.1 LIFF backend API</h3>
+    <table>
+      <tr>
+        <th>メソッド</th>
+        <th>エンドポイント</th>
+        <th>説明</th>
+      </tr>
+      <tr>
+        <td>GET</td>
+        <td><code>/api/liff/submission?year=2025&month=12</code></td>
+        <td>指定月の提出情報を取得</td>
+      </tr>
+      <tr>
+        <td>POST</td>
+        <td><code>/api/liff/submission</code></td>
+        <td>提出情報を登録/更新（UPSERT）</td>
+      </tr>
+    </table>
+
+    <h3>8.2 リクエスト/レスポンス例</h3>
+    <pre>
+// POST /api/liff/submission
+// Request
+{
+  "year": 2025,
+  "month": 12,
+  "comment": "年末は帰省するため、12/28-1/3は出勤できません。"
+}
+
+// Response
+{
+  "success": true,
+  "data": {
+    "submission_id": 123,
+    "year": 2025,
+    "month": 12,
+    "comment": "年末は帰省するため、12/28-1/3は出勤できません。",
+    "submission_status": null,
+    "updated_at": "2025-12-03T10:30:00Z"
+  }
+}</pre>
+
+    <h3>8.3 管理画面 API（shift-scheduler-ai）</h3>
+    <table>
+      <tr>
+        <th>メソッド</th>
+        <th>エンドポイント</th>
+        <th>説明</th>
+      </tr>
+      <tr>
+        <td>GET</td>
+        <td><code>/api/staff-submissions?store_id=1&year=2025&month=12</code></td>
+        <td>指定店舗・月のスタッフ提出一覧を取得</td>
+      </tr>
+    </table>
+
+    <!-- データフロー -->
+    <h2>9. データフロー</h2>
+
+    <h3>9.1 コメント登録フロー</h3>
+    <div class="flow-diagram">
+      <div class="flow-step">スタッフが<br>コメント入力</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">LIFF frontend</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">LIFF backend<br>/api/liff/submission</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">DB<br>ops.staff_monthly_submissions</div>
+    </div>
+
+    <h3>9.2 コメント閲覧フロー（管理画面）</h3>
+    <div class="flow-diagram">
+      <div class="flow-step">オーナーが<br>シフト表を開く</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">管理画面 frontend</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">shift-scheduler-ai<br>backend API</div>
+      <span class="flow-arrow">→</span>
+      <div class="flow-step">DB</div>
+    </div>
+
+    <!-- 実装ステップ -->
+    <h2>10. 実装ステップ</h2>
+    <table>
+      <tr>
+        <th>Step</th>
+        <th>内容</th>
+        <th>対象</th>
+        <th>状態</th>
+      </tr>
+      <tr>
+        <td>1</td>
+        <td>テーブル作成（DDL）</td>
+        <td>shift-scheduler-ai DB</td>
+        <td><span class="badge badge-new">対象</span></td>
+      </tr>
+      <tr>
+        <td>2</td>
+        <td>LIFF backend API実装</td>
+        <td>shift-scheduler-ai-liff</td>
+        <td><span class="badge badge-new">対象</span></td>
+      </tr>
+      <tr>
+        <td>3</td>
+        <td>管理画面 API実装</td>
+        <td>shift-scheduler-ai</td>
+        <td><span class="badge badge-new">対象</span></td>
+      </tr>
+      <tr>
+        <td>4</td>
+        <td>LIFF frontend UI追加</td>
+        <td>shift-scheduler-ai-liff</td>
+        <td><span class="badge badge-new">対象</span></td>
+      </tr>
+      <tr style="background: #f5f5f5; color: #999;">
+        <td>5</td>
+        <td>管理画面 UI追加</td>
+        <td>shift-scheduler-ai</td>
+        <td><span style="background:#e0e0e0; color:#666; padding:3px 8px; border-radius:4px; font-size:0.8rem;">スコープ外</span></td>
+      </tr>
+    </table>
+
+    <!-- 今後の拡張 -->
+    <h2>11. 今後の拡張（将来検討）</h2>
+    <ul>
+      <li>日単位のコメント機能</li>
+      <li>コメントへの返信機能（オーナー → スタッフ）</li>
+      <li>コメント通知（新規コメントをオーナーに通知）</li>
+      <li>コメント履歴の保存</li>
+      <li>提出ステータスの活用（提出完了通知など）</li>
+    </ul>
+
+    <div class="card" style="margin-top: 40px; text-align: center; color: #666;">
+      <p>End of Document</p>
+    </div>
+  </div>
+</body>
+</html>
