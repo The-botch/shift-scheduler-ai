@@ -124,14 +124,15 @@ function isTimeOverlap(shift1, shift2) {
 
 /**
  * シフト登録・更新時の時間重複チェック
- * @param {Object} newShift - 新しいシフト { tenant_id, staff_id, shift_date, start_time, end_time, shift_id? }
+ * @param {Object} newShift - 新しいシフト { tenant_id, staff_id, shift_date, start_time, end_time, shift_id?, plan_id? }
  * @returns {Object} - { valid: boolean, error?: string, existingShift?: Object }
  */
 async function validateShiftTimeOverlap(newShift) {
-  const { tenant_id, staff_id, shift_date, start_time, end_time, shift_id } = newShift;
+  const { tenant_id, staff_id, shift_date, start_time, end_time, shift_id, plan_id } = newShift;
 
-  // 同一日・同一スタッフの既存シフトを取得（自分自身は除く）
-  const existingShifts = await query(`
+  // 同一日・同一スタッフ・同一プランの既存シフトを取得（自分自身は除く）
+  // plan_idが指定されている場合は同じプラン内でのみチェック
+  let sql = `
     SELECT s.*, st.store_name
     FROM ops.shifts s
     JOIN core.stores st ON s.store_id = st.store_id
@@ -139,7 +140,15 @@ async function validateShiftTimeOverlap(newShift) {
       AND s.staff_id = $2
       AND s.shift_date = $3
       AND s.shift_id != $4
-  `, [tenant_id, staff_id, shift_date, shift_id || 0]);
+  `;
+  const params = [tenant_id, staff_id, shift_date, shift_id || 0];
+
+  if (plan_id) {
+    sql += ` AND s.plan_id = $5`;
+    params.push(plan_id);
+  }
+
+  const existingShifts = await query(sql, params);
 
   // 時間の重複チェック
   for (const existing of existingShifts.rows) {
@@ -2028,12 +2037,14 @@ router.post('/', async (req, res) => {
     }
 
     // 時間重複チェック（Issue #165: 複数店舗横断シフト対応）
+    // 同じplan_id内でのみチェック（第一案と第二案は別々にチェック）
     const overlapResult = await validateShiftTimeOverlap({
       tenant_id,
       staff_id,
       shift_date,
       start_time,
-      end_time
+      end_time,
+      plan_id
     });
     if (!overlapResult.valid) {
       return res.status(400).json({
@@ -2226,6 +2237,7 @@ router.put('/:id', async (req, res) => {
 
     // 時間重複チェック（Issue #165: 複数店舗横断シフト対応）
     // スタッフ、日付、時間のいずれかが変更された場合にチェック
+    // 同じplan_id内でのみチェック（第一案と第二案は別々にチェック）
     if (staff_id !== undefined || shift_date !== undefined ||
         start_time !== undefined || end_time !== undefined) {
       const overlapResult = await validateShiftTimeOverlap({
@@ -2234,7 +2246,8 @@ router.put('/:id', async (req, res) => {
         shift_date: newShiftDate,
         start_time: newStartTime,
         end_time: newEndTime,
-        shift_id: parseInt(id, 10)
+        shift_id: parseInt(id, 10),
+        plan_id: existingShift.plan_id
       });
       if (!overlapResult.valid) {
         return res.status(400).json({
