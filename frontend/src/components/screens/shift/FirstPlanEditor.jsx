@@ -1235,39 +1235,6 @@ const FirstPlanEditor = ({
                   </select>
                 </div>
 
-                {/* シフトパターン選択（店舗選択後に表示） */}
-                {storeId &&
-                  shiftPatterns &&
-                  shiftPatterns.length > 0 &&
-                  (() => {
-                    // 選択された店舗のパターン、またはテナント共通パターン（store_id=null）をフィルタリング
-                    const filteredPatterns = shiftPatterns.filter(
-                      pattern => pattern.store_id === null || pattern.store_id === Number(storeId)
-                    )
-
-                    if (filteredPatterns.length === 0) return null
-
-                    return (
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          シフトパターン
-                        </label>
-                        <select
-                          value={selectedPatternId}
-                          onChange={e => handlePatternSelect(e.target.value)}
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">-- パターンを選択 --</option>
-                          {filteredPatterns.map(pattern => (
-                            <option key={pattern.pattern_id} value={pattern.pattern_id}>
-                              {pattern.pattern_name} ({pattern.start_time}-{pattern.end_time})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )
-                  })()}
-
                 <TimeInput
                   value={startTime}
                   onChange={setStartTime}
@@ -1287,21 +1254,6 @@ const FirstPlanEditor = ({
                   maxHour={28}
                   minuteStep={15}
                 />
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    休憩時間（分）
-                  </label>
-                  <input
-                    type="number"
-                    value={breakMinutes}
-                    onChange={e => setBreakMinutes(e.target.value)}
-                    min="0"
-                    step="15"
-                    placeholder="例: 60"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
               </div>
 
               {/* ボタン群 */}
