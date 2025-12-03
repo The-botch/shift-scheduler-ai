@@ -83,7 +83,7 @@ SELECT
   true
 ON CONFLICT DO NOTHING;
 
--- SHIBUYA
+-- Stand Pho Yo（旧SHIBUYA）
 INSERT INTO core.stores (
   tenant_id, division_id, store_code, store_name,
   business_hours_start, business_hours_end, is_active
@@ -91,8 +91,23 @@ INSERT INTO core.stores (
 SELECT
   3,
   (SELECT division_id FROM core.divisions WHERE tenant_id = 3 AND division_code = 'DEFAULT' LIMIT 1),
-  'SHIBUYA',
-  'SHIBUYA',
+  'SPY',
+  'Stand Pho Yo',
+  '10:00',
+  '23:00',
+  true
+ON CONFLICT DO NOTHING;
+
+-- Tipsy Tiger
+INSERT INTO core.stores (
+  tenant_id, division_id, store_code, store_name,
+  business_hours_start, business_hours_end, is_active
+)
+SELECT
+  3,
+  (SELECT division_id FROM core.divisions WHERE tenant_id = 3 AND division_code = 'DEFAULT' LIMIT 1),
+  'TT',
+  'Tipsy Tiger',
   '10:00',
   '23:00',
   true
