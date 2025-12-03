@@ -143,7 +143,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
   // Issue #165: 時間重複チェック（複数店舗横断シフト対応）
   const timeOverlapInfo = useMemo(() => {
-    const parseTime = (timeStr) => {
+    const parseTime = timeStr => {
       if (!timeStr) return 0
       const parts = timeStr.split(':').map(Number)
       return parts[0] * 60 + parts[1]
@@ -1321,13 +1321,17 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                 </div>
                 {/* 希望シフト情報表示 */}
                 {preferenceInfo && (
-                  <div className={`flex justify-between mt-1 pt-1 border-t ${preferenceInfo.is_ng ? 'border-red-200' : 'border-green-200'}`}>
+                  <div
+                    className={`flex justify-between mt-1 pt-1 border-t ${preferenceInfo.is_ng ? 'border-red-200' : 'border-green-200'}`}
+                  >
                     <span className="text-gray-600">希望</span>
-                    <span className={`font-semibold ${preferenceInfo.is_ng ? 'text-red-600' : 'text-green-600'}`}>
+                    <span
+                      className={`font-semibold ${preferenceInfo.is_ng ? 'text-red-600' : 'text-green-600'}`}
+                    >
                       {preferenceInfo.is_ng
                         ? 'NG'
                         : preferenceInfo.start_time && preferenceInfo.end_time
-                          ? `${preferenceInfo.start_time.slice(0,5)}-${preferenceInfo.end_time.slice(0,5)}`
+                          ? `${preferenceInfo.start_time.slice(0, 5)}-${preferenceInfo.end_time.slice(0, 5)}`
                           : '出勤可'}
                     </span>
                   </div>
@@ -1487,14 +1491,26 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                   時間重複あり（{timeOverlapInfo.overlaps.length}件）
                   {/* ホバーで詳細表示 */}
                   <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white border border-red-300 rounded-lg shadow-lg p-3 min-w-[300px] max-w-[400px] z-50">
-                    <div className="text-xs text-gray-700 font-medium mb-2 border-b pb-1">重複シフト詳細:</div>
+                    <div className="text-xs text-gray-700 font-medium mb-2 border-b pb-1">
+                      重複シフト詳細:
+                    </div>
                     <div className="space-y-2 max-h-[200px] overflow-y-auto">
                       {timeOverlapInfo.overlaps.map((overlap, idx) => (
                         <div key={idx} className="text-xs bg-red-50 rounded p-2">
-                          <div className="font-medium text-gray-800">{overlap.staffName} - {overlap.date}</div>
+                          <div className="font-medium text-gray-800">
+                            {overlap.staffName} - {overlap.date}
+                          </div>
                           <div className="text-red-600 mt-1">
-                            <div>・{overlap.shift1.store_name}: {overlap.shift1.start_time?.slice(0,5)}-{overlap.shift1.end_time?.slice(0,5)}</div>
-                            <div>・{overlap.shift2.store_name}: {overlap.shift2.start_time?.slice(0,5)}-{overlap.shift2.end_time?.slice(0,5)}</div>
+                            <div>
+                              ・{overlap.shift1.store_name}:{' '}
+                              {overlap.shift1.start_time?.slice(0, 5)}-
+                              {overlap.shift1.end_time?.slice(0, 5)}
+                            </div>
+                            <div>
+                              ・{overlap.shift2.store_name}:{' '}
+                              {overlap.shift2.start_time?.slice(0, 5)}-
+                              {overlap.shift2.end_time?.slice(0, 5)}
+                            </div>
                           </div>
                         </div>
                       ))}

@@ -326,7 +326,7 @@ const MultiStoreShiftTable = ({
   }
 
   // 時刻を分に変換するヘルパー関数
-  const parseTimeToMinutes = (timeStr) => {
+  const parseTimeToMinutes = timeStr => {
     if (!timeStr) return 0
     const parts = timeStr.split(':').map(Number)
     return parts[0] * 60 + (parts[1] || 0)
@@ -599,11 +599,17 @@ const MultiStoreShiftTable = ({
                           const allShifts = getShiftsForDateAndStaff(date, staff.staff_id)
                           // 選択された店舗のシフトのみ表示
                           const visibleShifts = allShifts.filter(
-                            s => selectedStores && selectedStores.size > 0 && selectedStores.has(parseInt(s.store_id))
+                            s =>
+                              selectedStores &&
+                              selectedStores.size > 0 &&
+                              selectedStores.has(parseInt(s.store_id))
                           )
                           const shift = visibleShifts.length > 0 ? visibleShifts[0] : null
                           const hasMultipleShifts = visibleShifts.length > 1
-                          const totalHours = visibleShifts.reduce((sum, s) => sum + calculateHours(s.start_time, s.end_time), 0)
+                          const totalHours = visibleShifts.reduce(
+                            (sum, s) => sum + calculateHours(s.start_time, s.end_time),
+                            0
+                          )
                           const conflict = getConflict(date, staff.staff_id)
                           const hopeShift = getHopeShift(date, staff.staff_id)
                           const cellBgColor = getCellBackgroundColor(date, staff.staff_id)
@@ -686,7 +692,7 @@ const MultiStoreShiftTable = ({
                                         <div
                                           key={s.shift_id || idx}
                                           className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id, s)} relative cursor-pointer hover:ring-2 hover:ring-blue-400`}
-                                          onClick={(e) => {
+                                          onClick={e => {
                                             // 各シフトカードをクリックしたら、そのシフトを編集
                                             e.stopPropagation()
                                             if (onShiftClick) {
@@ -742,7 +748,10 @@ const MultiStoreShiftTable = ({
                                         {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
                                       </div>
                                       <div className="text-[0.45rem] text-gray-600 leading-tight">
-                                        {calculateHours(shift.start_time, shift.end_time).toFixed(1)}h
+                                        {calculateHours(shift.start_time, shift.end_time).toFixed(
+                                          1
+                                        )}
+                                        h
                                       </div>
                                     </div>
                                   )}
@@ -751,7 +760,7 @@ const MultiStoreShiftTable = ({
                                     <button
                                       className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-[0.6rem] leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"
                                       title="別店舗のシフトを追加"
-                                      onClick={(e) => {
+                                      onClick={e => {
                                         e.stopPropagation()
                                         const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
                                         const storeId =

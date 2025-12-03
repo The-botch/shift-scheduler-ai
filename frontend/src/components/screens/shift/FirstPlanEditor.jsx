@@ -143,7 +143,7 @@ const FirstPlanEditor = ({
 
   // Issue #165: 時間重複チェック（複数店舗横断シフト対応）
   const timeOverlapInfo = useMemo(() => {
-    const parseTime = (timeStr) => {
+    const parseTime = timeStr => {
       if (!timeStr) return 0
       const parts = timeStr.split(':').map(Number)
       return parts[0] * 60 + parts[1]
@@ -1386,14 +1386,26 @@ const FirstPlanEditor = ({
                       時間重複あり（{timeOverlapInfo.overlaps.length}件）
                       {/* ホバーで詳細表示 */}
                       <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white border border-red-300 rounded-lg shadow-lg p-3 min-w-[300px] max-w-[400px] z-50">
-                        <div className="text-xs text-gray-700 font-medium mb-2 border-b pb-1">重複シフト詳細:</div>
+                        <div className="text-xs text-gray-700 font-medium mb-2 border-b pb-1">
+                          重複シフト詳細:
+                        </div>
                         <div className="space-y-2 max-h-[200px] overflow-y-auto">
                           {timeOverlapInfo.overlaps.map((overlap, idx) => (
                             <div key={idx} className="text-xs bg-red-50 rounded p-2">
-                              <div className="font-medium text-gray-800">{overlap.staffName} - {overlap.date}</div>
+                              <div className="font-medium text-gray-800">
+                                {overlap.staffName} - {overlap.date}
+                              </div>
                               <div className="text-red-600 mt-1">
-                                <div>・{overlap.shift1.store_name}: {overlap.shift1.start_time?.slice(0,5)}-{overlap.shift1.end_time?.slice(0,5)}</div>
-                                <div>・{overlap.shift2.store_name}: {overlap.shift2.start_time?.slice(0,5)}-{overlap.shift2.end_time?.slice(0,5)}</div>
+                                <div>
+                                  ・{overlap.shift1.store_name}:{' '}
+                                  {overlap.shift1.start_time?.slice(0, 5)}-
+                                  {overlap.shift1.end_time?.slice(0, 5)}
+                                </div>
+                                <div>
+                                  ・{overlap.shift2.store_name}:{' '}
+                                  {overlap.shift2.start_time?.slice(0, 5)}-
+                                  {overlap.shift2.end_time?.slice(0, 5)}
+                                </div>
                               </div>
                             </div>
                           ))}
