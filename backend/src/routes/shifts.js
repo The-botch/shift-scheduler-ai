@@ -644,7 +644,7 @@ router.post('/plans/generate', async (req, res) => {
 
     // 前月のシフトを週番号別に整理
     const shiftsByWeekAndDay = {};
-    for (const shift of prevShifts.rows) {
+    for (const shift of sourceShifts) {
       const prevDate = new Date(shift.shift_date);
       const { weekNumber, dayOfWeek } = getWeekInfo(prevDate);
       const key = `w${weekNumber}_d${dayOfWeek}`;
@@ -2312,6 +2312,54 @@ router.put('/:id', async (req, res) => {
       ? (assigned_skills ? JSON.stringify(assigned_skills) : null)
       : existingShift.assigned_skills;
 
+    // store_idが変更された場合、新店舗のshift_planを探すor作成してplan_idを付け替え
+    let newPlanId = existingShift.plan_id;
+    if (store_id !== undefined && parseInt(store_id) !== existingShift.store_id) {
+      // 既存プランの情報を取得
+      const oldPlanResult = await query(
+        'SELECT plan_year, plan_month, plan_type, status FROM ops.shift_plans WHERE plan_id = $1',
+        [existingShift.plan_id]
+      );
+
+      if (oldPlanResult.rows.length > 0) {
+        const oldPlan = oldPlanResult.rows[0];
+
+        // 新店舗の同条件プランを検索
+        const newPlanResult = await query(
+          `SELECT plan_id FROM ops.shift_plans
+           WHERE tenant_id = $1 AND store_id = $2 AND plan_year = $3 AND plan_month = $4 AND plan_type = $5`,
+          [tenant_id, store_id, oldPlan.plan_year, oldPlan.plan_month, oldPlan.plan_type]
+        );
+
+        if (newPlanResult.rows.length > 0) {
+          // 既存のプランがあればそれを使用
+          newPlanId = newPlanResult.rows[0].plan_id;
+        } else {
+          // なければ新規作成
+          const periodStart = new Date(oldPlan.plan_year, oldPlan.plan_month - 1, 1);
+          const periodEnd = new Date(oldPlan.plan_year, oldPlan.plan_month, 0);
+          const planCode = `PLAN-${oldPlan.plan_year}${String(oldPlan.plan_month).padStart(2, '0')}-${String(store_id).padStart(3, '0')}`;
+          const planName = `${oldPlan.plan_year}年${oldPlan.plan_month}月シフト（${oldPlan.plan_type === 'FIRST' ? '第1案' : '第2案'}）`;
+
+          const createPlanResult = await query(
+            `INSERT INTO ops.shift_plans (
+              tenant_id, store_id, plan_year, plan_month,
+              plan_code, plan_name, period_start, period_end,
+              plan_type, status, generation_type
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'STORE_TRANSFER')
+            RETURNING plan_id`,
+            [
+              tenant_id, store_id, oldPlan.plan_year, oldPlan.plan_month,
+              planCode, planName, periodStart, periodEnd,
+              oldPlan.plan_type, oldPlan.status
+            ]
+          );
+          newPlanId = createPlanResult.rows[0].plan_id;
+          console.log(`Created new shift_plan for store ${store_id}: plan_id=${newPlanId}`);
+        }
+      }
+    }
+
     // シフトを更新
     await query(`
       UPDATE ops.shifts
@@ -2320,19 +2368,20 @@ router.put('/:id', async (req, res) => {
         pattern_id = $2,
         staff_id = $3,
         store_id = $4,
-        start_time = $5,
-        end_time = $6,
-        break_minutes = $7,
-        total_hours = $8,
-        labor_cost = $9,
-        assigned_skills = $10,
-        is_preferred = $11,
-        is_modified = $12,
-        notes = $13,
+        plan_id = $5,
+        start_time = $6,
+        end_time = $7,
+        break_minutes = $8,
+        total_hours = $9,
+        labor_cost = $10,
+        assigned_skills = $11,
+        is_preferred = $12,
+        is_modified = $13,
+        notes = $14,
         updated_at = CURRENT_TIMESTAMP
-      WHERE shift_id = $14 AND tenant_id = $15
+      WHERE shift_id = $15 AND tenant_id = $16
     `, [
-      newShiftDate, newPatternId, newStaffId, newStoreId, newStartTime, newEndTime,
+      newShiftDate, newPatternId, newStaffId, newStoreId, newPlanId, newStartTime, newEndTime,
       newBreakMinutes, calculatedTotalHours, calculatedLaborCost, assignedSkillsJson,
       newIsPreferred, newIsModified, newNotes, id, tenant_id
     ]);
