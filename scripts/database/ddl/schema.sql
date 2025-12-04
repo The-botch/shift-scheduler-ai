@@ -110,6 +110,31 @@ CREATE TABLE IF NOT EXISTS core.employment_types (
     updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
+-- core.shift_deadline_settings（シフト希望入力期限設定）
+-- 入力開始: 第1案作成完了時、締切: N-1月のdeadline_day deadline_time
+CREATE TABLE IF NOT EXISTS core.shift_deadline_settings (
+    deadline_setting_id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL,
+    employment_type VARCHAR(50) NOT NULL, -- 'FULL_TIME', 'PART_TIME', 'CONTRACT', 'TEMPORARY'
+    deadline_day INTEGER NOT NULL CHECK (deadline_day BETWEEN 1 AND 31), -- 締切日（N-1月の何日まで）
+    deadline_time VARCHAR(5) NOT NULL DEFAULT '12:00', -- 締切時刻（"HH:MM"形式、例: "23:59", "18:00"）
+    is_enabled BOOLEAN NOT NULL DEFAULT true, -- 期限チェック有効/無効
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_shift_deadline_settings_tenant_employment
+        UNIQUE(tenant_id, employment_type),
+    CONSTRAINT fk_shift_deadline_settings_tenant
+        FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE
+);
+
+COMMENT ON TABLE core.shift_deadline_settings IS 'シフト希望入力締切設定（契約形態別）。入力開始は第1案作成完了時';
+COMMENT ON COLUMN core.shift_deadline_settings.employment_type IS '契約形態（FULL_TIME=正社員、PART_TIME=アルバイト・パート、CONTRACT=業務委託、TEMPORARY=派遣社員）';
+COMMENT ON COLUMN core.shift_deadline_settings.deadline_day IS 'シフト希望入力締切日（N-1月の1-31日）';
+COMMENT ON COLUMN core.shift_deadline_settings.deadline_time IS '締切時刻（"HH:MM"形式、例: "23:59", "18:00"）';
+COMMENT ON COLUMN core.shift_deadline_settings.is_enabled IS '期限チェック有効/無効フラグ';
+COMMENT ON COLUMN core.shift_deadline_settings.description IS '備考（運用メモなど）';
+
 -- core.shift_patterns
 CREATE TABLE IF NOT EXISTS core.shift_patterns (
     pattern_id SERIAL PRIMARY KEY,
@@ -700,6 +725,7 @@ CREATE INDEX IF NOT EXISTS idx_stores_division ON core.stores(division_id);
 CREATE INDEX IF NOT EXISTS idx_roles_tenant ON core.roles(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_skills_tenant ON core.skills(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_employment_types_tenant ON core.employment_types(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_shift_deadline_settings_tenant ON core.shift_deadline_settings(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_shift_patterns_tenant ON core.shift_patterns(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_staff_tenant ON hr.staff(tenant_id);
 CREATE INDEX IF NOT EXISTS idx_staff_store ON hr.staff(store_id);
@@ -764,6 +790,7 @@ CREATE TRIGGER trg_stores_updated_at BEFORE UPDATE ON core.stores FOR EACH ROW E
 CREATE TRIGGER trg_roles_updated_at BEFORE UPDATE ON core.roles FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_skills_updated_at BEFORE UPDATE ON core.skills FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_employment_types_updated_at BEFORE UPDATE ON core.employment_types FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+CREATE TRIGGER trg_shift_deadline_settings_updated_at BEFORE UPDATE ON core.shift_deadline_settings FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_shift_patterns_updated_at BEFORE UPDATE ON core.shift_patterns FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_staff_updated_at BEFORE UPDATE ON hr.staff FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 CREATE TRIGGER trg_staff_skills_updated_at BEFORE UPDATE ON hr.staff_skills FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -892,3 +919,50 @@ CREATE TRIGGER update_staff_line_accounts_updated_at
   BEFORE UPDATE ON hr.staff_line_accounts
   FOR EACH ROW
   EXECUTE FUNCTION update_updated_at_column();
+
+-- Migration 3: スタッフ月次提出機能 (2025-12-03追加)
+-- ============================================
+
+-- ops.staff_monthly_submissions（スタッフ月次提出・コメント管理）
+CREATE TABLE IF NOT EXISTS ops.staff_monthly_submissions (
+    submission_id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL,
+    staff_id INTEGER NOT NULL,
+    year INTEGER NOT NULL,
+    month INTEGER NOT NULL CHECK (month BETWEEN 1 AND 12),
+    comment VARCHAR(500),
+    submission_status VARCHAR(20),
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT uq_staff_monthly_submissions_staff_period
+        UNIQUE (tenant_id, staff_id, year, month),
+    CONSTRAINT fk_staff_monthly_submissions_tenant
+        FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
+    CONSTRAINT fk_staff_monthly_submissions_staff
+        FOREIGN KEY (staff_id) REFERENCES hr.staff(staff_id) ON DELETE CASCADE
+);
+
+-- インデックス
+CREATE INDEX IF NOT EXISTS idx_staff_monthly_submissions_tenant
+    ON ops.staff_monthly_submissions(tenant_id);
+CREATE INDEX IF NOT EXISTS idx_staff_monthly_submissions_staff
+    ON ops.staff_monthly_submissions(staff_id);
+CREATE INDEX IF NOT EXISTS idx_staff_monthly_submissions_period
+    ON ops.staff_monthly_submissions(year, month);
+
+-- コメント
+COMMENT ON TABLE ops.staff_monthly_submissions IS 'スタッフ月次提出・コメント管理（LIFFから入力）';
+COMMENT ON COLUMN ops.staff_monthly_submissions.submission_id IS '提出ID（PK）';
+COMMENT ON COLUMN ops.staff_monthly_submissions.tenant_id IS 'テナントID';
+COMMENT ON COLUMN ops.staff_monthly_submissions.staff_id IS 'スタッフID';
+COMMENT ON COLUMN ops.staff_monthly_submissions.year IS '対象年';
+COMMENT ON COLUMN ops.staff_monthly_submissions.month IS '対象月（1-12）';
+COMMENT ON COLUMN ops.staff_monthly_submissions.comment IS 'コメント本文（最大500文字）';
+COMMENT ON COLUMN ops.staff_monthly_submissions.submission_status IS 'シフト提出ステータス（将来用: NOT_SUBMITTED/SUBMITTED/CONFIRMED）';
+
+-- トリガー（updated_at自動更新）
+DROP TRIGGER IF EXISTS trg_staff_monthly_submissions_updated_at ON ops.staff_monthly_submissions;
+CREATE TRIGGER trg_staff_monthly_submissions_updated_at
+    BEFORE UPDATE ON ops.staff_monthly_submissions
+    FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();

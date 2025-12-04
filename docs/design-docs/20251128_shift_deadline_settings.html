@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト希望入力期限設定機能 - 設計書 v2.0.0</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Meiryo, sans-serif;
+            line-height: 1.6;
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #2c3e50;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 10px;
+        }
+        h2 {
+            color: #34495e;
+            border-left: 5px solid #3498db;
+            padding-left: 10px;
+            margin-top: 30px;
+        }
+        h3 {
+            color: #546e7a;
+            border-bottom: 1px solid #b0bec5;
+            padding-bottom: 5px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+            background-color: white;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        th {
+            background-color: #3498db;
+            color: white;
+            padding: 12px;
+            text-align: left;
+        }
+        td {
+            padding: 10px;
+            border: 1px solid #ddd;
+        }
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        .code-block {
+            background-color: #2d2d2d;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 5px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .info {
+            background-color: #d1ecf1;
+            border-left: 4px solid #17a2b8;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border-left: 4px solid #28a745;
+            padding: 15px;
+            margin: 15px 0;
+        }
+        .metadata {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+        }
+        .change-badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 8px;
+        }
+        .added {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .removed {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .modified {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+    </style>
+</head>
+<body>
+
+<div class="metadata">
+    <h1>シフト希望入力期限設定機能 - 設計書</h1>
+    <p><strong>バージョン:</strong> 3.0.0</p>
+    <p><strong>作成日:</strong> 2025-01-27</p>
+    <p><strong>最終更新:</strong> 2025-11-28</p>
+    <p><strong>対象システム:</strong> shift-scheduler-ai</p>
+    <p><strong>関連Issue:</strong> #155 締切日設定の仕様整理と実装</p>
+    <p><strong>関連PR:</strong></p>
+    <ul>
+        <li>Backend: <a href="https://github.com/The-botch/shift-scheduler-ai/pull/157" target="_blank">#157</a> (feature/shift-deadline-settings)</li>
+        <li>LIFF: <a href="https://github.com/The-botch/shift-scheduler-ai-liff/pull/12" target="_blank">#12</a> (employment_type基準に変更 - MERGED)</li>
+        <li>LIFF: <a href="https://github.com/The-botch/shift-scheduler-ai-liff/pull/13" target="_blank">#13</a> (start_day削除とエンドポイント修正)</li>
+    </ul>
+</div>
+
+<h2>📋 目次</h2>
+<ol>
+    <li><a href="#changelog">変更履歴</a>
+        <ul>
+            <li>v3.0.0 (2025-11-28): 時刻カラム変更 + 雇用形態追加</li>
+            <li>v2.0.0 (2025-11-28): employment_type基準に変更</li>
+        </ul>
+    </li>
+    <li><a href="#overview">概要</a></li>
+    <li><a href="#table-design">テーブル設計</a>
+        <ul>
+            <li>3.1 設計方針
+                <ul>
+                    <li>3.1.1 スキーマ選択: なぜ core スキーマを選んだか</li>
+                    <li>3.1.2 粒度の設計: テナント単位 vs 店舗単位</li>
+                    <li>3.1.3 将来的な店舗別設定への拡張方法</li>
+                </ul>
+            </li>
+            <li>3.2 現在の実装
+                <ul>
+                    <li>3.2.1 DDL（最終版）</li>
+                    <li>3.2.2 DML（初期データ）</li>
+                    <li>3.2.3 カラム定義</li>
+                </ul>
+            </li>
+        </ul>
+    </li>
+    <li><a href="#impact-analysis">影響範囲分析</a></li>
+    <li><a href="#test-results">テスト結果</a></li>
+</ol>
+
+<h2 id="changelog">1. 変更履歴</h2>
+
+<div class="success">
+<h3>v3.0.0 の主要変更点（2025-11-28）</h3>
+<table>
+    <tr>
+        <th>変更項目</th>
+        <th>変更前（v2.0.0）</th>
+        <th>変更後（v3.0.0）</th>
+        <th>理由</th>
+    </tr>
+    <tr>
+        <td><strong>時刻カラム</strong></td>
+        <td>deadline_hour INTEGER<br>deadline_minute INTEGER</td>
+        <td>deadline_time VARCHAR(5)<span class="modified">変更</span></td>
+        <td>既存テーブル（ops.shifts, ops.shift_preferences）の時刻形式と統一。"HH:MM"形式で管理。</td>
+    </tr>
+    <tr>
+        <td><strong>デフォルト時刻</strong></td>
+        <td>23:59</td>
+        <td>12:00<span class="modified">変更</span></td>
+        <td>23:59は分単位の指定が不自然。12:00を正午のデフォルトとする。</td>
+    </tr>
+    <tr>
+        <td><strong>対応雇用形態</strong></td>
+        <td>FULL_TIME, PART_TIME</td>
+        <td>FULL_TIME, PART_TIME, CONTRACT, TEMPORARY<span class="added">追加</span></td>
+        <td>契約社員・派遣社員の期限設定に対応</td>
+    </tr>
+    <tr>
+        <td><strong>DML初期データ</strong></td>
+        <td>2レコード（正社員、アルバイト）</td>
+        <td>4レコード（正社員、アルバイト、契約社員、派遣社員）<span class="added">追加</span></td>
+        <td>新規雇用形態に対応</td>
+    </tr>
+</table>
+</div>
+
+<div class="info">
+<h3>v2.0.0 の主要変更点（2025-11-28）</h3>
+<table>
+    <tr>
+        <th>変更項目</th>
+        <th>変更前（v1.0.0）</th>
+        <th>変更後（v2.0.0）</th>
+        <th>理由</th>
+    </tr>
+    <tr>
+        <td><strong>基準カラム</strong></td>
+        <td>payment_type<br>('HOURLY', 'MONTHLY')</td>
+        <td>employment_type<br>('FULL_TIME', 'PART_TIME')</td>
+        <td>契約形態（employment_type）による期限管理の方が直感的でビジネスロジックに適合</td>
+    </tr>
+    <tr>
+        <td><strong>start_day</strong></td>
+        <td>存在（NULL可）</td>
+        <td><span class="removed">削除</span></td>
+        <td>第1案作成完了時が入力開始の明確な基準となるため不要</td>
+    </tr>
+    <tr>
+        <td><strong>CHECK制約</strong></td>
+        <td>なし</td>
+        <td><span class="added">追加</span><br>• deadline_day: 1-31<br>• deadline_hour: 0-23<br>• deadline_minute: 0-59</td>
+        <td>データの整合性をDB層で保証</td>
+    </tr>
+    <tr>
+        <td><strong>FK制約</strong></td>
+        <td>なし</td>
+        <td><span class="added">追加</span><br>tenant_id → core.tenants</td>
+        <td>参照整合性の保証</td>
+    </tr>
+    <tr>
+        <td><strong>UNIQUE制約</strong></td>
+        <td>(tenant_id, payment_type)</td>
+        <td>(tenant_id, employment_type)</td>
+        <td>カラム名変更に伴う更新</td>
+    </tr>
+    <tr>
+        <td><strong>COMMENT</strong></td>
+        <td>なし</td>
+        <td><span class="added">追加</span></td>
+        <td>テーブル・カラムの仕様を明確化</td>
+    </tr>
+</table>
+</div>
+
+<h2 id="overview">2. 概要</h2>
+
+<h3>2.1 背景と目的</h3>
+<p>シフト希望入力の締切日をデータベースで管理し、契約形態（正社員/アルバイト・パート）ごとに異なる期限を設定可能にする。</p>
+
+<div class="info">
+<strong>解決する課題:</strong>
+<ul>
+    <li>契約形態別の期限管理ができない → employment_type基準で管理</li>
+    <li>期限がフロントエンドにハードコードされている → DBから動的取得</li>
+    <li>入力開始日の扱いが曖昧 → 第1案作成完了時を明確な開始基準とする</li>
+</ul>
+</div>
+
+<h3>2.2 入力期間の定義</h3>
+<table>
+    <tr>
+        <th>項目</th>
+        <th>内容</th>
+    </tr>
+    <tr>
+        <td><strong>入力開始</strong></td>
+        <td>第1案作成完了時（ops.shift_plans.status='FIRST_DRAFT_COMPLETED'）</td>
+    </tr>
+    <tr>
+        <td><strong>入力締切</strong></td>
+        <td>N-1月の deadline_day 日 deadline_hour:deadline_minute</td>
+    </tr>
+    <tr>
+        <td><strong>対象月</strong></td>
+        <td>N月（例: 2025年2月分のシフト希望を1月中に入力）</td>
+    </tr>
+</table>
+
+<div class="success">
+<strong>例: 2025年2月分のシフト希望（アルバイト・パート）</strong>
+<ul>
+    <li><strong>入力開始:</strong> 第1案作成完了時（システムが決定）</li>
+    <li><strong>入力締切:</strong> 2025年1月15日 23:59:59</li>
+    <li><strong>設定値:</strong> employment_type='PART_TIME', deadline_day=15, deadline_hour=23, deadline_minute=59</li>
+</ul>
+</div>
+
+<h2 id="table-design">3. テーブル設計</h2>
+
+<h3>3.1 設計方針</h3>
+
+<h4>3.1.1 スキーマ選択: なぜ core スキーマを選んだか</h4>
+
+<div class="success">
+<strong>✅ core.shift_deadline_settings として配置</strong>
+</div>
+
+<table>
+    <tr>
+        <th>観点</th>
+        <th>判断理由</th>
+    </tr>
+    <tr>
+        <td><strong>データの性質</strong></td>
+        <td>
+            • テナント全体のルール・設定データ（マスタデータ）<br>
+            • 複数店舗で共通のビジネスルールを管理<br>
+            • 業務運用データ（ops）やスタッフデータ（hr）ではなく、システム設定
+        </td>
+    </tr>
+    <tr>
+        <td><strong>既存スキーマとの整合性</strong></td>
+        <td>
+            • <strong>core.tenants</strong>: テナント情報<br>
+            • <strong>core.stores</strong>: 店舗マスタ<br>
+            • <strong>core.roles</strong>: 役職マスタ<br>
+            • <strong>core.skills</strong>: スキルマスタ<br>
+            • → 全社的なマスタデータは core スキーマに配置する方針
+        </td>
+    </tr>
+    <tr>
+        <td><strong>外部キー関係</strong></td>
+        <td>
+            • core.tenants への FK 制約を持つ<br>
+            • テナント削除時に CASCADE で期限設定も削除される<br>
+            • core スキーマ内で依存関係が完結
+        </td>
+    </tr>
+    <tr>
+        <td><strong>アクセスパターン</strong></td>
+        <td>
+            • 読み取り頻度: 高（スタッフがシフト入力画面を開くたび）<br>
+            • 更新頻度: 低（設定変更は稀）<br>
+            • → マスタデータとしての特性
+        </td>
+    </tr>
+</table>
+
+<div class="info">
+<strong>📌 他スキーマとの比較</strong>
+<ul>
+    <li><strong>hr スキーマ:</strong> スタッフ、スキル、資格など人事データ → 期限設定は人事データではない</li>
+    <li><strong>ops スキーマ:</strong> シフト実績、勤務記録など業務運用データ → 期限設定は運用データではなくルール設定</li>
+    <li><strong>core スキーマ:</strong> テナント、店舗、役職などマスタデータ → ✅ 期限設定はビジネスルールのマスタデータ</li>
+</ul>
+</div>
+
+<h4>3.1.2 粒度の設計: テナント単位 vs 店舗単位</h4>
+
+<div class="warning">
+<strong>現在の設計: テナント単位（全店舗共通）</strong>
+<p>UNIQUE制約: <code>(tenant_id, employment_type)</code></p>
+<p>→ 同じテナント内のすべての店舗で、同じ契約形態なら同じ期限が適用される</p>
+</div>
+
+<table>
+    <tr>
+        <th>設計</th>
+        <th>メリット</th>
+        <th>デメリット</th>
+        <th>適用ケース</th>
+    </tr>
+    <tr>
+        <td><strong>テナント単位<br>（現在の設計）</strong></td>
+        <td>
+            ✅ 管理がシンプル（設定数が少ない）<br>
+            ✅ 全店舗で統一ルール<br>
+            ✅ データ量が少ない<br>
+            ✅ 設定変更が容易
+        </td>
+        <td>
+            ❌ 店舗ごとのカスタマイズ不可<br>
+            ❌ 地域差・営業形態差に対応できない
+        </td>
+        <td>
+            • 直営店のみの運営<br>
+            • 店舗数が少ない<br>
+            • 全店舗で統一ルールを適用したい
+        </td>
+    </tr>
+    <tr>
+        <td><strong>店舗単位<br>（将来の拡張）</strong></td>
+        <td>
+            ✅ 店舗ごとのカスタマイズ可能<br>
+            ✅ 地域差・営業形態差に対応<br>
+            ✅ 柔軟性が高い
+        </td>
+        <td>
+            ❌ 管理が複雑<br>
+            ❌ 設定数が増加<br>
+            ❌ デフォルト値の扱いが難しい
+        </td>
+        <td>
+            • フランチャイズ形式<br>
+            • 店舗ごとに営業形態が異なる<br>
+            • 地域ごとにルールが異なる
+        </td>
+    </tr>
+</table>
+
+<h4>3.1.3 将来的な店舗別設定への拡張方法</h4>
+
+<div class="info">
+<strong>🚀 拡張案: store_id カラムを追加（NULL許可）</strong>
+</div>
+
+<div class="code-block">
+<pre>
+-- 拡張版: 店舗別設定に対応
+CREATE TABLE IF NOT EXISTS core.shift_deadline_settings (
+    deadline_setting_id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL,
+    store_id INTEGER,  -- ← NULL許可に変更（NULL=テナント全体のデフォルト設定）
+    employment_type VARCHAR(50) NOT NULL,
+    deadline_day INTEGER NOT NULL CHECK (deadline_day BETWEEN 1 AND 31),
+    deadline_hour INTEGER NOT NULL DEFAULT 23 CHECK (deadline_hour BETWEEN 0 AND 23),
+    deadline_minute INTEGER NOT NULL DEFAULT 59 CHECK (deadline_minute BETWEEN 0 AND 59),
+    is_enabled BOOLEAN NOT NULL DEFAULT true,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    -- ユニーク制約を変更
+    CONSTRAINT uq_shift_deadline_settings_tenant_store_employment
+        UNIQUE(tenant_id, COALESCE(store_id, 0), employment_type),
+
+    -- 外部キー制約
+    CONSTRAINT fk_shift_deadline_settings_tenant
+        FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE,
+    CONSTRAINT fk_shift_deadline_settings_store
+        FOREIGN KEY (store_id) REFERENCES core.stores(store_id) ON DELETE CASCADE
+);
+
+-- インデックスも更新
+CREATE INDEX idx_shift_deadline_settings_tenant_store
+    ON core.shift_deadline_settings(tenant_id, store_id);
+</pre>
+</div>
+
+<table>
+    <tr>
+        <th>項目</th>
+        <th>詳細</th>
+    </tr>
+    <tr>
+        <td><strong>設定の優先順位</strong></td>
+        <td>
+            1. <strong>店舗固有設定</strong>（store_id に値あり）<br>
+            2. <strong>テナント全体設定</strong>（store_id が NULL）<br>
+            <br>
+            例: 店舗Aに固有設定があればそれを使用、なければテナント全体の設定を使用
+        </td>
+    </tr>
+    <tr>
+        <td><strong>API側の取得ロジック</strong></td>
+        <td>
+<pre style="background-color: #2d2d2d; color: #f8f8f2; padding: 10px; margin: 0;">
+-- 店舗固有設定を優先的に取得
+SELECT employment_type, deadline_day, deadline_hour, deadline_minute, is_enabled
+FROM core.shift_deadline_settings
+WHERE tenant_id = $1
+  AND (store_id = $2 OR store_id IS NULL)
+ORDER BY store_id NULLS LAST, employment_type;
+</pre>
+        </td>
+    </tr>
+    <tr>
+        <td><strong>データ例</strong></td>
+        <td>
+<pre style="background-color: #2d2d2d; color: #f8f8f2; padding: 10px; margin: 0;">
+tenant_id | store_id | employment_type | deadline_day
+----------+----------+-----------------+-------------
+    3     |   NULL   | FULL_TIME       |     10      ← テナント全体のデフォルト
+    3     |   NULL   | PART_TIME       |     15      ← テナント全体のデフォルト
+    3     |    1     | FULL_TIME       |      8      ← 店舗1の固有設定（優先）
+    3     |    2     | PART_TIME       |     20      ← 店舗2の固有設定（優先）
+</pre>
+        </td>
+    </tr>
+    <tr>
+        <td><strong>マイグレーション方法</strong></td>
+        <td>
+            1. <code>ALTER TABLE</code> で store_id カラムを追加（NULL許可、デフォルト NULL）<br>
+            2. UNIQUE制約を削除して新しい制約を追加<br>
+            3. 既存データは store_id = NULL のまま（テナント全体設定として扱われる）<br>
+            4. 必要に応じて店舗固有設定を INSERT
+        </td>
+    </tr>
+</table>
+
+<div class="warning">
+<strong>📌 現時点の方針</strong>
+<p>現在は<strong>テナント単位の設定のみ</strong>で運用開始します。店舗別設定が必要になった時点で、上記の拡張方法を適用します。</p>
+</div>
+
+<h3>3.2 現在の実装</h3>
+
+<h4>3.2.1 DDL（最終版）</h4>
+
+<div class="code-block">
+<pre>
+-- core.shift_deadline_settings（シフト希望入力締切設定）
+-- 入力開始: 第1案作成完了時、締切: N-1月のdeadline_day deadline_time
+CREATE TABLE IF NOT EXISTS core.shift_deadline_settings (
+    deadline_setting_id SERIAL PRIMARY KEY,
+    tenant_id INTEGER NOT NULL,
+    employment_type VARCHAR(50) NOT NULL, -- 'FULL_TIME', 'PART_TIME', 'CONTRACT', 'TEMPORARY'
+    deadline_day INTEGER NOT NULL CHECK (deadline_day BETWEEN 1 AND 31),
+    deadline_time VARCHAR(5) NOT NULL DEFAULT '12:00', -- 締切時刻（"HH:MM"形式、例: "23:59", "18:00"）
+    is_enabled BOOLEAN NOT NULL DEFAULT true,
+    description TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT uq_shift_deadline_settings_tenant_employment
+        UNIQUE(tenant_id, employment_type),
+    CONSTRAINT fk_shift_deadline_settings_tenant
+        FOREIGN KEY (tenant_id) REFERENCES core.tenants(tenant_id) ON DELETE CASCADE
+);
+
+COMMENT ON TABLE core.shift_deadline_settings IS 'シフト希望入力締切設定（契約形態別）。入力開始は第1案作成完了時';
+COMMENT ON COLUMN core.shift_deadline_settings.employment_type IS '契約形態（FULL_TIME=正社員、PART_TIME=アルバイト・パート、CONTRACT=契約社員、TEMPORARY=派遣社員）';
+COMMENT ON COLUMN core.shift_deadline_settings.deadline_day IS 'シフト希望入力締切日（N-1月の1-31日）';
+COMMENT ON COLUMN core.shift_deadline_settings.deadline_time IS '締切時刻（"HH:MM"形式、例: "23:59", "18:00"）';
+COMMENT ON COLUMN core.shift_deadline_settings.is_enabled IS '期限チェック有効/無効フラグ';
+COMMENT ON COLUMN core.shift_deadline_settings.description IS '備考（運用メモなど）';
+
+-- インデックス
+CREATE INDEX idx_shift_deadline_settings_tenant
+    ON core.shift_deadline_settings(tenant_id);
+
+-- 更新日時自動更新トリガー
+CREATE TRIGGER trg_shift_deadline_settings_updated_at
+    BEFORE UPDATE ON core.shift_deadline_settings
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+</pre>
+</div>
+
+<h4>3.2.2 DML（初期データ）</h4>
+
+<div class="code-block">
+<pre>
+-- 正社員（FULL_TIME）の期限設定
+-- 入力開始: 第1案作成完了時、締切: N-1月10日12:00
+INSERT INTO core.shift_deadline_settings
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
+VALUES
+  (3, 'FULL_TIME', 10, '12:00', true, '正社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
+ON CONFLICT (tenant_id, employment_type) DO UPDATE
+SET
+    deadline_day = EXCLUDED.deadline_day,
+    deadline_time = EXCLUDED.deadline_time,
+    is_enabled = EXCLUDED.is_enabled,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- アルバイト・パート（PART_TIME）の期限設定
+-- 入力開始: 第1案作成完了時、締切: N-1月15日12:00
+INSERT INTO core.shift_deadline_settings
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
+VALUES
+  (3, 'PART_TIME', 15, '12:00', true, 'アルバイト・パートのシフト希望締切（第1案作成完了～N-1月15日12:00）')
+ON CONFLICT (tenant_id, employment_type) DO UPDATE
+SET
+    deadline_day = EXCLUDED.deadline_day,
+    deadline_time = EXCLUDED.deadline_time,
+    is_enabled = EXCLUDED.is_enabled,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- 契約社員（CONTRACT）の期限設定
+-- 入力開始: 第1案作成完了時、締切: N-1月10日12:00
+INSERT INTO core.shift_deadline_settings
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
+VALUES
+  (3, 'CONTRACT', 10, '12:00', true, '契約社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
+ON CONFLICT (tenant_id, employment_type) DO UPDATE
+SET
+    deadline_day = EXCLUDED.deadline_day,
+    deadline_time = EXCLUDED.deadline_time,
+    is_enabled = EXCLUDED.is_enabled,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP;
+
+-- 派遣社員（TEMPORARY）の期限設定
+-- 入力開始: 第1案作成完了時、締切: N-1月10日12:00
+INSERT INTO core.shift_deadline_settings
+  (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
+VALUES
+  (3, 'TEMPORARY', 10, '12:00', true, '派遣社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
+ON CONFLICT (tenant_id, employment_type) DO UPDATE
+SET
+    deadline_day = EXCLUDED.deadline_day,
+    deadline_time = EXCLUDED.deadline_time,
+    is_enabled = EXCLUDED.is_enabled,
+    description = EXCLUDED.description,
+    updated_at = CURRENT_TIMESTAMP;
+</pre>
+</div>
+
+<h4>3.2.3 カラム定義</h4>
+
+<table>
+    <tr>
+        <th>カラム名</th>
+        <th>型</th>
+        <th>NULL</th>
+        <th>制約</th>
+        <th>説明</th>
+    </tr>
+    <tr>
+        <td>deadline_setting_id</td>
+        <td>SERIAL</td>
+        <td>NOT NULL</td>
+        <td>PRIMARY KEY</td>
+        <td>主キー</td>
+    </tr>
+    <tr>
+        <td>tenant_id</td>
+        <td>INTEGER</td>
+        <td>NOT NULL</td>
+        <td>FK → core.tenants</td>
+        <td>テナントID</td>
+    </tr>
+    <tr>
+        <td>employment_type <span class="modified">変更</span></td>
+        <td>VARCHAR(50)</td>
+        <td>NOT NULL</td>
+        <td>UNIQUE (tenant_id, employment_type)</td>
+        <td>契約形態<br>'FULL_TIME' (正社員)<br>'PART_TIME' (アルバイト・パート)<br>'CONTRACT' (契約社員) <span class="added">v3.0</span><br>'TEMPORARY' (派遣社員) <span class="added">v3.0</span></td>
+    </tr>
+    <tr>
+        <td>deadline_day</td>
+        <td>INTEGER</td>
+        <td>NOT NULL</td>
+        <td>CHECK (1-31) <span class="added">追加</span></td>
+        <td>締切日（N-1月の何日まで）</td>
+    </tr>
+    <tr>
+        <td>deadline_time <span class="modified">v3.0変更</span></td>
+        <td>VARCHAR(5)</td>
+        <td>NOT NULL</td>
+        <td>DEFAULT '12:00'</td>
+        <td>締切時刻（"HH:MM"形式、例: "23:59", "18:00"）<br><span class="removed">v2.0: deadline_hour/deadline_minute を統合</span></td>
+    </tr>
+    <tr>
+        <td>is_enabled</td>
+        <td>BOOLEAN</td>
+        <td>NOT NULL</td>
+        <td>DEFAULT true</td>
+        <td>期限チェック有効/無効<br>false = 期限チェックスキップ</td>
+    </tr>
+    <tr>
+        <td>description</td>
+        <td>TEXT</td>
+        <td>NULL可</td>
+        <td>-</td>
+        <td>備考（運用メモ）</td>
+    </tr>
+    <tr>
+        <td>created_at</td>
+        <td>TIMESTAMP</td>
+        <td>NOT NULL</td>
+        <td>DEFAULT CURRENT_TIMESTAMP</td>
+        <td>作成日時</td>
+    </tr>
+    <tr>
+        <td>updated_at</td>
+        <td>TIMESTAMP</td>
+        <td>NOT NULL</td>
+        <td>DEFAULT CURRENT_TIMESTAMP<br>自動更新トリガー</td>
+        <td>更新日時</td>
+    </tr>
+</table>
+
+<h2 id="impact-analysis">4. 影響範囲分析</h2>
+
+<h3>4.1 既存システムへの影響</h3>
+
+<div class="success">
+<strong>✅ 既存システムへの影響なし</strong>
+<ul>
+    <li><strong>既存のフロントエンド（React）:</strong> 影響なし（新規テーブルと新規エンドポイントのみ）</li>
+    <li><strong>既存のバックエンドAPI:</strong> 影響なし（完全に独立した新規エンドポイント /api/liff/deadline-settings のみ追加）</li>
+    <li><strong>既存のデータベース:</strong> 影響なし（新規テーブル追加のみ、既存テーブルは無変更）</li>
+</ul>
+</div>
+
+<h3>4.2 新規エンドポイント</h3>
+
+<div class="info">
+<strong>✅ backend/src/routes/liff.js に追加済み</strong>
+<p>GET /api/liff/deadline-settings - シフト希望入力期限設定を取得</p>
+</div>
+
+<table>
+    <tr>
+        <th>エンドポイント</th>
+        <th>メソッド</th>
+        <th>パラメータ</th>
+        <th>レスポンス</th>
+    </tr>
+    <tr>
+        <td>/api/liff/deadline-settings</td>
+        <td>GET</td>
+        <td>tenant_id (required)</td>
+        <td>{ success: true, data: [{ employment_type, deadline_day, deadline_hour, deadline_minute, is_enabled, description }] }</td>
+    </tr>
+</table>
+
+<h3>4.3 将来実装予定のバックエンドAPI</h3>
+
+<div class="info">
+<strong>ℹ️ 将来実装予定: マスター管理API</strong>
+<p>ユーザー側から期限設定を確認・変更できるようにする際に実装予定です。</p>
+</div>
+
+<table>
+    <tr>
+        <th>ファイルパス</th>
+        <th>エンドポイント</th>
+        <th>必要な修正</th>
+        <th>優先度</th>
+        <th>目的</th>
+    </tr>
+    <tr>
+        <td>backend/src/routes/master.js</td>
+        <td>GET/POST/PUT/DELETE<br>/api/master/shift-deadline-settings</td>
+        <td><span class="added">新規追加</span><br>期限設定のCRUD API<br>• GET: 全期限設定取得<br>• POST: 新規期限設定作成<br>• PUT: 既存期限設定更新<br>• DELETE: 期限設定削除</td>
+        <td>🟢 低</td>
+        <td>管理画面からの期限設定変更を可能にする<br>（現在はDMLで直接データベース操作）</td>
+    </tr>
+</table>
+
+<div class="warning">
+<strong>📌 Backend側の期限チェックロジックについて</strong>
+<p><strong>現在は実装不要</strong>と判断しています。理由は以下の通りです:</p>
+<ul>
+    <li>LIFF版で期限チェックを実装済み（期限超過時は入力UI無効化）</li>
+    <li>ユーザーは期限後にそもそも入力できない仕組み</li>
+    <li>セキュリティ要件が変更された場合は、DeadlineValidationServiceを実装して各エンドポイントでチェックを追加</li>
+</ul>
+</div>
+
+<h3>4.4 LIFF側の実装状況</h3>
+
+<div class="success">
+<strong>✅ LIFF側の実装完了</strong>
+<p>shift-scheduler-ai-liff リポジトリでの実装が完了しています。</p>
+</div>
+
+<table>
+    <tr>
+        <th>ファイルパス</th>
+        <th>役割</th>
+        <th>実装内容</th>
+        <th>状態</th>
+    </tr>
+    <tr>
+        <td>shift-scheduler-ai-liff/<br>index.html</td>
+        <td>LINE LIFF<br>シフト希望入力画面</td>
+        <td>
+            <strong>PR #12 (MERGED):</strong><br>
+            • payment_type → employment_type に変更<br>
+            <br>
+            <strong>PR #13 (OPEN):</strong><br>
+            • start_day フィールド削除<br>
+            • /api/liff/deadline-settings エンドポイントに修正<br>
+            <br>
+            <strong>実装済み機能:</strong><br>
+            • APIから期限情報を動的取得<br>
+            • 期限超過時の入力禁止UI<br>
+            • 契約形態別の期限表示
+        </td>
+        <td><span class="success">✅ 完了</span></td>
+    </tr>
+</table>
+
+<div class="info">
+<strong>📌 React版フロントエンドについて</strong>
+<p>現在の運用では<strong>LIFF版のみ</strong>を使用しています。React版（frontend/src/components/screens/shift/LineShiftInput.jsx等）への対応は、将来的にReact版を使用する場合に実施します。</p>
+</div>
+
+<h3>4.5 データフロー図</h3>
+
+<div class="code-block">
+<pre>
+┌─────────────────────────────────────────────────────────────────┐
+│ フロントエンド (LIFF / React)                                    │
+│                                                                 │
+│  ┌──────────────────────────────────────────────────────┐      │
+│  │ 1. ユーザーがシフト希望入力画面を開く                   │      │
+│  │    - staff_id から employment_type を判定             │      │
+│  │    - FULL_TIME または PART_TIME                       │      │
+│  └────────────────┬─────────────────────────────────────┘      │
+│                   │                                             │
+│                   ▼                                             │
+│  ┌──────────────────────────────────────────────────────┐      │
+│  │ 2. APIリクエスト                                       │      │
+│  │    GET /api/liff/deadline-settings                    │      │
+│  │    ?tenant_id=3                                       │      │
+│  └────────────────┬─────────────────────────────────────┘      │
+└───────────────────┼─────────────────────────────────────────────┘
+                    │
+                    ▼
+┌───────────────────────────────────────────────────────────────────┐
+│ バックエンド (DeadlineValidationService)                          │
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────┐        │
+│  │ 3. core.shift_deadline_settings から期限を取得        │        │
+│  │    SELECT * FROM core.shift_deadline_settings         │        │
+│  │    WHERE tenant_id = 3                                │        │
+│  │    ORDER BY employment_type                           │        │
+│  └────────────────┬─────────────────────────────────────┘        │
+│                   │                                               │
+│                   ▼                                               │
+│  ┌──────────────────────────────────────────────────────┐        │
+│  │ 4. レスポンス返却（全契約形態の期限設定）              │        │
+│  │    {                                                  │        │
+│  │      "success": true,                                 │        │
+│  │      "data": [                                        │        │
+│  │        {                                              │        │
+│  │          "employment_type": "FULL_TIME",              │        │
+│  │          "deadline_day": 10,                          │        │
+│  │          "deadline_hour": 23,                         │        │
+│  │          "deadline_minute": 59,                       │        │
+│  │          "is_enabled": true,                          │        │
+│  │          "description": "正社員..."                   │        │
+│  │        },                                             │        │
+│  │        {                                              │        │
+│  │          "employment_type": "PART_TIME",              │        │
+│  │          "deadline_day": 15,                          │        │
+│  │          "deadline_hour": 23,                         │        │
+│  │          "deadline_minute": 59,                       │        │
+│  │          "is_enabled": true,                          │        │
+│  │          "description": "アルバイト・パート..."        │        │
+│  │        }                                              │        │
+│  │      ]                                                │        │
+│  │    }                                                  │        │
+│  └────────────────┬─────────────────────────────────────┘        │
+└───────────────────┼───────────────────────────────────────────────┘
+                    │
+                    ▼
+┌───────────────────────────────────────────────────────────────────┐
+│ フロントエンド                                                     │
+│                                                                   │
+│  ┌──────────────────────────────────────────────────────┐        │
+│  │ 5. 期限を表示                                          │        │
+│  │    "提出期限: 1月15日(水) 23:59まで"                   │        │
+│  │                                                       │        │
+│  │ 6. 現在日時と比較                                      │        │
+│  │    - 期限内 → 入力フォーム有効                         │        │
+│  │    - 期限超過 → 入力フォーム無効化                     │        │
+│  └───────────────────────────────────────────────────────┘        │
+└───────────────────────────────────────────────────────────────────┘
+</pre>
+</div>
+
+<h3>4.6 employment_type のマッピング</h3>
+
+<table>
+    <tr>
+        <th>hr.staff.employment_type<br>(スタッフマスター)</th>
+        <th>core.employment_types.employment_code<br>(雇用形態マスター)</th>
+        <th>core.shift_deadline_settings.employment_type<br>(期限設定)</th>
+        <th>説明</th>
+    </tr>
+    <tr>
+        <td>正社員を示す値</td>
+        <td>'FULL_TIME'</td>
+        <td>'FULL_TIME'</td>
+        <td>正社員<br>締切: N-1月10日23:59</td>
+    </tr>
+    <tr>
+        <td>アルバイト・パートを示す値</td>
+        <td>'PART_TIME'</td>
+        <td>'PART_TIME'</td>
+        <td>アルバイト・パート<br>締切: N-1月15日23:59</td>
+    </tr>
+</table>
+
+<div class="info">
+<strong>ℹ️ 補足:</strong>
+<ul>
+    <li>LIFF (index.html) では <code>selectedStaff.employment_type</code> を直接使用</li>
+    <li>値は <code>employmentTypesMap</code> から取得した <code>employment_code</code></li>
+    <li>デフォルト値は <code>'PART_TIME'</code></li>
+</ul>
+</div>
+
+<h2 id="test-results">5. テスト結果</h2>
+
+<h3>5.1 ローカルPostgreSQLでのテスト</h3>
+
+<div class="success">
+<strong>✅ テスト実施日:</strong> 2025-11-28<br>
+<strong>✅ テスト環境:</strong> PostgreSQL 17.7 (ローカル)<br>
+<strong>✅ テストデータベース:</strong> shift_scheduler_test
+</div>
+
+<table>
+    <tr>
+        <th>テスト項目</th>
+        <th>結果</th>
+        <th>詳細</th>
+    </tr>
+    <tr>
+        <td><strong>DDL実行</strong></td>
+        <td><span class="success">✅ 成功</span></td>
+        <td>• テーブル作成成功<br>• トリガー作成成功<br>• インデックス作成成功<br>• COMMENT追加成功</td>
+    </tr>
+    <tr>
+        <td><strong>DML実行</strong></td>
+        <td><span class="success">✅ 成功</span></td>
+        <td>• FULL_TIME: deadline_day=10<br>• PART_TIME: deadline_day=15<br>• 両レコード正常挿入</td>
+    </tr>
+    <tr>
+        <td><strong>CHECK制約テスト</strong></td>
+        <td><span class="success">✅ 成功</span></td>
+        <td>• deadline_day=32 → エラー<br>• deadline_hour=25 → エラー<br>• deadline_minute=60 → エラー</td>
+    </tr>
+    <tr>
+        <td><strong>FK制約テスト</strong></td>
+        <td><span class="success">✅ 成功</span></td>
+        <td>• tenant_id=9999 → エラー<br>（存在しないテナント）</td>
+    </tr>
+    <tr>
+        <td><strong>UNIQUE制約テスト</strong></td>
+        <td><span class="success">✅ 成功</span></td>
+        <td>• 重複レコード挿入 → エラー<br>(tenant_id=3, employment_type='FULL_TIME')</td>
+    </tr>
+</table>
+
+<h3>5.2 テストクエリ結果</h3>
+
+<div class="code-block">
+<pre>
+-- 登録データ確認
+SELECT
+    deadline_setting_id,
+    tenant_id,
+    employment_type,
+    deadline_day,
+    deadline_hour,
+    deadline_minute,
+    is_enabled,
+    description,
+    created_at
+FROM core.shift_deadline_settings
+ORDER BY employment_type;
+
+-- 結果:
+ deadline_setting_id | tenant_id | employment_type | deadline_day | deadline_hour | deadline_minute | is_enabled | description
+---------------------+-----------+-----------------+--------------+---------------+-----------------+------------+----------------------------------------------------------
+                   1 |         3 | FULL_TIME       |           10 |            23 |              59 | t          | 正社員のシフト希望締切（第1案作成完了～N-1月10日23:59）
+                   2 |         3 | PART_TIME       |           15 |            23 |              59 | t          | アルバイト・パートのシフト希望締切（第1案作成完了～N-1月15日23:59）
+(2 rows)
+</pre>
+</div>
+
+<h3>5.3 デプロイメント計画</h3>
+
+<table>
+    <tr>
+        <th>フェーズ</th>
+        <th>内容</th>
+        <th>優先度</th>
+        <th>状態</th>
+    </tr>
+    <tr>
+        <td><strong>Phase 1</strong></td>
+        <td>STG環境へのデプロイ<br>• DDL/DML実行<br>• Backend API動作確認<br>• LIFF側からのAPI呼び出し確認</td>
+        <td>🔴 高</td>
+        <td><span class="warning">⚠️ 未実施</span></td>
+    </tr>
+    <tr>
+        <td><strong>Phase 2</strong></td>
+        <td>本番環境へのデプロイ<br>• DDL/DML実行<br>• 既存データへの影響がないことを確認<br>• LIFF側PR #13のマージとデプロイ</td>
+        <td>🔴 高</td>
+        <td><span class="warning">⚠️ 未実施</span></td>
+    </tr>
+</table>
+
+<div class="info">
+<strong>📌 将来的な拡張フェーズ（優先度低）</strong>
+<ul>
+    <li><strong>Phase 3:</strong> マスター管理API実装（/api/master/shift-deadline-settings）</li>
+    <li><strong>Phase 4:</strong> 管理画面UI実装（期限設定のCRUD画面）</li>
+    <li><strong>Phase 5:</strong> React版フロントエンドへの対応（必要に応じて）</li>
+</ul>
+</div>
+
+<h2>6. まとめ</h2>
+
+<div class="success">
+<h3>✅ 完了した作業</h3>
+<ul>
+    <li>DDL設計完了（payment_type → employment_type、start_day削除、CHECK/FK/UNIQUE制約追加）</li>
+    <li>DML設計完了（テナントID 3 の初期データ定義）</li>
+    <li>ローカルPostgreSQLでの全制約テスト完了（PostgreSQL 17.7）</li>
+    <li>Backend API実装完了（GET /api/liff/deadline-settings エンドポイント追加）</li>
+    <li>LIFF側の対応完了（PR #12: employment_type基準に変更、PR #13: start_day削除とエンドポイント修正）</li>
+    <li>影響範囲分析完了（既存システムへの影響なし確認）</li>
+    <li>設計書作成完了（v2.0.0）</li>
+</ul>
+</div>
+
+<div class="warning">
+<h3>⚠️ 今後の作業</h3>
+<ul>
+    <li><strong>STG環境:</strong> DDL/DML実行とデータ確認</li>
+    <li><strong>本番環境:</strong> マイグレーション実施</li>
+    <li><strong>LIFF側:</strong> PR #13のマージ</li>
+</ul>
+</div>
+
+<div class="info">
+<h3>📝 将来的な拡張（優先度低）</h3>
+<ul>
+    <li><strong>マスター管理API:</strong> /api/master/shift-deadline-settings の実装（管理画面からの期限設定変更用）</li>
+    <li><strong>React版フロントエンド:</strong> React版を使用する場合は、LineShiftInput.jsx等への対応が必要</li>
+    <li><strong>Backend期限チェック:</strong> セキュリティ要件が変更された場合、DeadlineValidationServiceを実装</li>
+</ul>
+</div>
+
+<h2>7. 関連リソース</h2>
+
+<table>
+    <tr>
+        <th>種類</th>
+        <th>パス/URL</th>
+    </tr>
+    <tr>
+        <td>DDL</td>
+        <td>scripts/database/ddl/schema.sql</td>
+    </tr>
+    <tr>
+        <td>DML</td>
+        <td>scripts/database/dml/01_core_master.sql</td>
+    </tr>
+    <tr>
+        <td>LIFF PR</td>
+        <td>shift-scheduler-ai-liff #12 (MERGED), #13 (OPEN)</td>
+    </tr>
+    <tr>
+        <td>Backend PR</td>
+        <td><a href="https://github.com/The-botch/shift-scheduler-ai/pull/157" target="_blank">#157</a> (feature/shift-deadline-settings - OPEN)</td>
+    </tr>
+    <tr>
+        <td>関連Issue</td>
+        <td>#155 締切日設定の仕様整理と実装</td>
+    </tr>
+</table>
+
+<hr>
+
+<p style="text-align: center; color: #7f8c8d; margin-top: 50px;">
+    <strong>End of Document</strong><br>
+    シフト希望入力期限設定機能 - 設計書 v2.0.0<br>
+    Last Updated: 2025-11-28
+</p>
+
+</body>
+</html>
