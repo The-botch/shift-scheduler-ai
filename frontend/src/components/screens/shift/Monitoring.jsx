@@ -947,7 +947,6 @@ const Monitoring = () => {
                         <span>希望なし</span>
                       </div>
                     </div>
-
                   </div>
                 )
               })()}
