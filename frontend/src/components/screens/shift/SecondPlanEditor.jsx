@@ -129,6 +129,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const [defaultPatternId, setDefaultPatternId] = useState(null)
   const [preferences, setPreferences] = useState([])
   const [shiftPatterns, setShiftPatterns] = useState([])
+  const [monthlyComments, setMonthlyComments] = useState([]) // 月次コメント
 
   // パフォーマンス最適化: preferences を Map 化（O(1) lookup）
   const preferencesMap = useMemo(() => {
@@ -140,6 +141,15 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     })
     return map
   }, [preferences])
+
+  // コメントをMapに変換（O(1)検索用）
+  const commentsMap = useMemo(() => {
+    const map = new Map()
+    monthlyComments.forEach(item => {
+      map.set(item.staff_id, item.comment)
+    })
+    return map
+  }, [monthlyComments])
 
   // Issue #165: 時間重複チェック（複数店舗横断シフト対応）
   const timeOverlapInfo = useMemo(() => {
@@ -370,6 +380,18 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         dateTo,
       })
       setPreferences(preferencesData)
+
+      // 月次コメント取得
+      try {
+        const comments = await shiftRepository.getMonthlyComments({
+          year,
+          month,
+        })
+        setMonthlyComments(comments)
+      } catch (error) {
+        console.error('月次コメント取得エラー:', error)
+        setMonthlyComments([])
+      }
 
       // 希望シフトとの突合チェック
       checkPreferenceConflicts(secondPlanWithStaffInfo, preferencesData, staffMapping)
@@ -1606,6 +1628,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
           conflicts={conflicts}
           onConflictClick={setSelectedConflict}
           showPreferenceColoring={true}
+          commentsMap={commentsMap}
         />
       </div>
 

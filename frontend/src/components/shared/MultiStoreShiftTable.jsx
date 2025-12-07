@@ -1,4 +1,5 @@
-import React, { useRef, useMemo } from 'react'
+import React, { useRef, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { isHoliday, getHolidayName } from '../../utils/holidays'
 import { getDaysInMonth, getDayOfWeek, isoToJSTDateString } from '../../utils/dateUtils'
 
@@ -22,9 +23,27 @@ const MultiStoreShiftTable = ({
   preferences = [], // 希望シフトのpreferredDays/ngDays情報
   onShiftClick, // シフト追加・編集用のコールバック
   showPreferenceColoring = true, // 希望シフトベースの色分けを表示するか（第一案ではfalse）
+  commentsMap = new Map(), // 月次コメント（staff_id -> comment）
 }) => {
   const headerScrollRef = useRef(null)
   const bodyScrollRef = useRef(null)
+
+  // コメントツールチップの状態管理
+  const [tooltip, setTooltip] = useState({ visible: false, content: '', x: 0, y: 0 })
+
+  const showTooltip = (e, content) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setTooltip({
+      visible: true,
+      content,
+      x: rect.left + rect.width / 2,
+      y: rect.bottom + 8,
+    })
+  }
+
+  const hideTooltip = () => {
+    setTooltip(prev => ({ ...prev, visible: false }))
+  }
 
   // ヘッダーとボディのスクロールを同期
   const handleHeaderScroll = e => {
@@ -403,419 +422,465 @@ const MultiStoreShiftTable = ({
   }
 
   return (
-    <div className="flex flex-col h-full bg-white rounded-lg shadow-lg border border-gray-200">
-      {/* テーブルヘッダー（固定） */}
-      <div
-        ref={headerScrollRef}
-        onScroll={handleHeaderScroll}
-        className="overflow-x-auto flex-shrink-0 border-b-2 border-gray-300"
-      >
-        <table className="w-full border-collapse text-[0.6rem]" style={{ tableLayout: 'fixed' }}>
-          <colgroup>
-            <col style={{ width: '80px' }} />
-            <col style={{ width: '60px' }} />
-            {storeGroups.map(group => (
-              <React.Fragment key={group.storeId}>
-                <col style={{ width: '60px' }} />
-                {group.staff.map(staff => (
-                  <col key={staff.staff_id} style={{ width: '70px' }} />
-                ))}
-              </React.Fragment>
-            ))}
-          </colgroup>
-          <thead className="bg-gray-50">
-            {/* 1行目: 店舗名 */}
-            <tr>
-              <th
-                rowSpan={2}
-                className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-300 sticky left-0 z-20 bg-gray-50"
-              >
-                <div className="text-[0.6rem] font-bold">
-                  {year}年{month}月
-                </div>
-              </th>
-              <th
-                rowSpan={2}
-                className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-400 bg-blue-100 sticky left-[80px] z-20"
-              >
-                <div className="text-[0.65rem] leading-tight">📊全体</div>
-              </th>
-              {storeGroups.map(group => (
-                <th
-                  key={group.storeId}
-                  colSpan={1 + group.staff.length}
-                  className="px-1 py-0.5 text-center font-bold text-gray-800 border-b border-r-2 border-gray-400 bg-blue-50"
-                >
-                  <div className="text-[0.65rem] leading-tight">🏪{group.storeName}</div>
-                </th>
-              ))}
-            </tr>
-            {/* 2行目: サマリー + スタッフ名 */}
-            <tr>
+    <>
+      {/* コメントツールチップ（Portal経由でbody直下にレンダリング） */}
+      {tooltip.visible &&
+        createPortal(
+          <div
+            className="fixed px-2 py-1.5 bg-yellow-400 text-black text-[0.65rem] rounded-lg shadow-xl whitespace-pre-wrap max-w-xs min-w-[150px] border-2 border-yellow-500"
+            style={{
+              left: tooltip.x,
+              top: tooltip.y,
+              transform: 'translateX(-50%)',
+              zIndex: 99999,
+            }}
+          >
+            <div className="font-bold text-yellow-800 mb-0.5 text-[0.6rem]">
+              📝 スタッフコメント
+            </div>
+            <div className="text-black leading-snug">{tooltip.content}</div>
+            {/* 矢印（上向き） */}
+            <div
+              className="absolute border-6 border-transparent border-b-yellow-400"
+              style={{
+                bottom: '100%',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                borderWidth: '6px',
+              }}
+            ></div>
+          </div>,
+          document.body
+        )}
+      <div className="flex flex-col h-full bg-white rounded-lg shadow-lg border border-gray-200">
+        {/* テーブルヘッダー（固定） */}
+        <div
+          ref={headerScrollRef}
+          onScroll={handleHeaderScroll}
+          className="overflow-x-auto flex-shrink-0 border-b-2 border-gray-300"
+        >
+          <table className="w-full border-collapse text-[0.6rem]" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '80px' }} />
+              <col style={{ width: '60px' }} />
               {storeGroups.map(group => (
                 <React.Fragment key={group.storeId}>
-                  <th className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r border-gray-300 bg-gray-100">
-                    <div className="text-[0.5rem] leading-tight">Σ{group.storeName}</div>
-                  </th>
+                  <col style={{ width: '60px' }} />
                   {group.staff.map(staff => (
-                    <th
-                      key={staff.staff_id}
-                      className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r border-gray-200"
-                    >
-                      <div className="text-[0.55rem] leading-tight">{staff.name}</div>
-                      <div className="text-[0.45rem] text-gray-500 font-normal leading-tight">
-                        {staff.role_name}
-                      </div>
-                    </th>
+                    <col key={staff.staff_id} style={{ width: '70px' }} />
                   ))}
                 </React.Fragment>
               ))}
-            </tr>
-            {/* 月間合計行 */}
-            <tr className="bg-gray-100 font-semibold">
-              <td className="px-0 py-0.5 border-r-2 border-gray-300 text-center text-gray-700 sticky left-0 z-20 bg-gray-100">
-                月合計
-              </td>
-              {(() => {
-                const overallMonthly = getOverallMonthlyTotal()
-                return (
-                  <td className="px-0.5 py-0.5 border-r-2 border-gray-400 text-center bg-blue-100 sticky left-[80px] z-20">
-                    <div className="text-gray-800 text-[0.5rem] leading-tight">
-                      {overallMonthly.totalDays}名
-                    </div>
-                    <div className="text-gray-800 text-[0.5rem] leading-tight">
-                      {overallMonthly.totalHours.toFixed(1)}h
-                    </div>
-                  </td>
-                )
-              })()}
-              {storeGroups.map(group => {
-                const storeMonthly = getStoreMonthlyTotal(group.storeId)
-                return (
+            </colgroup>
+            <thead className="bg-gray-50">
+              {/* 1行目: 店舗名 */}
+              <tr>
+                <th
+                  rowSpan={2}
+                  className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-300 sticky left-0 z-20 bg-gray-50"
+                >
+                  <div className="text-[0.6rem] font-bold">
+                    {year}年{month}月
+                  </div>
+                </th>
+                <th
+                  rowSpan={2}
+                  className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-400 bg-blue-100 sticky left-[80px] z-20"
+                >
+                  <div className="text-[0.65rem] leading-tight">📊全体</div>
+                </th>
+                {storeGroups.map(group => (
+                  <th
+                    key={group.storeId}
+                    colSpan={1 + group.staff.length}
+                    className="px-1 py-0.5 text-center font-bold text-gray-800 border-b border-r-2 border-gray-400 bg-blue-50"
+                  >
+                    <div className="text-[0.65rem] leading-tight">🏪{group.storeName}</div>
+                  </th>
+                ))}
+              </tr>
+              {/* 2行目: サマリー + スタッフ名 */}
+              <tr>
+                {storeGroups.map(group => (
                   <React.Fragment key={group.storeId}>
-                    <td className="px-0.5 py-0.5 border-r border-gray-300 text-center bg-gray-100">
-                      <div className="text-gray-800 text-[0.5rem] leading-tight">
-                        {storeMonthly.totalDays}名
-                      </div>
-                      <div className="text-gray-800 text-[0.5rem] leading-tight">
-                        {storeMonthly.totalHours.toFixed(1)}h
-                      </div>
-                    </td>
+                    <th className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r border-gray-300 bg-gray-100">
+                      <div className="text-[0.5rem] leading-tight">Σ{group.storeName}</div>
+                    </th>
                     {group.staff.map(staff => {
-                      const { totalDays, totalHours } = getStaffMonthlyTotal(staff.staff_id)
+                      const comment = commentsMap.get(staff.staff_id)
                       return (
-                        <td
+                        <th
                           key={staff.staff_id}
-                          className="px-0.5 py-0.5 border-r border-gray-200 text-center"
+                          className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r border-gray-200"
                         >
-                          <div className="text-gray-800 text-[0.5rem] leading-tight">
-                            {totalHours.toFixed(1)}h
+                          <div className="text-[0.55rem] leading-tight flex items-center justify-center gap-1">
+                            {staff.name}
+                            {comment && (
+                              <span
+                                className="inline-flex items-center justify-center w-5 h-5 bg-yellow-400 text-black rounded-full text-sm font-bold cursor-help animate-pulse shadow-md border-2 border-yellow-500"
+                                onMouseEnter={e => showTooltip(e, comment)}
+                                onMouseLeave={hideTooltip}
+                              >
+                                💬
+                              </span>
+                            )}
                           </div>
-                        </td>
+                          <div className="text-[0.45rem] text-gray-500 font-normal leading-tight">
+                            {staff.role_name}
+                          </div>
+                        </th>
                       )
                     })}
                   </React.Fragment>
-                )
-              })}
-            </tr>
-          </thead>
-        </table>
-      </div>
-
-      {/* テーブルボディ（スクロール可能） */}
-      <div
-        ref={bodyScrollRef}
-        onScroll={handleBodyScroll}
-        className="overflow-x-auto overflow-y-auto flex-1"
-      >
-        <table className="w-full border-collapse text-[0.6rem]" style={{ tableLayout: 'fixed' }}>
-          <colgroup>
-            <col style={{ width: '80px' }} />
-            <col style={{ width: '60px' }} />
-            {storeGroups.map(group => (
-              <React.Fragment key={group.storeId}>
-                <col style={{ width: '60px' }} />
-                {group.staff.map(staff => (
-                  <col key={staff.staff_id} style={{ width: '70px' }} />
                 ))}
-              </React.Fragment>
-            ))}
-          </colgroup>
-          <tbody>
-            {dates.map((date, index) => {
-              const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-              const holiday = isHoliday(year, month, date)
-              const holidayName = getHolidayName(year, month, date)
-              const weekday = getWeekday(date)
-              const overallSummary = getOverallDailySummary(date)
-              const rowBgColor = index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
+              </tr>
+              {/* 月間合計行 */}
+              <tr className="bg-gray-100 font-semibold">
+                <td className="px-0 py-0.5 border-r-2 border-gray-300 text-center text-gray-700 sticky left-0 z-20 bg-gray-100">
+                  月合計
+                </td>
+                {(() => {
+                  const overallMonthly = getOverallMonthlyTotal()
+                  return (
+                    <td className="px-0.5 py-0.5 border-r-2 border-gray-400 text-center bg-blue-100 sticky left-[80px] z-20">
+                      <div className="text-gray-800 text-[0.5rem] leading-tight">
+                        {overallMonthly.totalDays}名
+                      </div>
+                      <div className="text-gray-800 text-[0.5rem] leading-tight">
+                        {overallMonthly.totalHours.toFixed(1)}h
+                      </div>
+                    </td>
+                  )
+                })()}
+                {storeGroups.map(group => {
+                  const storeMonthly = getStoreMonthlyTotal(group.storeId)
+                  return (
+                    <React.Fragment key={group.storeId}>
+                      <td className="px-0.5 py-0.5 border-r border-gray-300 text-center bg-gray-100">
+                        <div className="text-gray-800 text-[0.5rem] leading-tight">
+                          {storeMonthly.totalDays}名
+                        </div>
+                        <div className="text-gray-800 text-[0.5rem] leading-tight">
+                          {storeMonthly.totalHours.toFixed(1)}h
+                        </div>
+                      </td>
+                      {group.staff.map(staff => {
+                        const { totalDays, totalHours } = getStaffMonthlyTotal(staff.staff_id)
+                        return (
+                          <td
+                            key={staff.staff_id}
+                            className="px-0.5 py-0.5 border-r border-gray-200 text-center"
+                          >
+                            <div className="text-gray-800 text-[0.5rem] leading-tight">
+                              {totalHours.toFixed(1)}h
+                            </div>
+                          </td>
+                        )
+                      })}
+                    </React.Fragment>
+                  )
+                })}
+              </tr>
+            </thead>
+          </table>
+        </div>
 
-              return (
-                <tr key={date} className={rowBgColor}>
-                  {/* 日付セル */}
-                  <td className="px-1 py-0.5 border-r-2 border-b border-gray-200 bg-gray-50 sticky left-0 z-20">
-                    <div className="flex items-center gap-0.5">
-                      <span
-                        className={`font-bold text-[0.85rem] leading-tight ${getWeekdayColor(date)}`}
-                      >
-                        {date}({weekday})
-                      </span>
-                      {holiday && (
-                        <span className="text-[0.5rem] text-red-600 font-medium leading-tight">
-                          {holidayName}
-                        </span>
-                      )}
-                    </div>
-                  </td>
+        {/* テーブルボディ（スクロール可能） */}
+        <div
+          ref={bodyScrollRef}
+          onScroll={handleBodyScroll}
+          className="overflow-x-auto overflow-y-auto flex-1"
+        >
+          <table className="w-full border-collapse text-[0.6rem]" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: '80px' }} />
+              <col style={{ width: '60px' }} />
+              {storeGroups.map(group => (
+                <React.Fragment key={group.storeId}>
+                  <col style={{ width: '60px' }} />
+                  {group.staff.map(staff => (
+                    <col key={staff.staff_id} style={{ width: '70px' }} />
+                  ))}
+                </React.Fragment>
+              ))}
+            </colgroup>
+            <tbody>
+              {dates.map((date, index) => {
+                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+                const holiday = isHoliday(year, month, date)
+                const holidayName = getHolidayName(year, month, date)
+                const weekday = getWeekday(date)
+                const overallSummary = getOverallDailySummary(date)
+                const rowBgColor = index % 2 === 0 ? 'bg-white' : 'bg-gray-25'
 
-                  {/* 全体サマリーセル */}
-                  <td
-                    className="px-1 py-0.5 border-r-2 border-b border-gray-400 text-center bg-blue-50 cursor-pointer hover:bg-blue-100 sticky left-[80px] z-20"
-                    onClick={() => onDayClick && onDayClick(date)}
-                  >
-                    <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                      {overallSummary.staffCount}名 {overallSummary.totalHours.toFixed(1)}h
-                    </div>
-                  </td>
-
-                  {/* 店舗ごとのグループ */}
-                  {storeGroups.map(group => {
-                    const storeSummary = getStoreDailySummary(date, group.storeId)
-                    return (
-                      <React.Fragment key={group.storeId}>
-                        {/* 店舗の日別サマリーセル */}
-                        <td
-                          className="px-1 py-0.5 border-r border-b border-gray-300 text-center bg-gray-50 cursor-pointer hover:bg-gray-100"
-                          onClick={() => onDayClick && onDayClick(date, group.storeId)}
+                return (
+                  <tr key={date} className={rowBgColor}>
+                    {/* 日付セル */}
+                    <td className="px-1 py-0.5 border-r-2 border-b border-gray-200 bg-gray-50 sticky left-0 z-20">
+                      <div className="flex items-center gap-0.5">
+                        <span
+                          className={`font-bold text-[0.85rem] leading-tight ${getWeekdayColor(date)}`}
                         >
-                          <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                            {storeSummary.staffCount}名 {storeSummary.totalHours.toFixed(1)}h
-                          </div>
-                        </td>
+                          {date}({weekday})
+                        </span>
+                        {holiday && (
+                          <span className="text-[0.5rem] text-red-600 font-medium leading-tight">
+                            {holidayName}
+                          </span>
+                        )}
+                      </div>
+                    </td>
 
-                        {/* スタッフごとのシフトセル（Issue #165: 複数シフト対応） */}
-                        {group.staff.map(staff => {
-                          // Issue #165: 複数シフトを取得
-                          const allShifts = getShiftsForDateAndStaff(date, staff.staff_id)
-                          // 選択された店舗のシフトのみ表示
-                          const visibleShifts = allShifts.filter(
-                            s =>
-                              selectedStores &&
-                              selectedStores.size > 0 &&
-                              selectedStores.has(parseInt(s.store_id))
-                          )
-                          const shift = visibleShifts.length > 0 ? visibleShifts[0] : null
-                          const hasMultipleShifts = visibleShifts.length > 1
-                          const totalHours = visibleShifts.reduce(
-                            (sum, s) => sum + calculateHours(s.start_time, s.end_time),
-                            0
-                          )
-                          const conflict = getConflict(date, staff.staff_id)
-                          const hopeShift = getHopeShift(date, staff.staff_id)
-                          const cellBgColor = getCellBackgroundColor(date, staff.staff_id)
-                          const shouldShowShift = visibleShifts.length > 0
+                    {/* 全体サマリーセル */}
+                    <td
+                      className="px-1 py-0.5 border-r-2 border-b border-gray-400 text-center bg-blue-50 cursor-pointer hover:bg-blue-100 sticky left-[80px] z-20"
+                      onClick={() => onDayClick && onDayClick(date)}
+                    >
+                      <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
+                        {overallSummary.staffCount}名 {overallSummary.totalHours.toFixed(1)}h
+                      </div>
+                    </td>
 
-                          // セルクリックハンドラ
-                          const handleCellClick = e => {
-                            // 新しいonShiftClickがある場合はそれを優先
-                            if (onShiftClick) {
-                              const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+                    {/* 店舗ごとのグループ */}
+                    {storeGroups.map(group => {
+                      const storeSummary = getStoreDailySummary(date, group.storeId)
+                      return (
+                        <React.Fragment key={group.storeId}>
+                          {/* 店舗の日別サマリーセル */}
+                          <td
+                            className="px-1 py-0.5 border-r border-b border-gray-300 text-center bg-gray-50 cursor-pointer hover:bg-gray-100"
+                            onClick={() => onDayClick && onDayClick(date, group.storeId)}
+                          >
+                            <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
+                              {storeSummary.staffCount}名 {storeSummary.totalHours.toFixed(1)}h
+                            </div>
+                          </td>
 
-                              if (shouldShowShift && shift) {
-                                // 既存シフトがある → 編集モード
-                                onShiftClick({
-                                  mode: 'edit',
-                                  shift: {
-                                    ...shift,
-                                    date: dateStr,
-                                    staff_name: staff.name,
-                                    store_name: getStoreName(shift.store_id),
-                                  },
-                                  allShifts: visibleShifts, // Issue #165: 複数シフトも渡す
-                                  date: dateStr,
-                                  staffId: staff.staff_id,
-                                  storeId: shift.store_id,
-                                  event: e,
-                                })
-                              } else {
-                                // 空セル → 新規追加モード
-                                // 選択されている店舗から最初のものを使用（複数店舗選択時）
-                                const storeId =
-                                  staff.store_id ||
-                                  (selectedStores && selectedStores.size > 0
-                                    ? Array.from(selectedStores)[0]
-                                    : null)
+                          {/* スタッフごとのシフトセル（Issue #165: 複数シフト対応） */}
+                          {group.staff.map(staff => {
+                            // Issue #165: 複数シフトを取得
+                            const allShifts = getShiftsForDateAndStaff(date, staff.staff_id)
+                            // 選択された店舗のシフトのみ表示
+                            const visibleShifts = allShifts.filter(
+                              s =>
+                                selectedStores &&
+                                selectedStores.size > 0 &&
+                                selectedStores.has(parseInt(s.store_id))
+                            )
+                            const shift = visibleShifts.length > 0 ? visibleShifts[0] : null
+                            const hasMultipleShifts = visibleShifts.length > 1
+                            const totalHours = visibleShifts.reduce(
+                              (sum, s) => sum + calculateHours(s.start_time, s.end_time),
+                              0
+                            )
+                            const conflict = getConflict(date, staff.staff_id)
+                            const hopeShift = getHopeShift(date, staff.staff_id)
+                            const cellBgColor = getCellBackgroundColor(date, staff.staff_id)
+                            const shouldShowShift = visibleShifts.length > 0
 
-                                if (storeId) {
+                            // セルクリックハンドラ
+                            const handleCellClick = e => {
+                              // 新しいonShiftClickがある場合はそれを優先
+                              if (onShiftClick) {
+                                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+
+                                if (shouldShowShift && shift) {
+                                  // 既存シフトがある → 編集モード
                                   onShiftClick({
-                                    mode: 'add',
+                                    mode: 'edit',
                                     shift: {
+                                      ...shift,
                                       date: dateStr,
-                                      staff_id: staff.staff_id,
-                                      store_id: storeId,
                                       staff_name: staff.name,
-                                      store_name: getStoreName(storeId),
+                                      store_name: getStoreName(shift.store_id),
                                     },
+                                    allShifts: visibleShifts, // Issue #165: 複数シフトも渡す
                                     date: dateStr,
                                     staffId: staff.staff_id,
-                                    storeId: storeId,
+                                    storeId: shift.store_id,
                                     event: e,
                                   })
-                                }
-                              }
-                            } else if (onCellClick) {
-                              // 従来のonCellClickコールバック
-                              onCellClick({
-                                date,
-                                staffId: staff.staff_id,
-                                shift: shouldShowShift ? shift : null,
-                                allShifts: visibleShifts, // Issue #165: 複数シフトも渡す
-                                hopeShift,
-                                conflict,
-                                staff,
-                              })
-                            }
-                          }
+                                } else {
+                                  // 空セル → 新規追加モード
+                                  // 選択されている店舗から最初のものを使用（複数店舗選択時）
+                                  const storeId =
+                                    staff.store_id ||
+                                    (selectedStores && selectedStores.size > 0
+                                      ? Array.from(selectedStores)[0]
+                                      : null)
 
-                          return (
-                            <td
-                              key={staff.staff_id}
-                              className={`px-0.5 py-0.5 border-r border-b border-gray-200 ${cellBgColor} ${hasMultipleShifts ? 'bg-amber-50 border-amber-300' : ''} ${onCellClick ? 'cursor-pointer hover:opacity-80' : ''}`}
-                              onClick={handleCellClick}
-                            >
-                              {shouldShowShift ? (
-                                <div className="relative group">
-                                  {hasMultipleShifts ? (
-                                    // Issue #165: 複数シフト表示（1セル内に縦並び）
-                                    <div className="space-y-0.5">
-                                      {visibleShifts.map((s, idx) => (
-                                        <div
-                                          key={s.shift_id || idx}
-                                          className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id, s)} relative cursor-pointer hover:ring-2 hover:ring-blue-400`}
-                                          onClick={e => {
-                                            // 各シフトカードをクリックしたら、そのシフトを編集
-                                            e.stopPropagation()
-                                            if (onShiftClick) {
-                                              const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-                                              onShiftClick({
-                                                mode: 'edit',
-                                                shift: {
-                                                  ...s,
+                                  if (storeId) {
+                                    onShiftClick({
+                                      mode: 'add',
+                                      shift: {
+                                        date: dateStr,
+                                        staff_id: staff.staff_id,
+                                        store_id: storeId,
+                                        staff_name: staff.name,
+                                        store_name: getStoreName(storeId),
+                                      },
+                                      date: dateStr,
+                                      staffId: staff.staff_id,
+                                      storeId: storeId,
+                                      event: e,
+                                    })
+                                  }
+                                }
+                              } else if (onCellClick) {
+                                // 従来のonCellClickコールバック
+                                onCellClick({
+                                  date,
+                                  staffId: staff.staff_id,
+                                  shift: shouldShowShift ? shift : null,
+                                  allShifts: visibleShifts, // Issue #165: 複数シフトも渡す
+                                  hopeShift,
+                                  conflict,
+                                  staff,
+                                })
+                              }
+                            }
+
+                            return (
+                              <td
+                                key={staff.staff_id}
+                                className={`px-0.5 py-0.5 border-r border-b border-gray-200 ${cellBgColor} ${hasMultipleShifts ? 'bg-amber-50 border-amber-300' : ''} ${onCellClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+                                onClick={handleCellClick}
+                              >
+                                {shouldShowShift ? (
+                                  <div className="relative group">
+                                    {hasMultipleShifts ? (
+                                      // Issue #165: 複数シフト表示（1セル内に縦並び）
+                                      <div className="space-y-0.5">
+                                        {visibleShifts.map((s, idx) => (
+                                          <div
+                                            key={s.shift_id || idx}
+                                            className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id, s)} relative cursor-pointer hover:ring-2 hover:ring-blue-400`}
+                                            onClick={e => {
+                                              // 各シフトカードをクリックしたら、そのシフトを編集
+                                              e.stopPropagation()
+                                              if (onShiftClick) {
+                                                const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+                                                onShiftClick({
+                                                  mode: 'edit',
+                                                  shift: {
+                                                    ...s,
+                                                    date: dateStr,
+                                                    staff_name: staff.name,
+                                                    store_name: getStoreName(s.store_id),
+                                                  },
+                                                  allShifts: visibleShifts,
                                                   date: dateStr,
-                                                  staff_name: staff.name,
-                                                  store_name: getStoreName(s.store_id),
-                                                },
-                                                allShifts: visibleShifts,
-                                                date: dateStr,
-                                                staffId: staff.staff_id,
-                                                storeId: s.store_id,
-                                                event: e,
-                                              })
-                                            }
-                                          }}
-                                        >
-                                          {s.modified_flag && (
-                                            <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
-                                              !
+                                                  staffId: staff.staff_id,
+                                                  storeId: s.store_id,
+                                                  event: e,
+                                                })
+                                              }
+                                            }}
+                                          >
+                                            {s.modified_flag && (
+                                              <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
+                                                !
+                                              </div>
+                                            )}
+                                            <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
+                                              <span className="bg-indigo-600 text-white px-0.5 rounded text-[0.4rem] mr-0.5">
+                                                {getStoreCode(s.store_id)}
+                                              </span>
+                                              {formatTime(s.start_time)}-{formatTime(s.end_time)}
                                             </div>
-                                          )}
-                                          <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                                            <span className="bg-indigo-600 text-white px-0.5 rounded text-[0.4rem] mr-0.5">
-                                              {getStoreCode(s.store_id)}
-                                            </span>
-                                            {formatTime(s.start_time)}-{formatTime(s.end_time)}
                                           </div>
+                                        ))}
+                                        <div className="text-[0.45rem] text-gray-600 leading-tight text-center">
+                                          計{totalHours.toFixed(1)}h
                                         </div>
-                                      ))}
-                                      <div className="text-[0.45rem] text-gray-600 leading-tight text-center">
-                                        計{totalHours.toFixed(1)}h
                                       </div>
-                                    </div>
-                                  ) : (
-                                    // 単一シフト表示（店舗コードバッジ付き）
-                                    <div
-                                      className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id, shift)} relative`}
-                                    >
-                                      {shift.modified_flag && (
-                                        <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
-                                          !
-                                        </div>
-                                      )}
-                                      <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                                        <span className="bg-indigo-600 text-white px-0.5 rounded text-[0.4rem] mr-0.5">
-                                          {getStoreCode(shift.store_id)}
-                                        </span>
-                                        {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
-                                      </div>
-                                      <div className="text-[0.45rem] text-gray-600 leading-tight">
-                                        {calculateHours(shift.start_time, shift.end_time).toFixed(
-                                          1
+                                    ) : (
+                                      // 単一シフト表示（店舗コードバッジ付き）
+                                      <div
+                                        className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id, shift)} relative`}
+                                      >
+                                        {shift.modified_flag && (
+                                          <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
+                                            !
+                                          </div>
                                         )}
-                                        h
+                                        <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
+                                          <span className="bg-indigo-600 text-white px-0.5 rounded text-[0.4rem] mr-0.5">
+                                            {getStoreCode(shift.store_id)}
+                                          </span>
+                                          {formatTime(shift.start_time)}-
+                                          {formatTime(shift.end_time)}
+                                        </div>
+                                        <div className="text-[0.45rem] text-gray-600 leading-tight">
+                                          {calculateHours(shift.start_time, shift.end_time).toFixed(
+                                            1
+                                          )}
+                                          h
+                                        </div>
                                       </div>
-                                    </div>
-                                  )}
-                                  {/* Issue #165: 既存シフトがある場合でも別店舗シフト追加ボタン */}
-                                  {onShiftClick && (
-                                    <button
-                                      className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-[0.6rem] leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"
-                                      title="別店舗のシフトを追加"
-                                      onClick={e => {
-                                        e.stopPropagation()
-                                        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
-                                        const storeId =
-                                          staff.store_id ||
-                                          (selectedStores && selectedStores.size > 0
-                                            ? Array.from(selectedStores)[0]
-                                            : null)
-                                        if (storeId) {
-                                          onShiftClick({
-                                            mode: 'add',
-                                            shift: {
+                                    )}
+                                    {/* Issue #165: 既存シフトがある場合でも別店舗シフト追加ボタン */}
+                                    {onShiftClick && (
+                                      <button
+                                        className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-[0.6rem] leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"
+                                        title="別店舗のシフトを追加"
+                                        onClick={e => {
+                                          e.stopPropagation()
+                                          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(date).padStart(2, '0')}`
+                                          const storeId =
+                                            staff.store_id ||
+                                            (selectedStores && selectedStores.size > 0
+                                              ? Array.from(selectedStores)[0]
+                                              : null)
+                                          if (storeId) {
+                                            onShiftClick({
+                                              mode: 'add',
+                                              shift: {
+                                                date: dateStr,
+                                                staff_id: staff.staff_id,
+                                                store_id: storeId,
+                                                staff_name: staff.name,
+                                                store_name: getStoreName(storeId),
+                                              },
+                                              existingShifts: visibleShifts, // 既存シフト情報も渡す
                                               date: dateStr,
-                                              staff_id: staff.staff_id,
-                                              store_id: storeId,
-                                              staff_name: staff.name,
-                                              store_name: getStoreName(storeId),
-                                            },
-                                            existingShifts: visibleShifts, // 既存シフト情報も渡す
-                                            date: dateStr,
-                                            staffId: staff.staff_id,
-                                            storeId: storeId,
-                                            event: e,
-                                          })
-                                        }
-                                      }}
-                                    >
-                                      +
-                                    </button>
-                                  )}
-                                </div>
-                              ) : (
-                                // 空セル
-                                <div
-                                  className={`py-1 flex items-center justify-center ${onShiftClick ? 'group' : ''}`}
-                                >
-                                  {onShiftClick && (
-                                    <div className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg font-light">
-                                      +
-                                    </div>
-                                  )}
-                                </div>
-                              )}
-                            </td>
-                          )
-                        })}
-                      </React.Fragment>
-                    )
-                  })}
-                </tr>
-              )
-            })}
-          </tbody>
-        </table>
+                                              staffId: staff.staff_id,
+                                              storeId: storeId,
+                                              event: e,
+                                            })
+                                          }
+                                        }}
+                                      >
+                                        +
+                                      </button>
+                                    )}
+                                  </div>
+                                ) : (
+                                  // 空セル
+                                  <div
+                                    className={`py-1 flex items-center justify-center ${onShiftClick ? 'group' : ''}`}
+                                  >
+                                    {onShiftClick && (
+                                      <div className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg font-light">
+                                        +
+                                      </div>
+                                    )}
+                                  </div>
+                                )}
+                              </td>
+                            )
+                          })}
+                        </React.Fragment>
+                      )
+                    })}
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    </>
   )
 }
 

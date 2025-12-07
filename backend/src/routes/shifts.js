@@ -124,14 +124,15 @@ function isTimeOverlap(shift1, shift2) {
 
 /**
  * シフト登録・更新時の時間重複チェック
- * @param {Object} newShift - 新しいシフト { tenant_id, staff_id, shift_date, start_time, end_time, shift_id? }
+ * @param {Object} newShift - 新しいシフト { tenant_id, staff_id, shift_date, start_time, end_time, shift_id?, plan_id? }
  * @returns {Object} - { valid: boolean, error?: string, existingShift?: Object }
  */
 async function validateShiftTimeOverlap(newShift) {
-  const { tenant_id, staff_id, shift_date, start_time, end_time, shift_id } = newShift;
+  const { tenant_id, staff_id, shift_date, start_time, end_time, shift_id, plan_id } = newShift;
 
-  // 同一日・同一スタッフの既存シフトを取得（自分自身は除く）
-  const existingShifts = await query(`
+  // 同一日・同一スタッフ・同一プランの既存シフトを取得（自分自身は除く）
+  // plan_idが指定されている場合は同じプラン内でのみチェック
+  let sql = `
     SELECT s.*, st.store_name
     FROM ops.shifts s
     JOIN core.stores st ON s.store_id = st.store_id
@@ -139,7 +140,15 @@ async function validateShiftTimeOverlap(newShift) {
       AND s.staff_id = $2
       AND s.shift_date = $3
       AND s.shift_id != $4
-  `, [tenant_id, staff_id, shift_date, shift_id || 0]);
+  `;
+  const params = [tenant_id, staff_id, shift_date, shift_id || 0];
+
+  if (plan_id) {
+    sql += ` AND s.plan_id = $5`;
+    params.push(plan_id);
+  }
+
+  const existingShifts = await query(sql, params);
 
   // 時間の重複チェック
   for (const existing of existingShifts.rows) {
@@ -158,6 +167,69 @@ async function validateShiftTimeOverlap(newShift) {
 // ============================================
 // エンドポイント
 // ============================================
+/**
+ * 月次コメント一覧取得
+ * GET /api/shifts/monthly-comments
+ *
+ * Query Parameters:
+ * - tenant_id: テナントID (required)
+ * - year: 対象年 (required)
+ * - month: 対象月 (required)
+ * - store_id: 店舗ID (optional)
+ */
+router.get('/monthly-comments', async (req, res) => {
+  try {
+    const { tenant_id, year, month, store_id } = req.query;
+
+    if (!tenant_id || !year || !month) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id, year, month are required',
+      });
+    }
+
+    let sql = `
+      SELECT
+        sms.staff_id,
+        s.name as staff_name,
+        s.store_id,
+        sms.year,
+        sms.month,
+        sms.comment,
+        sms.submission_status,
+        sms.updated_at
+      FROM ops.staff_monthly_submissions sms
+      JOIN hr.staff s ON sms.staff_id = s.staff_id
+      WHERE sms.tenant_id = $1
+        AND sms.year = $2
+        AND sms.month = $3
+        AND sms.comment IS NOT NULL
+        AND sms.comment != ''
+    `;
+    const params = [tenant_id, year, month];
+
+    if (store_id) {
+      sql += ` AND s.store_id = $4`;
+      params.push(store_id);
+    }
+
+    sql += ` ORDER BY s.name`;
+
+    const result = await query(sql, params);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
+    });
+  } catch (error) {
+    console.error('Error fetching monthly comments:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
 
 /**
  * シフト計画一覧取得
@@ -635,7 +707,7 @@ router.post('/plans/generate', async (req, res) => {
 
     // 前月のシフトを週番号別に整理
     const shiftsByWeekAndDay = {};
-    for (const shift of prevShifts.rows) {
+    for (const shift of sourceShifts) {
       const prevDate = new Date(shift.shift_date);
       const { weekNumber, dayOfWeek } = getWeekInfo(prevDate);
       const key = `w${weekNumber}_d${dayOfWeek}`;
@@ -2028,12 +2100,14 @@ router.post('/', async (req, res) => {
     }
 
     // 時間重複チェック（Issue #165: 複数店舗横断シフト対応）
+    // 同じplan_id内でのみチェック（第一案と第二案は別々にチェック）
     const overlapResult = await validateShiftTimeOverlap({
       tenant_id,
       staff_id,
       shift_date,
       start_time,
-      end_time
+      end_time,
+      plan_id
     });
     if (!overlapResult.valid) {
       return res.status(400).json({
@@ -2226,6 +2300,7 @@ router.put('/:id', async (req, res) => {
 
     // 時間重複チェック（Issue #165: 複数店舗横断シフト対応）
     // スタッフ、日付、時間のいずれかが変更された場合にチェック
+    // 同じplan_id内でのみチェック（第一案と第二案は別々にチェック）
     if (staff_id !== undefined || shift_date !== undefined ||
         start_time !== undefined || end_time !== undefined) {
       const overlapResult = await validateShiftTimeOverlap({
@@ -2234,7 +2309,8 @@ router.put('/:id', async (req, res) => {
         shift_date: newShiftDate,
         start_time: newStartTime,
         end_time: newEndTime,
-        shift_id: parseInt(id, 10)
+        shift_id: parseInt(id, 10),
+        plan_id: existingShift.plan_id
       });
       if (!overlapResult.valid) {
         return res.status(400).json({
@@ -2299,6 +2375,54 @@ router.put('/:id', async (req, res) => {
       ? (assigned_skills ? JSON.stringify(assigned_skills) : null)
       : existingShift.assigned_skills;
 
+    // store_idが変更された場合、新店舗のshift_planを探すor作成してplan_idを付け替え
+    let newPlanId = existingShift.plan_id;
+    if (store_id !== undefined && parseInt(store_id) !== existingShift.store_id) {
+      // 既存プランの情報を取得
+      const oldPlanResult = await query(
+        'SELECT plan_year, plan_month, plan_type, status FROM ops.shift_plans WHERE plan_id = $1',
+        [existingShift.plan_id]
+      );
+
+      if (oldPlanResult.rows.length > 0) {
+        const oldPlan = oldPlanResult.rows[0];
+
+        // 新店舗の同条件プランを検索
+        const newPlanResult = await query(
+          `SELECT plan_id FROM ops.shift_plans
+           WHERE tenant_id = $1 AND store_id = $2 AND plan_year = $3 AND plan_month = $4 AND plan_type = $5`,
+          [tenant_id, store_id, oldPlan.plan_year, oldPlan.plan_month, oldPlan.plan_type]
+        );
+
+        if (newPlanResult.rows.length > 0) {
+          // 既存のプランがあればそれを使用
+          newPlanId = newPlanResult.rows[0].plan_id;
+        } else {
+          // なければ新規作成
+          const periodStart = new Date(oldPlan.plan_year, oldPlan.plan_month - 1, 1);
+          const periodEnd = new Date(oldPlan.plan_year, oldPlan.plan_month, 0);
+          const planCode = `PLAN-${oldPlan.plan_year}${String(oldPlan.plan_month).padStart(2, '0')}-${String(store_id).padStart(3, '0')}`;
+          const planName = `${oldPlan.plan_year}年${oldPlan.plan_month}月シフト（${oldPlan.plan_type === 'FIRST' ? '第1案' : '第2案'}）`;
+
+          const createPlanResult = await query(
+            `INSERT INTO ops.shift_plans (
+              tenant_id, store_id, plan_year, plan_month,
+              plan_code, plan_name, period_start, period_end,
+              plan_type, status, generation_type
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'STORE_TRANSFER')
+            RETURNING plan_id`,
+            [
+              tenant_id, store_id, oldPlan.plan_year, oldPlan.plan_month,
+              planCode, planName, periodStart, periodEnd,
+              oldPlan.plan_type, oldPlan.status
+            ]
+          );
+          newPlanId = createPlanResult.rows[0].plan_id;
+          console.log(`Created new shift_plan for store ${store_id}: plan_id=${newPlanId}`);
+        }
+      }
+    }
+
     // シフトを更新
     await query(`
       UPDATE ops.shifts
@@ -2307,19 +2431,20 @@ router.put('/:id', async (req, res) => {
         pattern_id = $2,
         staff_id = $3,
         store_id = $4,
-        start_time = $5,
-        end_time = $6,
-        break_minutes = $7,
-        total_hours = $8,
-        labor_cost = $9,
-        assigned_skills = $10,
-        is_preferred = $11,
-        is_modified = $12,
-        notes = $13,
+        plan_id = $5,
+        start_time = $6,
+        end_time = $7,
+        break_minutes = $8,
+        total_hours = $9,
+        labor_cost = $10,
+        assigned_skills = $11,
+        is_preferred = $12,
+        is_modified = $13,
+        notes = $14,
         updated_at = CURRENT_TIMESTAMP
-      WHERE shift_id = $14 AND tenant_id = $15
+      WHERE shift_id = $15 AND tenant_id = $16
     `, [
-      newShiftDate, newPatternId, newStaffId, newStoreId, newStartTime, newEndTime,
+      newShiftDate, newPatternId, newStaffId, newStoreId, newPlanId, newStartTime, newEndTime,
       newBreakMinutes, calculatedTotalHours, calculatedLaborCost, assignedSkillsJson,
       newIsPreferred, newIsModified, newNotes, id, tenant_id
     ]);

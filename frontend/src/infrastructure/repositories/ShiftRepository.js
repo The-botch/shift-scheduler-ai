@@ -647,4 +647,51 @@ export class ShiftRepository {
       throw new Error(`プラン作成エラー: ${error.message}`)
     }
   }
+
+  /**
+   * 月次コメント一覧取得
+   * @param {Object} filters - フィルタリング条件
+   * @param {number} filters.tenantId - テナントID
+   * @param {number} filters.year - 年 (required)
+   * @param {number} filters.month - 月 (required)
+   * @param {number} filters.storeId - 店舗ID (オプション)
+   * @returns {Promise<Array>} コメントデータ配列
+   */
+  async getMonthlyComments(filters = {}) {
+    try {
+      const { tenantId = null, year, month, storeId } = filters
+
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      if (!year || !month) {
+        throw new Error('Year and month parameters are required')
+      }
+
+      const params = new URLSearchParams({
+        tenant_id: actualTenantId,
+        year,
+        month,
+      })
+      if (storeId) params.append('store_id', storeId)
+
+      const url = `${BACKEND_API_URL}/api/shifts/monthly-comments?${params}`
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '月次コメント取得に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      console.error('月次コメント取得エラー:', error)
+      // コメント取得失敗時は空配列を返す（既存機能に影響を与えない）
+      return []
+    }
+  }
 }

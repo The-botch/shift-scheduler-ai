@@ -78,36 +78,25 @@ const ShiftManagement = () => {
   const loadShiftSummary = async () => {
     try {
       setLoading(true)
+
+      // マスターデータから店舗リストを取得（シフトの有無に関係なく全店舗を表示）
+      const masterStores = await masterRepository.getStores()
+      const stores = masterStores
+        .map(s => ({ store_id: s.store_id, store_name: s.store_name }))
+        .sort((a, b) => a.store_name.localeCompare(b.store_name))
+      setAvailableStores(stores)
+
       const summaryData = await shiftRepository.getSummary({ year: selectedYear })
       setSummary(summaryData)
-
-      // 店舗リストを抽出してグローバル状態に保存
-      const stores = Array.from(
-        new Map(
-          summaryData
-            .filter(s => s.store_id && s.store_name)
-            .map(s => [s.store_id, { store_id: s.store_id, store_name: s.store_name }])
-        ).values()
-      ).sort((a, b) => a.store_name.localeCompare(b.store_name))
-
-      // データがない年でも、既存の店舗リストを保持する
-      if (stores.length > 0) {
-        setAvailableStores(stores)
-      } else if (availableStores.length === 0) {
-        // 初回ロードで店舗がない場合のみ、デフォルト店舗を設定
-        setAvailableStores([{ store_id: 1, store_name: '渋谷店' }])
-      }
 
       // 表示する月（1月から12月まで全て）
       const monthsToShow = Array.from({ length: 12 }, (_, i) => i + 1) // [1, 2, 3, ..., 12]
 
       // 店舗フィルタを適用
-      // データがない年でも既存の店舗リストを使用
-      const storesToUse = stores.length > 0 ? stores : availableStores
       const filteredStores =
         selectedStore === 'all'
-          ? storesToUse
-          : storesToUse.filter(s => s.store_id === parseInt(selectedStore))
+          ? stores
+          : stores.filter(s => s.store_id === parseInt(selectedStore))
 
       // マトリックスデータ構造を生成: 店舗×月
       const matrixData = filteredStores.map(store => {

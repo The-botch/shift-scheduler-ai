@@ -681,6 +681,9 @@ const FirstPlanEditor = ({
           closeDayView()
         }
       }
+
+      // shiftDataからも削除（timeOverlapInfoの更新に必要）
+      setShiftData(prev => prev.filter(shift => shift.shift_id !== shiftId))
     }
 
     // 共通フックの関数を使用

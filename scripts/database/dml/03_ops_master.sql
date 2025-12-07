@@ -238,38 +238,72 @@ FROM core.stores
 WHERE tenant_id = 3 AND store_code = 'ATELIER'
 ON CONFLICT DO NOTHING;
 
--- SHIBUYAの営業時間制約
+-- Stand Pho Yoの営業時間制約
 INSERT INTO ops.store_constraints (
   tenant_id, store_id, constraint_id, constraint_type, constraint_value, description, priority, is_active
 )
 SELECT
   3,
   store_id,
-  'SHIBUYA_OPEN_HOURS',
+  'SPY_OPEN_HOURS',
   'BUSINESS_HOURS',
-  '{"start": "10:00", "end": "22:00"}',
-  'SHIBUYAの営業時間: 10:00-22:00',
+  '{"start": "10:00", "end": "23:00"}',
+  'Stand Pho Yoの営業時間: 10:00-23:00',
   'HIGH',
   true
 FROM core.stores
-WHERE tenant_id = 3 AND store_code = 'SHIBUYA'
+WHERE tenant_id = 3 AND store_code = 'SPY'
 ON CONFLICT DO NOTHING;
 
--- SHIBUYAの最低必要人数
+-- Stand Pho Yoの最低必要人数
 INSERT INTO ops.store_constraints (
   tenant_id, store_id, constraint_id, constraint_type, constraint_value, description, priority, is_active
 )
 SELECT
   3,
   store_id,
-  'SHIBUYA_MIN_STAFF',
+  'SPY_MIN_STAFF',
   'MIN_STAFF_COUNT',
   '2',
-  'SHIBUYAの最低必要人数: 2名',
+  'Stand Pho Yoの最低必要人数: 2名',
   'HIGH',
   true
 FROM core.stores
-WHERE tenant_id = 3 AND store_code = 'SHIBUYA'
+WHERE tenant_id = 3 AND store_code = 'SPY'
+ON CONFLICT DO NOTHING;
+
+-- Tipsy Tigerの営業時間制約
+INSERT INTO ops.store_constraints (
+  tenant_id, store_id, constraint_id, constraint_type, constraint_value, description, priority, is_active
+)
+SELECT
+  3,
+  store_id,
+  'TT_OPEN_HOURS',
+  'BUSINESS_HOURS',
+  '{"start": "10:00", "end": "23:00"}',
+  'Tipsy Tigerの営業時間: 10:00-23:00',
+  'HIGH',
+  true
+FROM core.stores
+WHERE tenant_id = 3 AND store_code = 'TT'
+ON CONFLICT DO NOTHING;
+
+-- Tipsy Tigerの最低必要人数
+INSERT INTO ops.store_constraints (
+  tenant_id, store_id, constraint_id, constraint_type, constraint_value, description, priority, is_active
+)
+SELECT
+  3,
+  store_id,
+  'TT_MIN_STAFF',
+  'MIN_STAFF_COUNT',
+  '2',
+  'Tipsy Tigerの最低必要人数: 2名',
+  'HIGH',
+  true
+FROM core.stores
+WHERE tenant_id = 3 AND store_code = 'TT'
 ON CONFLICT DO NOTHING;
 
 -- Stand Banh Miの営業時間制約
