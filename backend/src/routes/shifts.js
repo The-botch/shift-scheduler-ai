@@ -167,6 +167,69 @@ async function validateShiftTimeOverlap(newShift) {
 // ============================================
 // エンドポイント
 // ============================================
+/**
+ * 月次コメント一覧取得
+ * GET /api/shifts/monthly-comments
+ *
+ * Query Parameters:
+ * - tenant_id: テナントID (required)
+ * - year: 対象年 (required)
+ * - month: 対象月 (required)
+ * - store_id: 店舗ID (optional)
+ */
+router.get('/monthly-comments', async (req, res) => {
+  try {
+    const { tenant_id, year, month, store_id } = req.query;
+
+    if (!tenant_id || !year || !month) {
+      return res.status(400).json({
+        success: false,
+        error: 'tenant_id, year, month are required',
+      });
+    }
+
+    let sql = `
+      SELECT
+        sms.staff_id,
+        s.name as staff_name,
+        s.store_id,
+        sms.year,
+        sms.month,
+        sms.comment,
+        sms.submission_status,
+        sms.updated_at
+      FROM ops.staff_monthly_submissions sms
+      JOIN hr.staff s ON sms.staff_id = s.staff_id
+      WHERE sms.tenant_id = $1
+        AND sms.year = $2
+        AND sms.month = $3
+        AND sms.comment IS NOT NULL
+        AND sms.comment != ''
+    `;
+    const params = [tenant_id, year, month];
+
+    if (store_id) {
+      sql += ` AND s.store_id = $4`;
+      params.push(store_id);
+    }
+
+    sql += ` ORDER BY s.name`;
+
+    const result = await query(sql, params);
+
+    res.json({
+      success: true,
+      data: result.rows,
+      count: result.rows.length,
+    });
+  } catch (error) {
+    console.error('Error fetching monthly comments:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message,
+    });
+  }
+});
 
 /**
  * シフト計画一覧取得

@@ -1,4 +1,5 @@
-import React, { useRef, useMemo } from 'react'
+import React, { useRef, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { isHoliday, getHolidayName } from '../../utils/holidays'
 import { getDaysInMonth, getDayOfWeek, isoToJSTDateString } from '../../utils/dateUtils'
 
@@ -22,9 +23,27 @@ const MultiStoreShiftTable = ({
   preferences = [], // 希望シフトのpreferredDays/ngDays情報
   onShiftClick, // シフト追加・編集用のコールバック
   showPreferenceColoring = true, // 希望シフトベースの色分けを表示するか（第一案ではfalse）
+  commentsMap = new Map(), // 月次コメント（staff_id -> comment）
 }) => {
   const headerScrollRef = useRef(null)
   const bodyScrollRef = useRef(null)
+
+  // コメントツールチップの状態管理
+  const [tooltip, setTooltip] = useState({ visible: false, content: '', x: 0, y: 0 })
+
+  const showTooltip = (e, content) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setTooltip({
+      visible: true,
+      content,
+      x: rect.left + rect.width / 2,
+      y: rect.bottom + 8
+    })
+  }
+
+  const hideTooltip = () => {
+    setTooltip(prev => ({ ...prev, visible: false }))
+  }
 
   // ヘッダーとボディのスクロールを同期
   const handleHeaderScroll = e => {
@@ -403,6 +422,28 @@ const MultiStoreShiftTable = ({
   }
 
   return (
+    <>
+    {/* コメントツールチップ（Portal経由でbody直下にレンダリング） */}
+    {tooltip.visible && createPortal(
+      <div
+        className="fixed px-2 py-1.5 bg-yellow-400 text-black text-[0.65rem] rounded-lg shadow-xl whitespace-pre-wrap max-w-xs min-w-[150px] border-2 border-yellow-500"
+        style={{
+          left: tooltip.x,
+          top: tooltip.y,
+          transform: 'translateX(-50%)',
+          zIndex: 99999,
+        }}
+      >
+        <div className="font-bold text-yellow-800 mb-0.5 text-[0.6rem]">📝 スタッフコメント</div>
+        <div className="text-black leading-snug">{tooltip.content}</div>
+        {/* 矢印（上向き） */}
+        <div
+          className="absolute border-6 border-transparent border-b-yellow-400"
+          style={{ bottom: '100%', left: '50%', transform: 'translateX(-50%)', borderWidth: '6px' }}
+        ></div>
+      </div>,
+      document.body
+    )}
     <div className="flex flex-col h-full bg-white rounded-lg shadow-lg border border-gray-200">
       {/* テーブルヘッダー（固定） */}
       <div
@@ -457,17 +498,31 @@ const MultiStoreShiftTable = ({
                   <th className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r border-gray-300 bg-gray-100">
                     <div className="text-[0.5rem] leading-tight">Σ{group.storeName}</div>
                   </th>
-                  {group.staff.map(staff => (
-                    <th
-                      key={staff.staff_id}
-                      className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r border-gray-200"
-                    >
-                      <div className="text-[0.55rem] leading-tight">{staff.name}</div>
-                      <div className="text-[0.45rem] text-gray-500 font-normal leading-tight">
-                        {staff.role_name}
-                      </div>
-                    </th>
-                  ))}
+                  {group.staff.map(staff => {
+                    const comment = commentsMap.get(staff.staff_id)
+                    return (
+                      <th
+                        key={staff.staff_id}
+                        className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r border-gray-200"
+                      >
+                        <div className="text-[0.55rem] leading-tight flex items-center justify-center gap-1">
+                          {staff.name}
+                          {comment && (
+                            <span
+                              className="inline-flex items-center justify-center w-5 h-5 bg-yellow-400 text-black rounded-full text-sm font-bold cursor-help animate-pulse shadow-md border-2 border-yellow-500"
+                              onMouseEnter={(e) => showTooltip(e, comment)}
+                              onMouseLeave={hideTooltip}
+                            >
+                              💬
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-[0.45rem] text-gray-500 font-normal leading-tight">
+                          {staff.role_name}
+                        </div>
+                      </th>
+                    )
+                  })}
                 </React.Fragment>
               ))}
             </tr>
@@ -816,6 +871,7 @@ const MultiStoreShiftTable = ({
         </table>
       </div>
     </div>
+    </>
   )
 }
 
