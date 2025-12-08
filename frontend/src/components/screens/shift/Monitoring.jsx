@@ -11,14 +11,10 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  ArrowRight,
   Loader2,
   X,
   Calendar,
-  History as HistoryIcon,
   Store,
-  LayoutGrid,
-  Table,
   Home,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'

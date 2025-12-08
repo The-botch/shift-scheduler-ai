@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
@@ -80,34 +80,7 @@ const MasterDataManagement = ({ onPrev }) => {
     { id: 'impact_documentation', label: '影響範囲ドキュメント', icon: BookOpen, isSpecial: true },
   ]
 
-  useEffect(() => {
-    loadMasterData()
-  }, [selectedMaster])
-
-  useEffect(() => {
-    const loadDropdownData = async () => {
-      try {
-        if (selectedMaster === 'staff' || selectedMaster === 'stores') {
-          const [storesData, rolesData, divisionsData, employmentTypesData] = await Promise.all([
-            masterRepository.getStores(tenantId),
-            masterRepository.getRoles(tenantId),
-            masterRepository.getDivisions(tenantId),
-            masterRepository.getEmploymentTypes(tenantId),
-          ])
-          setStores(storesData)
-          setRoles(rolesData)
-          setDivisions(divisionsData)
-          setEmploymentTypes(employmentTypesData)
-        }
-      } catch (error) {
-        console.error('ドロップダウンデータ取得エラー:', error)
-      }
-    }
-
-    loadDropdownData()
-  }, [selectedMaster, tenantId])
-
-  const loadMasterData = async () => {
+  const loadMasterData = useCallback(async () => {
     // 影響範囲ドキュメントの場合はデータをロードしない
     if (selectedMaster === 'impact_documentation') {
       setLoading(false)
@@ -174,7 +147,34 @@ const MasterDataManagement = ({ onPrev }) => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedMaster, tenantId])
+
+  useEffect(() => {
+    loadMasterData()
+  }, [loadMasterData])
+
+  useEffect(() => {
+    const loadDropdownData = async () => {
+      try {
+        if (selectedMaster === 'staff' || selectedMaster === 'stores') {
+          const [storesData, rolesData, divisionsData, employmentTypesData] = await Promise.all([
+            masterRepository.getStores(tenantId),
+            masterRepository.getRoles(tenantId),
+            masterRepository.getDivisions(tenantId),
+            masterRepository.getEmploymentTypes(tenantId),
+          ])
+          setStores(storesData)
+          setRoles(rolesData)
+          setDivisions(divisionsData)
+          setEmploymentTypes(employmentTypesData)
+        }
+      } catch (error) {
+        console.error('ドロップダウンデータ取得エラー:', error)
+      }
+    }
+
+    loadDropdownData()
+  }, [selectedMaster, tenantId])
 
   const handleCreate = () => {
     setModalMode('create')

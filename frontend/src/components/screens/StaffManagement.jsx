@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
@@ -23,20 +23,16 @@ const StaffManagement = () => {
   const [staffPerformance, setStaffPerformance] = useState({})
   const [insuranceRates, setInsuranceRates] = useState([])
   const [taxBrackets, setTaxBrackets] = useState([])
-  const [commuteAllowances, setCommuteAllowances] = useState([])
-  const [payslips, setPayslips] = useState({})
-  const [showMasters, setShowMasters] = useState(false)
+  const [, setCommuteAllowances] = useState([])
+  const [, setPayslips] = useState({})
+  const [showMasters] = useState(false)
   const [shiftPatterns, setShiftPatterns] = useState([])
   const [stores, setStores] = useState([])
   const [selectedStore, setSelectedStore] = useState('all')
   const [statusFilter, setStatusFilter] = useState('active') // 'all', 'active', 'inactive' - デフォルト在籍のみ
   const [employmentTypeFilter, setEmploymentTypeFilter] = useState('all') // 'all', 'PART_TIME', 'FULL_TIME', etc.
 
-  useEffect(() => {
-    loadData()
-  }, [tenantId])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       // MasterRepositoryを使用してテナント別データを取得
@@ -72,55 +68,6 @@ const StaffManagement = () => {
       const commuteAllowancesParsed = { data: commuteAllowancesData }
       const shiftPatternsParsed = { data: shiftPatternsData }
 
-      // 時刻からシフトパターンを推測する関数
-      const inferPatternCode = (startTime, endTime, patterns) => {
-        // 完全一致を探す
-        const exactMatch = patterns.find(p => p.start_time === startTime && p.end_time === endTime)
-        if (exactMatch) return exactMatch.pattern_code
-
-        // 開始時刻をベースに推測
-        const startHour = parseInt(startTime.split(':')[0])
-        const endHour = parseInt(endTime.split(':')[0])
-
-        // 09:00-10:00頃開始
-        if (startHour >= 9 && startHour <= 10) {
-          // 終了が13:00以前なら SHORT_AM、それ以外は EARLY
-          if (endHour <= 13) {
-            return 'SHORT_AM'
-          } else if (endHour >= 22) {
-            return 'FULL'
-          } else {
-            return 'EARLY'
-          }
-        }
-
-        // 13:00-14:00頃開始
-        if (startHour >= 13 && startHour <= 14) {
-          // 終了が18:00以前なら SHORT_PM、それ以外は MID
-          if (endHour <= 18) {
-            return 'SHORT_PM'
-          } else {
-            return 'MID'
-          }
-        }
-
-        // 17:00頃開始
-        if (startHour >= 17 && startHour <= 18) {
-          return 'LATE'
-        }
-
-        // 11:00-12:00頃開始（中間的な時間帯）
-        if (startHour >= 11 && startHour <= 12) {
-          if (endHour >= 20) {
-            return 'MID'
-          } else {
-            return 'EARLY'
-          }
-        }
-
-        return 'その他'
-      }
-
       // バックエンドAPIから実績データを取得して集計
       const performanceMap = {}
 
@@ -144,7 +91,6 @@ const StaffManagement = () => {
       for (const staff of staffParsed.data) {
         try {
           const payrollHistory = payrollByStaff[staff.staff_id] || []
-          const workHistory = [] // 労働時間実績は現在未使用
 
           // 実績データがある場合のみperformanceMapに登録（給与データのみでもOK）
           if (payrollHistory.length > 0) {
@@ -186,7 +132,7 @@ const StaffManagement = () => {
               perf.monthlyStats[monthKey].wage += wage
             })
           }
-        } catch (err) {
+        } catch {
           // 実績データ取得エラーは無視
         }
       }
@@ -219,7 +165,11 @@ const StaffManagement = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [tenantId])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const getRoleName = roleId => {
     const role = roles.find(r => r.role_id === roleId)
@@ -670,43 +620,28 @@ const StaffManagement = () => {
                           // 2024年の実績を集計
                           let totalDays2024 = 0
                           let totalHours2024 = 0
-                          let totalWage2024 = 0
 
                           year2024Months.forEach(monthKey => {
                             const stats =
                               staffPerformance[selectedStaff.name].monthlyStats[monthKey]
                             totalDays2024 += stats.days
                             totalHours2024 += stats.hours
-
-                            // 給与計算
-                            if (selectedStaff.employment_type === 'monthly') {
-                              totalWage2024 += parseInt(selectedStaff.monthly_salary || 0)
-                            } else if (selectedStaff.employment_type === 'contract') {
-                              totalWage2024 += parseInt(selectedStaff.contract_fee || 0)
-                            } else if (selectedStaff.employment_type === 'hourly') {
-                              totalWage2024 += Math.round(
-                                stats.hours * parseInt(selectedStaff.hourly_rate || 0)
-                              )
-                            }
                           })
 
                           if (remainingMonths > 0 && monthsWorked2024 > 0) {
                             // 月平均を計算
                             const avgDaysPerMonth = totalDays2024 / monthsWorked2024
                             const avgHoursPerMonth = totalHours2024 / monthsWorked2024
-                            const avgWagePerMonth = totalWage2024 / monthsWorked2024
 
                             // 予測残り値
                             const predictedRemainingDays = Math.round(
                               avgDaysPerMonth * remainingMonths
                             )
                             const predictedRemainingHours = avgHoursPerMonth * remainingMonths
-                            const predictedRemainingWage = avgWagePerMonth * remainingMonths
 
                             // 年間予測
                             const predictedAnnualDays = totalDays2024 + predictedRemainingDays
                             const predictedAnnualHours = totalHours2024 + predictedRemainingHours
-                            const predictedAnnualWage = totalWage2024 + predictedRemainingWage
 
                             return (
                               <div className="mb-4">
@@ -767,24 +702,12 @@ const StaffManagement = () => {
                           // 2024年の実績を集計
                           let totalDays2024 = 0
                           let totalHours2024 = 0
-                          let totalWage2024 = 0
 
                           year2024Months.forEach(monthKey => {
                             const stats =
                               staffPerformance[selectedStaff.name].monthlyStats[monthKey]
                             totalDays2024 += stats.days
                             totalHours2024 += stats.hours
-
-                            // 給与計算
-                            if (selectedStaff.employment_type === 'monthly') {
-                              totalWage2024 += parseInt(selectedStaff.monthly_salary || 0)
-                            } else if (selectedStaff.employment_type === 'contract') {
-                              totalWage2024 += parseInt(selectedStaff.contract_fee || 0)
-                            } else if (selectedStaff.employment_type === 'hourly') {
-                              totalWage2024 += Math.round(
-                                stats.hours * parseInt(selectedStaff.hourly_rate || 0)
-                              )
-                            }
                           })
 
                           // 予測を計算

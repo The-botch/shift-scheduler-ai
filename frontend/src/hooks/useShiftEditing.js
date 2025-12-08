@@ -14,7 +14,7 @@ const shiftRepository = new ShiftRepository()
  * @param {Function} options.updateLocalUI - ローカルUIを更新する関数
  * @returns {Object} 共通の状態と関数
  */
-export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete, updateLocalUI } = {}) => {
+export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete } = {}) => {
   // ローカルで保持する変更
   const [modifiedShifts, setModifiedShifts] = useState({}) // { shiftId: { start_time, end_time, ... } }
   const [deletedShiftIds, setDeletedShiftIds] = useState(new Set())

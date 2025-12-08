@@ -10,7 +10,7 @@ const masterRepository = new MasterRepository()
  * @param {Object} selectedShift - 選択されたシフト情報
  * @returns {Object} 共通の状態と関数
  */
-export const useShiftEditorBase = selectedShift => {
+export const useShiftEditorBase = () => {
   const [staffMap, setStaffMap] = useState({})
   const [rolesMap, setRolesMap] = useState({})
   const [storesMap, setStoresMap] = useState({})
