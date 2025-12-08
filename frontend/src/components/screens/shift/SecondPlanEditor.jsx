@@ -1806,8 +1806,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         </Rnd>
       )}
 
-      {/* チャットボット */}
-      {isChatMinimized ? (
+      {/* チャットボット - 一時的に非表示 */}
+      {/* {isChatMinimized ? (
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -1932,7 +1932,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
             }}
           />
         </motion.div>
-      )}
+      )} */}
 
       {/* Conflict解消モーダル */}
       <AnimatePresence>

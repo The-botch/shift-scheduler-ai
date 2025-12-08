@@ -3326,99 +3326,109 @@ router.post('/plans/fetch-previous-data-all-stores', async (req, res) => {
     const { plans: allSourcePlans, shifts: allSourceShifts, plansByStoreId: sourcePlanByStoreId } = await getPreviousSecondShifts(tenant_id, target_year, target_month);
     const { year: prevYear, month: prevMonth } = getPreviousMonth(target_year, target_month);
 
-    const storesData = [];
+    // 曜日ベースで対象月に変換（特定の曜日が何回目に出現するかをカウント）
+    const getWeekInfo = (date) => {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const dayOfWeek = date.getDay();
+      const dayOfMonth = date.getDate();
 
-    // 各店舗ごとにデータ取得
+      // この曜日が月内で何回目の出現かをカウント
+      let weekCount = 0;
+      for (let d = 1; d <= dayOfMonth; d++) {
+        const checkDate = new Date(year, month, d);
+        if (checkDate.getDay() === dayOfWeek) {
+          weekCount++;
+        }
+      }
+
+      return { weekNumber: weekCount, dayOfWeek };
+    };
+
+    // ========================================
+    // スタッフ単位で週番号キーにグループ化
+    // ========================================
+    // staffShiftsByKey[staff_id][key] = [{ store_id, start_time, end_time, ... }, ...]
+    const staffShiftsByKey = {};
+
+    for (const shift of allSourceShifts) {
+      const shiftDate = new Date(shift.shift_date);
+      const { weekNumber, dayOfWeek } = getWeekInfo(shiftDate);
+      const key = `w${weekNumber}_d${dayOfWeek}`;
+
+      if (!staffShiftsByKey[shift.staff_id]) {
+        staffShiftsByKey[shift.staff_id] = {};
+      }
+      if (!staffShiftsByKey[shift.staff_id][key]) {
+        staffShiftsByKey[shift.staff_id][key] = [];
+      }
+      staffShiftsByKey[shift.staff_id][key].push(shift);
+    }
+
+    // ========================================
+    // 対象月の各日について、スタッフ単位でマッピング
+    // ========================================
+    // 結果を店舗ごとに振り分けるための一時配列
+    const shiftsByStoreId = {}; // { store_id: [shifts] }
     for (const store of storesResult.rows) {
-      try {
-        // 前月のSECOND案を取得
-        const sourcePlan = sourcePlanByStoreId.get(store.store_id);
+      shiftsByStoreId[store.store_id] = [];
+    }
 
-        const shifts = [];
+    const daysInTargetMonth = new Date(target_year, target_month, 0).getDate();
 
-        // 最新プランが見つかった場合はシフトデータを取得して変換
-        if (sourcePlan) {
-          // 事前取得済みのシフトからフィルタリング（クエリ不要）
-          const sourceShiftsRows = allSourceShifts.filter(s => s.plan_id === sourcePlan.plan_id);
+    for (let day = 1; day <= daysInTargetMonth; day++) {
+      const newShiftDate = new Date(target_year, target_month - 1, day);
+      const { weekNumber, dayOfWeek } = getWeekInfo(newShiftDate);
+      const primaryKey = `w${weekNumber}_d${dayOfWeek}`;
+      const fallbackKey = `w1_d${dayOfWeek}`;
 
-          // 曜日ベースで対象月に変換（特定の曜日が何回目に出現するかをカウント）
-          const getWeekInfo = (date) => {
-            const year = date.getFullYear();
-            const month = date.getMonth();
-            const dayOfWeek = date.getDay();
-            const dayOfMonth = date.getDate();
+      // 全スタッフをループ
+      for (const [staffId, keyShifts] of Object.entries(staffShiftsByKey)) {
+        // まず該当キーを探す
+        let shiftsForDay = keyShifts[primaryKey];
 
-            // この曜日が月内で何回目の出現かをカウント
-            let weekCount = 0;
-            for (let d = 1; d <= dayOfMonth; d++) {
-              const checkDate = new Date(year, month, d);
-              if (checkDate.getDay() === dayOfWeek) {
-                weekCount++;
-              }
-            }
-
-            return { weekNumber: weekCount, dayOfWeek };
-          };
-
-          const shiftsByWeekAndDay = {};
-          for (const shift of sourceShiftsRows) {
-            const shiftDate = new Date(shift.shift_date);
-            const { weekNumber, dayOfWeek } = getWeekInfo(shiftDate);
-            const key = `w${weekNumber}_d${dayOfWeek}`;
-            if (!shiftsByWeekAndDay[key]) {
-              shiftsByWeekAndDay[key] = [];
-            }
-            shiftsByWeekAndDay[key].push(shift);
-          }
-
-          const daysInTargetMonth = new Date(target_year, target_month, 0).getDate();
-          for (let day = 1; day <= daysInTargetMonth; day++) {
-            const newShiftDate = new Date(target_year, target_month - 1, day);
-            const { weekNumber, dayOfWeek } = getWeekInfo(newShiftDate);
-
-            let key = `w${weekNumber}_d${dayOfWeek}`;
-            let shiftsForDay = shiftsByWeekAndDay[key];
-
-            if (!shiftsForDay || shiftsForDay.length === 0) {
-              key = `w1_d${dayOfWeek}`;
-              shiftsForDay = shiftsByWeekAndDay[key];
-            }
-
-            if (!shiftsForDay || shiftsForDay.length === 0) {
-              continue;
-            }
-
-            for (const sourceShift of shiftsForDay) {
-              shifts.push({
-                store_id: store.store_id,
-                staff_id: sourceShift.staff_id,
-                shift_date: formatDateToYYYYMMDD(newShiftDate),
-                pattern_id: sourceShift.pattern_id,
-                start_time: sourceShift.start_time,
-                end_time: sourceShift.end_time,
-                break_minutes: sourceShift.break_minutes
-              });
-            }
-          }
+        // なければフォールバック（今月に第5週があるが前月にない場合など）
+        if (!shiftsForDay || shiftsForDay.length === 0) {
+          shiftsForDay = keyShifts[fallbackKey];
         }
 
-        storesData.push({
-          store_id: store.store_id,
-          store_name: store.store_name,
-          source_plan: sourcePlan ? `${sourcePlan.plan_year}年${sourcePlan.plan_month}月` : null,
-          shifts: shifts
-        });
+        // それでもなければスキップ
+        if (!shiftsForDay || shiftsForDay.length === 0) {
+          continue;
+        }
 
-      } catch (storeError) {
-        console.error(`  店舗 ${store.store_name} でエラー:`, storeError);
-        storesData.push({
-          store_id: store.store_id,
-          store_name: store.store_name,
-          error: storeError.message,
-          shifts: []
-        });
+        // シフトをコピー（store_idは元のまま維持）
+        for (const sourceShift of shiftsForDay) {
+          const newShift = {
+            store_id: sourceShift.store_id,
+            staff_id: parseInt(staffId),
+            shift_date: formatDateToYYYYMMDD(newShiftDate),
+            pattern_id: sourceShift.pattern_id,
+            start_time: sourceShift.start_time,
+            end_time: sourceShift.end_time,
+            break_minutes: sourceShift.break_minutes
+          };
+
+          // 該当店舗の配列に追加
+          if (shiftsByStoreId[sourceShift.store_id]) {
+            shiftsByStoreId[sourceShift.store_id].push(newShift);
+          }
+        }
       }
     }
+
+    // ========================================
+    // 店舗ごとにデータをまとめて返却
+    // ========================================
+    const storesData = storesResult.rows.map(store => {
+      const sourcePlan = sourcePlanByStoreId.get(store.store_id);
+      return {
+        store_id: store.store_id,
+        store_name: store.store_name,
+        source_plan: sourcePlan ? `${sourcePlan.plan_year}年${sourcePlan.plan_month}月` : null,
+        shifts: shiftsByStoreId[store.store_id] || []
+      };
+    });
 
     // データを返す（DB書き込みなし）
     res.json({
