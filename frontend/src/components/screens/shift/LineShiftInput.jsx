@@ -3,16 +3,8 @@ import { MESSAGES } from '../../../constants/messages'
 import { motion } from 'framer-motion'
 import { Card } from '../../ui/card'
 import { Button } from '../../ui/button'
-import {
-  Check,
-  X,
-  MessageSquare,
-  Copy,
-} from 'lucide-react'
-import {
-  DEMO_PARAMS,
-  getNextMonthYearMonth,
-} from '../../../config/defaults'
+import { Check, X, MessageSquare, Copy } from 'lucide-react'
+import { DEMO_PARAMS, getNextMonthYearMonth } from '../../../config/defaults'
 import { useTenant } from '../../../contexts/TenantContext'
 import { isoToJSTDateParts } from '../../../utils/dateUtils'
 
