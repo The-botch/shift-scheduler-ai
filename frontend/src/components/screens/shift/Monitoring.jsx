@@ -547,7 +547,7 @@ const Monitoring = () => {
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="min-h-screen flex flex-col pt-16"
+      className="h-screen flex flex-col pt-16 overflow-hidden"
     >
       {/* ヘッダーエリア */}
       <div className="flex-shrink-0 px-8 py-4 mb-4 bg-white border-b border-gray-200">
@@ -559,7 +559,9 @@ const Monitoring = () => {
           </Button>
           <div>
             <h1 className="text-3xl font-bold text-gray-900">シフト希望提出状況</h1>
-            <p className="text-base text-gray-600 mt-1">スタッフのシフト希望提出状況を確認できます</p>
+            <p className="text-base text-gray-600 mt-1">
+              スタッフのシフト希望提出状況を確認できます
+            </p>
           </div>
         </div>
 
