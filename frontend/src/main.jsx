@@ -30,12 +30,7 @@ window.resetTenantId = resetTenantId
 const FirstPlanEditorWrapper = () => {
   const location = useLocation()
   const navigate = useNavigate()
-  return (
-    <FirstPlanEditor
-      selectedShift={location.state?.shift}
-      onApprove={() => navigate('/')}
-    />
-  )
+  return <FirstPlanEditor selectedShift={location.state?.shift} onApprove={() => navigate('/')} />
 }
 
 const SecondPlanEditorWrapper = () => {
