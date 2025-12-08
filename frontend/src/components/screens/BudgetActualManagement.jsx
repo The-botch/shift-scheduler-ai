@@ -937,8 +937,6 @@ const BudgetActualManagement = () => {
       console.error('差分分析エラー:', error)
       alert(MESSAGES.ERROR.ANALYSIS_FAILED)
       setSelectedMonth(null)
-    } finally {
-      setLoading(false)
     }
   }
 
