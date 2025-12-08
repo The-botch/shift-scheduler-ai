@@ -3346,12 +3346,26 @@ router.post('/plans/fetch-previous-data-all-stores', async (req, res) => {
     };
 
     // ========================================
-    // スタッフ単位で週番号キーにグループ化
+    // アクティブなスタッフIDを取得（退職者を除外）
+    // ========================================
+    const activeStaffResult = await query(
+      'SELECT staff_id FROM hr.staff WHERE tenant_id = $1 AND is_active = true',
+      [tenant_id]
+    );
+    const activeStaffIds = new Set(activeStaffResult.rows.map(r => r.staff_id));
+
+    // ========================================
+    // スタッフ単位で週番号キーにグループ化（アクティブなスタッフのみ）
     // ========================================
     // staffShiftsByKey[staff_id][key] = [{ store_id, start_time, end_time, ... }, ...]
     const staffShiftsByKey = {};
 
     for (const shift of allSourceShifts) {
+      // 退職者はスキップ
+      if (!activeStaffIds.has(shift.staff_id)) {
+        continue;
+      }
+
       const shiftDate = new Date(shift.shift_date);
       const { weekNumber, dayOfWeek } = getWeekInfo(shiftDate);
       const key = `w${weekNumber}_d${dayOfWeek}`;
