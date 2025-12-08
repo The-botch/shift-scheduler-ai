@@ -1,0 +1,1368 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Top画面簡素化 設計書 - Issue #177</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    .section {
+      border: 3px solid #3b82f6;
+      margin: 40px 0;
+      padding: 20px;
+      border-radius: 12px;
+    }
+    .section-title {
+      background: #3b82f6;
+      color: white;
+      padding: 8px 16px;
+      margin: -20px -20px 20px -20px;
+      border-radius: 8px 8px 0 0;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .code-block {
+      background: #1e293b;
+      color: #4ade80;
+      padding: 16px;
+      border-radius: 8px;
+      font-family: monospace;
+      font-size: 12px;
+      overflow-x: auto;
+      white-space: pre;
+    }
+    .flow-arrow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+      color: #64748b;
+      padding: 8px;
+    }
+  </style>
+</head>
+<body class="bg-gray-100">
+  <div class="max-w-7xl mx-auto p-8">
+    <h1 class="text-3xl font-bold text-center mb-4">Top画面簡素化 設計書</h1>
+    <p class="text-center text-gray-600 mb-2">Issue #177: Top画面をMVPとして必要最小限の機能に簡素化</p>
+    <p class="text-center text-gray-500 text-sm mb-8">作成日: 2024年12月</p>
+
+    <!-- ========================================== -->
+    <!-- 概要 -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">1. 概要</div>
+
+      <div class="grid grid-cols-2 gap-6 mb-6">
+        <div class="bg-red-50 border border-red-200 rounded-lg p-4">
+          <h3 class="font-bold text-red-800 mb-3">現在の構成（ShiftManagement）</h3>
+          <ul class="text-sm text-red-700 space-y-1">
+            <li>・マトリックス形式（店舗×月）</li>
+            <li>・全月が選択可能</li>
+            <li>・AppHeaderで全メニュー表示</li>
+            <li>・複雑な状態管理（15個以上のフラグ）</li>
+          </ul>
+        </div>
+        <div class="bg-green-50 border border-green-200 rounded-lg p-4">
+          <h3 class="font-bold text-green-800 mb-3">新しい構成（ShiftDashboard）</h3>
+          <ul class="text-sm text-green-700 space-y-1">
+            <li>・サイドメニュー + 3カード形式</li>
+            <li>・対象月のみアクティブ（20日ルール）</li>
+            <li>・MVP非表示メニュー対応</li>
+            <li>・React Router stateで画面遷移</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+        <h3 class="font-bold text-yellow-800 mb-3">MVP対応整理</h3>
+        <div class="grid grid-cols-2 gap-6">
+          <div>
+            <h4 class="font-semibold text-green-700 mb-2">MVP残す機能</h4>
+            <ul class="text-sm text-green-600 space-y-1">
+              <li>&#10003; シフト管理（トップ）→ ShiftDashboard</li>
+              <li>&#10003; 第1案編集（FirstPlanEditor）</li>
+              <li>&#10003; 第2案編集（SecondPlanEditor）</li>
+              <li>&#10003; モニタリング</li>
+              <li>&#10003; スタッフ管理</li>
+              <li>&#10003; CSVエクスポート</li>
+            </ul>
+          </div>
+          <div>
+            <h4 class="font-semibold text-red-700 mb-2">MVP非表示（コードは残す）</h4>
+            <ul class="text-sm text-red-600 space-y-1">
+              <li>&#10007; 店舗管理</li>
+              <li>&#10007; 予実管理</li>
+              <li>&#10007; 制約管理</li>
+              <li>&#10007; マスターデータ管理</li>
+              <li>&#10007; LINE関連</li>
+              <li>&#10007; テナント選択</li>
+              <li>&#10007; ChatBot / AI修正指示</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 画面ワイヤーフレーム -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">2. 画面ワイヤーフレーム（ShiftDashboard全体）</div>
+
+      <p class="text-sm text-gray-600 mb-4">新しいトップ画面の全体構成。Sidebar（左）+ メインコンテンツ（右）の2カラムレイアウト。</p>
+
+      <!-- 全体ワイヤーフレーム -->
+      <div class="bg-white rounded-lg shadow-lg overflow-hidden flex" style="height: 700px;">
+
+        <!-- サイドバー -->
+        <div class="w-72 bg-slate-800 text-white flex-shrink-0 flex flex-col">
+          <div class="p-4 border-b border-slate-700">
+            <span class="font-bold text-lg">シフト管理</span>
+          </div>
+          <nav class="p-3 flex-1 overflow-y-auto">
+            <!-- ダッシュボード -->
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-slate-700 mb-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+              </svg>
+              <span>ダッシュボード</span>
+            </a>
+
+            <!-- 年月選択セクション -->
+            <div class="mt-4 mb-2 px-4">
+              <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">年月選択</span>
+            </div>
+
+            <!-- 過去月（確定済）- クリック可能 -->
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 mb-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span>2024年10月</span>
+              <span class="ml-auto text-xs bg-slate-600 px-2 py-0.5 rounded">確定済</span>
+            </a>
+
+            <!-- 過去月（確定済）- クリック可能 -->
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 mb-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span>2024年11月</span>
+              <span class="ml-auto text-xs bg-slate-600 px-2 py-0.5 rounded">確定済</span>
+            </a>
+
+            <!-- 対象月（アクティブ） -->
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-green-600 text-white mb-1 shadow-lg">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span class="font-bold">2024年12月</span>
+              <span class="ml-auto text-xs bg-green-500 px-2 py-0.5 rounded">対象月</span>
+            </a>
+
+            <!-- 未来月（未開放）- クリック可能 -->
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 mb-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span>2025年1月</span>
+              <span class="ml-auto text-xs bg-slate-600 px-2 py-0.5 rounded">未開放</span>
+            </a>
+
+            <!-- 未来月（未開放）- クリック可能 -->
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 mb-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span>2025年2月</span>
+              <span class="ml-auto text-xs bg-slate-600 px-2 py-0.5 rounded">未開放</span>
+            </a>
+
+            <!-- マスターセクション -->
+            <div class="mt-6 mb-2 px-4">
+              <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">マスター</span>
+            </div>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 mb-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+              <span>スタッフ管理</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 mb-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              <span>モニタリング</span>
+            </a>
+          </nav>
+        </div>
+
+        <!-- メインコンテンツ -->
+        <div class="flex-1 bg-slate-50 flex flex-col">
+          <!-- ヘッダー -->
+          <div class="bg-white border-b border-slate-200 px-6 py-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <h1 class="text-2xl font-bold text-slate-900">2024年12月 シフト管理</h1>
+                <p class="text-slate-600 text-sm">対象月のシフト作成・管理</p>
+              </div>
+              <div class="flex items-center gap-3">
+                <div class="bg-blue-50 text-blue-700 px-3 py-1 rounded-md text-xs font-medium border border-blue-200">
+                  テナント: LOCAL
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- カードエリア -->
+          <div class="flex-1 p-6 overflow-auto flex items-center justify-center">
+            <div class="grid grid-cols-3 gap-5 max-w-5xl w-full">
+
+              <!-- 募集状況カード -->
+              <div class="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 bg-green-200 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                  </div>
+                  <span class="text-base font-semibold text-green-800">シフト募集</span>
+                </div>
+                <div class="text-2xl font-bold text-green-700 mb-1">募集中</div>
+                <div class="text-sm text-green-600 mb-3">締切: 11月20日</div>
+                <div class="flex items-center gap-2 mb-1">
+                  <div class="flex-1 bg-green-200 rounded-full h-2">
+                    <div class="bg-green-500 h-2 rounded-full" style="width: 78%"></div>
+                  </div>
+                  <span class="text-xs text-green-700 font-medium">78%</span>
+                </div>
+                <div class="text-xs text-green-600">39/50名が提出済み</div>
+                <div class="mt-3">
+                  <button class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors">
+                    詳細を見る →
+                  </button>
+                </div>
+                <div class="mt-2 text-xs text-green-500 text-center">
+                  → Monitoring へ遷移
+                </div>
+              </div>
+
+              <!-- 第一案カード -->
+              <div class="bg-gradient-to-br from-amber-50 to-amber-100 border-2 border-amber-300 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 bg-amber-200 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                  </div>
+                  <span class="text-base font-semibold text-amber-800">第一案</span>
+                </div>
+                <div class="text-2xl font-bold text-amber-700 mb-1">作成中</div>
+                <div class="text-sm text-amber-600 mb-3">下書き保存済み</div>
+                <div class="mt-3">
+                  <button class="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors">
+                    編集を続ける →
+                  </button>
+                </div>
+                <div class="mt-2 text-xs text-amber-500 text-center">
+                  → FirstPlanEditor へ遷移
+                </div>
+              </div>
+
+              <!-- 第二案カード -->
+              <div class="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-300 rounded-xl p-5 shadow-sm opacity-60">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+                    </svg>
+                  </div>
+                  <span class="text-base font-semibold text-slate-600">第二案</span>
+                </div>
+                <div class="text-2xl font-bold text-slate-500 mb-1">作成不可</div>
+                <div class="text-sm text-slate-500 mb-3">第一案承認後に作成可能</div>
+                <div class="mt-3">
+                  <button class="w-full bg-slate-300 text-slate-500 font-medium py-2 px-4 rounded-lg text-sm cursor-not-allowed" disabled>
+                    作成不可
+                  </button>
+                </div>
+                <div class="mt-2 text-xs text-slate-400 text-center">
+                  → SecondPlanEditor へ遷移
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 設計ポイント -->
+      <div class="mt-6 p-4 bg-blue-50 rounded-lg">
+        <p class="font-bold text-blue-800 mb-2">設計ポイント:</p>
+        <ul class="text-blue-700 text-sm space-y-1">
+          <li>・<strong>左サイドメニュー (w-72 = 288px)</strong>: 年月選択 + ナビゲーション</li>
+          <li>・<strong>対象月は緑色でハイライト</strong>、他の月もクリック可能（既存仕様と同一）</li>
+          <li>・<strong>メインエリア</strong>: 3つのカード（募集状況、第一案、第二案）を中央配置</li>
+          <li>・<strong>ヘッダー</strong>: 年月表示 + テナント名バッジ</li>
+          <li>・<strong>募集状況カード</strong> → Monitoring へ遷移（希望提出状況確認）</li>
+          <li>・<strong>第一案カード</strong> → FirstPlanEditor / ShiftCreationMethodSelector へ遷移</li>
+          <li>・<strong>第二案カード</strong> → SecondPlanEditor へ遷移（第一案承認後のみ）</li>
+        </ul>
+      </div>
+
+      <!-- 状態バリエーション -->
+      <h3 class="font-bold text-lg mt-8 mb-4">カード状態バリエーション</h3>
+
+      <div class="grid grid-cols-3 gap-6">
+        <!-- 募集状況バリエーション -->
+        <div class="space-y-3">
+          <h4 class="font-semibold text-slate-700 border-b pb-2">募集状況</h4>
+
+          <!-- 募集中 -->
+          <div class="bg-gradient-to-br from-green-50 to-green-100 border border-green-200 rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-3 h-3 bg-green-500 rounded-full"></div>
+              <span class="text-sm font-bold text-green-700">募集中</span>
+            </div>
+            <div class="text-xs text-green-600">締切: 11/20</div>
+            <div class="text-xs text-green-600">提出率: 78%</div>
+            <button class="mt-2 w-full bg-green-500 text-white text-xs py-1.5 rounded">詳細を見る →</button>
+          </div>
+
+          <!-- 締切済 -->
+          <div class="bg-gradient-to-br from-orange-50 to-orange-100 border border-orange-200 rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-3 h-3 bg-orange-500 rounded-full"></div>
+              <span class="text-sm font-bold text-orange-700">締切済</span>
+            </div>
+            <div class="text-xs text-orange-600">変更可能期間</div>
+            <div class="text-xs text-orange-600">提出率: 92%</div>
+            <button class="mt-2 w-full bg-orange-500 text-white text-xs py-1.5 rounded">詳細を見る →</button>
+          </div>
+
+          <!-- 募集終了 -->
+          <div class="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-3 h-3 bg-slate-400 rounded-full"></div>
+              <span class="text-sm font-bold text-slate-600">募集終了</span>
+            </div>
+            <div class="text-xs text-slate-500">確定済み</div>
+            <div class="text-xs text-slate-500">提出率: 100%</div>
+            <button class="mt-2 w-full bg-slate-400 text-white text-xs py-1.5 rounded">履歴を見る</button>
+          </div>
+        </div>
+
+        <!-- 第一案バリエーション -->
+        <div class="space-y-3">
+          <h4 class="font-semibold text-slate-700 border-b pb-2">第一案</h4>
+
+          <!-- 未作成 -->
+          <div class="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-3 h-3 bg-slate-400 rounded-full"></div>
+              <span class="text-sm font-bold text-slate-600">未作成</span>
+            </div>
+            <div class="text-xs text-slate-500">作成を開始してください</div>
+            <button class="mt-2 w-full bg-blue-500 text-white text-xs py-1.5 rounded">作成開始</button>
+          </div>
+
+          <!-- 作成中 -->
+          <div class="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-3 h-3 bg-amber-500 rounded-full"></div>
+              <span class="text-sm font-bold text-amber-700">作成中</span>
+            </div>
+            <div class="text-xs text-amber-600">下書き保存済み</div>
+            <button class="mt-2 w-full bg-amber-500 text-white text-xs py-1.5 rounded">編集を続ける →</button>
+          </div>
+
+          <!-- 承認済 -->
+          <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span class="text-sm font-bold text-blue-700">承認済</span>
+            </div>
+            <div class="text-xs text-blue-600">11/18に承認</div>
+            <button class="mt-2 w-full bg-blue-500 text-white text-xs py-1.5 rounded">編集する</button>
+          </div>
+        </div>
+
+        <!-- 第二案バリエーション -->
+        <div class="space-y-3">
+          <h4 class="font-semibold text-slate-700 border-b pb-2">第二案</h4>
+
+          <!-- 作成不可 -->
+          <div class="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-lg p-3 opacity-60">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-3 h-3 bg-slate-300 rounded-full"></div>
+              <span class="text-sm font-bold text-slate-500">作成不可</span>
+            </div>
+            <div class="text-xs text-slate-400">第一案承認後に作成可能</div>
+            <button class="mt-2 w-full bg-slate-200 text-slate-400 text-xs py-1.5 rounded cursor-not-allowed" disabled>作成不可</button>
+          </div>
+
+          <!-- 未作成 -->
+          <div class="bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-3 h-3 bg-slate-400 rounded-full"></div>
+              <span class="text-sm font-bold text-slate-600">未作成</span>
+            </div>
+            <div class="text-xs text-slate-500">作成を開始してください</div>
+            <button class="mt-2 w-full bg-blue-500 text-white text-xs py-1.5 rounded">作成開始</button>
+          </div>
+
+          <!-- 作成中 -->
+          <div class="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-3 h-3 bg-amber-500 rounded-full"></div>
+              <span class="text-sm font-bold text-amber-700">作成中</span>
+            </div>
+            <div class="text-xs text-amber-600">下書き保存済み</div>
+            <button class="mt-2 w-full bg-amber-500 text-white text-xs py-1.5 rounded">編集を続ける →</button>
+          </div>
+
+          <!-- 承認済 -->
+          <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-lg p-3">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-3 h-3 bg-blue-500 rounded-full"></div>
+              <span class="text-sm font-bold text-blue-700">承認済</span>
+            </div>
+            <div class="text-xs text-blue-600">11/25に承認</div>
+            <button class="mt-2 w-full bg-blue-500 text-white text-xs py-1.5 rounded">編集する</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ファイル構成 -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">3. ファイル構成</div>
+
+      <div class="code-block">frontend/src/
+├── hooks/
+│   ├── useTargetMonth.js          # 【新規】対象月判定ロジック
+│   └── useShiftStatus.js          # 【新規】シフト状態取得Hook
+│
+├── components/
+│   ├── shared/
+│   │   ├── Sidebar.jsx            # 【新規】左サイドメニュー
+│   │   └── ShiftStatusCards.jsx   # 【新規】3カードコンポーネント
+│   │
+│   └── screens/
+│       └── shift/
+│           └── ShiftDashboard.jsx # 【新規】新トップ画面
+│
+└── App.jsx                        # 【変更】ShiftDashboard統合</div>
+
+      <table class="w-full border-collapse text-sm mt-6">
+        <thead>
+          <tr class="bg-slate-100">
+            <th class="border p-2 text-left">ファイル</th>
+            <th class="border p-2 text-left">種別</th>
+            <th class="border p-2 text-left">役割</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="border p-2 font-mono text-xs">hooks/useTargetMonth.js</td>
+            <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">新規</span></td>
+            <td class="border p-2">対象月計算、月リスト生成、募集状況判定</td>
+          </tr>
+          <tr>
+            <td class="border p-2 font-mono text-xs">hooks/useShiftStatus.js</td>
+            <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">新規</span></td>
+            <td class="border p-2">シフトステータス取得（API経由）</td>
+          </tr>
+          <tr>
+            <td class="border p-2 font-mono text-xs">components/shared/Sidebar.jsx</td>
+            <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">新規</span></td>
+            <td class="border p-2">左サイドメニュー（年月選択 + ナビ）</td>
+          </tr>
+          <tr>
+            <td class="border p-2 font-mono text-xs">components/shared/ShiftStatusCards.jsx</td>
+            <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">新規</span></td>
+            <td class="border p-2">3カード（募集状況・第一案・第二案）</td>
+          </tr>
+          <tr>
+            <td class="border p-2 font-mono text-xs">components/screens/shift/ShiftDashboard.jsx</td>
+            <td class="border p-2"><span class="bg-green-100 text-green-700 px-2 py-0.5 rounded text-xs">新規</span></td>
+            <td class="border p-2">新トップ画面（Sidebar + Cards統合）</td>
+          </tr>
+          <tr>
+            <td class="border p-2 font-mono text-xs">App.jsx</td>
+            <td class="border p-2"><span class="bg-blue-100 text-blue-700 px-2 py-0.5 rounded text-xs">変更</span></td>
+            <td class="border p-2">トップページでShiftDashboardを表示</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- データフロー -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">4. データフロー</div>
+
+      <div class="code-block">┌─────────────────────────────────────────────────────────────────┐
+│                        ShiftDashboard                            │
+│  ┌──────────────┐      ┌─────────────────────────────────────┐  │
+│  │   Sidebar    │      │         ShiftStatusCards            │  │
+│  │              │      │  ┌─────────┐┌─────────┐┌─────────┐  │  │
+│  │ useTargetMonth      │  │募集状況 ││ 第一案  ││ 第二案  │  │  │
+│  │  ↓ monthList │      │  └────┬────┘└────┬────┘└────┬────┘  │  │
+│  └──────┬───────┘      └───────┼──────────┼──────────┼───────┘  │
+│         │                      │          │          │          │
+│         │               useShiftStatus (API取得)                 │
+└─────────┼──────────────────────┼──────────┼──────────┼──────────┘
+          │                      │          │          │
+          ↓                      ↓          ↓          ↓
+    onMonthSelect         onMonitoring  onFirstPlan  onSecondPlan
+          │                      │          │          │
+          └──────────────────────┴──────────┴──────────┘
+                                 │
+                                 ↓
+┌─────────────────────────────────────────────────────────────────┐
+│                           App.jsx                                │
+│                                                                  │
+│  → navigate('/shift/monitoring', { state: { shift } })           │
+│  → navigate('/shift/draft-editor', { state: { shift } })         │
+│  → navigate('/shift/second-plan', { state: { shift } })          │
+└─────────────────────────────────────────────────────────────────┘</div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- useTargetMonth.js -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">5. useTargetMonth.js 詳細設計</div>
+
+      <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+        <h3 class="font-bold text-blue-800 mb-2">対象月ロジック</h3>
+        <ul class="text-sm text-blue-700 space-y-1">
+          <li>・<strong>20日以前</strong>: 来月が対象月</li>
+          <li>・<strong>21日以降</strong>: 再来月が対象月</li>
+          <li>・例: 11/15 → 12月が対象月</li>
+          <li>・例: 11/28 → 1月が対象月</li>
+          <li>・例: 12/21 → 2月が対象月</li>
+        </ul>
+      </div>
+
+      <div class="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+        <h3 class="font-bold text-orange-800 mb-2">募集状況ロジック（既存コードから抽出）</h3>
+        <ul class="text-sm text-orange-700 space-y-1">
+          <li>・締切日 = <strong>対象月の前月20日</strong></li>
+          <li>・<code>now &lt; 締切日</code> → 募集中（recruiting）</li>
+          <li>・<code>締切日 &lt;= now &lt; 対象月末</code> → 締切済（closed）</li>
+          <li>・<code>now &gt;= 対象月末</code> → 募集終了（finished）</li>
+        </ul>
+      </div>
+
+      <h4 class="font-bold text-slate-700 mb-2">エクスポートする関数</h4>
+      <div class="code-block">// 対象月を計算
+export const getTargetMonth = (date = new Date()) =&gt; {
+  const currentDay = date.getDate()
+  const currentMonth = date.getMonth() + 1
+  const currentYear = date.getFullYear()
+
+  if (currentDay &lt;= 20) {
+    // 20日以前: 来月が対象月
+    return {
+      year: currentMonth === 12 ? currentYear + 1 : currentYear,
+      month: currentMonth === 12 ? 1 : currentMonth + 1,
+    }
+  } else {
+    // 21日以降: 再来月が対象月
+    const targetMonth = currentMonth + 2
+    return {
+      year: targetMonth &gt; 12 ? currentYear + 1 : currentYear,
+      month: targetMonth &gt; 12 ? targetMonth - 12 : targetMonth,
+    }
+  }
+}
+
+// 月のステータスを判定
+export const getMonthStatus = (year, month, baseDate = new Date()) =&gt;
+  'target' | 'past' | 'future'
+
+// 表示用の年月リストを生成（対象月の前後6ヶ月）
+export const getMonthList = (count = 6, baseDate = new Date()) =&gt;
+  Array&lt;{ year, month, status, label }&gt;
+
+// 募集状況を判定
+export const getRecruitmentStatus = (year, month, baseDate = new Date()) =&gt; {
+  status: 'recruiting' | 'closed' | 'finished',
+  statusLabel: string,    // '募集中' | '締切済' | '募集終了'
+  deadline: string,       // '締切: 11/20' | '変更可能' | '確定済み'
+  color: string,          // 'green' | 'orange' | 'gray'
+  bgColor: string,        // Tailwind gradient class
+  borderColor: string     // Tailwind border class
+}
+
+// Hook本体
+export const useTargetMonth = () =&gt; {
+  targetMonth: { year, month },
+  monthList: Array,
+  isTargetMonth: (year, month) =&gt; boolean,
+  getMonthStatus: (year, month) =&gt; 'target' | 'past' | 'future',
+  getRecruitmentStatus: (year, month) =&gt; RecruitmentStatus
+}</div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- useShiftStatus.js -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">6. useShiftStatus.js 詳細設計</div>
+
+      <h4 class="font-bold text-slate-700 mb-2">API呼び出し</h4>
+      <div class="code-block">// ShiftRepository既存メソッドを使用
+const summary = await shiftRepository.getSummary({ year, month, tenantId })
+const preferences = await shiftRepository.getPreferences({ dateFrom, dateTo, tenantId })
+const staff = await masterRepository.getStaff({ tenantId })</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">戻り値の型</h4>
+      <div class="code-block">export const useShiftStatus = (year: number, month: number) =&gt; {
+  loading: boolean,
+  error: Error | null,
+
+  // 募集状況（提出率を含む）
+  recruitmentStatus: {
+    status: 'recruiting' | 'closed' | 'finished',
+    statusLabel: string,
+    deadline: string,
+    submittedCount: number,   // 提出済みスタッフ数
+    totalCount: number,       // 全スタッフ数
+    submissionRate: number,   // 0-100
+    color: string,
+    bgColor: string,
+    borderColor: string
+  },
+
+  // 第一案ステータス
+  firstPlanStatus: {
+    status: 'not_started' | 'draft' | 'approved',
+    planId: number | null,
+    updatedAt: string | null
+  },
+
+  // 第二案ステータス
+  secondPlanStatus: {
+    status: 'unavailable' | 'not_started' | 'draft' | 'approved',
+    planId: number | null,
+    updatedAt: string | null
+  },
+
+  // 再取得関数
+  refetch: () =&gt; Promise&lt;void&gt;
+}</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">ステータス判定ロジック</h4>
+      <div class="code-block">// 第一案
+const firstPlan = summary.find(p =&gt; p.plan_type === 'FIRST')
+firstPlanStatus = !firstPlan ? 'not_started'
+                : firstPlan.status === 'APPROVED' ? 'approved'
+                : 'draft'
+
+// 第二案（第一案がAPPROVEDでないとunavailable）
+const isFirstApproved = firstPlan?.status === 'APPROVED'
+secondPlanStatus = !isFirstApproved ? 'unavailable'
+                 : !secondPlan ? 'not_started'
+                 : secondPlan.status === 'APPROVED' ? 'approved'
+                 : 'draft'
+
+// 提出率計算
+const submittedStaffIds = new Set(preferences.map(p =&gt; p.staff_id))
+const submittedCount = submittedStaffIds.size
+const totalCount = staff.length
+const submissionRate = Math.round((submittedCount / totalCount) * 100)</div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- Sidebar.jsx -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">7. Sidebar.jsx 詳細設計</div>
+
+      <h4 class="font-bold text-slate-700 mb-2">Props</h4>
+      <div class="code-block">interface SidebarProps {
+  selectedYear: number
+  selectedMonth: number
+  onMonthSelect: (year: number, month: number) =&gt; void
+  onStaffManagement: () =&gt; void
+  onMonitoring: () =&gt; void
+  currentPath?: string
+}</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">MonthItemの状態別スタイル</h4>
+      <table class="w-full border-collapse text-sm">
+        <thead>
+          <tr class="bg-slate-100">
+            <th class="border p-2">status</th>
+            <th class="border p-2">スタイル</th>
+            <th class="border p-2">アイコン</th>
+            <th class="border p-2">バッジ</th>
+            <th class="border p-2">クリック</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="border p-2 font-mono text-xs">target（選択中）</td>
+            <td class="border p-2 text-xs">bg-green-600 text-white shadow-lg</td>
+            <td class="border p-2">Calendar</td>
+            <td class="border p-2"><span class="bg-green-500 text-white px-2 py-0.5 rounded text-xs">対象月</span></td>
+            <td class="border p-2 text-green-600">可能</td>
+          </tr>
+          <tr>
+            <td class="border p-2 font-mono text-xs">past</td>
+            <td class="border p-2 text-xs">hover:bg-slate-700</td>
+            <td class="border p-2">Calendar</td>
+            <td class="border p-2"><span class="bg-slate-600 text-white px-2 py-0.5 rounded text-xs">確定済</span></td>
+            <td class="border p-2 text-green-600">可能</td>
+          </tr>
+          <tr>
+            <td class="border p-2 font-mono text-xs">future</td>
+            <td class="border p-2 text-xs">hover:bg-slate-700</td>
+            <td class="border p-2">Calendar</td>
+            <td class="border p-2"><span class="bg-slate-600 text-white px-2 py-0.5 rounded text-xs">未開放</span></td>
+            <td class="border p-2 text-green-600">可能</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">UIモックアップ</h4>
+      <div class="bg-white rounded-lg shadow-lg overflow-hidden" style="width: 288px;">
+        <div class="bg-slate-800 text-white">
+          <div class="p-4 border-b border-slate-700">
+            <span class="font-bold text-lg">シフト管理</span>
+          </div>
+          <nav class="p-3">
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 mb-2">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+              </svg>
+              <span>ダッシュボード</span>
+            </a>
+
+            <div class="mt-4 mb-2 px-4">
+              <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">年月選択</span>
+            </div>
+
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 mb-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span>2024年11月</span>
+              <span class="ml-auto text-xs bg-slate-600 px-2 py-0.5 rounded">確定済</span>
+            </a>
+
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg bg-green-600 text-white mb-1 shadow-lg">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span class="font-bold">2024年12月</span>
+              <span class="ml-auto text-xs bg-green-500 px-2 py-0.5 rounded">対象月</span>
+            </a>
+
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 mb-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+              <span>2025年1月</span>
+              <span class="ml-auto text-xs bg-slate-600 px-2 py-0.5 rounded">未開放</span>
+            </a>
+
+            <div class="mt-6 mb-2 px-4">
+              <span class="text-xs text-slate-400 font-medium uppercase tracking-wider">マスター</span>
+            </div>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 mb-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+              </svg>
+              <span>スタッフ管理</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 px-4 py-3 rounded-lg hover:bg-slate-700 mb-1">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+              </svg>
+              <span>モニタリング</span>
+            </a>
+          </nav>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ShiftStatusCards.jsx -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">8. ShiftStatusCards.jsx 詳細設計</div>
+
+      <h4 class="font-bold text-slate-700 mb-2">Props</h4>
+      <div class="code-block">interface ShiftStatusCardsProps {
+  year: number
+  month: number
+  recruitmentStatus: RecruitmentStatus
+  firstPlanStatus: PlanStatus
+  secondPlanStatus: PlanStatus
+  onRecruitmentClick: () =&gt; void
+  onFirstPlanClick: () =&gt; void
+  onSecondPlanClick: () =&gt; void
+}</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">カード状態別の表示仕様</h4>
+      <div class="overflow-x-auto">
+        <table class="w-full border-collapse text-xs">
+          <thead>
+            <tr class="bg-slate-100">
+              <th class="border p-2">カード</th>
+              <th class="border p-2">status</th>
+              <th class="border p-2">見出し</th>
+              <th class="border p-2">サブテキスト</th>
+              <th class="border p-2">ボタンラベル</th>
+              <th class="border p-2">カラー</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="border p-2" rowspan="3">募集状況</td>
+              <td class="border p-2 font-mono">recruiting</td>
+              <td class="border p-2">募集中</td>
+              <td class="border p-2">締切: {date}</td>
+              <td class="border p-2">詳細を見る →</td>
+              <td class="border p-2"><span class="bg-green-100 text-green-700 px-1 rounded">green</span></td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">closed</td>
+              <td class="border p-2">締切済</td>
+              <td class="border p-2">変更可能</td>
+              <td class="border p-2">詳細を見る →</td>
+              <td class="border p-2"><span class="bg-orange-100 text-orange-700 px-1 rounded">orange</span></td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">finished</td>
+              <td class="border p-2">募集終了</td>
+              <td class="border p-2">確定済み</td>
+              <td class="border p-2">履歴を見る</td>
+              <td class="border p-2"><span class="bg-gray-100 text-gray-700 px-1 rounded">gray</span></td>
+            </tr>
+            <tr>
+              <td class="border p-2" rowspan="3">第一案</td>
+              <td class="border p-2 font-mono">not_started</td>
+              <td class="border p-2">未作成</td>
+              <td class="border p-2">作成を開始してください</td>
+              <td class="border p-2">作成開始</td>
+              <td class="border p-2"><span class="bg-slate-100 text-slate-700 px-1 rounded">slate</span></td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">draft</td>
+              <td class="border p-2">作成中</td>
+              <td class="border p-2">下書き保存済み</td>
+              <td class="border p-2">編集を続ける →</td>
+              <td class="border p-2"><span class="bg-amber-100 text-amber-700 px-1 rounded">amber</span></td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">approved</td>
+              <td class="border p-2">承認済</td>
+              <td class="border p-2">{date}に承認</td>
+              <td class="border p-2">編集する</td>
+              <td class="border p-2"><span class="bg-blue-100 text-blue-700 px-1 rounded">blue</span></td>
+            </tr>
+            <tr>
+              <td class="border p-2" rowspan="4">第二案</td>
+              <td class="border p-2 font-mono">unavailable</td>
+              <td class="border p-2">作成不可</td>
+              <td class="border p-2">第一案承認後に作成可能</td>
+              <td class="border p-2">作成不可 (disabled)</td>
+              <td class="border p-2"><span class="bg-slate-100 text-slate-500 px-1 rounded">slate+opacity</span></td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">not_started</td>
+              <td class="border p-2">未作成</td>
+              <td class="border p-2">作成を開始してください</td>
+              <td class="border p-2">作成開始</td>
+              <td class="border p-2"><span class="bg-slate-100 text-slate-700 px-1 rounded">slate</span></td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">draft</td>
+              <td class="border p-2">作成中</td>
+              <td class="border p-2">下書き保存済み</td>
+              <td class="border p-2">編集を続ける →</td>
+              <td class="border p-2"><span class="bg-amber-100 text-amber-700 px-1 rounded">amber</span></td>
+            </tr>
+            <tr>
+              <td class="border p-2 font-mono">approved</td>
+              <td class="border p-2">承認済</td>
+              <td class="border p-2">{date}に承認</td>
+              <td class="border p-2">編集する</td>
+              <td class="border p-2"><span class="bg-blue-100 text-blue-700 px-1 rounded">blue</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h4 class="font-bold text-slate-700 mt-6 mb-2">UIモックアップ</h4>
+      <div class="grid grid-cols-3 gap-5 max-w-4xl">
+        <!-- 募集状況カード -->
+        <div class="bg-gradient-to-br from-green-50 to-green-100 border-2 border-green-300 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-green-200 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+              </svg>
+            </div>
+            <span class="text-base font-semibold text-green-800">シフト募集</span>
+          </div>
+          <div class="text-2xl font-bold text-green-700 mb-1">募集中</div>
+          <div class="text-sm text-green-600 mb-3">締切: 12月20日</div>
+          <div class="flex items-center gap-2 mb-1">
+            <div class="flex-1 bg-green-200 rounded-full h-2">
+              <div class="bg-green-500 h-2 rounded-full" style="width: 78%"></div>
+            </div>
+            <span class="text-xs text-green-700 font-medium">78%</span>
+          </div>
+          <div class="text-xs text-green-600">39/50名が提出済み</div>
+          <div class="mt-3">
+            <button class="w-full bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors">
+              詳細を見る →
+            </button>
+          </div>
+        </div>
+
+        <!-- 第一案カード -->
+        <div class="bg-gradient-to-br from-amber-50 to-amber-100 border-2 border-amber-300 rounded-xl p-5 shadow-sm hover:shadow-md transition-shadow cursor-pointer">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-amber-200 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+              </svg>
+            </div>
+            <span class="text-base font-semibold text-amber-800">第一案</span>
+          </div>
+          <div class="text-2xl font-bold text-amber-700 mb-1">作成中</div>
+          <div class="text-sm text-amber-600 mb-3">下書き保存済み</div>
+          <div class="mt-3">
+            <button class="w-full bg-amber-500 hover:bg-amber-600 text-white font-medium py-2 px-4 rounded-lg text-sm transition-colors">
+              編集を続ける →
+            </button>
+          </div>
+        </div>
+
+        <!-- 第二案カード（作成不可） -->
+        <div class="bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-300 rounded-xl p-5 shadow-sm opacity-60">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 bg-slate-200 rounded-full flex items-center justify-center">
+              <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+              </svg>
+            </div>
+            <span class="text-base font-semibold text-slate-600">第二案</span>
+          </div>
+          <div class="text-2xl font-bold text-slate-500 mb-1">作成不可</div>
+          <div class="text-sm text-slate-500 mb-3">第一案承認後に作成可能</div>
+          <div class="mt-3">
+            <button class="w-full bg-slate-300 text-slate-500 font-medium py-2 px-4 rounded-lg text-sm cursor-not-allowed" disabled>
+              作成不可
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- ShiftDashboard.jsx -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">9. ShiftDashboard.jsx 詳細設計</div>
+
+      <h4 class="font-bold text-slate-700 mb-2">内部State</h4>
+      <div class="code-block">const { targetMonth } = useTargetMonth()
+const [selectedYear, setSelectedYear] = useState(targetMonth.year)
+const [selectedMonth, setSelectedMonth] = useState(targetMonth.month)
+
+const {
+  recruitmentStatus,
+  firstPlanStatus,
+  secondPlanStatus,
+  loading
+} = useShiftStatus(selectedYear, selectedMonth)
+
+const { tenantId, tenantName } = useTenant()
+const navigate = useNavigate()</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">画面遷移ハンドラ</h4>
+      <div class="code-block">// 募集状況カード → Monitoring
+const handleRecruitmentClick = () =&gt; {
+  navigate('/shift/monitoring', {
+    state: {
+      shift: { year: selectedYear, month: selectedMonth }
+    }
+  })
+}
+
+// 第一案カード → FirstPlanEditor or ShiftCreationMethodSelector
+const handleFirstPlanClick = () =&gt; {
+  const shift = {
+    year: selectedYear,
+    month: selectedMonth,
+    planId: firstPlanStatus.planId,
+    planType: 'FIRST',
+    status: firstPlanStatus.status === 'approved' ? 'APPROVED'
+          : firstPlanStatus.status === 'draft' ? 'DRAFT'
+          : 'not_started'
+  }
+
+  if (firstPlanStatus.status === 'not_started') {
+    // 作成方法選択画面へ
+    navigate('/shift/method', { state: { shift } })
+  } else {
+    // 編集画面へ
+    navigate('/shift/draft-editor', { state: { shift } })
+  }
+}
+
+// 第二案カード → SecondPlanEditor
+const handleSecondPlanClick = () =&gt; {
+  if (secondPlanStatus.status === 'unavailable') return
+
+  navigate('/shift/second-plan', {
+    state: {
+      shift: {
+        year: selectedYear,
+        month: selectedMonth,
+        planId: secondPlanStatus.planId,
+        planType: 'SECOND',
+        status: secondPlanStatus.status === 'approved' ? 'APPROVED'
+              : secondPlanStatus.status === 'draft' ? 'DRAFT'
+              : 'not_started'
+      }
+    }
+  })
+}</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">レンダリング構造</h4>
+      <div class="code-block">&lt;div className="flex h-screen"&gt;
+  &lt;Sidebar
+    selectedYear={selectedYear}
+    selectedMonth={selectedMonth}
+    onMonthSelect={(y, m) =&gt; { setSelectedYear(y); setSelectedMonth(m) }}
+    onStaffManagement={() =&gt; navigate('/staff')}
+    onMonitoring={handleRecruitmentClick}
+  /&gt;
+
+  &lt;main className="flex-1 flex flex-col bg-slate-50"&gt;
+    &lt;header className="bg-white border-b px-6 py-4"&gt;
+      &lt;h1&gt;{selectedYear}年{selectedMonth}月 シフト管理&lt;/h1&gt;
+      &lt;span&gt;{tenantName}&lt;/span&gt;
+    &lt;/header&gt;
+
+    &lt;div className="flex-1 flex items-center justify-center p-6"&gt;
+      {loading ? &lt;Spinner /&gt; : (
+        &lt;ShiftStatusCards
+          year={selectedYear}
+          month={selectedMonth}
+          recruitmentStatus={recruitmentStatus}
+          firstPlanStatus={firstPlanStatus}
+          secondPlanStatus={secondPlanStatus}
+          onRecruitmentClick={handleRecruitmentClick}
+          onFirstPlanClick={handleFirstPlanClick}
+          onSecondPlanClick={handleSecondPlanClick}
+        /&gt;
+      )}
+    &lt;/div&gt;
+  &lt;/main&gt;
+&lt;/div&gt;</div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 画面遷移 -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">10. 画面遷移・データ受け渡し</div>
+
+      <h4 class="font-bold text-slate-700 mb-2">遷移一覧</h4>
+      <table class="w-full border-collapse text-sm">
+        <thead>
+          <tr class="bg-slate-100">
+            <th class="border p-2 text-left">遷移元</th>
+            <th class="border p-2 text-left">遷移先</th>
+            <th class="border p-2 text-left">URL</th>
+            <th class="border p-2 text-left">データ受け渡し</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="border p-2">ShiftDashboard</td>
+            <td class="border p-2">Monitoring</td>
+            <td class="border p-2 font-mono text-xs">/shift/monitoring</td>
+            <td class="border p-2 text-xs">state: { shift: { year, month } }</td>
+          </tr>
+          <tr>
+            <td class="border p-2">ShiftDashboard</td>
+            <td class="border p-2">ShiftCreationMethodSelector</td>
+            <td class="border p-2 font-mono text-xs">/shift/method</td>
+            <td class="border p-2 text-xs">state: { shift: { year, month, planType: 'FIRST', status: 'not_started' } }</td>
+          </tr>
+          <tr>
+            <td class="border p-2">ShiftDashboard</td>
+            <td class="border p-2">FirstPlanEditor</td>
+            <td class="border p-2 font-mono text-xs">/shift/draft-editor</td>
+            <td class="border p-2 text-xs">state: { shift: { year, month, planId, planType: 'FIRST', status } }</td>
+          </tr>
+          <tr>
+            <td class="border p-2">ShiftDashboard</td>
+            <td class="border p-2">SecondPlanEditor</td>
+            <td class="border p-2 font-mono text-xs">/shift/second-plan</td>
+            <td class="border p-2 text-xs">state: { shift: { year, month, planId, planType: 'SECOND', status } }</td>
+          </tr>
+          <tr>
+            <td class="border p-2">ShiftDashboard</td>
+            <td class="border p-2">StaffManagement</td>
+            <td class="border p-2 font-mono text-xs">/staff</td>
+            <td class="border p-2 text-xs">なし</td>
+          </tr>
+          <tr>
+            <td class="border p-2">FirstPlanEditor</td>
+            <td class="border p-2">ShiftDashboard</td>
+            <td class="border p-2 font-mono text-xs">/</td>
+            <td class="border p-2 text-xs">onBack() コールバック</td>
+          </tr>
+          <tr>
+            <td class="border p-2">SecondPlanEditor</td>
+            <td class="border p-2">ShiftDashboard</td>
+            <td class="border p-2 font-mono text-xs">/</td>
+            <td class="border p-2 text-xs">onPrev() コールバック</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">shiftオブジェクトの構造（既存形式を維持）</h4>
+      <div class="code-block">interface ShiftInfo {
+  year: number              // 対象年
+  month: number             // 対象月
+  planId: number | null     // シフト計画ID（未作成の場合null）
+  planType: 'FIRST' | 'SECOND'
+  status: 'not_started' | 'DRAFT' | 'APPROVED'
+}</div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- App.jsx 変更点 -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">11. App.jsx 変更点</div>
+
+      <h4 class="font-bold text-slate-700 mb-2">追加するimport</h4>
+      <div class="code-block">import ShiftDashboard from './components/screens/shift/ShiftDashboard'</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">追加するState</h4>
+      <div class="code-block">const [showShiftDashboard, setShowShiftDashboard] = useState(false)</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">URLルーティング変更</h4>
+      <div class="code-block">// useEffect内 (location.pathname による初期化)
+if (path === '/') {
+  setShowShiftDashboard(true)  // 変更: ShiftManagement → ShiftDashboard
+}</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">goToShiftDashboard関数（goToShiftManagementを置換）</h4>
+      <div class="code-block">const goToShiftDashboard = () =&gt; {
+  if (hasUnsavedChanges) {
+    if (!window.confirm('変更が保存されていません。ダッシュボードに移動しますか？')) {
+      return
+    }
+    setHasUnsavedChanges(false)
+  }
+
+  // 全フラグをfalseに
+  setShowShiftDashboard(true)
+  setShowShiftManagement(false)
+  setShowStaffManagement(false)
+  setShowStoreManagement(false)
+  setShowConstraintManagement(false)
+  setShowDraftShiftEditor(false)
+  setShowShiftCreationMethodSelector(false)
+  setShowHistory(false)
+  setShowLineMessages(false)
+  setShowMonitoring(false)
+  setShowBudgetActualManagement(false)
+  setShowMasterDataManagement(false)
+  setShowDevTools(false)
+  setShowTenantSettings(false)
+  setCurrentStep(1)
+}</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">renderCurrentScreen変更</h4>
+      <div class="code-block">const renderCurrentScreen = () =&gt; {
+  // 新規追加: ShiftDashboardを最初に
+  if (showShiftDashboard) {
+    return &lt;ShiftDashboard /&gt;
+  }
+
+  if (showStaffManagement) {
+    return &lt;StaffManagement ... /&gt;
+  }
+  // ... 以下既存のまま
+}</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">AppHeaderのonHome変更</h4>
+      <div class="code-block">&lt;AppHeader
+  onHome={goToShiftDashboard}  // 変更: goToShiftManagement → goToShiftDashboard
+  onShiftManagement={goToShiftDashboard}  // 変更
+  ...
+/&gt;</div>
+
+      <h4 class="font-bold text-slate-700 mt-4 mb-2">デフォルト画面の変更</h4>
+      <div class="code-block">// 初回表示時
+if (!showShiftDashboard &amp;&amp; !showShiftManagement &amp;&amp; ... &amp;&amp; currentStep === 1) {
+  setShowShiftDashboard(true)  // 変更: ShiftDashboard をデフォルトに
+}</div>
+    </div>
+
+    <!-- ========================================== -->
+    <!-- 実装チェックリスト -->
+    <!-- ========================================== -->
+    <div class="section">
+      <div class="section-title">12. 実装チェックリスト</div>
+
+      <div class="space-y-4">
+        <div class="bg-white border rounded-lg p-4">
+          <h4 class="font-bold text-slate-700 mb-2">Step 1: Hooks作成</h4>
+          <ul class="text-sm space-y-1">
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>useTargetMonth.js - getTargetMonth()実装</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>useTargetMonth.js - getMonthStatus()実装</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>useTargetMonth.js - getMonthList()実装</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>useTargetMonth.js - getRecruitmentStatus()実装</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>useShiftStatus.js - API呼び出し実装</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>useShiftStatus.js - ステータス判定ロジック実装</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-white border rounded-lg p-4">
+          <h4 class="font-bold text-slate-700 mb-2">Step 2: コンポーネント作成</h4>
+          <ul class="text-sm space-y-1">
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>Sidebar.jsx - 年月リスト表示</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>Sidebar.jsx - 全月クリック可能（既存仕様維持）</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>Sidebar.jsx - ナビゲーションリンク</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>ShiftStatusCards.jsx - 3カードレイアウト</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>ShiftStatusCards.jsx - 状態別表示切替</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>ShiftStatusCards.jsx - クリックハンドラ</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-white border rounded-lg p-4">
+          <h4 class="font-bold text-slate-700 mb-2">Step 3: ShiftDashboard作成</h4>
+          <ul class="text-sm space-y-1">
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>ShiftDashboard.jsx - Sidebar + Cards統合</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>ShiftDashboard.jsx - 画面遷移ハンドラ実装</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>ShiftDashboard.jsx - ローディング表示</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-white border rounded-lg p-4">
+          <h4 class="font-bold text-slate-700 mb-2">Step 4: App.jsx変更</h4>
+          <ul class="text-sm space-y-1">
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>showShiftDashboard state追加</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>goToShiftDashboard関数作成</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>renderCurrentScreen変更</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>URLルーティング変更</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>AppHeader onHome変更</span>
+            </li>
+          </ul>
+        </div>
+
+        <div class="bg-white border rounded-lg p-4">
+          <h4 class="font-bold text-slate-700 mb-2">Step 5: 動作確認</h4>
+          <ul class="text-sm space-y-1">
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>トップページでShiftDashboard表示</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>募集状況カード → Monitoring遷移</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>第一案カード → FirstPlanEditor遷移</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>第二案カード → SecondPlanEditor遷移</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>戻るボタン → ShiftDashboard遷移</span>
+            </li>
+            <li class="flex items-center gap-2">
+              <input type="checkbox" class="rounded">
+              <span>スタッフ管理 → 正常遷移</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

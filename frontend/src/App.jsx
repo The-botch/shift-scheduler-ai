@@ -16,8 +16,8 @@ import Monitoring from './components/screens/shift/Monitoring'
 import StaffManagement from './components/screens/StaffManagement'
 import StoreManagement from './components/screens/StoreManagement'
 import ConstraintManagement from './components/screens/ConstraintManagement'
-import History from './components/screens/shift/History'
 import ShiftManagement from './components/screens/shift/ShiftManagement'
+import ShiftDashboard from './components/screens/shift/ShiftDashboard'
 import BudgetActualManagement from './components/screens/BudgetActualManagement'
 import MasterDataManagement from './components/screens/MasterDataManagement'
 import DevTools from './dev/DevTools'
@@ -34,8 +34,8 @@ function AppContent() {
   const [showStaffManagement, setShowStaffManagement] = useState(false)
   const [showStoreManagement, setShowStoreManagement] = useState(false)
   const [showConstraintManagement, setShowConstraintManagement] = useState(false)
-  const [showHistory, setShowHistory] = useState(false)
   const [showShiftManagement, setShowShiftManagement] = useState(false)
+  const [showShiftDashboard, setShowShiftDashboard] = useState(true)
   const [showDraftShiftEditor, setShowDraftShiftEditor] = useState(false)
   const [showShiftCreationMethodSelector, setShowShiftCreationMethodSelector] = useState(false)
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
@@ -53,51 +53,81 @@ function AppContent() {
   const [monitoringInitialMonth, setMonitoringInitialMonth] = useState(null) // Monitoring画面に渡す初期月
   const [monitoringInitialStoreId, setMonitoringInitialStoreId] = useState(null) // Monitoring画面に渡す初期店舗ID
 
-  // 店舗フィルター（ShiftManagementとHistoryで共通）
+  // 店舗フィルター
   const [selectedStore, setSelectedStore] = useState('all')
   const [availableStores, setAvailableStores] = useState([])
 
   // URLからステートを初期化
   useEffect(() => {
     const path = location.pathname
+
+    // 全フラグをリセットしてから対象のフラグをセット
+    const resetAllFlags = () => {
+      setShowShiftDashboard(false)
+      setShowStaffManagement(false)
+      setShowStoreManagement(false)
+      setShowConstraintManagement(false)
+      setShowShiftManagement(false)
+      setShowDraftShiftEditor(false)
+      setShowShiftCreationMethodSelector(false)
+      setShowLineMessages(false)
+      setShowMonitoring(false)
+      setShowBudgetActualManagement(false)
+      setShowMasterDataManagement(false)
+      setShowDevTools(false)
+      setShowTenantSettings(false)
+    }
+
     if (path === '/') {
-      // トップページ → ShiftManagement
-      setShowShiftManagement(true)
+      // トップページ → ShiftDashboard
+      resetAllFlags()
+      setShowShiftDashboard(true)
     } else if (path === '/staff') {
+      resetAllFlags()
       setShowStaffManagement(true)
     } else if (path === '/store') {
+      resetAllFlags()
       setShowStoreManagement(true)
     } else if (path === '/master') {
+      resetAllFlags()
       setShowMasterDataManagement(true)
     } else if (path === '/budget-actual') {
+      resetAllFlags()
       setShowBudgetActualManagement(true)
     } else if (path === '/shift/line') {
+      resetAllFlags()
       setShowLineMessages(true)
     } else if (path === '/shift/monitoring') {
+      resetAllFlags()
       setShowMonitoring(true)
     } else if (path === '/constraint') {
+      resetAllFlags()
       setShowConstraintManagement(true)
-    } else if (path === '/shift/history') {
-      setShowHistory(true)
     } else if (path === '/shift/draft-editor') {
+      resetAllFlags()
       setShowDraftShiftEditor(true)
     } else if (path === '/shift/method') {
+      resetAllFlags()
       setShowShiftCreationMethodSelector(true)
     } else if (path === '/dev-tools') {
+      resetAllFlags()
       setShowDevTools(true)
     } else if (path === '/tenant-settings') {
+      resetAllFlags()
       setShowTenantSettings(true)
     }
   }, [location.pathname])
 
   // ステートが変更されたらURLを更新
   useEffect(() => {
-    if (showStaffManagement) {
+    if (showShiftDashboard) {
+      navigate('/', { replace: true })
+    } else if (showStaffManagement) {
       navigate('/staff', { replace: true })
     } else if (showStoreManagement) {
       navigate('/store', { replace: true })
     } else if (showShiftManagement) {
-      navigate('/', { replace: true })
+      navigate('/shift/management', { replace: true })
     } else if (showMasterDataManagement) {
       navigate('/master', { replace: true })
     } else if (showBudgetActualManagement) {
@@ -108,8 +138,6 @@ function AppContent() {
       navigate('/shift/monitoring', { replace: true })
     } else if (showConstraintManagement) {
       navigate('/constraint', { replace: true })
-    } else if (showHistory) {
-      navigate('/shift/history', { replace: true })
     } else if (showDraftShiftEditor) {
       navigate('/shift/draft-editor', { replace: true })
     } else if (showShiftCreationMethodSelector) {
@@ -119,6 +147,7 @@ function AppContent() {
     } else if (showTenantSettings) {
       navigate('/tenant-settings', { replace: true })
     } else if (
+      !showShiftDashboard &&
       !showStaffManagement &&
       !showStoreManagement &&
       !showShiftManagement &&
@@ -127,7 +156,6 @@ function AppContent() {
       !showLineMessages &&
       !showMonitoring &&
       !showConstraintManagement &&
-      !showHistory &&
       !showDraftShiftEditor &&
       !showShiftCreationMethodSelector &&
       !showDevTools &&
@@ -137,6 +165,7 @@ function AppContent() {
       navigate('/', { replace: true })
     }
   }, [
+    showShiftDashboard,
     showStaffManagement,
     showStoreManagement,
     showShiftManagement,
@@ -145,7 +174,6 @@ function AppContent() {
     showLineMessages,
     showMonitoring,
     showConstraintManagement,
-    showHistory,
     showDraftShiftEditor,
     showShiftCreationMethodSelector,
     showDevTools,
@@ -168,7 +196,6 @@ function AppContent() {
     setShowShiftManagement(false)
     setShowDraftShiftEditor(false)
     setShowShiftCreationMethodSelector(false)
-    setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowBudgetActualManagement(false)
@@ -187,7 +214,6 @@ function AppContent() {
     setShowStaffManagement(false)
     setShowConstraintManagement(false)
     setShowShiftManagement(false)
-    setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowBudgetActualManagement(false)
@@ -206,7 +232,6 @@ function AppContent() {
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowShiftManagement(false)
-    setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowBudgetActualManagement(false)
@@ -226,7 +251,6 @@ function AppContent() {
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
-    setShowHistory(false)
     setShowMonitoring(false)
     setShowBudgetActualManagement(false)
     setShowMasterDataManagement(false)
@@ -253,7 +277,6 @@ function AppContent() {
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
-    setShowHistory(false)
     setShowLineMessages(false)
     setShowBudgetActualManagement(false)
     setShowMasterDataManagement(false)
@@ -272,7 +295,6 @@ function AppContent() {
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
-    setShowHistory(false)
     setShowLineMessages(false)
     setShowMasterDataManagement(false)
     setShowDevTools(false)
@@ -293,14 +315,37 @@ function AppContent() {
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
-    setShowHistory(false)
     setShowLineMessages(false)
     setShowDevTools(false)
     setShowTenantSettings(false)
   }
 
-  const backFromHistory = () => {
-    setShowHistory(false)
+  const goToShiftDashboard = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。ダッシュボードに移動しますか？')) {
+        return
+      }
+      setHasUnsavedChanges(false)
+    }
+
+    // 全てのフラグを確実にリセット
+    setMonitoringInitialMonth(null)
+    setShowShiftDashboard(true)
+    setShowShiftManagement(false)
+    setShowStaffManagement(false)
+    setShowStoreManagement(false)
+    setShowConstraintManagement(false)
+    setShowDraftShiftEditor(false)
+    setShowShiftCreationMethodSelector(false)
+    setShowLineMessages(false)
+    setShowMonitoring(false)
+    setShowBudgetActualManagement(false)
+    setShowMasterDataManagement(false)
+    setShowDevTools(false)
+    setShowTenantSettings(false)
+
+    // ステップもリセット
+    setCurrentStep(1)
   }
 
   const goToShiftManagement = () => {
@@ -314,12 +359,12 @@ function AppContent() {
     // 全てのフラグを確実にリセット
     setMonitoringInitialMonth(null)
     setShowShiftManagement(true)
+    setShowShiftDashboard(false)
     setShowStaffManagement(false)
     setShowStoreManagement(false)
     setShowConstraintManagement(false)
     setShowDraftShiftEditor(false)
     setShowShiftCreationMethodSelector(false)
-    setShowHistory(false)
     setShowLineMessages(false)
     setShowMonitoring(false)
     setShowBudgetActualManagement(false)
@@ -369,29 +414,25 @@ function AppContent() {
 
   const backToShiftManagementFromDraft = () => {
     if (hasUnsavedChanges) {
-      if (!window.confirm('変更が保存されていません。シフト管理に戻りますか？')) {
+      if (!window.confirm('変更が保存されていません。ダッシュボードに戻りますか？')) {
         return
       }
       setHasUnsavedChanges(false)
     }
     setShowDraftShiftEditor(false)
-    setShowShiftManagement(true)
-    // データを再読み込みするために再マウント
-    setShiftManagementKey(prev => prev + 1)
+    setShowShiftDashboard(true)
   }
 
   const handleDeleteShiftPlan = () => {
     // シフト削除後の処理
     setHasUnsavedChanges(false)
     setShowDraftShiftEditor(false)
-    setShowShiftManagement(true)
-    // データを再読み込みするために再マウント
-    setShiftManagementKey(prev => prev + 1)
+    setShowShiftDashboard(true)
   }
 
   const backToShiftManagementFromMethodSelector = () => {
     setShowShiftCreationMethodSelector(false)
-    setShowShiftManagement(true)
+    setShowShiftDashboard(true)
   }
 
   const handleSelectCreationMethod = async methodId => {
@@ -502,22 +543,25 @@ function AppContent() {
   }
 
   const approveFirstPlan = () => {
-    // 第1案を仮承認してシフト管理画面に戻る
+    // 第1案を仮承認してダッシュボードに戻る
     setShiftStatus({ ...shiftStatus, 10: 'first_plan_approved' })
     setHasUnsavedChanges(false)
     setShowDraftShiftEditor(false)
-    setShowShiftManagement(true)
+    setShowShiftDashboard(true)
     setShowBudgetActualManagement(false)
-    // データを再読み込みするために再マウント
-    setShiftManagementKey(prev => prev + 1)
   }
 
   const renderCurrentScreen = () => {
+    // ShiftDashboard（新トップ画面）
+    if (showShiftDashboard) {
+      return <ShiftDashboard onStaffManagement={goToStaffManagement} />
+    }
+
     if (showStaffManagement) {
       return (
         <StaffManagement
-          onHome={goToShiftManagement}
-          onShiftManagement={goToShiftManagement}
+          onHome={goToShiftDashboard}
+          onShiftManagement={goToShiftDashboard}
           onLineMessages={goToLineMessages}
           onMonitoring={goToMonitoring}
           onStaffManagement={goToStaffManagement}
@@ -531,8 +575,8 @@ function AppContent() {
     if (showStoreManagement) {
       return (
         <StoreManagement
-          onHome={goToShiftManagement}
-          onShiftManagement={goToShiftManagement}
+          onHome={goToShiftDashboard}
+          onShiftManagement={goToShiftDashboard}
           onLineMessages={goToLineMessages}
           onMonitoring={goToMonitoring}
           onStaffManagement={goToStaffManagement}
@@ -546,24 +590,8 @@ function AppContent() {
     if (showConstraintManagement) {
       return (
         <ConstraintManagement
-          onHome={goToShiftManagement}
-          onShiftManagement={goToShiftManagement}
-          onLineMessages={goToLineMessages}
-          onMonitoring={goToMonitoring}
-          onStaffManagement={goToStaffManagement}
-          onStoreManagement={goToStoreManagement}
-          onConstraintManagement={goToConstraintManagement}
-          onBudgetActualManagement={goToBudgetActualManagement}
-        />
-      )
-    }
-
-    if (showHistory) {
-      return (
-        <History
-          onPrev={backFromHistory}
-          onHome={goToShiftManagement}
-          onShiftManagement={goToShiftManagement}
+          onHome={goToShiftDashboard}
+          onShiftManagement={goToShiftDashboard}
           onLineMessages={goToLineMessages}
           onMonitoring={goToMonitoring}
           onStaffManagement={goToStaffManagement}
@@ -578,8 +606,8 @@ function AppContent() {
       return (
         <LineShiftInput
           shiftStatus={shiftStatus}
-          onHome={goToShiftManagement}
-          onShiftManagement={goToShiftManagement}
+          onHome={goToShiftDashboard}
+          onShiftManagement={goToShiftDashboard}
           onLineMessages={goToLineMessages}
           onMonitoring={goToMonitoring}
           onStaffManagement={goToStaffManagement}
@@ -593,8 +621,8 @@ function AppContent() {
     if (showMonitoring) {
       return (
         <Monitoring
-          onHome={goToShiftManagement}
-          onShiftManagement={goToShiftManagement}
+          onHome={goToShiftDashboard}
+          onShiftManagement={goToShiftDashboard}
           onLineMessages={goToLineMessages}
           onMonitoring={goToMonitoring}
           onStaffManagement={goToStaffManagement}
@@ -610,8 +638,8 @@ function AppContent() {
     if (showBudgetActualManagement) {
       return (
         <BudgetActualManagement
-          onHome={goToShiftManagement}
-          onShiftManagement={goToShiftManagement}
+          onHome={goToShiftDashboard}
+          onShiftManagement={goToShiftDashboard}
           onLineMessages={goToLineMessages}
           onMonitoring={goToMonitoring}
           onStaffManagement={goToStaffManagement}
@@ -623,7 +651,7 @@ function AppContent() {
     }
 
     if (showMasterDataManagement) {
-      return <MasterDataManagement onPrev={goToShiftManagement} />
+      return <MasterDataManagement onPrev={goToShiftDashboard} />
     }
 
     if (showDevTools) {
@@ -631,8 +659,8 @@ function AppContent() {
         <DevTools
           targetYear={getCurrentYear()}
           targetMonth={getCurrentMonth()}
-          onHome={goToShiftManagement}
-          onShiftManagement={goToShiftManagement}
+          onHome={goToShiftDashboard}
+          onShiftManagement={goToShiftDashboard}
           onLineMessages={goToLineMessages}
           onMonitoring={goToMonitoring}
           onStaffManagement={goToStaffManagement}
@@ -664,13 +692,8 @@ function AppContent() {
       )
     }
 
-    // デフォルト画面はシフト管理
-    if (!showShiftManagement && currentStep === 1) {
-      // 初回表示時は自動的にシフト管理を表示
-      setShowShiftManagement(true)
-    }
-
-    if (showShiftManagement || currentStep === 1) {
+    // 旧ShiftManagement画面（MVP後は削除予定）
+    if (showShiftManagement) {
       return (
         <ShiftManagement
           key={shiftManagementKey}
@@ -678,8 +701,8 @@ function AppContent() {
           onFirstPlan={goToFirstPlanFromShiftMgmt}
           onCreateShift={goToFirstPlanFromShiftMgmt}
           shiftStatus={shiftStatus}
-          onHome={goToShiftManagement}
-          onShiftManagement={goToShiftManagement}
+          onHome={goToShiftDashboard}
+          onShiftManagement={goToShiftDashboard}
           onLineMessages={goToLineMessages}
           onMonitoring={goToMonitoring}
           onStaffManagement={goToStaffManagement}
@@ -694,37 +717,15 @@ function AppContent() {
       )
     }
 
-    switch (currentStep) {
-      default:
-        return (
-          <ShiftManagement
-            key={shiftManagementKey}
-            onPrev={backFromShiftManagement}
-            onFirstPlan={goToFirstPlanFromShiftMgmt}
-            onCreateShift={goToFirstPlanFromShiftMgmt}
-            shiftStatus={shiftStatus}
-            onHome={goToShiftManagement}
-            onShiftManagement={goToShiftManagement}
-            onLineMessages={goToLineMessages}
-            onMonitoring={goToMonitoring}
-            onStaffManagement={goToStaffManagement}
-            onStoreManagement={goToStoreManagement}
-            onConstraintManagement={goToConstraintManagement}
-            onBudgetActualManagement={goToBudgetActualManagement}
-            selectedStore={selectedStore}
-            setSelectedStore={setSelectedStore}
-            availableStores={availableStores}
-            setAvailableStores={setAvailableStores}
-          />
-        )
-    }
+    // デフォルト画面はShiftDashboard（showShiftDashboardは初期値trueなのでここに来ることはないはず）
+    return <ShiftDashboard onStaffManagement={goToStaffManagement} />
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50 flex flex-col overflow-x-hidden w-full max-w-full">
       <AppHeader
-        onHome={goToShiftManagement}
-        onShiftManagement={goToShiftManagement}
+        onHome={goToShiftDashboard}
+        onShiftManagement={goToShiftDashboard}
         onLineMessages={goToLineMessages}
         onMonitoring={goToMonitoring}
         onStaffManagement={goToStaffManagement}
@@ -737,25 +738,25 @@ function AppContent() {
         <AnimatePresence mode="wait">
           <div
             key={
-              showStaffManagement
-                ? 'staff-management'
-                : showStoreManagement
-                  ? 'store-management'
-                  : showConstraintManagement
-                    ? 'constraint-management'
-                    : showHistory
-                      ? 'history'
+              showShiftDashboard
+                ? 'shift-dashboard'
+                : showStaffManagement
+                  ? 'staff-management'
+                  : showStoreManagement
+                    ? 'store-management'
+                    : showConstraintManagement
+                      ? 'constraint-management'
                       : showShiftManagement
-                        ? 'shift-management'
-                        : showShiftCreationMethodSelector
-                          ? 'shift-creation-method-selector'
-                          : showDraftShiftEditor
-                            ? 'draft-shift-editor'
-                            : showBudgetActualManagement
-                              ? 'budget-actual-management'
-                              : showMasterDataManagement
-                                ? 'master-data-management'
-                                : currentStep
+                          ? 'shift-management'
+                          : showShiftCreationMethodSelector
+                            ? 'shift-creation-method-selector'
+                            : showDraftShiftEditor
+                              ? 'draft-shift-editor'
+                              : showBudgetActualManagement
+                                ? 'budget-actual-management'
+                                : showMasterDataManagement
+                                  ? 'master-data-management'
+                                  : currentStep
             }
           >
             {renderCurrentScreen()}
