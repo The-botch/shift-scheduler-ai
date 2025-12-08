@@ -29,7 +29,8 @@ const StaffManagement = () => {
   const [shiftPatterns, setShiftPatterns] = useState([])
   const [stores, setStores] = useState([])
   const [selectedStore, setSelectedStore] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all') // 'all', 'active', 'inactive'
+  const [statusFilter, setStatusFilter] = useState('active') // 'all', 'active', 'inactive' - デフォルト在籍のみ
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState('all') // 'all', 'PART_TIME', 'FULL_TIME', etc.
 
   useEffect(() => {
     loadData()
@@ -231,7 +232,7 @@ const StaffManagement = () => {
     return employmentTypeData ? employmentTypeData.employment_name : employmentType
   }
 
-  // 店舗フィルタリング + 在籍状況フィルタリング
+  // 店舗フィルタリング + 在籍状況フィルタリング + 契約タイプフィルタリング
   const filteredStaffList = staffList.filter(staff => {
     // 店舗フィルター
     const storeMatch = selectedStore === 'all' || staff.store_id === parseInt(selectedStore)
@@ -244,7 +245,20 @@ const StaffManagement = () => {
       statusMatch = staff.is_active === false
     }
 
-    return storeMatch && statusMatch
+    // 契約タイプフィルター
+    let employmentMatch = true
+    if (employmentTypeFilter !== 'all') {
+      if (employmentTypeFilter === 'PART_TIME') {
+        employmentMatch = staff.employment_type === 'PART_TIME' || staff.employment_type === 'PART'
+      } else if (employmentTypeFilter === 'FULL_TIME') {
+        employmentMatch =
+          staff.employment_type === 'FULL_TIME' || staff.employment_type === 'REGULAR'
+      } else {
+        employmentMatch = staff.employment_type === employmentTypeFilter
+      }
+    }
+
+    return storeMatch && statusMatch && employmentMatch
   })
 
   if (loading) {
@@ -1266,6 +1280,16 @@ const StaffManagement = () => {
                                   {store.store_name}
                                 </option>
                               ))}
+                            </select>
+                            <select
+                              value={employmentTypeFilter}
+                              onChange={e => setEmploymentTypeFilter(e.target.value)}
+                              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            >
+                              <option value="all">全ての契約</option>
+                              <option value="PART_TIME">アルバイト</option>
+                              <option value="FULL_TIME">正社員</option>
+                              <option value="CONTRACT">契約社員</option>
                             </select>
                           </div>
                         </div>

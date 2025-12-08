@@ -77,11 +77,25 @@ export const useShiftStatus = (year, month) => {
         masterRepository.getStaff(),
       ])
 
-      // 募集状況を計算
+      // 募集状況を計算（アルバイトのみ、かつ在籍者のみを対象とする）
       const baseRecruitmentStatus = getRecruitmentStatus(year, month)
-      const submittedStaffIds = new Set(preferences.map(p => p.staff_id))
+
+      // アルバイトかどうかを判定するヘルパー関数
+      const isPartTimeStaff = s => s.employment_type === 'PART_TIME' || s.employment_type === 'PART'
+
+      // 在籍中かどうかを判定するヘルパー関数
+      const isActiveStaff = s => s.is_active === true
+
+      // アルバイトかつ在籍者のみをフィルタ
+      const partTimeStaff = staff.filter(s => isPartTimeStaff(s) && isActiveStaff(s))
+      const partTimeStaffIds = new Set(partTimeStaff.map(s => s.staff_id))
+
+      // 提出済みのアルバイトスタッフをカウント
+      const submittedStaffIds = new Set(
+        preferences.filter(p => partTimeStaffIds.has(p.staff_id)).map(p => p.staff_id)
+      )
       const submittedCount = submittedStaffIds.size
-      const totalCount = staff.length
+      const totalCount = partTimeStaff.length
       const submissionRate = totalCount > 0 ? Math.round((submittedCount / totalCount) * 100) : 0
 
       setRecruitmentStatus({
