@@ -141,6 +141,60 @@ const FirstPlanEditor = ({
     return map
   }, [preferences])
 
+  // Issue #165: 時間重複チェック（複数店舗横断シフト対応）
+  const timeOverlapInfo = useMemo(() => {
+    const parseTime = timeStr => {
+      if (!timeStr) return 0
+      const parts = timeStr.split(':').map(Number)
+      return parts[0] * 60 + parts[1]
+    }
+
+    const isOverlap = (shift1, shift2) => {
+      const s1Start = parseTime(shift1.start_time)
+      const s1End = parseTime(shift1.end_time)
+      const s2Start = parseTime(shift2.start_time)
+      const s2End = parseTime(shift2.end_time)
+      return !(s1End <= s2Start || s2End <= s1Start)
+    }
+
+    // 同一スタッフ・同一日のシフトをグループ化
+    const grouped = {}
+    shiftData.forEach(shift => {
+      const date = isoToJSTDateString(shift.shift_date)
+      const key = `${shift.staff_id}_${date}`
+      if (!grouped[key]) {
+        grouped[key] = []
+      }
+      grouped[key].push(shift)
+    })
+
+    // 重複チェック
+    const overlaps = []
+    for (const key in grouped) {
+      const shifts = grouped[key]
+      if (shifts.length > 1) {
+        for (let i = 0; i < shifts.length; i++) {
+          for (let j = i + 1; j < shifts.length; j++) {
+            if (isOverlap(shifts[i], shifts[j])) {
+              overlaps.push({
+                staffId: shifts[i].staff_id,
+                staffName: shifts[i].staff_name,
+                date: isoToJSTDateString(shifts[i].shift_date),
+                shift1: shifts[i],
+                shift2: shifts[j],
+              })
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      hasOverlap: overlaps.length > 0,
+      overlaps,
+    }
+  }, [shiftData])
+
   const year = selectedShift?.year || new Date().getFullYear()
   const month = selectedShift?.month || new Date().getMonth() + 1
   // 単一のplanId（後方互換性のため）- 最初のplan_idを使用
@@ -627,6 +681,9 @@ const FirstPlanEditor = ({
           closeDayView()
         }
       }
+
+      // shiftDataからも削除（timeOverlapInfoの更新に必要）
+      setShiftData(prev => prev.filter(shift => shift.shift_id !== shiftId))
     }
 
     // 共通フックの関数を使用
@@ -1181,39 +1238,6 @@ const FirstPlanEditor = ({
                   </select>
                 </div>
 
-                {/* シフトパターン選択（店舗選択後に表示） */}
-                {storeId &&
-                  shiftPatterns &&
-                  shiftPatterns.length > 0 &&
-                  (() => {
-                    // 選択された店舗のパターン、またはテナント共通パターン（store_id=null）をフィルタリング
-                    const filteredPatterns = shiftPatterns.filter(
-                      pattern => pattern.store_id === null || pattern.store_id === Number(storeId)
-                    )
-
-                    if (filteredPatterns.length === 0) return null
-
-                    return (
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          シフトパターン
-                        </label>
-                        <select
-                          value={selectedPatternId}
-                          onChange={e => handlePatternSelect(e.target.value)}
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">-- パターンを選択 --</option>
-                          {filteredPatterns.map(pattern => (
-                            <option key={pattern.pattern_id} value={pattern.pattern_id}>
-                              {pattern.pattern_name} ({pattern.start_time}-{pattern.end_time})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )
-                  })()}
-
                 <TimeInput
                   value={startTime}
                   onChange={setStartTime}
@@ -1233,21 +1257,6 @@ const FirstPlanEditor = ({
                   maxHour={28}
                   minuteStep={15}
                 />
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    休憩時間（分）
-                  </label>
-                  <input
-                    type="number"
-                    value={breakMinutes}
-                    onChange={e => setBreakMinutes(e.target.value)}
-                    min="0"
-                    step="15"
-                    placeholder="例: 60"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
               </div>
 
               {/* ボタン群 */}
@@ -1373,11 +1382,46 @@ const FirstPlanEditor = ({
                 </>
               ) : (
                 <>
+                  {/* Issue #165: 時間重複エラー表示 */}
+                  {timeOverlapInfo.hasOverlap && (
+                    <div className="relative group flex items-center text-red-600 text-sm mr-2 cursor-help">
+                      <span className="mr-1">⚠</span>
+                      時間重複あり（{timeOverlapInfo.overlaps.length}件）
+                      {/* ホバーで詳細表示 */}
+                      <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white border border-red-300 rounded-lg shadow-lg p-3 min-w-[300px] max-w-[400px] z-50">
+                        <div className="text-xs text-gray-700 font-medium mb-2 border-b pb-1">
+                          重複シフト詳細:
+                        </div>
+                        <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                          {timeOverlapInfo.overlaps.map((overlap, idx) => (
+                            <div key={idx} className="text-xs bg-red-50 rounded p-2">
+                              <div className="font-medium text-gray-800">
+                                {overlap.staffName} - {overlap.date}
+                              </div>
+                              <div className="text-red-600 mt-1">
+                                <div>
+                                  ・{overlap.shift1.store_name}:{' '}
+                                  {overlap.shift1.start_time?.slice(0, 5)}-
+                                  {overlap.shift1.end_time?.slice(0, 5)}
+                                </div>
+                                <div>
+                                  ・{overlap.shift2.store_name}:{' '}
+                                  {overlap.shift2.start_time?.slice(0, 5)}-
+                                  {overlap.shift2.end_time?.slice(0, 5)}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <Button
                     size="sm"
                     onClick={handleSaveDraft}
-                    disabled={saving}
-                    className="bg-blue-600 hover:bg-blue-700"
+                    disabled={saving || timeOverlapInfo.hasOverlap}
+                    className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                    title={timeOverlapInfo.hasOverlap ? '時間重複があるため保存できません' : ''}
                   >
                     {saving ? (
                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -1389,8 +1433,9 @@ const FirstPlanEditor = ({
                   <Button
                     size="sm"
                     onClick={handleApprove}
-                    disabled={saving}
-                    className="bg-green-600 hover:bg-green-700"
+                    disabled={saving || timeOverlapInfo.hasOverlap}
+                    className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                    title={timeOverlapInfo.hasOverlap ? '時間重複があるため承認できません' : ''}
                   >
                     {saving ? (
                       <Loader2 className="h-4 w-4 mr-1 animate-spin" />

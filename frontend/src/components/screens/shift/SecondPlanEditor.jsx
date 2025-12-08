@@ -21,7 +21,9 @@ import {
   AlertTriangle,
   Zap,
   GripVertical,
+  Camera,
 } from 'lucide-react'
+import { domToPng } from 'modern-screenshot'
 import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import ShiftTableView from '../../shared/ShiftTableView'
@@ -129,6 +131,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const [defaultPatternId, setDefaultPatternId] = useState(null)
   const [preferences, setPreferences] = useState([])
   const [shiftPatterns, setShiftPatterns] = useState([])
+  const [monthlyComments, setMonthlyComments] = useState([]) // 月次コメント
 
   // パフォーマンス最適化: preferences を Map 化（O(1) lookup）
   const preferencesMap = useMemo(() => {
@@ -140,6 +143,69 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     })
     return map
   }, [preferences])
+
+  // コメントをMapに変換（O(1)検索用）
+  const commentsMap = useMemo(() => {
+    const map = new Map()
+    monthlyComments.forEach(item => {
+      map.set(item.staff_id, item.comment)
+    })
+    return map
+  }, [monthlyComments])
+
+  // Issue #165: 時間重複チェック（複数店舗横断シフト対応）
+  const timeOverlapInfo = useMemo(() => {
+    const parseTime = timeStr => {
+      if (!timeStr) return 0
+      const parts = timeStr.split(':').map(Number)
+      return parts[0] * 60 + parts[1]
+    }
+
+    const isOverlap = (shift1, shift2) => {
+      const s1Start = parseTime(shift1.start_time)
+      const s1End = parseTime(shift1.end_time)
+      const s2Start = parseTime(shift2.start_time)
+      const s2End = parseTime(shift2.end_time)
+      return !(s1End <= s2Start || s2End <= s1Start)
+    }
+
+    // 同一スタッフ・同一日のシフトをグループ化
+    const grouped = {}
+    shiftData.forEach(shift => {
+      const date = isoToJSTDateString(shift.shift_date)
+      const key = `${shift.staff_id}_${date}`
+      if (!grouped[key]) {
+        grouped[key] = []
+      }
+      grouped[key].push(shift)
+    })
+
+    // 重複チェック
+    const overlaps = []
+    for (const key in grouped) {
+      const shifts = grouped[key]
+      if (shifts.length > 1) {
+        for (let i = 0; i < shifts.length; i++) {
+          for (let j = i + 1; j < shifts.length; j++) {
+            if (isOverlap(shifts[i], shifts[j])) {
+              overlaps.push({
+                staffId: shifts[i].staff_id,
+                staffName: shifts[i].staff_name,
+                date: isoToJSTDateString(shifts[i].shift_date),
+                shift1: shifts[i],
+                shift2: shifts[j],
+              })
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      hasOverlap: overlaps.length > 0,
+      overlaps,
+    }
+  }, [shiftData])
 
   // 表示モード: 'second', 'first', 'compare'
   const [viewMode, setViewMode] = useState('second')
@@ -161,6 +227,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const chatEndRef = useRef(null)
+  const tableContainerRef = useRef(null)
+  const [isCapturing, setIsCapturing] = useState(false)
   const [chatPosition, setChatPosition] = useState({
     x: window.innerWidth - 336,
     y: window.innerHeight - 520,
@@ -316,6 +384,18 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         dateTo,
       })
       setPreferences(preferencesData)
+
+      // 月次コメント取得
+      try {
+        const comments = await shiftRepository.getMonthlyComments({
+          year,
+          month,
+        })
+        setMonthlyComments(comments)
+      } catch (error) {
+        console.error('月次コメント取得エラー:', error)
+        setMonthlyComments([])
+      }
 
       // 希望シフトとの突合チェック
       checkPreferenceConflicts(secondPlanWithStaffInfo, preferencesData, staffMapping)
@@ -894,6 +974,80 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     }
   }
 
+  // 店舗ごとのスクリーンショット機能
+  const handleScreenshot = async () => {
+    if (selectedStores.size === 0) {
+      alert('スクリーンショットする店舗を選択してください')
+      return
+    }
+
+    if (!tableContainerRef.current) {
+      alert('テーブルが見つかりません')
+      return
+    }
+
+    setIsCapturing(true)
+
+    try {
+      const originalSelectedStores = new Set(selectedStores)
+      const storeIds = Array.from(originalSelectedStores)
+
+      for (const storeId of storeIds) {
+        // 一時的に1店舗のみ選択
+        setSelectedStores(new Set([storeId]))
+
+        // DOM更新を待つ
+        await new Promise(resolve => setTimeout(resolve, 300))
+
+        // テーブル全体をキャプチャ（スクロール含む）
+        const tableElement = tableContainerRef.current
+        if (!tableElement) continue
+
+        // スクロール位置を保存
+        const scrollElements = tableElement.querySelectorAll('[class*="overflow"]')
+        const scrollPositions = []
+        scrollElements.forEach(el => {
+          scrollPositions.push({ el, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop })
+          el.scrollLeft = 0
+          el.scrollTop = 0
+        })
+
+        // modern-screenshotでキャプチャ
+        const dataUrl = await domToPng(tableElement, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+        })
+
+        // スクロール位置を復元
+        scrollPositions.forEach(({ el, scrollLeft, scrollTop }) => {
+          el.scrollLeft = scrollLeft
+          el.scrollTop = scrollTop
+        })
+
+        // PNGダウンロード
+        const storeName = storesMap[storeId]?.store_name || `店舗${storeId}`
+        const filename = `${year}年${month}月_${storeName}.png`
+
+        const link = document.createElement('a')
+        link.download = filename
+        link.href = dataUrl
+        link.click()
+
+        // 少し間隔を開ける
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+
+      // 元の選択状態に戻す
+      setSelectedStores(originalSelectedStores)
+      alert(`${storeIds.length}件のスクリーンショットを保存しました`)
+    } catch (error) {
+      console.error('スクリーンショットエラー:', error)
+      alert(`スクリーンショットの作成に失敗しました: ${error.message}`)
+    } finally {
+      setIsCapturing(false)
+    }
+  }
+
   // チャット関連ハンドラー
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -1164,6 +1318,16 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
       }
     }
 
+    // 希望シフト情報を取得（時間帯含む）
+    const getPreferenceInfo = () => {
+      if (!shift || !preferencesMap || preferencesMap.size === 0) return null
+      const dateStr = shift.date
+      const key = `${shift.staff_id}_${dateStr}`
+      return preferencesMap.get(key)
+    }
+
+    const preferenceInfo = getPreferenceInfo()
+
     const handleSave = () => {
       if (!startTime || !endTime) {
         alert('開始時刻と終了時刻を入力してください')
@@ -1255,6 +1419,23 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                   <span className="text-gray-600">日付</span>
                   <span className="font-semibold">{shift.date}</span>
                 </div>
+                {/* 希望シフト情報表示 */}
+                {preferenceInfo && (
+                  <div
+                    className={`flex justify-between mt-1 pt-1 border-t ${preferenceInfo.is_ng ? 'border-red-200' : 'border-green-200'}`}
+                  >
+                    <span className="text-gray-600">希望</span>
+                    <span
+                      className={`font-semibold ${preferenceInfo.is_ng ? 'text-red-600' : 'text-green-600'}`}
+                    >
+                      {preferenceInfo.is_ng
+                        ? 'NG'
+                        : preferenceInfo.start_time && preferenceInfo.end_time
+                          ? `${preferenceInfo.start_time.slice(0, 5)}-${preferenceInfo.end_time.slice(0, 5)}`
+                          : '出勤可'}
+                    </span>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -1277,35 +1458,6 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                   </select>
                 </div>
 
-                {storeId &&
-                  shiftPatterns &&
-                  shiftPatterns.length > 0 &&
-                  (() => {
-                    const filteredPatterns = shiftPatterns.filter(
-                      pattern => pattern.store_id === null || pattern.store_id === Number(storeId)
-                    )
-                    if (filteredPatterns.length === 0) return null
-                    return (
-                      <div>
-                        <label className="block text-xs font-medium text-gray-700 mb-1">
-                          シフトパターン
-                        </label>
-                        <select
-                          value={selectedPatternId}
-                          onChange={e => handlePatternSelect(e.target.value)}
-                          className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        >
-                          <option value="">-- パターンを選択 --</option>
-                          {filteredPatterns.map(pattern => (
-                            <option key={pattern.pattern_id} value={pattern.pattern_id}>
-                              {pattern.pattern_name} ({pattern.start_time}-{pattern.end_time})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    )
-                  })()}
-
                 <TimeInput
                   value={startTime}
                   onChange={setStartTime}
@@ -1325,21 +1477,6 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                   maxHour={28}
                   minuteStep={15}
                 />
-
-                <div>
-                  <label className="block text-xs font-medium text-gray-700 mb-1">
-                    休憩時間（分）
-                  </label>
-                  <input
-                    type="number"
-                    value={breakMinutes}
-                    onChange={e => setBreakMinutes(e.target.value)}
-                    min="0"
-                    step="15"
-                    placeholder="例: 60"
-                    className="w-full px-2.5 py-1.5 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
               </div>
 
               <div className="flex gap-2 mt-3">
@@ -1445,13 +1582,63 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
             CSV
           </Button>
 
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleScreenshot}
+            disabled={isCapturing || selectedStores.size === 0}
+            className="border-purple-300 text-purple-600 hover:bg-purple-50"
+          >
+            {isCapturing ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <Camera className="h-3 w-3 mr-1" />
+            )}
+            {isCapturing ? 'キャプチャ中...' : '店舗別スクショ'}
+          </Button>
+
           {isEditMode && (
             <>
+              {/* Issue #165: 時間重複エラー表示 */}
+              {timeOverlapInfo.hasOverlap && (
+                <div className="relative group flex items-center text-red-600 text-sm mr-2 cursor-help">
+                  <span className="mr-1">⚠</span>
+                  時間重複あり（{timeOverlapInfo.overlaps.length}件）
+                  {/* ホバーで詳細表示 */}
+                  <div className="absolute top-full left-0 mt-2 hidden group-hover:block bg-white border border-red-300 rounded-lg shadow-lg p-3 min-w-[300px] max-w-[400px] z-50">
+                    <div className="text-xs text-gray-700 font-medium mb-2 border-b pb-1">
+                      重複シフト詳細:
+                    </div>
+                    <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                      {timeOverlapInfo.overlaps.map((overlap, idx) => (
+                        <div key={idx} className="text-xs bg-red-50 rounded p-2">
+                          <div className="font-medium text-gray-800">
+                            {overlap.staffName} - {overlap.date}
+                          </div>
+                          <div className="text-red-600 mt-1">
+                            <div>
+                              ・{overlap.shift1.store_name}:{' '}
+                              {overlap.shift1.start_time?.slice(0, 5)}-
+                              {overlap.shift1.end_time?.slice(0, 5)}
+                            </div>
+                            <div>
+                              ・{overlap.shift2.store_name}:{' '}
+                              {overlap.shift2.start_time?.slice(0, 5)}-
+                              {overlap.shift2.end_time?.slice(0, 5)}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
               <Button
                 size="sm"
                 onClick={handleSaveDraft}
-                disabled={saving}
-                className="bg-blue-600 hover:bg-blue-700"
+                disabled={saving || timeOverlapInfo.hasOverlap}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
+                title={timeOverlapInfo.hasOverlap ? '時間重複があるため保存できません' : ''}
               >
                 {saving ? (
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -1463,8 +1650,9 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
               <Button
                 size="sm"
                 onClick={handleApprove}
-                disabled={saving}
-                className="bg-green-600 hover:bg-green-700"
+                disabled={saving || timeOverlapInfo.hasOverlap}
+                className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
+                title={timeOverlapInfo.hasOverlap ? '時間重複があるため承認できません' : ''}
               >
                 {saving ? (
                   <Loader2 className="h-4 w-4 mr-1 animate-spin" />
@@ -1515,7 +1703,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden mx-8 mb-4">
+      <div ref={tableContainerRef} className="flex-1 overflow-hidden mx-8 mb-4">
         <MultiStoreShiftTable
           year={year}
           month={month}
@@ -1533,6 +1721,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
           conflicts={conflicts}
           onConflictClick={setSelectedConflict}
           showPreferenceColoring={true}
+          commentsMap={commentsMap}
         />
       </div>
 

@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>設計書: 管理画面コメント表示機能</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Hiragino Sans', sans-serif;
+      background: #f5f7fa;
+      color: #1a1a2e;
+      line-height: 1.7;
+      padding: 40px 20px;
+    }
+    .container { max-width: 1000px; margin: 0 auto; }
+    h1 {
+      font-size: 1.8rem;
+      color: #2563eb;
+      border-bottom: 3px solid #2563eb;
+      padding-bottom: 10px;
+      margin-bottom: 30px;
+    }
+    h2 {
+      font-size: 1.3rem;
+      color: #1e40af;
+      margin: 30px 0 15px;
+      padding-left: 10px;
+      border-left: 4px solid #3b82f6;
+    }
+    h3 {
+      font-size: 1.1rem;
+      color: #374151;
+      margin: 20px 0 10px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 12px;
+      padding: 20px;
+      margin: 15px 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+    .info-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    .warning-box {
+      background: #fef3c7;
+      border: 1px solid #fcd34d;
+      border-radius: 8px;
+      padding: 15px;
+      margin: 15px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 15px 0;
+    }
+    th, td {
+      border: 1px solid #e5e7eb;
+      padding: 10px 12px;
+      text-align: left;
+    }
+    th { background: #f3f4f6; font-weight: 600; }
+    code {
+      background: #f1f5f9;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      font-size: 0.9em;
+    }
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 15px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.85rem;
+      line-height: 1.5;
+    }
+    .screen-mock {
+      background: #fff;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 15px 0;
+    }
+    .mock-header {
+      background: #3b82f6;
+      color: #fff;
+      padding: 10px 15px;
+      border-radius: 6px 6px 0 0;
+      margin: -20px -20px 15px;
+      font-weight: 600;
+    }
+    .staff-name {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: #dbeafe;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+    .comment-icon {
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    .tooltip {
+      background: #1f2937;
+      color: #fff;
+      padding: 10px 12px;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      max-width: 300px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    }
+    .flow-diagram {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 15px;
+      background: #f8fafc;
+      border-radius: 8px;
+    }
+    .flow-box {
+      background: #fff;
+      border: 2px solid #3b82f6;
+      border-radius: 8px;
+      padding: 10px 15px;
+      font-size: 0.9rem;
+    }
+    .flow-arrow { color: #6b7280; font-size: 1.2rem; }
+    ul, ol { padding-left: 25px; margin: 10px 0; }
+    li { margin: 5px 0; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>設計書: 管理画面コメント表示機能</h1>
+
+    <div class="info-box">
+      <strong>概要:</strong> LIFFから入力されたスタッフ月次コメントを管理画面（モニタリング・第2案）で表示する機能
+    </div>
+
+    <h2>1. 機能要件</h2>
+
+    <div class="card">
+      <h3>1.1 モニタリング画面</h3>
+      <table>
+        <tr>
+          <th>項目</th>
+          <th>内容</th>
+        </tr>
+        <tr>
+          <td>表示場所</td>
+          <td>スタッフ名クリック時の希望シフトホバー内</td>
+        </tr>
+        <tr>
+          <td>表示形式</td>
+          <td>カレンダー下部にコメントエリア追加</td>
+        </tr>
+        <tr>
+          <td>表示条件</td>
+          <td>コメントがある場合のみ表示</td>
+        </tr>
+      </table>
+
+      <h4>UIモックアップ</h4>
+      <div class="screen-mock">
+        <div class="mock-header">アルバイトもりやSTGの希望シフト</div>
+        <p style="color:#6b7280;font-size:0.9rem;">提出日時: 11/27 16:34</p>
+        <div style="background:#f0fdf4;border:1px solid #86efac;padding:10px;margin:10px 0;border-radius:6px;">
+          [カレンダー表示エリア]
+        </div>
+        <div style="background:#fef3c7;border:1px solid #fcd34d;padding:10px;border-radius:6px;">
+          <strong>💬 コメント:</strong><br>
+          土日は午後出勤希望です。来月は試験期間のため少なめでお願いします。
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>1.2 第2案画面</h3>
+      <table>
+        <tr>
+          <th>項目</th>
+          <th>内容</th>
+        </tr>
+        <tr>
+          <td>表示場所</td>
+          <td>シフト表ヘッダーのスタッフ名横</td>
+        </tr>
+        <tr>
+          <td>表示形式</td>
+          <td>💬アイコン → クリックでポップオーバー</td>
+        </tr>
+        <tr>
+          <td>表示条件</td>
+          <td>コメントがあるスタッフのみアイコン表示</td>
+        </tr>
+      </table>
+
+      <h4>UIモックアップ</h4>
+      <div class="screen-mock">
+        <div style="display:flex;gap:20px;padding:10px;background:#f8fafc;border-radius:6px;">
+          <div class="staff-name">
+            松本佳奈<br><span style="font-size:0.75rem;color:#6b7280;">アルバイト</span>
+          </div>
+          <div class="staff-name">
+            吉田知世 <span class="comment-icon">💬</span><br>
+            <span style="font-size:0.75rem;color:#6b7280;">アルバイト</span>
+          </div>
+          <div class="staff-name">
+            武根太一<br><span style="font-size:0.75rem;color:#6b7280;">社員</span>
+          </div>
+        </div>
+        <div style="margin-top:10px;">
+          <strong>💬クリック時:</strong>
+          <div class="tooltip" style="display:inline-block;margin-left:10px;">
+            土日は午後出勤希望です。
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <h2>2. API設計</h2>
+
+    <div class="card">
+      <h3>GET /api/shifts/monthly-comments</h3>
+
+      <h4>リクエストパラメータ</h4>
+      <table>
+        <tr>
+          <th>パラメータ</th>
+          <th>型</th>
+          <th>必須</th>
+          <th>説明</th>
+        </tr>
+        <tr>
+          <td>tenant_id</td>
+          <td>integer</td>
+          <td>○</td>
+          <td>テナントID</td>
+        </tr>
+        <tr>
+          <td>year</td>
+          <td>integer</td>
+          <td>○</td>
+          <td>対象年</td>
+        </tr>
+        <tr>
+          <td>month</td>
+          <td>integer</td>
+          <td>○</td>
+          <td>対象月（1-12）</td>
+        </tr>
+        <tr>
+          <td>store_id</td>
+          <td>integer</td>
+          <td></td>
+          <td>店舗ID（指定時は該当店舗のスタッフのみ）</td>
+        </tr>
+      </table>
+
+      <h4>レスポンス例</h4>
+      <pre>{
+  "success": true,
+  "data": [
+    {
+      "staff_id": 15,
+      "staff_name": "吉田知世",
+      "store_id": 1,
+      "year": 2025,
+      "month": 12,
+      "comment": "土日は午後出勤希望です。",
+      "submission_status": null,
+      "updated_at": "2025-12-01T10:30:00Z"
+    },
+    {
+      "staff_id": 18,
+      "staff_name": "グエン",
+      "store_id": 1,
+      "year": 2025,
+      "month": 12,
+      "comment": "12/20-25は帰省のため出勤不可",
+      "submission_status": null,
+      "updated_at": "2025-12-02T14:15:00Z"
+    }
+  ],
+  "count": 2
+}</pre>
+    </div>
+
+    <h2>3. データフロー</h2>
+
+    <div class="card">
+      <h3>3.1 モニタリング画面</h3>
+      <div class="flow-diagram">
+        <div class="flow-box">Monitoring.jsx<br>画面読み込み</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box">ShiftRepository<br>.getMonthlyComments()</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box">API<br>/monthly-comments</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box">commentsMap<br>staff_id → comment</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box">ホバー内に<br>コメント表示</div>
+      </div>
+
+      <h3>3.2 第2案画面</h3>
+      <div class="flow-diagram">
+        <div class="flow-box">SecondPlanEditor.jsx<br>画面読み込み</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box">ShiftRepository<br>.getMonthlyComments()</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box">commentsMap<br>props渡し</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box">MultiStoreShiftTable<br>アイコン表示</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box">クリック時<br>Popover表示</div>
+      </div>
+    </div>
+
+    <h2>4. 修正対象ファイル</h2>
+
+    <div class="card">
+      <table>
+        <tr>
+          <th>層</th>
+          <th>ファイルパス</th>
+          <th>修正内容</th>
+        </tr>
+        <tr>
+          <td>API</td>
+          <td><code>backend/src/routes/shifts.js</code></td>
+          <td>GET /monthly-comments エンドポイント追加</td>
+        </tr>
+        <tr>
+          <td>Repository</td>
+          <td><code>frontend/src/infrastructure/repositories/ShiftRepository.js</code></td>
+          <td>getMonthlyComments() メソッド追加</td>
+        </tr>
+        <tr>
+          <td>画面</td>
+          <td><code>frontend/src/components/screens/shift/Monitoring.jsx</code></td>
+          <td>コメント取得・ホバー内表示</td>
+        </tr>
+        <tr>
+          <td>画面</td>
+          <td><code>frontend/src/components/screens/shift/SecondPlanEditor.jsx</code></td>
+          <td>コメント取得・テーブルにprops渡し</td>
+        </tr>
+        <tr>
+          <td>コンポーネント</td>
+          <td><code>frontend/src/components/shared/MultiStoreShiftTable.jsx</code></td>
+          <td>スタッフ名横にアイコン・Popover追加</td>
+        </tr>
+      </table>
+    </div>
+
+    <h2>5. 実装詳細</h2>
+
+    <div class="card">
+      <h3>5.1 API実装（shifts.js）</h3>
+      <pre>/**
+ * 月次コメント一覧取得
+ * GET /api/shifts/monthly-comments?tenant_id=3&year=2025&month=12
+ */
+router.get('/monthly-comments', async (req, res) => {
+  const { tenant_id, year, month, store_id } = req.query;
+
+  let query = `
+    SELECT
+      sms.staff_id,
+      s.name as staff_name,
+      s.store_id,
+      sms.year,
+      sms.month,
+      sms.comment,
+      sms.submission_status,
+      sms.updated_at
+    FROM ops.staff_monthly_submissions sms
+    JOIN hr.staff s ON sms.staff_id = s.staff_id
+    WHERE sms.tenant_id = $1
+      AND sms.year = $2
+      AND sms.month = $3
+      AND sms.comment IS NOT NULL
+  `;
+
+  const params = [tenant_id, year, month];
+
+  if (store_id) {
+    query += ` AND s.store_id = $4`;
+    params.push(store_id);
+  }
+
+  const result = await pool.query(query, params);
+
+  res.json({
+    success: true,
+    data: result.rows,
+    count: result.rows.length
+  });
+});</pre>
+    </div>
+
+    <div class="card">
+      <h3>5.2 ShiftRepository.js</h3>
+      <pre>/**
+ * 月次コメント一覧取得
+ */
+async getMonthlyComments({ tenantId, year, month, storeId }) {
+  const params = new URLSearchParams({
+    tenant_id: tenantId,
+    year,
+    month,
+  });
+  if (storeId) params.append('store_id', storeId);
+
+  const response = await fetch(
+    `${API_BASE}/api/shifts/monthly-comments?${params}`
+  );
+  return response.json();
+}</pre>
+    </div>
+
+    <div class="card">
+      <h3>5.3 コメントMap生成（画面側）</h3>
+      <pre>// コメントデータをMapに変換（O(1)検索用）
+const commentsMap = useMemo(() => {
+  const map = new Map();
+  monthlyComments.forEach(item => {
+    map.set(item.staff_id, item.comment);
+  });
+  return map;
+}, [monthlyComments]);</pre>
+    </div>
+
+    <div class="card">
+      <h3>5.4 Popoverコンポーネント（第2案）</h3>
+      <pre>// スタッフ名横のコメントアイコン
+{commentsMap.has(staffId) && (
+  &lt;Popover&gt;
+    &lt;PopoverTrigger&gt;
+      &lt;span className="cursor-pointer text-sm"&gt;💬&lt;/span&gt;
+    &lt;/PopoverTrigger&gt;
+    &lt;PopoverContent className="w-72 p-3"&gt;
+      &lt;div className="text-sm"&gt;
+        &lt;strong&gt;コメント:&lt;/strong&gt;
+        &lt;p className="mt-1 text-gray-600"&gt;
+          {commentsMap.get(staffId)}
+        &lt;/p&gt;
+      &lt;/div&gt;
+    &lt;/PopoverContent&gt;
+  &lt;/Popover&gt;
+)}</pre>
+    </div>
+
+    <h2>6. 実装順序</h2>
+
+    <div class="card">
+      <ol>
+        <li><strong>Step 1:</strong> API追加（backend/src/routes/shifts.js）</li>
+        <li><strong>Step 2:</strong> ShiftRepository.js にメソッド追加</li>
+        <li><strong>Step 3:</strong> Monitoring.jsx - コメント取得・ホバー内表示</li>
+        <li><strong>Step 4:</strong> SecondPlanEditor.jsx - コメント取得</li>
+        <li><strong>Step 5:</strong> MultiStoreShiftTable.jsx - アイコン・Popover追加</li>
+        <li><strong>Step 6:</strong> 動作確認・テスト</li>
+      </ol>
+    </div>
+
+    <h2>7. リスク分析と対策</h2>
+
+    <div class="card">
+      <h3>7.1 既存機能への影響</h3>
+      <table>
+        <tr>
+          <th>修正箇所</th>
+          <th>リスク</th>
+          <th>影響度</th>
+          <th>対策</th>
+        </tr>
+        <tr>
+          <td>API追加</td>
+          <td>なし</td>
+          <td style="color:#16a34a;">低</td>
+          <td>新規エンドポイントのため既存に影響なし</td>
+        </tr>
+        <tr>
+          <td>ShiftRepository.js</td>
+          <td>なし</td>
+          <td style="color:#16a34a;">低</td>
+          <td>新規メソッド追加のみ</td>
+        </tr>
+        <tr>
+          <td>Monitoring.jsx</td>
+          <td>ホバー表示の変更</td>
+          <td style="color:#16a34a;">低</td>
+          <td>既存のホバー内に追記のみ、条件付き表示</td>
+        </tr>
+        <tr>
+          <td>SecondPlanEditor.jsx</td>
+          <td>データ取得追加</td>
+          <td style="color:#16a34a;">低</td>
+          <td>既存処理に並行してコメント取得</td>
+        </tr>
+        <tr>
+          <td>MultiStoreShiftTable.jsx</td>
+          <td>レイアウト崩れ</td>
+          <td style="color:#ea580c;">中</td>
+          <td>アイコンは小さく、コメントありの場合のみ表示</td>
+        </tr>
+      </table>
+    </div>
+
+    <div class="card">
+      <h3>7.2 エラーハンドリング</h3>
+      <p>API失敗時も既存機能は継続動作させる</p>
+      <pre>// コメント取得（失敗しても既存機能に影響なし）
+const [monthlyComments, setMonthlyComments] = useState([]);
+
+const loadMonthlyComments = async () => {
+  try {
+    const result = await shiftRepository.getMonthlyComments({
+      tenantId, year, month
+    });
+    if (result.success) {
+      setMonthlyComments(result.data);
+    }
+  } catch (error) {
+    console.error('月次コメント取得失敗:', error);
+    // エラー時は空配列のまま → コメント非表示で継続
+  }
+};
+
+// コメントMap（空でも動作）
+const commentsMap = useMemo(() => {
+  const map = new Map();
+  monthlyComments.forEach(item => {
+    map.set(item.staff_id, item.comment);
+  });
+  return map;
+}, [monthlyComments]);</pre>
+    </div>
+
+    <div class="card">
+      <h3>7.3 表示の安全性</h3>
+      <pre>// コメントがある場合のみアイコン表示（レイアウト影響最小化）
+{commentsMap.has(staffId) && (
+  &lt;Popover&gt;
+    &lt;PopoverTrigger asChild&gt;
+      &lt;span className="ml-1 cursor-pointer text-xs opacity-70 hover:opacity-100"&gt;
+        💬
+      &lt;/span&gt;
+    &lt;/PopoverTrigger&gt;
+    &lt;PopoverContent className="w-72 p-3"&gt;
+      &lt;p className="text-sm text-gray-600"&gt;
+        {commentsMap.get(staffId)}
+      &lt;/p&gt;
+    &lt;/PopoverContent&gt;
+  &lt;/Popover&gt;
+)}</pre>
+    </div>
+
+    <h2>8. 注意事項</h2>
+
+    <div class="warning-box">
+      <ul>
+        <li>コメントがnullまたは空文字のスタッフはAPIで除外される</li>
+        <li>月を跨いだ場合、コメントデータも再取得が必要（年月変更時のuseEffect内で呼び出し）</li>
+        <li>Popoverはshadcn/uiの既存コンポーネントを使用（要インポート確認）</li>
+        <li>API失敗時はログ出力のみ、UIにエラー表示しない（UX維持）</li>
+      </ul>
+    </div>
+
+    <div style="margin-top:40px;padding-top:20px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:0.85rem;">
+      <p>作成日: 2025-12-03</p>
+      <p>関連: PR #182（スタッフ月次提出機能）</p>
+    </div>
+  </div>
+</body>
+</html>

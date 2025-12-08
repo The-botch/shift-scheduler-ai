@@ -249,7 +249,7 @@ ON CONFLICT (tenant_id, staff_code) DO UPDATE SET
   role_id = EXCLUDED.role_id,
   is_active = EXCLUDED.is_active;
 
--- サンプルスタッフ3: 社員
+-- サンプルスタッフ3: 社員（Stand Pho Yo）
 INSERT INTO hr.staff (
   tenant_id, staff_code, name, role_id, employment_type, store_id,
   hire_date, monthly_salary, hourly_rate,
@@ -261,7 +261,7 @@ SELECT
   'サンプル次郎',
   (SELECT role_id FROM core.roles WHERE tenant_id = 3 AND role_code = 'SENIOR' LIMIT 1),
   'FULL_TIME',
-  (SELECT store_id FROM core.stores WHERE tenant_id = 3 AND store_code = 'SHIBUYA' LIMIT 1),
+  (SELECT store_id FROM core.stores WHERE tenant_id = 3 AND store_code = 'SPY' LIMIT 1),
   '2023-04-01',
   280000,
   NULL,

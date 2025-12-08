@@ -21,10 +21,12 @@ import {
   Table,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'
-import StaffTimeTable from '../../shared/StaffTimeTable'
 import { AnimatePresence } from 'framer-motion'
 import { useTenant } from '../../../contexts/TenantContext'
 import { isoToJSTDateString, isoToJSTDateParts } from '../../../utils/dateUtils'
+import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
+
+const shiftRepository = new ShiftRepository()
 
 const pageVariants = {
   initial: { opacity: 0, y: 20 },
@@ -72,10 +74,20 @@ const Monitoring = () => {
   const [selectedStoreId, setSelectedStoreId] = useState(initialStoreId || null)
   const [viewMode, setViewMode] = useState('staff') // 'staff' | 'calendar'
   const [calendarShiftData, setCalendarShiftData] = useState([]) // カレンダー表示用のシフトデータ
+  const [monthlyComments, setMonthlyComments] = useState([]) // 月次コメント
 
   const currentDate = useMemo(() => new Date(), [])
   const currentYear = currentDate.getFullYear()
   const currentMonth = currentDate.getMonth() + 1
+
+  // コメントをMapに変換（O(1)検索用）
+  const commentsMap = useMemo(() => {
+    const map = new Map()
+    monthlyComments.forEach(item => {
+      map.set(item.staff_id, item.comment)
+    })
+    return map
+  }, [monthlyComments])
 
   // 履歴表示用の年月
   const [historyYear, setHistoryYear] = useState(initialMonth?.year || currentYear)
@@ -186,6 +198,23 @@ const Monitoring = () => {
         }
       })
       setShiftPatternsMap(patternsMapping)
+
+      // 月次コメント取得（月が指定されている場合のみ）
+      if (historyMonth) {
+        try {
+          const comments = await shiftRepository.getMonthlyComments({
+            year: historyYear,
+            month: historyMonth,
+            storeId: selectedStoreId,
+          })
+          setMonthlyComments(comments)
+        } catch (error) {
+          console.error('月次コメント取得エラー:', error)
+          setMonthlyComments([])
+        }
+      } else {
+        setMonthlyComments([])
+      }
 
       // スタッフを店舗でフィルタリング
       const filteredStaffData = selectedStoreId
@@ -744,7 +773,7 @@ const Monitoring = () => {
             initial={{ scale: 0.9, opacity: 0 }}
             animate={{ scale: 1, opacity: 1 }}
             exit={{ scale: 0.9, opacity: 0 }}
-            className="bg-white rounded-lg shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col"
+            className="bg-white rounded-lg shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col"
             onClick={e => e.stopPropagation()}
           >
             {/* ヘッダー */}
@@ -764,6 +793,23 @@ const Monitoring = () => {
 
             {/* コンテンツ */}
             <div className="flex-1 overflow-y-auto p-6">
+              {/* コメント欄（一番上に配置） */}
+              <div className="mb-6 p-4 bg-amber-50 border border-amber-300 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl">💬</span>
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-amber-800 mb-1">スタッフからのコメント:</p>
+                    {commentsMap.has(selectedStaff.id) ? (
+                      <p className="text-sm text-amber-900 whitespace-pre-wrap">
+                        {commentsMap.get(selectedStaff.id)}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-gray-500 italic">コメントはありません</p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               {(() => {
                 const {
                   preferredDaysSet,
