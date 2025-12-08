@@ -1,4 +1,5 @@
 import express from 'express';
+import axios from 'axios';
 import { query } from '../config/database.js';
 import DEFAULT_CONFIG from '../config/defaults.js';
 import { SHIFT_PREFERENCE_STATUS, VALID_PREFERENCE_STATUSES } from '../config/constants.js';
@@ -1097,9 +1098,10 @@ router.post('/plans/approve-first', async (req, res) => {
       });
     }
 
-    // プランの存在確認
+    // プランの存在確認（通知用に詳細も取得）
     const planCheck = await query(
-      `SELECT plan_id, status FROM ops.shift_plans WHERE plan_id = $1 AND tenant_id = $2`,
+      `SELECT plan_id, status, store_id, plan_year, plan_month
+       FROM ops.shift_plans WHERE plan_id = $1 AND tenant_id = $2`,
       [plan_id, tenant_id]
     );
 
@@ -1111,6 +1113,8 @@ router.post('/plans/approve-first', async (req, res) => {
       });
     }
 
+    const plan = planCheck.rows[0];
+
     // ステータスをAPPROVEDに更新
     await query(
       `UPDATE ops.shift_plans
@@ -1118,6 +1122,23 @@ router.post('/plans/approve-first', async (req, res) => {
        WHERE plan_id = $1`,
       [plan_id]
     );
+
+    // LINE通知を送信（第1案承認）
+    if (process.env.LIFF_BACKEND_URL) {
+      try {
+        await axios.post(`${process.env.LIFF_BACKEND_URL}/api/notification/first-plan-approved`, {
+          tenant_id: tenant_id,
+          store_id: plan.store_id,
+          plan_id: plan_id,
+          year: plan.plan_year,
+          month: plan.plan_month
+        });
+        console.log('LINE notification sent for first plan approval');
+      } catch (notifyError) {
+        // 通知失敗は承認処理に影響させない（ログのみ）
+        console.error('Failed to send LINE notification:', notifyError.message);
+      }
+    }
 
     res.json({
       success: true,
@@ -2692,9 +2713,10 @@ router.put('/plans/:plan_id/status', async (req, res) => {
       });
     }
 
-    // プランの存在確認
+    // プランの存在確認（通知用に詳細も取得）
     const planCheck = await query(
-      `SELECT plan_id, status FROM ops.shift_plans WHERE plan_id = $1`,
+      `SELECT plan_id, tenant_id, store_id, plan_year, plan_month, plan_type, status
+       FROM ops.shift_plans WHERE plan_id = $1`,
       [plan_id]
     );
 
@@ -2714,6 +2736,25 @@ router.put('/plans/:plan_id/status', async (req, res) => {
        RETURNING plan_id, store_id, plan_year, plan_month, plan_type, status`,
       [status, plan_id]
     );
+
+    const plan = planCheck.rows[0];
+
+    // 第2案がAPPROVEDになった場合、LINE通知を送信（シフト確定）
+    if (status === 'APPROVED' && plan.plan_type === 'SECOND' && process.env.LIFF_BACKEND_URL) {
+      try {
+        await axios.post(`${process.env.LIFF_BACKEND_URL}/api/notification/second-plan-approved`, {
+          tenant_id: plan.tenant_id,
+          store_id: plan.store_id,
+          plan_id: parseInt(plan_id),
+          year: plan.plan_year,
+          month: plan.plan_month
+        });
+        console.log('LINE notification sent for second plan approval (shift finalized)');
+      } catch (notifyError) {
+        // 通知失敗は承認処理に影響させない（ログのみ）
+        console.error('Failed to send LINE notification:', notifyError.message);
+      }
+    }
 
     res.json({
       success: true,
