@@ -29,7 +29,13 @@ window.resetTenantId = resetTenantId
 // ラッパーコンポーネント: location.state.shift を selectedShift として渡す
 const FirstPlanEditorWrapper = () => {
   const location = useLocation()
-  return <FirstPlanEditor selectedShift={location.state?.shift} />
+  const navigate = useNavigate()
+  return (
+    <FirstPlanEditor
+      selectedShift={location.state?.shift}
+      onApprove={() => navigate('/')}
+    />
+  )
 }
 
 const SecondPlanEditorWrapper = () => {
@@ -52,20 +58,20 @@ createRoot(document.getElementById('root')).render(
           {/* ShiftDashboardは独自レイアウト（サイドバー+ヘッダー）を持つのでAppLayoutを使わない */}
           <Route path="/" element={<ShiftDashboard />} />
           <Route element={<AppLayout />}>
-          <Route path="staff" element={<StaffManagement />} />
-          <Route path="store" element={<StoreManagement />} />
-          <Route path="master" element={<MasterDataManagement />} />
-          <Route path="budget-actual" element={<BudgetActualManagement />} />
-          <Route path="constraint" element={<ConstraintManagement />} />
-          <Route path="shift">
-            <Route path="line" element={<LineShiftInput />} />
-            <Route path="monitoring" element={<Monitoring />} />
-            <Route path="draft-editor" element={<FirstPlanEditorWrapper />} />
-            <Route path="method" element={<ShiftCreationMethodSelector />} />
-            <Route path="second-plan" element={<SecondPlanEditorWrapper />} />
+            <Route path="staff" element={<StaffManagement />} />
+            <Route path="store" element={<StoreManagement />} />
+            <Route path="master" element={<MasterDataManagement />} />
+            <Route path="budget-actual" element={<BudgetActualManagement />} />
+            <Route path="constraint" element={<ConstraintManagement />} />
+            <Route path="shift">
+              <Route path="line" element={<LineShiftInput />} />
+              <Route path="monitoring" element={<Monitoring />} />
+              <Route path="draft-editor" element={<FirstPlanEditorWrapper />} />
+              <Route path="method" element={<ShiftCreationMethodSelector />} />
+              <Route path="second-plan" element={<SecondPlanEditorWrapper />} />
+            </Route>
+            <Route path="dev-tools" element={<DevTools />} />
           </Route>
-          <Route path="dev-tools" element={<DevTools />} />
-        </Route>
         </Routes>
       </BrowserRouter>
     </TenantProvider>

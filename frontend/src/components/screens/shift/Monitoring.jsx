@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
 import { Button } from '../../ui/button'
@@ -19,6 +19,7 @@ import {
   Store,
   LayoutGrid,
   Table,
+  Home,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'
 import { AnimatePresence } from 'framer-motion'
@@ -42,7 +43,13 @@ const pageTransition = {
 
 const Monitoring = () => {
   const location = useLocation()
+  const navigate = useNavigate()
   const { tenantId } = useTenant()
+
+  // ダッシュボードへ遷移
+  const handleDashboard = () => {
+    navigate('/')
+  }
 
   // React Routerから渡されたstateを取得
   const shift = location.state?.shift
@@ -544,10 +551,16 @@ const Monitoring = () => {
     >
       {/* ヘッダーエリア */}
       <div className="flex-shrink-0 px-8 py-4 mb-4 bg-white border-b border-gray-200">
-        {/* 1行目: タイトル */}
-        <div className="mb-3">
-          <h1 className="text-3xl font-bold text-gray-900">シフト希望提出状況</h1>
-          <p className="text-base text-gray-600 mt-1">スタッフのシフト希望提出状況を確認できます</p>
+        {/* 1行目: ダッシュボードボタン + タイトル */}
+        <div className="flex items-center gap-4 mb-3">
+          <Button variant="outline" size="sm" onClick={handleDashboard}>
+            <Home className="h-4 w-4 mr-1" />
+            ダッシュボード
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">シフト希望提出状況</h1>
+            <p className="text-base text-gray-600 mt-1">スタッフのシフト希望提出状況を確認できます</p>
+          </div>
         </div>
 
         {/* 2行目: 対象年月・店舗 */}

@@ -99,7 +99,7 @@ export const useShiftStatus = (year, month) => {
           planId: null,
           updatedAt: null,
         })
-      } else if (firstPlan.status === 'APPROVED') {
+      } else if (firstPlan.status.toUpperCase() === 'APPROVED') {
         setFirstPlanStatus({
           status: 'approved',
           planId: firstPlan.plan_id,
@@ -114,32 +114,37 @@ export const useShiftStatus = (year, month) => {
       }
 
       // 第二案ステータスを判定
-      const isFirstApproved = firstPlan?.status === 'APPROVED'
+      const isFirstApproved = firstPlan?.status?.toUpperCase() === 'APPROVED'
       const secondPlan = summary.find(p => p.plan_type === 'SECOND')
 
-      if (!isFirstApproved) {
+      // 既存のSECOND planがある場合は、そのステータスを表示
+      if (secondPlan) {
+        if (secondPlan.status?.toUpperCase() === 'APPROVED') {
+          setSecondPlanStatus({
+            status: 'approved',
+            planId: secondPlan.plan_id,
+            updatedAt: secondPlan.updated_at,
+          })
+        } else {
+          setSecondPlanStatus({
+            status: 'draft',
+            planId: secondPlan.plan_id,
+            updatedAt: secondPlan.updated_at,
+          })
+        }
+      } else if (!isFirstApproved) {
+        // SECOND planがなく、FIRST planも承認されていない場合は作成不可
         setSecondPlanStatus({
           status: 'unavailable',
           planId: null,
           updatedAt: null,
         })
-      } else if (!secondPlan) {
+      } else {
+        // SECOND planがなく、FIRST planが承認されている場合は作成可能
         setSecondPlanStatus({
           status: 'not_started',
           planId: null,
           updatedAt: null,
-        })
-      } else if (secondPlan.status === 'APPROVED') {
-        setSecondPlanStatus({
-          status: 'approved',
-          planId: secondPlan.plan_id,
-          updatedAt: secondPlan.updated_at,
-        })
-      } else {
-        setSecondPlanStatus({
-          status: 'draft',
-          planId: secondPlan.plan_id,
-          updatedAt: secondPlan.updated_at,
         })
       }
     } catch (err) {

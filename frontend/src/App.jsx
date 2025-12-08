@@ -747,16 +747,16 @@ function AppContent() {
                     : showConstraintManagement
                       ? 'constraint-management'
                       : showShiftManagement
-                          ? 'shift-management'
-                          : showShiftCreationMethodSelector
-                            ? 'shift-creation-method-selector'
-                            : showDraftShiftEditor
-                              ? 'draft-shift-editor'
-                              : showBudgetActualManagement
-                                ? 'budget-actual-management'
-                                : showMasterDataManagement
-                                  ? 'master-data-management'
-                                  : currentStep
+                        ? 'shift-management'
+                        : showShiftCreationMethodSelector
+                          ? 'shift-creation-method-selector'
+                          : showDraftShiftEditor
+                            ? 'draft-shift-editor'
+                            : showBudgetActualManagement
+                              ? 'budget-actual-management'
+                              : showMasterDataManagement
+                                ? 'master-data-management'
+                                : currentStep
             }
           >
             {renderCurrentScreen()}

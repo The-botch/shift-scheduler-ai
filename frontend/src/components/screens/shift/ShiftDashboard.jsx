@@ -8,12 +8,15 @@
  */
 
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useTargetMonth } from '../../../hooks/useTargetMonth'
 import { useShiftStatus } from '../../../hooks/useShiftStatus'
 import { BACKEND_API_URL } from '../../../config/api'
+import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import Sidebar from '../../Sidebar'
 import ShiftStatusCards from '../../ShiftStatusCards'
+
+const shiftRepository = new ShiftRepository()
 
 /**
  * ローディングスピナー
@@ -31,6 +34,7 @@ const Spinner = () => (
  */
 const ShiftDashboard = ({ onStaffManagement }) => {
   const navigate = useNavigate()
+  const location = useLocation()
   const { targetMonth } = useTargetMonth()
 
   // 選択中の年月
@@ -42,10 +46,15 @@ const ShiftDashboard = ({ onStaffManagement }) => {
   const [dbEnv, setDbEnv] = useState(null)
 
   // シフトステータス取得
-  const { loading, recruitmentStatus, firstPlanStatus, secondPlanStatus } = useShiftStatus(
+  const { loading, recruitmentStatus, firstPlanStatus, secondPlanStatus, refetch } = useShiftStatus(
     selectedYear,
     selectedMonth
   )
+
+  // ページに戻ってきた時にデータをリフレッシュ
+  useEffect(() => {
+    refetch()
+  }, [location.key])
 
   // 環境情報を取得
   useEffect(() => {
@@ -100,21 +109,53 @@ const ShiftDashboard = ({ onStaffManagement }) => {
   /**
    * 第一案カードクリック → FirstPlanEditor へ遷移（旧画面と同じ動作）
    */
-  const handleFirstPlanClick = () => {
+  const handleFirstPlanClick = async () => {
+    const status =
+      firstPlanStatus.status === 'approved'
+        ? 'APPROVED'
+        : firstPlanStatus.status === 'draft'
+          ? 'DRAFT'
+          : 'not_started'
+
+    // プランが存在しない場合は前月データを取得してから遷移
+    if (status === 'not_started' && !firstPlanStatus.planId) {
+      try {
+        const result = await shiftRepository.fetchPreviousDataAllStores({
+          target_year: selectedYear,
+          target_month: selectedMonth,
+        })
+
+        if (result.success && result.data?.stores) {
+          const shift = {
+            year: selectedYear,
+            month: selectedMonth,
+            planId: null,
+            planType: 'FIRST',
+            status: 'unsaved', // FirstPlanEditorのhandleApproveで正しく処理されるようにする
+            initialData: {
+              stores: result.data.stores,
+            },
+          }
+          navigate('/shift/draft-editor', { state: { shift } })
+        } else {
+          alert('前月のデータが見つかりませんでした。')
+        }
+      } catch (error) {
+        console.error('前月データ取得エラー:', error)
+        alert('前月データの取得に失敗しました。')
+      }
+      return
+    }
+
+    // 既存のプランがある場合は通常遷移
     const shift = {
       year: selectedYear,
       month: selectedMonth,
       planId: firstPlanStatus.planId,
       planType: 'FIRST',
-      status:
-        firstPlanStatus.status === 'approved'
-          ? 'APPROVED'
-          : firstPlanStatus.status === 'draft'
-            ? 'DRAFT'
-            : 'not_started',
+      status,
     }
 
-    // 常に編集画面へ遷移（旧ShiftManagementと同じ動作）
     navigate('/shift/draft-editor', { state: { shift } })
   }
 
@@ -161,7 +202,7 @@ const ShiftDashboard = ({ onStaffManagement }) => {
         selectedMonth={selectedMonth}
         onMonthSelect={handleMonthSelect}
         onStaffManagement={handleStaffManagement}
-        onMonitoring={handleRecruitmentClick}
+        onMasterManagement={() => navigate('/master')}
         currentPath="/"
       />
 

@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import { Users, X, TrendingUp, Award, FileText, Database, Filter } from 'lucide-react'
+import { Users, X, TrendingUp, Award, FileText, Database, Filter, Home } from 'lucide-react'
 import { calculatePayslip } from '../../utils/salaryCalculator'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
@@ -11,6 +12,7 @@ import { useTenant } from '../../contexts/TenantContext'
 const masterRepository = new MasterRepository()
 
 const StaffManagement = () => {
+  const navigate = useNavigate()
   const { tenantId } = useTenant()
   const [staffList, setStaffList] = useState([])
   const [roles, setRoles] = useState([])
@@ -281,7 +283,7 @@ const StaffManagement = () => {
                   className="bg-white text-blue-700 hover:bg-gray-100"
                 >
                   <X className="h-4 w-4 mr-2" />
-                  戻る
+                  閉じる
                 </Button>
               </div>
             </CardHeader>
@@ -1227,10 +1229,21 @@ const StaffManagement = () => {
                       {/* 固定ヘッダー部分 */}
                       <div className="px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
                         <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-bold flex items-center gap-2">
-                            <div className="w-1 h-6 bg-orange-600 rounded"></div>
-                            スタッフ一覧 ({filteredStaffList.length}名)
-                          </h3>
+                          <div className="flex items-center gap-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate('/')}
+                              className="flex items-center gap-2"
+                            >
+                              <Home className="h-4 w-4" />
+                              ダッシュボード
+                            </Button>
+                            <h3 className="text-lg font-bold flex items-center gap-2">
+                              <div className="w-1 h-6 bg-orange-600 rounded"></div>
+                              スタッフ一覧 ({filteredStaffList.length}名)
+                            </h3>
+                          </div>
                           <div className="flex items-center gap-3">
                             <Filter className="h-4 w-4 text-gray-600" />
                             <select
