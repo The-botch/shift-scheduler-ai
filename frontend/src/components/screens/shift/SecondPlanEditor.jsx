@@ -1548,7 +1548,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="min-h-screen flex flex-col pt-16"
+      className="h-screen flex flex-col pt-16 overflow-hidden"
     >
       {/* ヘッダー */}
       <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 py-4 bg-white border-b border-gray-200">
