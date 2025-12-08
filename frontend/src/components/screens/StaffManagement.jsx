@@ -1147,8 +1147,8 @@ const StaffManagement = () => {
             className="h-full"
           >
             <div className="flex flex-col overflow-hidden h-full">
-              <div className="flex-1 overflow-auto">
-                <div className="p-6">
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="p-6 flex-1 flex flex-col min-h-0">
                   {showMasters ? (
                     /* マスター編集セクション */
                     <>
@@ -1225,7 +1225,7 @@ const StaffManagement = () => {
                     </>
                   ) : (
                     /* スタッフ一覧テーブル */
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col flex-1 min-h-0">
                       {/* 固定ヘッダー部分 */}
                       <div className="px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
                         <div className="flex items-center justify-between">
@@ -1272,7 +1272,7 @@ const StaffManagement = () => {
                       </div>
 
                       {/* スクロール可能なコンテンツ部分 */}
-                      <div className="flex-1 overflow-auto">
+                      <div className="flex-1 overflow-auto min-h-0">
                         {filteredStaffList.length === 0 ? (
                           <Card className="bg-gray-50 border-2 border-gray-300">
                             <CardContent className="p-8 text-center">
@@ -1296,9 +1296,9 @@ const StaffManagement = () => {
                             </CardContent>
                           </Card>
                         ) : (
-                          <div className="overflow-x-auto">
+                          <div className="overflow-x-auto h-full">
                             <table className="min-w-full bg-white border border-gray-200 table-auto">
-                              <thead className="bg-gray-50">
+                              <thead className="bg-gray-50 sticky top-0 z-10">
                                 <tr>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                                     スタッフコード
