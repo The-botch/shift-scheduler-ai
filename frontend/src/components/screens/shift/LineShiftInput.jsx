@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { MESSAGES } from '../../../constants/messages'
 import { motion } from 'framer-motion'
 import { Card } from '../../ui/card'
@@ -183,7 +183,7 @@ const DetailInputModal = ({ date, shiftPatterns, onSave, onCancel, existing, yea
   )
 }
 
-const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
+const LineShiftInput = ({ shiftStatus }) => {
   const { tenantId } = useTenant()
   const [datePreferences, setDatePreferences] = useState({}) // { date: { patterns: ['EARLY', 'MID'], comment: '' } }
   const [showLineMessage, setShowLineMessage] = useState(true)
@@ -512,12 +512,6 @@ const LineShiftInput = ({ onNext, onPrev, shiftStatus }) => {
   }
 
   const selectedDatesCount = Object.keys(datePreferences).length
-
-  const getDayOfWeek = date => {
-    const day = new Date(selectedYear, selectedMonth - 1, date).getDay()
-    const weekdays = ['日', '月', '火', '水', '木', '金', '土']
-    return weekdays[day]
-  }
 
   const isWeekend = date => {
     const day = new Date(selectedYear, selectedMonth - 1, date).getDay()

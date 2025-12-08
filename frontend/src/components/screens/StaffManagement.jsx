@@ -604,24 +604,12 @@ const StaffManagement = () => {
                           // 2024年の実績を集計
                           let totalDays2024 = 0
                           let totalHours2024 = 0
-                          let totalWage2024 = 0
 
                           year2024Months.forEach(monthKey => {
                             const stats =
                               staffPerformance[selectedStaff.name].monthlyStats[monthKey]
                             totalDays2024 += stats.days
                             totalHours2024 += stats.hours
-
-                            // 給与計算
-                            if (selectedStaff.employment_type === 'monthly') {
-                              totalWage2024 += parseInt(selectedStaff.monthly_salary || 0)
-                            } else if (selectedStaff.employment_type === 'contract') {
-                              totalWage2024 += parseInt(selectedStaff.contract_fee || 0)
-                            } else if (selectedStaff.employment_type === 'hourly') {
-                              totalWage2024 += Math.round(
-                                stats.hours * parseInt(selectedStaff.hourly_rate || 0)
-                              )
-                            }
                           })
 
                           if (remainingMonths > 0 && monthsWorked2024 > 0) {

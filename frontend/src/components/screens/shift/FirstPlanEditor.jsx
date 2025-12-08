@@ -959,7 +959,6 @@ const FirstPlanEditor = ({
     onDelete,
     position,
     availableStores,
-    shiftPatterns,
   }) => {
     const [startTime, setStartTime] = useState(shift?.start_time || '')
     const [endTime, setEndTime] = useState(shift?.end_time || '')
