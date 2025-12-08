@@ -6,8 +6,6 @@
  */
 
 import {
-  getCurrentYear,
-  getCurrentMonth,
   getCurrentYearMonth as getJSTYearMonth,
 } from '../utils/dateUtils'
 

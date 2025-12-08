@@ -55,7 +55,6 @@ const BudgetActualManagement = () => {
   const [monthlyStatus, setMonthlyStatus] = useState([])
   const [selectedMonth, setSelectedMonth] = useState(null)
   const [diffAnalysis, setDiffAnalysis] = useState(null)
-  const [loading, setLoading] = useState(false)
   const [selectedYear, setSelectedYear] = useState(getCurrentYear())
   const [monthlyPL, setMonthlyPL] = useState([])
   const [storeCodeToIdMap, setStoreCodeToIdMap] = useState({})
@@ -472,8 +471,6 @@ const BudgetActualManagement = () => {
         uniqueDataMap.set(key, record)
       })
       const formattedData = Array.from(uniqueDataMap.values())
-
-      const duplicatesCount = formattedDataWithDuplicates.length - formattedData.length
 
       // バッチサイズ（1000件ずつ送信してPostgreSQLのパラメータ制限を回避）
       const BATCH_SIZE = 1000

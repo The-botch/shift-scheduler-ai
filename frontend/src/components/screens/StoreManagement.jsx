@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent } from '../ui/card'
 import { Store, Clock, MapPin, Phone, Briefcase, ChevronRight } from 'lucide-react'
@@ -16,11 +16,7 @@ const StoreManagement = () => {
   const [employmentRequirements, setEmploymentRequirements] = useState({})
   const [selectedStoreId, setSelectedStoreId] = useState(null)
 
-  useEffect(() => {
-    loadData()
-  }, [tenantId])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       // 並行読み込み（MasterRepositoryを使用してテナントIDでフィルタリング）
@@ -47,7 +43,11 @@ const StoreManagement = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [tenantId])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const getConstraintsByStore = storeId => {
     return constraints.filter(c => c.store_id === storeId && c.is_active === 'TRUE')

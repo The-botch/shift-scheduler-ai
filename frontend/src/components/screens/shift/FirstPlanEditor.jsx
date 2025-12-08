@@ -1,7 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Card, CardContent } from '../../ui/card'
 import { Button } from '../../ui/button'
 import {
   ArrowLeft,
@@ -16,7 +15,6 @@ import {
 } from 'lucide-react'
 import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
-import ShiftTimeline from '../../shared/ShiftTimeline'
 import ShiftTableView from '../../shared/ShiftTableView'
 import TimeInput from '../../shared/TimeInput'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
@@ -68,38 +66,25 @@ const FirstPlanEditor = ({
   // 共通ロジック（マスタデータ取得・店舗選択管理）
   const {
     staffMap,
-    rolesMap,
     storesMap,
     availableStores,
     selectedStores,
-    loading: masterLoading,
     loadMasterData,
-    toggleStoreSelection,
-    selectAllStores,
-    deselectAllStores,
     setSelectedStores,
   } = useShiftEditorBase(selectedShift)
 
   // 共通ロジック（シフト編集・保存・承認）
   const {
-    modifiedShifts,
-    deletedShiftIds,
     addedShifts,
     hasUnsavedChanges,
     saving,
     planIds: planIdsState,
     modalState,
     setPlanId: setPlanIdsState,
-    getPlanId,
     handleDeleteShift: handleDeleteShiftBase,
     handleAddShift: handleAddShiftBase,
     handleModifyShift,
     saveChanges,
-    saveDraft,
-    approve,
-    deletePlan,
-    openModal,
-    closeModal,
     setModalState,
     resetChanges,
     setHasUnsavedChanges,
@@ -127,7 +112,7 @@ const FirstPlanEditor = ({
   // シフトデータ
   const [shiftData, setShiftData] = useState([])
   const [defaultPatternId, setDefaultPatternId] = useState(null)
-  const [preferences, setPreferences] = useState([]) // 希望シフト
+  const [preferences] = useState([]) // 希望シフト
   const [shiftPatterns, setShiftPatterns] = useState([]) // シフトパターンマスタ
 
   // パフォーマンス最適化: preferences を Map 化（O(1) lookup）
@@ -756,7 +741,7 @@ const FirstPlanEditor = ({
   }
 
   // セルクリック時のハンドラー
-  const handleShiftClick = ({ mode, shift, date, staffId, storeId, event }) => {
+  const handleShiftClick = ({ mode, shift, date, staffId, event }) => {
     // クリック位置を取得
     const rect = event?.target.getBoundingClientRect()
     const position = rect
@@ -980,7 +965,6 @@ const FirstPlanEditor = ({
     const [endTime, setEndTime] = useState(shift?.end_time || '')
     const [breakMinutes, setBreakMinutes] = useState(shift?.break_minutes || 0)
     const [storeId, setStoreId] = useState(shift?.store_id || '')
-    const [selectedPatternId, setSelectedPatternId] = useState('')
     const [popupStyle, setPopupStyle] = useState({})
     const [isDragging, setIsDragging] = useState(false)
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -993,23 +977,8 @@ const FirstPlanEditor = ({
         setEndTime(shift.end_time || '')
         setBreakMinutes(shift.break_minutes || 0)
         setStoreId(shift.store_id || '')
-        setSelectedPatternId('')
       }
     }, [shift])
-
-    // パターン選択ハンドラー（時刻を自動入力）
-    const handlePatternSelect = patternId => {
-      setSelectedPatternId(patternId)
-
-      if (patternId && shiftPatterns) {
-        const pattern = shiftPatterns.find(p => p.pattern_id === Number(patternId))
-        if (pattern) {
-          setStartTime(pattern.start_time)
-          setEndTime(pattern.end_time)
-          setBreakMinutes(pattern.break_minutes || 0)
-        }
-      }
-    }
 
     // ドラッグハンドラー
     const handleDragStart = e => {
