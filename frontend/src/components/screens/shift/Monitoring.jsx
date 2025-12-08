@@ -11,14 +11,10 @@ import {
   AlertCircle,
   ChevronLeft,
   ChevronRight,
-  ArrowRight,
   Loader2,
   X,
   Calendar,
-  History as HistoryIcon,
   Store,
-  LayoutGrid,
-  Table,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'
 import { AnimatePresence } from 'framer-motion'
