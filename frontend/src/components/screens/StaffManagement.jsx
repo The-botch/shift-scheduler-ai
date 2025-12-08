@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
@@ -29,11 +29,7 @@ const StaffManagement = () => {
   const [selectedStore, setSelectedStore] = useState('all')
   const [statusFilter, setStatusFilter] = useState('all') // 'all', 'active', 'inactive'
 
-  useEffect(() => {
-    loadData()
-  }, [tenantId])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       // MasterRepositoryを使用してテナント別データを取得
@@ -166,7 +162,11 @@ const StaffManagement = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [tenantId])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const getRoleName = roleId => {
     const role = roles.find(r => r.role_id === roleId)
@@ -628,7 +628,6 @@ const StaffManagement = () => {
                             // 月平均を計算
                             const avgDaysPerMonth = totalDays2024 / monthsWorked2024
                             const avgHoursPerMonth = totalHours2024 / monthsWorked2024
-                            const avgWagePerMonth = totalWage2024 / monthsWorked2024
 
                             // 予測残り値
                             const predictedRemainingDays = Math.round(

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { MESSAGES } from '../../constants/messages'
 import { motion } from 'framer-motion'
@@ -139,7 +139,7 @@ const BudgetActualManagement = () => {
   const onBudgetActualManagement = () => navigate('/budget-actual')
   const onDevTools = () => navigate('/dev-tools')
 
-  const loadImportStatus = async () => {
+  const loadImportStatus = useCallback(async () => {
     try {
       // バックエンドAPIからデータを取得
       const [payrollResponse, salesActualResponse, salesForecastResponse] = await Promise.all([
@@ -267,7 +267,7 @@ const BudgetActualManagement = () => {
     } catch (error) {
       console.error('ステータス読み込みエラー:', error)
     }
-  }
+  }, [selectedYear, tenantId])
 
   // ファイル選択処理
   const handleFileSelect = (e, type) => {
@@ -888,7 +888,6 @@ const BudgetActualManagement = () => {
       return
     }
 
-    setLoading(true)
     setSelectedMonth(monthData)
 
     try {
@@ -900,14 +899,12 @@ const BudgetActualManagement = () => {
       if (actualShifts.length === 0) {
         alert(MESSAGES.ERROR.WORK_HOURS_DATA_MISSING)
         setSelectedMonth(null)
-        setLoading(false)
         return
       }
 
       if (actualPayroll.length === 0) {
         alert(MESSAGES.ERROR.PAYROLL_DATA_MISSING)
         setSelectedMonth(null)
-        setLoading(false)
         return
       }
 
@@ -918,7 +915,6 @@ const BudgetActualManagement = () => {
       if (plannedShifts.length === 0) {
         alert(MESSAGES.ERROR.PLANNED_SHIFT_HISTORY_NOT_FOUND)
         setSelectedMonth(null)
-        setLoading(false)
         return
       }
 
