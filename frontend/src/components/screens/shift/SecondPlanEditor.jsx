@@ -21,7 +21,9 @@ import {
   AlertTriangle,
   Zap,
   GripVertical,
+  Camera,
 } from 'lucide-react'
+import { domToPng } from 'modern-screenshot'
 import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import ShiftTableView from '../../shared/ShiftTableView'
@@ -225,6 +227,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const [inputValue, setInputValue] = useState('')
   const [isTyping, setIsTyping] = useState(false)
   const chatEndRef = useRef(null)
+  const tableContainerRef = useRef(null)
+  const [isCapturing, setIsCapturing] = useState(false)
   const [chatPosition, setChatPosition] = useState({
     x: window.innerWidth - 336,
     y: window.innerHeight - 520,
@@ -970,6 +974,80 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     }
   }
 
+  // 店舗ごとのスクリーンショット機能
+  const handleScreenshot = async () => {
+    if (selectedStores.size === 0) {
+      alert('スクリーンショットする店舗を選択してください')
+      return
+    }
+
+    if (!tableContainerRef.current) {
+      alert('テーブルが見つかりません')
+      return
+    }
+
+    setIsCapturing(true)
+
+    try {
+      const originalSelectedStores = new Set(selectedStores)
+      const storeIds = Array.from(originalSelectedStores)
+
+      for (const storeId of storeIds) {
+        // 一時的に1店舗のみ選択
+        setSelectedStores(new Set([storeId]))
+
+        // DOM更新を待つ
+        await new Promise(resolve => setTimeout(resolve, 300))
+
+        // テーブル全体をキャプチャ（スクロール含む）
+        const tableElement = tableContainerRef.current
+        if (!tableElement) continue
+
+        // スクロール位置を保存
+        const scrollElements = tableElement.querySelectorAll('[class*="overflow"]')
+        const scrollPositions = []
+        scrollElements.forEach(el => {
+          scrollPositions.push({ el, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop })
+          el.scrollLeft = 0
+          el.scrollTop = 0
+        })
+
+        // modern-screenshotでキャプチャ
+        const dataUrl = await domToPng(tableElement, {
+          backgroundColor: '#ffffff',
+          scale: 2,
+        })
+
+        // スクロール位置を復元
+        scrollPositions.forEach(({ el, scrollLeft, scrollTop }) => {
+          el.scrollLeft = scrollLeft
+          el.scrollTop = scrollTop
+        })
+
+        // PNGダウンロード
+        const storeName = storesMap[storeId]?.store_name || `店舗${storeId}`
+        const filename = `${year}年${month}月_${storeName}.png`
+
+        const link = document.createElement('a')
+        link.download = filename
+        link.href = dataUrl
+        link.click()
+
+        // 少し間隔を開ける
+        await new Promise(resolve => setTimeout(resolve, 500))
+      }
+
+      // 元の選択状態に戻す
+      setSelectedStores(originalSelectedStores)
+      alert(`${storeIds.length}件のスクリーンショットを保存しました`)
+    } catch (error) {
+      console.error('スクリーンショットエラー:', error)
+      alert(`スクリーンショットの作成に失敗しました: ${error.message}`)
+    } finally {
+      setIsCapturing(false)
+    }
+  }
+
   // チャット関連ハンドラー
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -1504,6 +1582,21 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
             CSV
           </Button>
 
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleScreenshot}
+            disabled={isCapturing || selectedStores.size === 0}
+            className="border-purple-300 text-purple-600 hover:bg-purple-50"
+          >
+            {isCapturing ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <Camera className="h-3 w-3 mr-1" />
+            )}
+            {isCapturing ? 'キャプチャ中...' : '店舗別スクショ'}
+          </Button>
+
           {isEditMode && (
             <>
               {/* Issue #165: 時間重複エラー表示 */}
@@ -1610,7 +1703,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         </div>
       </div>
 
-      <div className="flex-1 overflow-hidden mx-8 mb-4">
+      <div ref={tableContainerRef} className="flex-1 overflow-hidden mx-8 mb-4">
         <MultiStoreShiftTable
           year={year}
           month={month}
