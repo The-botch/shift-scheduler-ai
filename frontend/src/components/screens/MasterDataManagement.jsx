@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Database,
@@ -23,6 +24,7 @@ import {
   CheckSquare,
   Download,
   BookOpen,
+  Home,
 } from 'lucide-react'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { useTenant } from '../../contexts/TenantContext'
@@ -44,6 +46,7 @@ const pageTransition = {
 }
 
 const MasterDataManagement = ({ onPrev }) => {
+  const navigate = useNavigate()
   const { tenantId } = useTenant()
   const [selectedMaster, setSelectedMaster] = useState('staff')
   const [masterData, setMasterData] = useState([])
@@ -1901,9 +1904,18 @@ const MasterDataManagement = ({ onPrev }) => {
         transition={pageTransition}
         className="max-w-[1800px] mx-auto px-4"
       >
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">マスターデータ管理</h1>
-          <p className="text-sm text-gray-600">各種マスターデータの閲覧・編集</p>
+        <div className="mb-6 flex items-center gap-4">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            <Home className="h-4 w-4" />
+            ダッシュボード
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">マスターデータ管理</h1>
+            <p className="text-sm text-gray-600">各種マスターデータの閲覧・編集</p>
+          </div>
         </div>
 
         <div className="flex gap-4 h-[calc(100vh-180px)]">

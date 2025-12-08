@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import { Users, X, TrendingUp, Award, FileText, Database, Filter } from 'lucide-react'
+import { Users, X, TrendingUp, Award, FileText, Database, Filter, Home } from 'lucide-react'
 import { calculatePayslip } from '../../utils/salaryCalculator'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
@@ -11,6 +12,7 @@ import { useTenant } from '../../contexts/TenantContext'
 const masterRepository = new MasterRepository()
 
 const StaffManagement = () => {
+  const navigate = useNavigate()
   const { tenantId } = useTenant()
   const [staffList, setStaffList] = useState([])
   const [roles, setRoles] = useState([])
@@ -27,7 +29,8 @@ const StaffManagement = () => {
   const [shiftPatterns, setShiftPatterns] = useState([])
   const [stores, setStores] = useState([])
   const [selectedStore, setSelectedStore] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all') // 'all', 'active', 'inactive'
+  const [statusFilter, setStatusFilter] = useState('active') // 'all', 'active', 'inactive' - デフォルト在籍のみ
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState('all') // 'all', 'PART_TIME', 'FULL_TIME', etc.
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -179,7 +182,7 @@ const StaffManagement = () => {
     return employmentTypeData ? employmentTypeData.employment_name : employmentType
   }
 
-  // 店舗フィルタリング + 在籍状況フィルタリング
+  // 店舗フィルタリング + 在籍状況フィルタリング + 契約タイプフィルタリング
   const filteredStaffList = staffList.filter(staff => {
     // 店舗フィルター
     const storeMatch = selectedStore === 'all' || staff.store_id === parseInt(selectedStore)
@@ -192,7 +195,20 @@ const StaffManagement = () => {
       statusMatch = staff.is_active === false
     }
 
-    return storeMatch && statusMatch
+    // 契約タイプフィルター
+    let employmentMatch = true
+    if (employmentTypeFilter !== 'all') {
+      if (employmentTypeFilter === 'PART_TIME') {
+        employmentMatch = staff.employment_type === 'PART_TIME' || staff.employment_type === 'PART'
+      } else if (employmentTypeFilter === 'FULL_TIME') {
+        employmentMatch =
+          staff.employment_type === 'FULL_TIME' || staff.employment_type === 'REGULAR'
+      } else {
+        employmentMatch = staff.employment_type === employmentTypeFilter
+      }
+    }
+
+    return storeMatch && statusMatch && employmentMatch
   })
 
   if (loading) {
@@ -231,7 +247,7 @@ const StaffManagement = () => {
                   className="bg-white text-blue-700 hover:bg-gray-100"
                 >
                   <X className="h-4 w-4 mr-2" />
-                  戻る
+                  閉じる
                 </Button>
               </div>
             </CardHeader>
@@ -1068,8 +1084,8 @@ const StaffManagement = () => {
             className="h-full"
           >
             <div className="flex flex-col overflow-hidden h-full">
-              <div className="flex-1 overflow-auto">
-                <div className="p-6">
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="p-6 flex-1 flex flex-col min-h-0">
                   {showMasters ? (
                     /* マスター編集セクション */
                     <>
@@ -1146,14 +1162,25 @@ const StaffManagement = () => {
                     </>
                   ) : (
                     /* スタッフ一覧テーブル */
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col flex-1 min-h-0">
                       {/* 固定ヘッダー部分 */}
                       <div className="px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
                         <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-bold flex items-center gap-2">
-                            <div className="w-1 h-6 bg-orange-600 rounded"></div>
-                            スタッフ一覧 ({filteredStaffList.length}名)
-                          </h3>
+                          <div className="flex items-center gap-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate('/')}
+                              className="flex items-center gap-2"
+                            >
+                              <Home className="h-4 w-4" />
+                              ダッシュボード
+                            </Button>
+                            <h3 className="text-lg font-bold flex items-center gap-2">
+                              <div className="w-1 h-6 bg-orange-600 rounded"></div>
+                              スタッフ一覧 ({filteredStaffList.length}名)
+                            </h3>
+                          </div>
                           <div className="flex items-center gap-3">
                             <Filter className="h-4 w-4 text-gray-600" />
                             <select
@@ -1177,12 +1204,22 @@ const StaffManagement = () => {
                                 </option>
                               ))}
                             </select>
+                            <select
+                              value={employmentTypeFilter}
+                              onChange={e => setEmploymentTypeFilter(e.target.value)}
+                              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            >
+                              <option value="all">全ての契約</option>
+                              <option value="PART_TIME">アルバイト</option>
+                              <option value="FULL_TIME">正社員</option>
+                              <option value="CONTRACT">契約社員</option>
+                            </select>
                           </div>
                         </div>
                       </div>
 
                       {/* スクロール可能なコンテンツ部分 */}
-                      <div className="flex-1 overflow-auto">
+                      <div className="flex-1 overflow-auto min-h-0">
                         {filteredStaffList.length === 0 ? (
                           <Card className="bg-gray-50 border-2 border-gray-300">
                             <CardContent className="p-8 text-center">
@@ -1206,9 +1243,9 @@ const StaffManagement = () => {
                             </CardContent>
                           </Card>
                         ) : (
-                          <div className="overflow-x-auto">
+                          <div className="overflow-x-auto h-full">
                             <table className="min-w-full bg-white border border-gray-200 table-auto">
-                              <thead className="bg-gray-50">
+                              <thead className="bg-gray-50 sticky top-0 z-10">
                                 <tr>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                                     スタッフコード

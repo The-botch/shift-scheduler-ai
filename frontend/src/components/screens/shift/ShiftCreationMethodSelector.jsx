@@ -52,11 +52,7 @@ const ShiftCreationMethodSelector = ({ selectedShift, onBack, onSelectMethod }) 
       className="container mx-auto px-4 py-8"
     >
       <div className="mb-6">
-        <Button variant="outline" onClick={onBack}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          シフト管理に戻る
-        </Button>
-        <h1 className="text-3xl font-bold text-neutral-900 mt-4">
+        <h1 className="text-3xl font-bold text-neutral-900">
           {year}年{month}月のシフト作成
         </h1>
         <p className="text-neutral-600 mt-2">シフトの作成方法を選択してください</p>

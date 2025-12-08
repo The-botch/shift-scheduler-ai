@@ -553,9 +553,6 @@ const DataImpactDocumentation = ({ onPrev }) => {
         >
           {/* ヘッダー */}
           <div className="mb-6">
-            <Button variant="ghost" onClick={onPrev} className="mb-4">
-              ← 戻る
-            </Button>
             <div className="flex items-center gap-3 mb-2">
               <div className="p-3 bg-blue-100 rounded-lg">
                 <BookOpen className="h-8 w-8 text-blue-600" />

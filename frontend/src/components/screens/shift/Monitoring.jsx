@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { useLocation } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../../ui/card'
 import { Button } from '../../ui/button'
@@ -15,6 +15,7 @@ import {
   X,
   Calendar,
   Store,
+  Home,
 } from 'lucide-react'
 import ShiftTimeline from '../../shared/ShiftTimeline'
 import { AnimatePresence } from 'framer-motion'
@@ -38,7 +39,13 @@ const pageTransition = {
 
 const Monitoring = () => {
   const location = useLocation()
+  const navigate = useNavigate()
   const { tenantId } = useTenant()
+
+  // ダッシュボードへ遷移
+  const handleDashboard = () => {
+    navigate('/')
+  }
 
   // React Routerから渡されたstateを取得
   const shift = location.state?.shift
@@ -68,6 +75,7 @@ const Monitoring = () => {
   const [shiftPatternsMap, setShiftPatternsMap] = useState({})
   const [storeList, setStoreList] = useState([])
   const [selectedStoreId, setSelectedStoreId] = useState(initialStoreId || null)
+  const [selectedEmploymentType, setSelectedEmploymentType] = useState('PART_TIME') // 'all' | 'PART_TIME' | 'FULL_TIME' | etc. - デフォルトアルバイト
   const [viewMode, setViewMode] = useState('staff') // 'staff' | 'calendar'
   const [calendarShiftData, setCalendarShiftData] = useState([]) // カレンダー表示用のシフトデータ
   const [monthlyComments, setMonthlyComments] = useState([]) // 月次コメント
@@ -231,6 +239,7 @@ const Monitoring = () => {
           lastReminder: null,
           is_active: staff.is_active,
           store_id: staff.store_id,
+          employment_type: staff.employment_type,
         }
       })
 
@@ -324,9 +333,52 @@ const Monitoring = () => {
     }
   }
 
-  const submittedCount = staffStatus.filter(s => s.submitted).length
-  const totalCount = staffStatus.length
+  // アルバイト（PART_TIME）かどうかを判定するヘルパー関数
+  const isPartTimeStaff = staff =>
+    staff.employment_type === 'PART_TIME' || staff.employment_type === 'PART'
+
+  // 雇用形態の表示名を取得
+  const getEmploymentTypeLabel = employmentType => {
+    switch (employmentType) {
+      case 'PART_TIME':
+      case 'PART':
+        return 'アルバイト'
+      case 'FULL_TIME':
+      case 'REGULAR':
+        return '正社員'
+      case 'CONTRACT':
+        return '契約社員'
+      default:
+        return employmentType || '不明'
+    }
+  }
+
+  // 集計はアルバイトかつ在籍者のみを対象とする
+  const activePartTimeStaff = staffStatus.filter(s => isPartTimeStaff(s) && s.is_active !== false)
+  const submittedCount = activePartTimeStaff.filter(s => s.submitted).length
+  const totalCount = activePartTimeStaff.length
   const submissionRate = totalCount > 0 ? Math.round((submittedCount / totalCount) * 100) : 0
+
+  // 契約タイプでフィルタリングしたスタッフ一覧（退会者は除外）
+  const filteredStaffStatus = useMemo(() => {
+    // まず退会者を除外
+    const activeStaff = staffStatus.filter(staff => staff.is_active !== false)
+
+    if (selectedEmploymentType === 'all') {
+      return activeStaff
+    }
+    return activeStaff.filter(staff => {
+      // PART と PART_TIME を同一視
+      if (selectedEmploymentType === 'PART_TIME') {
+        return staff.employment_type === 'PART_TIME' || staff.employment_type === 'PART'
+      }
+      // FULL_TIME と REGULAR を同一視
+      if (selectedEmploymentType === 'FULL_TIME') {
+        return staff.employment_type === 'FULL_TIME' || staff.employment_type === 'REGULAR'
+      }
+      return staff.employment_type === selectedEmploymentType
+    })
+  }, [staffStatus, selectedEmploymentType])
 
   // 募集状況を判定（締め切り前/締め切り済み/募集終了を区別）
   const getRecruitmentStatus = () => {
@@ -403,9 +455,7 @@ const Monitoring = () => {
   }
 
   const handleStaffClick = staff => {
-    if (staff.submitted) {
-      setSelectedStaff(staff)
-    }
+    setSelectedStaff(staff)
   }
 
   const closeModal = () => {
@@ -536,14 +586,22 @@ const Monitoring = () => {
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="min-h-screen flex flex-col pt-16"
+      className="h-screen flex flex-col pt-16 overflow-hidden"
     >
       {/* ヘッダーエリア */}
       <div className="flex-shrink-0 px-8 py-4 mb-4 bg-white border-b border-gray-200">
-        {/* 1行目: タイトル */}
-        <div className="mb-3">
-          <h1 className="text-3xl font-bold text-gray-900">シフト希望提出状況</h1>
-          <p className="text-base text-gray-600 mt-1">スタッフのシフト希望提出状況を確認できます</p>
+        {/* 1行目: ダッシュボードボタン + タイトル */}
+        <div className="flex items-center gap-4 mb-3">
+          <Button variant="outline" size="sm" onClick={handleDashboard}>
+            <Home className="h-4 w-4 mr-1" />
+            ダッシュボード
+          </Button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">シフト希望提出状況</h1>
+            <p className="text-base text-gray-600 mt-1">
+              スタッフのシフト希望提出状況を確認できます
+            </p>
+          </div>
         </div>
 
         {/* 2行目: 対象年月・店舗 */}
@@ -582,28 +640,46 @@ const Monitoring = () => {
           </div>
         </div>
 
-        {/* 3行目: 店舗選択 */}
-        {storeList.length > 0 && (
+        {/* 3行目: 店舗選択 + 契約タイプフィルター */}
+        <div className="flex items-center gap-6">
+          {storeList.length > 0 && (
+            <div className="flex items-center gap-3">
+              <Store className="h-5 w-5 text-purple-600" />
+              <label className="text-base font-semibold text-gray-700">対象店舗:</label>
+              <select
+                value={selectedStoreId || ''}
+                onChange={e => {
+                  const newStoreId = e.target.value ? parseInt(e.target.value) : null
+                  setSelectedStoreId(newStoreId)
+                }}
+                className="px-3 py-2 border-2 border-gray-300 rounded-lg text-base font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              >
+                <option value="">すべての店舗</option>
+                {storeList.map(store => (
+                  <option key={store.store_id} value={store.store_id}>
+                    {store.store_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* 契約タイプフィルター */}
           <div className="flex items-center gap-3">
-            <Store className="h-5 w-5 text-purple-600" />
-            <label className="text-base font-semibold text-gray-700">対象店舗:</label>
+            <Users className="h-5 w-5 text-blue-600" />
+            <label className="text-base font-semibold text-gray-700">契約タイプ:</label>
             <select
-              value={selectedStoreId || ''}
-              onChange={e => {
-                const newStoreId = e.target.value ? parseInt(e.target.value) : null
-                setSelectedStoreId(newStoreId)
-              }}
-              className="px-3 py-2 border-2 border-gray-300 rounded-lg text-base font-medium focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+              value={selectedEmploymentType}
+              onChange={e => setSelectedEmploymentType(e.target.value)}
+              className="px-3 py-2 border-2 border-gray-300 rounded-lg text-base font-medium focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <option value="">すべての店舗</option>
-              {storeList.map(store => (
-                <option key={store.store_id} value={store.store_id}>
-                  {store.store_name}
-                </option>
-              ))}
+              <option value="all">すべて</option>
+              <option value="PART_TIME">アルバイト</option>
+              <option value="FULL_TIME">正社員</option>
+              <option value="CONTRACT">契約社員</option>
             </select>
           </div>
-        )}
+        </div>
       </div>
 
       {/* 提出状況サマリー - 固定 */}
@@ -704,32 +780,42 @@ const Monitoring = () => {
         </CardHeader>
         <CardContent className="flex-1 overflow-y-auto px-6 pb-4">
           <div className="space-y-3">
-            {staffStatus.map(staff => (
+            {filteredStaffStatus.map(staff => (
               <motion.div
                 key={staff.id}
-                className={`flex items-center justify-between p-3 border rounded-lg ${
-                  staff.submitted ? 'hover:bg-blue-50 cursor-pointer' : 'hover:bg-gray-50'
-                }`}
+                className="flex items-center justify-between p-3 border rounded-lg hover:bg-blue-50 cursor-pointer"
                 whileHover={{ scale: 1.01 }}
                 onClick={() => handleStaffClick(staff)}
               >
                 <div className="flex items-center space-x-3">
                   <div
                     className={`w-3 h-3 rounded-full ${
-                      staff.submitted ? 'bg-green-500' : 'bg-red-500'
+                      staff.submitted
+                        ? 'bg-green-500'
+                        : isPartTimeStaff(staff)
+                          ? 'bg-red-500'
+                          : 'bg-gray-400'
                     }`}
                   />
                   <div>
                     <p className={`font-medium ${staff.submitted ? 'text-blue-600' : ''}`}>
                       {staff.name}
-                      {staff.submitted && (
-                        <span className="text-xs ml-2 text-gray-500">(クリックで詳細)</span>
-                      )}
+                      <span
+                        className={`text-xs ml-2 px-1.5 py-0.5 rounded ${
+                          isPartTimeStaff(staff)
+                            ? 'bg-blue-100 text-blue-600'
+                            : 'bg-gray-100 text-gray-600'
+                        }`}
+                      >
+                        {getEmploymentTypeLabel(staff.employment_type)}
+                      </span>
                     </p>
                     <p className="text-sm text-gray-600">
                       {staff.submitted
                         ? `提出済み: ${staff.submittedAt}`
-                        : `最終催促: ${staff.lastReminder}`}
+                        : isPartTimeStaff(staff)
+                          ? `最終催促: ${staff.lastReminder || 'なし'}`
+                          : '固定シフト'}
                     </p>
                   </div>
                 </div>
@@ -740,7 +826,7 @@ const Monitoring = () => {
                       <CheckCircle className="h-4 w-4 mr-1" />
                       <span className="text-sm">完了</span>
                     </div>
-                  ) : (
+                  ) : isPartTimeStaff(staff) ? (
                     <>
                       <div className="flex items-center text-red-600">
                         <AlertCircle className="h-4 w-4 mr-1" />
@@ -751,6 +837,10 @@ const Monitoring = () => {
                         催促
                       </Button>
                     </>
+                  ) : (
+                    <div className="flex items-center text-gray-500">
+                      <span className="text-sm">希望なし</span>
+                    </div>
                   )}
                 </div>
               </motion.div>
@@ -776,9 +866,24 @@ const Monitoring = () => {
             <div className="border-b bg-gray-50 px-6 py-4 flex-shrink-0">
               <div className="flex items-center justify-between">
                 <div>
-                  <h2 className="text-2xl font-bold">{selectedStaff.name}の希望シフト</h2>
+                  <h2 className="text-2xl font-bold">
+                    {selectedStaff.name}の希望シフト
+                    <span
+                      className={`text-sm ml-3 px-2 py-1 rounded ${
+                        isPartTimeStaff(selectedStaff)
+                          ? 'bg-blue-100 text-blue-600'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {getEmploymentTypeLabel(selectedStaff.employment_type)}
+                    </span>
+                  </h2>
                   <p className="text-sm text-gray-600 mt-1">
-                    提出日時: {selectedStaff.submittedAt}
+                    {selectedStaff.submittedAt
+                      ? `提出日時: ${selectedStaff.submittedAt}`
+                      : isPartTimeStaff(selectedStaff)
+                        ? '未提出'
+                        : '固定シフト（希望なし）'}
                   </p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={closeModal}>
