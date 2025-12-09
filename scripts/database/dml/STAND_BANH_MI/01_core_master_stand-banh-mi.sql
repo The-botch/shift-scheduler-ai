@@ -234,7 +234,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO core.shift_deadline_settings
   (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
 VALUES
-  (3, 'FULL_TIME', 10, '12:00', true, '正社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
+  (3, 'FULL_TIME', 17, '12:00', true, '正社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
 ON CONFLICT (tenant_id, employment_type) DO UPDATE
 SET
     deadline_day = EXCLUDED.deadline_day,
@@ -248,7 +248,7 @@ SET
 INSERT INTO core.shift_deadline_settings
   (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
 VALUES
-  (3, 'PART_TIME', 15, '12:00', true, 'アルバイト・パートのシフト希望締切（第1案作成完了～N-1月15日12:00）')
+  (3, 'PART_TIME', 17, '12:00', true, 'アルバイト・パートのシフト希望締切（第1案作成完了～N-1月15日12:00）')
 ON CONFLICT (tenant_id, employment_type) DO UPDATE
 SET
     deadline_day = EXCLUDED.deadline_day,
@@ -262,7 +262,7 @@ SET
 INSERT INTO core.shift_deadline_settings
   (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
 VALUES
-  (3, 'CONTRACT', 10, '12:00', true, '業務委託のシフト希望締切（第1案作成完了～N-1月10日12:00）')
+  (3, 'CONTRACT', 17, '12:00', true, '業務委託のシフト希望締切（第1案作成完了～N-1月10日12:00）')
 ON CONFLICT (tenant_id, employment_type) DO UPDATE
 SET
     deadline_day = EXCLUDED.deadline_day,
@@ -276,7 +276,7 @@ SET
 INSERT INTO core.shift_deadline_settings
   (tenant_id, employment_type, deadline_day, deadline_time, is_enabled, description)
 VALUES
-  (3, 'TEMPORARY', 10, '12:00', true, '派遣社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
+  (3, 'TEMPORARY', 17, '12:00', true, '派遣社員のシフト希望締切（第1案作成完了～N-1月10日12:00）')
 ON CONFLICT (tenant_id, employment_type) DO UPDATE
 SET
     deadline_day = EXCLUDED.deadline_day,

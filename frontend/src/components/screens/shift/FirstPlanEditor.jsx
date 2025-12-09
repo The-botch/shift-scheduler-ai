@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Card, CardContent } from '../../ui/card'
 import { Button } from '../../ui/button'
 import {
   ArrowLeft,
@@ -13,10 +13,10 @@ import {
   Maximize2,
   Minimize2,
   X,
+  Home,
 } from 'lucide-react'
 import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
-import ShiftTimeline from '../../shared/ShiftTimeline'
 import ShiftTableView from '../../shared/ShiftTableView'
 import TimeInput from '../../shared/TimeInput'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
@@ -62,44 +62,37 @@ const FirstPlanEditor = ({
   onStatusChange, // 保存後の状態更新コールバック
   mode = 'edit', // 'view' or 'edit'
 }) => {
+  const navigate = useNavigate()
   const isViewMode = mode === 'view'
   const isEditMode = mode === 'edit'
+
+  // ダッシュボードへ遷移
+  const handleDashboard = () => {
+    navigate('/')
+  }
 
   // 共通ロジック（マスタデータ取得・店舗選択管理）
   const {
     staffMap,
-    rolesMap,
     storesMap,
     availableStores,
     selectedStores,
-    loading: masterLoading,
     loadMasterData,
-    toggleStoreSelection,
-    selectAllStores,
-    deselectAllStores,
     setSelectedStores,
   } = useShiftEditorBase(selectedShift)
 
   // 共通ロジック（シフト編集・保存・承認）
   const {
-    modifiedShifts,
-    deletedShiftIds,
     addedShifts,
     hasUnsavedChanges,
     saving,
     planIds: planIdsState,
     modalState,
     setPlanId: setPlanIdsState,
-    getPlanId,
     handleDeleteShift: handleDeleteShiftBase,
     handleAddShift: handleAddShiftBase,
     handleModifyShift,
     saveChanges,
-    saveDraft,
-    approve,
-    deletePlan,
-    openModal,
-    closeModal,
     setModalState,
     resetChanges,
     setHasUnsavedChanges,
@@ -127,7 +120,7 @@ const FirstPlanEditor = ({
   // シフトデータ
   const [shiftData, setShiftData] = useState([])
   const [defaultPatternId, setDefaultPatternId] = useState(null)
-  const [preferences, setPreferences] = useState([]) // 希望シフト
+  const [preferences] = useState([]) // 希望シフト
   const [shiftPatterns, setShiftPatterns] = useState([]) // シフトパターンマスタ
 
   // パフォーマンス最適化: preferences を Map 化（O(1) lookup）
@@ -426,25 +419,27 @@ const FirstPlanEditor = ({
     try {
       // initialDataから作成された未保存データの場合（特殊ケース）
       if (selectedShift?.status === 'unsaved' && selectedShift?.initialData) {
-        // addedShiftsをinitialData.storesにマージ
-        const mergedStores = selectedShift.initialData.stores.map(store => {
-          // この店舗に追加されたシフトを抽出
-          const storeAddedShifts = addedShifts.filter(s => s.store_id === store.store_id)
-          return {
-            ...store,
-            shifts: [
-              ...store.shifts,
-              ...storeAddedShifts.map(s => ({
-                staff_id: s.staff_id,
-                shift_date: s.shift_date,
-                pattern_id: s.pattern_id,
-                start_time: s.start_time,
-                end_time: s.end_time,
-                break_minutes: s.break_minutes || 0,
-              })),
-            ],
+        // 現在表示中のシフトデータ（削除・追加を反映済み）を店舗ごとにグループ化
+        const storeShiftsMap = {}
+        shiftData.forEach(shift => {
+          if (!storeShiftsMap[shift.store_id]) {
+            storeShiftsMap[shift.store_id] = []
           }
+          storeShiftsMap[shift.store_id].push({
+            staff_id: shift.staff_id,
+            shift_date: shift.shift_date,
+            pattern_id: shift.pattern_id,
+            start_time: shift.start_time,
+            end_time: shift.end_time,
+            break_minutes: shift.break_minutes || 0,
+          })
         })
+
+        // 店舗情報を保持しつつ、現在のシフトデータで上書き
+        const mergedStores = selectedShift.initialData.stores.map(store => ({
+          ...store,
+          shifts: storeShiftsMap[store.store_id] || [],
+        }))
 
         // メモリ上のデータをDBに保存（addedShiftsをマージ）
         const result = await shiftRepository.createPlansWithShifts({
@@ -478,8 +473,8 @@ const FirstPlanEditor = ({
           onStatusChange('DRAFT', createdPlanIds)
         }
 
-        // データをリロードして最新の状態を表示
-        await loadShiftData()
+        // 新規プラン作成後はトップ画面に戻る（selectedShift.statusが変わらないため）
+        navigate('/')
       } else {
         // 既存のプラン編集の場合 - 共通フックを使用
         if (!hasUnsavedChanges) {
@@ -514,12 +509,34 @@ const FirstPlanEditor = ({
       }
 
       try {
+        // 現在表示中のシフトデータ（削除・追加を反映済み）を店舗ごとにグループ化
+        const storeShiftsMap = {}
+        shiftData.forEach(shift => {
+          if (!storeShiftsMap[shift.store_id]) {
+            storeShiftsMap[shift.store_id] = []
+          }
+          storeShiftsMap[shift.store_id].push({
+            staff_id: shift.staff_id,
+            shift_date: shift.shift_date,
+            pattern_id: shift.pattern_id,
+            start_time: shift.start_time,
+            end_time: shift.end_time,
+            break_minutes: shift.break_minutes || 0,
+          })
+        })
+
+        // 店舗情報を保持しつつ、現在のシフトデータで上書き
+        const storesToSave = selectedShift.initialData.stores.map(store => ({
+          ...store,
+          shifts: storeShiftsMap[store.store_id] || [],
+        }))
+
         // メモリ上のデータをDBに保存
         const createResult = await shiftRepository.createPlansWithShifts({
           target_year: year,
           target_month: month,
           created_by: 1,
-          stores: selectedShift.initialData.stores,
+          stores: storesToSave,
           plan_type: 'FIRST',
         })
 
@@ -532,7 +549,7 @@ const FirstPlanEditor = ({
 
           setHasSavedDraft(true)
           alert(MESSAGES.SUCCESS.APPROVE_FIRST_PLAN)
-          onApprove()
+          onApprove?.()
         }
       } catch (error) {
         console.error('承認処理エラー:', error)
@@ -591,7 +608,7 @@ const FirstPlanEditor = ({
         await loadShiftData()
       } else {
         alert(MESSAGES.SUCCESS.APPROVE_FIRST_PLAN)
-        onApprove()
+        onApprove?.()
       }
     } catch (error) {
       console.error('承認処理エラー:', error)
@@ -703,11 +720,15 @@ const FirstPlanEditor = ({
       (shiftData.length > 0 ? shiftData[0].pattern_id : null) ||
       (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1)
 
+    // 対象店舗の正しいplan_idを取得（マルチストア対応）
+    const planIdForStore =
+      shiftData.find(s => s.store_id === newShiftData.store_id)?.plan_id || planId
+
     // 新しいシフトオブジェクトを作成（バックエンド保存用の必須フィールドを含む）
     const shiftDataToAdd = {
       tenant_id: getCurrentTenantId(), // 必須
       store_id: newShiftData.store_id, // 必須（ポップアップから渡される）
-      plan_id: planId, // 必須
+      plan_id: planIdForStore, // 必須 - 対象店舗の正しいplan_id
       staff_id: newShiftData.staff_id, // 必須
       shift_date: newShiftData.date || newShiftData.shift_date, // 必須
       pattern_id: dynamicPatternId, // 動的に取得（マルチテナント対応）
@@ -756,7 +777,7 @@ const FirstPlanEditor = ({
   }
 
   // セルクリック時のハンドラー
-  const handleShiftClick = ({ mode, shift, date, staffId, storeId, event }) => {
+  const handleShiftClick = ({ mode, shift, date, staffId, event }) => {
     // クリック位置を取得
     const rect = event?.target.getBoundingClientRect()
     const position = rect
@@ -914,11 +935,11 @@ const FirstPlanEditor = ({
 
       await Promise.all(deletePromises)
 
-      // 削除成功後、シフト管理画面に戻る
+      // 削除成功後、トップ画面に戻る
       if (onDelete) {
         onDelete()
       } else {
-        onBack()
+        navigate('/')
       }
     } catch (error) {
       console.error('削除処理エラー:', error)
@@ -974,13 +995,11 @@ const FirstPlanEditor = ({
     onDelete,
     position,
     availableStores,
-    shiftPatterns,
   }) => {
     const [startTime, setStartTime] = useState(shift?.start_time || '')
     const [endTime, setEndTime] = useState(shift?.end_time || '')
     const [breakMinutes, setBreakMinutes] = useState(shift?.break_minutes || 0)
     const [storeId, setStoreId] = useState(shift?.store_id || '')
-    const [selectedPatternId, setSelectedPatternId] = useState('')
     const [popupStyle, setPopupStyle] = useState({})
     const [isDragging, setIsDragging] = useState(false)
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 })
@@ -993,23 +1012,8 @@ const FirstPlanEditor = ({
         setEndTime(shift.end_time || '')
         setBreakMinutes(shift.break_minutes || 0)
         setStoreId(shift.store_id || '')
-        setSelectedPatternId('')
       }
     }, [shift])
-
-    // パターン選択ハンドラー（時刻を自動入力）
-    const handlePatternSelect = patternId => {
-      setSelectedPatternId(patternId)
-
-      if (patternId && shiftPatterns) {
-        const pattern = shiftPatterns.find(p => p.pattern_id === Number(patternId))
-        if (pattern) {
-          setStartTime(pattern.start_time)
-          setEndTime(pattern.end_time)
-          setBreakMinutes(pattern.break_minutes || 0)
-        }
-      }
-    }
 
     // ドラッグハンドラー
     const handleDragStart = e => {
@@ -1321,14 +1325,14 @@ const FirstPlanEditor = ({
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="min-h-screen flex flex-col pt-16"
+      className="h-screen flex flex-col pt-16 overflow-hidden"
     >
       {/* ヘッダー */}
       <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 py-4 bg-white border-b border-gray-200">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            戻る
+          <Button variant="outline" size="sm" onClick={handleDashboard}>
+            <Home className="h-4 w-4 mr-1" />
+            ダッシュボード
           </Button>
           <div>
             <h1 className="text-xl font-bold text-gray-900">

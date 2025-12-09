@@ -1,4 +1,3 @@
-import React from 'react'
 import { MESSAGES } from '../../constants/messages'
 import { Button } from '../ui/button'
 import { Download, Upload } from 'lucide-react'
