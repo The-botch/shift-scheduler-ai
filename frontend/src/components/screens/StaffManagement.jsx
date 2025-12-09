@@ -223,7 +223,7 @@ const StaffManagement = () => {
   }
 
   // スタッフ詳細画面 - 一時的に非表示
-  // eslint-disable-next-line no-constant-binary-expression
+  // eslint-disable-next-line no-constant-condition, no-constant-binary-expression
   if (false && selectedStaff) {
     return (
       <div className="container mx-auto px-4 py-8">
