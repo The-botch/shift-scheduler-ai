@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WCAG 2.1 コントラスト準拠 設計書</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        .color-sample {
+            width: 80px;
+            height: 40px;
+            border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .section {
+            margin-bottom: 3rem;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border: 1px solid #e5e7eb;
+        }
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+        }
+        .fail-badge {
+            background-color: #fee2e2;
+            color: #991b1b;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        .pass-badge {
+            background-color: #d1fae5;
+            color: #065f46;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        code {
+            background-color: #f3f4f6;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+    <div class="max-w-6xl mx-auto p-8 bg-white shadow-lg my-8 rounded-lg">
+        <!-- ヘッダー -->
+        <header class="mb-8 pb-6 border-b-2 border-gray-200">
+            <h1 class="text-4xl font-bold text-gray-900 mb-2">WCAG 2.1 コントラスト準拠 設計書</h1>
+            <p class="text-gray-600">バージョン 1.0 | 作成日: 2025-12-09</p>
+            <div class="mt-4 bg-blue-50 border-l-4 border-blue-500 p-4">
+                <p class="text-sm font-semibold text-blue-800">概要</p>
+                <p class="text-sm text-blue-700 mt-1">全体のUIカラーをWCAG 2.1のコントラスト基準（4.5:1以上）に準拠させるための設計書です。</p>
+            </div>
+        </header>
+
+        <!-- 1. 目的・背景 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">1.</span> 目的・背景
+            </h2>
+
+            <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+                <h3 class="text-xl font-semibold text-red-800 mb-3">現状の課題</h3>
+                <ul class="list-disc list-inside space-y-2 text-gray-700">
+                    <li>テキストカラーに <code>text-gray-300</code>, <code>text-gray-400</code>, <code>text-slate-300</code>, <code>text-slate-400</code> を多用</li>
+                    <li>白背景（<code>bg-white</code>）上でWCAG 2.1 AAのコントラスト比4.5:1を満たしていない</li>
+                    <li>視覚的なアクセシビリティが低く、ユーザーによっては読みづらい可能性がある</li>
+                </ul>
+            </div>
+
+            <div class="bg-green-50 border-l-4 border-green-500 p-4">
+                <h3 class="text-xl font-semibold text-green-800 mb-3">改善目的</h3>
+                <ul class="list-disc list-inside space-y-2 text-gray-700">
+                    <li><strong>WCAG 2.1 AA準拠:</strong> 通常テキストで4.5:1以上、大きなテキストで3:1以上のコントラスト比を確保</li>
+                    <li><strong>アクセシビリティ向上:</strong> 視覚障害を持つユーザーにも読みやすいUIを提供</li>
+                    <li><strong>デザインの一貫性:</strong> 全画面で統一されたカラースキームを適用</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 2. WCAG基準の説明 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">2.</span> WCAG 2.1 コントラスト基準
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-blue-50 p-6 rounded-lg border border-blue-200">
+                    <h3 class="text-lg font-bold text-blue-900 mb-3">AA基準（必須）</h3>
+                    <div class="text-gray-700 space-y-2">
+                        <p><strong>通常テキスト:</strong> 4.5:1 以上</p>
+                        <p><strong>大きなテキスト (18pt以上 / 14pt太字):</strong> 3:1 以上</p>
+                    </div>
+                </div>
+
+                <div class="bg-purple-50 p-6 rounded-lg border border-purple-200">
+                    <h3 class="text-lg font-bold text-purple-900 mb-3">AAA基準（推奨）</h3>
+                    <div class="text-gray-700 space-y-2">
+                        <p><strong>通常テキスト:</strong> 7:1 以上</p>
+                        <p><strong>大きなテキスト:</strong> 4.5:1 以上</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- 3. 現状のカラー分析 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">3.</span> 現状のカラー分析
+            </h2>
+
+            <h3 class="text-xl font-semibold text-gray-700 mb-3">3.1 問題のあるカラークラス（白背景上）</h3>
+
+            <table class="mb-6">
+                <thead>
+                    <tr>
+                        <th>Tailwindクラス</th>
+                        <th>HEX値</th>
+                        <th>サンプル</th>
+                        <th>白背景との比率</th>
+                        <th>WCAG AA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>text-gray-300</code></td>
+                        <td>#D1D5DB</td>
+                        <td><div class="color-sample bg-white border" style="color: #D1D5DB;">サンプル</div></td>
+                        <td>1.75:1</td>
+                        <td><span class="fail-badge">FAIL</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>text-gray-400</code></td>
+                        <td>#9CA3AF</td>
+                        <td><div class="color-sample bg-white border" style="color: #9CA3AF;">サンプル</div></td>
+                        <td>2.85:1</td>
+                        <td><span class="fail-badge">FAIL</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>text-slate-300</code></td>
+                        <td>#CBD5E1</td>
+                        <td><div class="color-sample bg-white border" style="color: #CBD5E1;">サンプル</div></td>
+                        <td>1.84:1</td>
+                        <td><span class="fail-badge">FAIL</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>text-slate-400</code></td>
+                        <td>#94A3B8</td>
+                        <td><div class="color-sample bg-white border" style="color: #94A3B8;">サンプル</div></td>
+                        <td>3.06:1</td>
+                        <td><span class="fail-badge">FAIL</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="text-xl font-semibold text-gray-700 mb-3">3.2 推奨カラー（白背景上）</h3>
+
+            <table class="mb-6">
+                <thead>
+                    <tr>
+                        <th>Tailwindクラス</th>
+                        <th>HEX値</th>
+                        <th>サンプル</th>
+                        <th>白背景との比率</th>
+                        <th>WCAG AA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>text-gray-500</code></td>
+                        <td>#6B7280</td>
+                        <td><div class="color-sample bg-white border" style="color: #6B7280;">サンプル</div></td>
+                        <td>4.63:1</td>
+                        <td><span class="pass-badge">PASS</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>text-gray-600</code></td>
+                        <td>#4B5563</td>
+                        <td><div class="color-sample bg-white border" style="color: #4B5563;">サンプル</div></td>
+                        <td>7.21:1</td>
+                        <td><span class="pass-badge">PASS (AAA)</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>text-slate-500</code></td>
+                        <td>#64748B</td>
+                        <td><div class="color-sample bg-white border" style="color: #64748B;">サンプル</div></td>
+                        <td>4.90:1</td>
+                        <td><span class="pass-badge">PASS</span></td>
+                    </tr>
+                    <tr>
+                        <td><code>text-slate-600</code></td>
+                        <td>#475569</td>
+                        <td><div class="color-sample bg-white border" style="color: #475569;">サンプル</div></td>
+                        <td>7.38:1</td>
+                        <td><span class="pass-badge">PASS (AAA)</span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+
+        <!-- 4. Before / After 比較 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">4.</span> Before / After 視覚比較
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <!-- Before -->
+                <div class="bg-white border-2 border-red-300 rounded-lg p-6">
+                    <h3 class="text-xl font-bold text-red-800 mb-4">Before（現状）</h3>
+
+                    <div class="space-y-4">
+                        <div class="p-4 bg-white border rounded">
+                            <p style="color: #9CA3AF;" class="text-sm">ラベルテキスト (text-gray-400)</p>
+                            <p style="color: #D1D5DB;" class="text-xs mt-1">補助テキスト (text-gray-300)</p>
+                        </div>
+
+                        <div class="p-4 bg-white border rounded">
+                            <p style="color: #94A3B8;" class="text-sm">サイドバーテキスト (text-slate-400)</p>
+                            <p style="color: #CBD5E1;" class="text-xs mt-1">ヒントテキスト (text-slate-300)</p>
+                        </div>
+
+                        <div class="p-4 bg-gray-100 border rounded">
+                            <p class="text-sm text-gray-700">カード内テキスト</p>
+                            <p style="color: #9CA3AF;" class="text-xs mt-1">サブテキスト (text-gray-400)</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 p-3 bg-red-100 rounded text-sm text-red-800">
+                        コントラスト比が低く、視認性に問題があります
+                    </div>
+                </div>
+
+                <!-- After -->
+                <div class="bg-white border-2 border-green-300 rounded-lg p-6">
+                    <h3 class="text-xl font-bold text-green-800 mb-4">After（改善後）</h3>
+
+                    <div class="space-y-4">
+                        <div class="p-4 bg-white border rounded">
+                            <p style="color: #6B7280;" class="text-sm">ラベルテキスト (text-gray-500)</p>
+                            <p style="color: #6B7280;" class="text-xs mt-1">補助テキスト (text-gray-500)</p>
+                        </div>
+
+                        <div class="p-4 bg-white border rounded">
+                            <p style="color: #64748B;" class="text-sm">サイドバーテキスト (text-slate-500)</p>
+                            <p style="color: #64748B;" class="text-xs mt-1">ヒントテキスト (text-slate-500)</p>
+                        </div>
+
+                        <div class="p-4 bg-gray-100 border rounded">
+                            <p class="text-sm text-gray-700">カード内テキスト</p>
+                            <p style="color: #6B7280;" class="text-xs mt-1">サブテキスト (text-gray-500)</p>
+                        </div>
+                    </div>
+
+                    <div class="mt-4 p-3 bg-green-100 rounded text-sm text-green-800">
+                        WCAG 2.1 AA基準（4.5:1以上）を満たしています
+                    </div>
+                </div>
+            </div>
+
+            <!-- ダークモード背景での比較 -->
+            <h3 class="text-xl font-semibold text-gray-700 mb-3">ダーク背景上での比較</h3>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-slate-800 border-2 border-red-300 rounded-lg p-6">
+                    <h3 class="text-lg font-bold text-red-300 mb-4">Before（現状 - サイドバー等）</h3>
+                    <div class="space-y-2">
+                        <p style="color: #CBD5E1;" class="text-sm">text-slate-300 (1.84:1 vs black)</p>
+                        <p style="color: #94A3B8;" class="text-sm">text-slate-400 (3.06:1 vs black)</p>
+                    </div>
+                    <p class="text-green-300 text-xs mt-4">※ダーク背景上では比較的読みやすい</p>
+                </div>
+
+                <div class="bg-slate-800 border-2 border-green-300 rounded-lg p-6">
+                    <h3 class="text-lg font-bold text-green-300 mb-4">After（改善後）</h3>
+                    <div class="space-y-2">
+                        <p style="color: #CBD5E1;" class="text-sm">text-slate-300（維持可能）</p>
+                        <p class="text-slate-200 text-sm">text-slate-200（よりコントラスト向上）</p>
+                    </div>
+                    <p class="text-green-300 text-xs mt-4">※ダーク背景はそのままで問題なし</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 5. 変更対象ファイル -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">5.</span> 変更対象ファイル
+            </h2>
+
+            <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-4">
+                <p class="text-sm font-semibold text-yellow-800">注意事項</p>
+                <p class="text-sm text-yellow-700 mt-1">ダーク背景（bg-slate-800, bg-gray-800等）上のテキストは、白/明るい色のためコントラスト比が十分です。主に白背景上のテキストを対象とします。</p>
+            </div>
+
+            <h3 class="text-lg font-semibold text-gray-700 mb-3">5.1 主要な変更対象（白背景上）</h3>
+            <table class="mb-6">
+                <thead>
+                    <tr>
+                        <th>ファイル</th>
+                        <th>対象クラス</th>
+                        <th>変更内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>StaffManagement.jsx</code></td>
+                        <td>text-gray-400, text-slate-400</td>
+                        <td>text-gray-500, text-slate-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>StoreManagement.jsx</code></td>
+                        <td>text-gray-400</td>
+                        <td>text-gray-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>MasterDataManagement.jsx</code></td>
+                        <td>text-gray-400</td>
+                        <td>text-gray-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>BudgetActualManagement.jsx</code></td>
+                        <td>text-gray-400</td>
+                        <td>text-gray-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>Monitoring.jsx</code></td>
+                        <td>text-gray-400, text-slate-400</td>
+                        <td>text-gray-500, text-slate-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>FirstPlanEditor.jsx</code></td>
+                        <td>text-gray-400</td>
+                        <td>text-gray-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>LineShiftInput.jsx</code></td>
+                        <td>text-gray-400</td>
+                        <td>text-gray-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>CSVActions.jsx</code></td>
+                        <td>text-gray-400</td>
+                        <td>text-gray-500</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="text-lg font-semibold text-gray-700 mb-3">5.2 UIコンポーネント（shadcn/ui）</h3>
+            <table class="mb-6">
+                <thead>
+                    <tr>
+                        <th>コンポーネント</th>
+                        <th>対象クラス</th>
+                        <th>変更内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><code>button.jsx</code></td>
+                        <td>text-slate-300/400</td>
+                        <td>text-slate-500（disabled状態等）</td>
+                    </tr>
+                    <tr>
+                        <td><code>input.jsx</code></td>
+                        <td>placeholder:text-slate-400</td>
+                        <td>placeholder:text-slate-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>label.jsx</code></td>
+                        <td>text-slate-400</td>
+                        <td>text-slate-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>card.jsx</code></td>
+                        <td>text-slate-400</td>
+                        <td>text-slate-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>dialog.jsx</code></td>
+                        <td>text-slate-400</td>
+                        <td>text-slate-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>sheet.jsx</code></td>
+                        <td>text-slate-400</td>
+                        <td>text-slate-500</td>
+                    </tr>
+                    <tr>
+                        <td><code>tooltip.jsx</code></td>
+                        <td>text-slate-300/400</td>
+                        <td>背景がダークなので維持可能</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 class="text-lg font-semibold text-gray-700 mb-3">5.3 変更不要（ダーク背景）</h3>
+            <div class="bg-gray-100 p-4 rounded">
+                <p class="text-sm text-gray-700 mb-2">以下のコンポーネントはダーク背景上で明るいテキストを使用しており、変更不要です:</p>
+                <ul class="list-disc list-inside text-sm text-gray-600 space-y-1">
+                    <li><code>Sidebar.jsx</code> - bg-slate-800上のtext-slate-300/400（コントラスト十分）</li>
+                    <li><code>Dashboard.jsx</code> - ダーク背景部分のテキスト</li>
+                    <li><code>toggle.jsx</code> - トグル状態によるダーク背景</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- 6. 変換ルール -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">6.</span> 変換ルール
+            </h2>
+
+            <div class="bg-blue-50 border border-blue-200 p-6 rounded-lg">
+                <h3 class="text-lg font-semibold text-blue-900 mb-4">白/明るい背景上のテキスト</h3>
+                <table class="w-full">
+                    <thead>
+                        <tr class="bg-blue-100">
+                            <th class="p-3">現在のクラス</th>
+                            <th class="p-3">変更後</th>
+                            <th class="p-3">コントラスト比</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="p-3"><code>text-gray-300</code></td>
+                            <td class="p-3"><code>text-gray-500</code></td>
+                            <td class="p-3">1.75:1 → 4.63:1</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3"><code>text-gray-400</code></td>
+                            <td class="p-3"><code>text-gray-500</code></td>
+                            <td class="p-3">2.85:1 → 4.63:1</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3"><code>text-slate-300</code></td>
+                            <td class="p-3"><code>text-slate-500</code></td>
+                            <td class="p-3">1.84:1 → 4.90:1</td>
+                        </tr>
+                        <tr>
+                            <td class="p-3"><code>text-slate-400</code></td>
+                            <td class="p-3"><code>text-slate-500</code></td>
+                            <td class="p-3">3.06:1 → 4.90:1</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="mt-4 p-3 bg-yellow-100 rounded text-sm text-yellow-800">
+                    <strong>例外:</strong> disabled状態やプレースホルダーで意図的に薄くしている場合も、4.5:1以上を確保する必要があります。
+                </div>
+            </div>
+        </section>
+
+        <!-- 7. 実装手順 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">7.</span> 実装手順
+            </h2>
+
+            <div class="space-y-4">
+                <div class="border-l-4 border-blue-500 pl-4 py-2">
+                    <h3 class="text-lg font-bold text-blue-900">Step 1: UIコンポーネントの更新</h3>
+                    <p class="text-gray-700 text-sm mt-1">shadcn/uiコンポーネント（button, input, label, card等）を先に更新。全体に影響するため優先度高。</p>
+                </div>
+
+                <div class="border-l-4 border-green-500 pl-4 py-2">
+                    <h3 class="text-lg font-bold text-green-900">Step 2: 画面コンポーネントの更新</h3>
+                    <p class="text-gray-700 text-sm mt-1">各画面（StaffManagement, Monitoring等）のテキストカラーを更新。</p>
+                </div>
+
+                <div class="border-l-4 border-amber-500 pl-4 py-2">
+                    <h3 class="text-lg font-bold text-amber-900">Step 3: 視覚確認</h3>
+                    <p class="text-gray-700 text-sm mt-1">各画面を目視確認し、デザインの一貫性を確認。必要に応じて微調整。</p>
+                </div>
+
+                <div class="border-l-4 border-purple-500 pl-4 py-2">
+                    <h3 class="text-lg font-bold text-purple-900">Step 4: アクセシビリティテスト</h3>
+                    <p class="text-gray-700 text-sm mt-1">Chrome DevToolsやaxe等のツールでコントラスト比を自動検証。</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- 8. 影響範囲 -->
+        <section class="section">
+            <h2 class="text-3xl font-bold text-gray-800 mb-4 flex items-center">
+                <span class="text-blue-600 mr-2">8.</span> 影響範囲と考慮事項
+            </h2>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-green-50 p-6 rounded-lg border border-green-200">
+                    <h3 class="text-lg font-bold text-green-900 mb-3">メリット</h3>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700 text-sm">
+                        <li>WCAG 2.1 AA基準を満たしアクセシビリティ向上</li>
+                        <li>視覚障害を持つユーザーへの配慮</li>
+                        <li>全体的なテキスト視認性の向上</li>
+                        <li>法的コンプライアンス対応（一部地域）</li>
+                    </ul>
+                </div>
+
+                <div class="bg-yellow-50 p-6 rounded-lg border border-yellow-200">
+                    <h3 class="text-lg font-bold text-yellow-900 mb-3">考慮事項</h3>
+                    <ul class="list-disc list-inside space-y-2 text-gray-700 text-sm">
+                        <li>テキストがやや濃くなり、印象が変わる可能性</li>
+                        <li>デザインチームとの調整が必要な場合あり</li>
+                        <li>プレースホルダー等の意図的に薄いテキストも対象</li>
+                        <li>約15ファイル、36箇所程度の修正が必要</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- フッター -->
+        <footer class="mt-12 pt-6 border-t-2 border-gray-200 text-center text-gray-600 text-sm">
+            <p>Shift Scheduler AI - Design Documentation</p>
+            <p class="mt-2">バージョン 1.0 | 作成日: 2025-12-09</p>
+        </footer>
+    </div>
+</body>
+</html>

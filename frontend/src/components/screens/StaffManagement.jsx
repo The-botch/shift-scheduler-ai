@@ -222,8 +222,9 @@ const StaffManagement = () => {
     )
   }
 
-  // スタッフ詳細画面
-  if (selectedStaff) {
+  // スタッフ詳細画面 - 一時的に非表示
+  // eslint-disable-next-line no-constant-condition, no-constant-binary-expression
+  if (false && selectedStaff) {
     return (
       <div className="container mx-auto px-4 py-8">
         <motion.div
@@ -271,7 +272,7 @@ const StaffManagement = () => {
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-600">入社日</div>
+                    <div className="text-gray-600">登録日</div>
                     <div className="font-medium">{selectedStaff.hire_date}</div>
                   </div>
                   <div>
@@ -1266,7 +1267,7 @@ const StaffManagement = () => {
                                     デフォルト店舗
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                                    入社日
+                                    登録日
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                                     スキルレベル
