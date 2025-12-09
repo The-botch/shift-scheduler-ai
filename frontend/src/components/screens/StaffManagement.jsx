@@ -271,7 +271,7 @@ const StaffManagement = () => {
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-600">入社日</div>
+                    <div className="text-gray-600">登録日</div>
                     <div className="font-medium">{selectedStaff.hire_date}</div>
                   </div>
                   <div>
@@ -1266,7 +1266,7 @@ const StaffManagement = () => {
                                     デフォルト店舗
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                                    入社日
+                                    登録日
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                                     スキルレベル

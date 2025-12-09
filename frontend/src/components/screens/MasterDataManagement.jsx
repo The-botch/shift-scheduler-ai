@@ -821,7 +821,7 @@ const MasterDataManagement = ({ onPrev }) => {
           { key: 'email', label: 'メールアドレス', width: '200px' },
           { key: 'phone_number', label: '電話番号', width: '150px' },
           { key: 'employment_type', label: '雇用形態', width: '120px' },
-          { key: 'hire_date', label: '入社日', width: '120px' },
+          { key: 'hire_date', label: '登録日', width: '120px' },
           { key: 'resignation_date', label: '退職日', width: '120px' },
           { key: 'is_active', label: '状態', width: '100px' },
         ]
@@ -1068,7 +1068,7 @@ const MasterDataManagement = ({ onPrev }) => {
               </select>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">入社日</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">登録日</label>
               <input
                 type="date"
                 value={formData.hire_date || ''}
