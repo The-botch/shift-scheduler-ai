@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import {
   Database,
@@ -23,6 +24,7 @@ import {
   CheckSquare,
   Download,
   BookOpen,
+  Home,
 } from 'lucide-react'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { useTenant } from '../../contexts/TenantContext'
@@ -44,6 +46,7 @@ const pageTransition = {
 }
 
 const MasterDataManagement = ({ onPrev }) => {
+  const navigate = useNavigate()
   const { tenantId } = useTenant()
   const [selectedMaster, setSelectedMaster] = useState('staff')
   const [masterData, setMasterData] = useState([])
@@ -77,34 +80,7 @@ const MasterDataManagement = ({ onPrev }) => {
     { id: 'impact_documentation', label: '影響範囲ドキュメント', icon: BookOpen, isSpecial: true },
   ]
 
-  useEffect(() => {
-    loadMasterData()
-  }, [selectedMaster])
-
-  useEffect(() => {
-    const loadDropdownData = async () => {
-      try {
-        if (selectedMaster === 'staff' || selectedMaster === 'stores') {
-          const [storesData, rolesData, divisionsData, employmentTypesData] = await Promise.all([
-            masterRepository.getStores(tenantId),
-            masterRepository.getRoles(tenantId),
-            masterRepository.getDivisions(tenantId),
-            masterRepository.getEmploymentTypes(tenantId),
-          ])
-          setStores(storesData)
-          setRoles(rolesData)
-          setDivisions(divisionsData)
-          setEmploymentTypes(employmentTypesData)
-        }
-      } catch (error) {
-        console.error('ドロップダウンデータ取得エラー:', error)
-      }
-    }
-
-    loadDropdownData()
-  }, [selectedMaster, tenantId])
-
-  const loadMasterData = async () => {
+  const loadMasterData = useCallback(async () => {
     // 影響範囲ドキュメントの場合はデータをロードしない
     if (selectedMaster === 'impact_documentation') {
       setLoading(false)
@@ -171,7 +147,34 @@ const MasterDataManagement = ({ onPrev }) => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [selectedMaster, tenantId])
+
+  useEffect(() => {
+    loadMasterData()
+  }, [loadMasterData])
+
+  useEffect(() => {
+    const loadDropdownData = async () => {
+      try {
+        if (selectedMaster === 'staff' || selectedMaster === 'stores') {
+          const [storesData, rolesData, divisionsData, employmentTypesData] = await Promise.all([
+            masterRepository.getStores(tenantId),
+            masterRepository.getRoles(tenantId),
+            masterRepository.getDivisions(tenantId),
+            masterRepository.getEmploymentTypes(tenantId),
+          ])
+          setStores(storesData)
+          setRoles(rolesData)
+          setDivisions(divisionsData)
+          setEmploymentTypes(employmentTypesData)
+        }
+      } catch (error) {
+        console.error('ドロップダウンデータ取得エラー:', error)
+      }
+    }
+
+    loadDropdownData()
+  }, [selectedMaster, tenantId])
 
   const handleCreate = () => {
     setModalMode('create')
@@ -818,7 +821,7 @@ const MasterDataManagement = ({ onPrev }) => {
           { key: 'email', label: 'メールアドレス', width: '200px' },
           { key: 'phone_number', label: '電話番号', width: '150px' },
           { key: 'employment_type', label: '雇用形態', width: '120px' },
-          { key: 'hire_date', label: '入社日', width: '120px' },
+          { key: 'hire_date', label: '登録日', width: '120px' },
           { key: 'resignation_date', label: '退職日', width: '120px' },
           { key: 'is_active', label: '状態', width: '100px' },
         ]
@@ -1065,7 +1068,7 @@ const MasterDataManagement = ({ onPrev }) => {
               </select>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">入社日</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">登録日</label>
               <input
                 type="date"
                 value={formData.hire_date || ''}
@@ -1901,9 +1904,18 @@ const MasterDataManagement = ({ onPrev }) => {
         transition={pageTransition}
         className="max-w-[1800px] mx-auto px-4"
       >
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-1">マスターデータ管理</h1>
-          <p className="text-sm text-gray-600">各種マスターデータの閲覧・編集</p>
+        <div className="mb-6 flex items-center gap-4">
+          <button
+            onClick={() => navigate('/')}
+            className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors shadow-sm"
+          >
+            <Home className="h-4 w-4" />
+            ダッシュボード
+          </button>
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900 mb-1">マスターデータ管理</h1>
+            <p className="text-sm text-gray-600">各種マスターデータの閲覧・編集</p>
+          </div>
         </div>
 
         <div className="flex gap-4 h-[calc(100vh-180px)]">

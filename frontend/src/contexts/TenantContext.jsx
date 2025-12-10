@@ -1,5 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react'
-import { DEFAULT_CONFIG } from '../config/defaults'
+import { createContext, useContext, useState, useEffect } from 'react'
 import { BACKEND_API_URL, API_ENDPOINTS } from '../config/api'
 
 const TenantContext = createContext()

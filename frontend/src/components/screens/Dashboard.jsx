@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
 import { TrendingUp, DollarSign, Database, Clock, BarChart3, Calendar } from 'lucide-react'
@@ -43,13 +43,7 @@ const Dashboard = ({ onBudgetActualManagement }) => {
   const [loadingAnnualSummary, setLoadingAnnualSummary] = useState(true)
   const [monthlyData, setMonthlyData] = useState([])
 
-  useEffect(() => {
-    if (tenantId) {
-      loadAnnualSummary()
-    }
-  }, [tenantId])
-
-  const loadAnnualSummary = async () => {
+  const loadAnnualSummary = useCallback(async () => {
     try {
       setLoadingAnnualSummary(true)
 
@@ -98,7 +92,13 @@ const Dashboard = ({ onBudgetActualManagement }) => {
     } finally {
       setLoadingAnnualSummary(false)
     }
-  }
+  }, [tenantId])
+
+  useEffect(() => {
+    if (tenantId) {
+      loadAnnualSummary()
+    }
+  }, [tenantId, loadAnnualSummary])
 
   const calculateAnnualSummary = (
     plannedShifts,

@@ -453,11 +453,12 @@ const MultiStoreShiftTable = ({
           document.body
         )}
       <div className="flex flex-col h-full bg-white rounded-lg shadow-lg border border-gray-200">
-        {/* テーブルヘッダー（固定） */}
+        {/* テーブルヘッダー（固定・横スクロール同期） */}
         <div
           ref={headerScrollRef}
           onScroll={handleHeaderScroll}
-          className="overflow-x-auto flex-shrink-0 border-b-2 border-gray-300"
+          className="overflow-x-auto flex-shrink-0 border-b-2 border-gray-300 scrollbar-hide"
+          style={{ overflowY: 'hidden' }}
         >
           <table className="w-full border-collapse text-[0.6rem]" style={{ tableLayout: 'fixed' }}>
             <colgroup>
@@ -585,7 +586,7 @@ const MultiStoreShiftTable = ({
           </table>
         </div>
 
-        {/* テーブルボディ（スクロール可能） */}
+        {/* テーブルボディ（縦横スクロール可能・横スクロール同期） */}
         <div
           ref={bodyScrollRef}
           onScroll={handleBodyScroll}

@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 import { Button } from '../ui/button'
-import { Users, X, TrendingUp, Award, FileText, Database, Filter } from 'lucide-react'
+import { Users, X, TrendingUp, Award, FileText, Database, Filter, Home } from 'lucide-react'
 import { calculatePayslip } from '../../utils/salaryCalculator'
 import { MasterRepository } from '../../infrastructure/repositories/MasterRepository'
 import { BACKEND_API_URL, API_ENDPOINTS } from '../../config/api'
@@ -11,6 +12,7 @@ import { useTenant } from '../../contexts/TenantContext'
 const masterRepository = new MasterRepository()
 
 const StaffManagement = () => {
+  const navigate = useNavigate()
   const { tenantId } = useTenant()
   const [staffList, setStaffList] = useState([])
   const [roles, setRoles] = useState([])
@@ -21,19 +23,16 @@ const StaffManagement = () => {
   const [staffPerformance, setStaffPerformance] = useState({})
   const [insuranceRates, setInsuranceRates] = useState([])
   const [taxBrackets, setTaxBrackets] = useState([])
-  const [commuteAllowances, setCommuteAllowances] = useState([])
-  const [payslips, setPayslips] = useState({})
-  const [showMasters, setShowMasters] = useState(false)
+  const [, setCommuteAllowances] = useState([])
+  const [, setPayslips] = useState({})
+  const [showMasters] = useState(false)
   const [shiftPatterns, setShiftPatterns] = useState([])
   const [stores, setStores] = useState([])
   const [selectedStore, setSelectedStore] = useState('all')
-  const [statusFilter, setStatusFilter] = useState('all') // 'all', 'active', 'inactive'
+  const [statusFilter, setStatusFilter] = useState('active') // 'all', 'active', 'inactive' - デフォルト在籍のみ
+  const [employmentTypeFilter, setEmploymentTypeFilter] = useState('all') // 'all', 'PART_TIME', 'FULL_TIME', etc.
 
-  useEffect(() => {
-    loadData()
-  }, [tenantId])
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     setLoading(true)
     try {
       // MasterRepositoryを使用してテナント別データを取得
@@ -69,55 +68,6 @@ const StaffManagement = () => {
       const commuteAllowancesParsed = { data: commuteAllowancesData }
       const shiftPatternsParsed = { data: shiftPatternsData }
 
-      // 時刻からシフトパターンを推測する関数
-      const inferPatternCode = (startTime, endTime, patterns) => {
-        // 完全一致を探す
-        const exactMatch = patterns.find(p => p.start_time === startTime && p.end_time === endTime)
-        if (exactMatch) return exactMatch.pattern_code
-
-        // 開始時刻をベースに推測
-        const startHour = parseInt(startTime.split(':')[0])
-        const endHour = parseInt(endTime.split(':')[0])
-
-        // 09:00-10:00頃開始
-        if (startHour >= 9 && startHour <= 10) {
-          // 終了が13:00以前なら SHORT_AM、それ以外は EARLY
-          if (endHour <= 13) {
-            return 'SHORT_AM'
-          } else if (endHour >= 22) {
-            return 'FULL'
-          } else {
-            return 'EARLY'
-          }
-        }
-
-        // 13:00-14:00頃開始
-        if (startHour >= 13 && startHour <= 14) {
-          // 終了が18:00以前なら SHORT_PM、それ以外は MID
-          if (endHour <= 18) {
-            return 'SHORT_PM'
-          } else {
-            return 'MID'
-          }
-        }
-
-        // 17:00頃開始
-        if (startHour >= 17 && startHour <= 18) {
-          return 'LATE'
-        }
-
-        // 11:00-12:00頃開始（中間的な時間帯）
-        if (startHour >= 11 && startHour <= 12) {
-          if (endHour >= 20) {
-            return 'MID'
-          } else {
-            return 'EARLY'
-          }
-        }
-
-        return 'その他'
-      }
-
       // バックエンドAPIから実績データを取得して集計
       const performanceMap = {}
 
@@ -141,7 +91,6 @@ const StaffManagement = () => {
       for (const staff of staffParsed.data) {
         try {
           const payrollHistory = payrollByStaff[staff.staff_id] || []
-          const workHistory = [] // 労働時間実績は現在未使用
 
           // 実績データがある場合のみperformanceMapに登録（給与データのみでもOK）
           if (payrollHistory.length > 0) {
@@ -183,7 +132,7 @@ const StaffManagement = () => {
               perf.monthlyStats[monthKey].wage += wage
             })
           }
-        } catch (err) {
+        } catch {
           // 実績データ取得エラーは無視
         }
       }
@@ -216,7 +165,11 @@ const StaffManagement = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [tenantId])
+
+  useEffect(() => {
+    loadData()
+  }, [loadData])
 
   const getRoleName = roleId => {
     const role = roles.find(r => r.role_id === roleId)
@@ -229,7 +182,7 @@ const StaffManagement = () => {
     return employmentTypeData ? employmentTypeData.employment_name : employmentType
   }
 
-  // 店舗フィルタリング + 在籍状況フィルタリング
+  // 店舗フィルタリング + 在籍状況フィルタリング + 契約タイプフィルタリング
   const filteredStaffList = staffList.filter(staff => {
     // 店舗フィルター
     const storeMatch = selectedStore === 'all' || staff.store_id === parseInt(selectedStore)
@@ -242,7 +195,20 @@ const StaffManagement = () => {
       statusMatch = staff.is_active === false
     }
 
-    return storeMatch && statusMatch
+    // 契約タイプフィルター
+    let employmentMatch = true
+    if (employmentTypeFilter !== 'all') {
+      if (employmentTypeFilter === 'PART_TIME') {
+        employmentMatch = staff.employment_type === 'PART_TIME' || staff.employment_type === 'PART'
+      } else if (employmentTypeFilter === 'FULL_TIME') {
+        employmentMatch =
+          staff.employment_type === 'FULL_TIME' || staff.employment_type === 'REGULAR'
+      } else {
+        employmentMatch = staff.employment_type === employmentTypeFilter
+      }
+    }
+
+    return storeMatch && statusMatch && employmentMatch
   })
 
   if (loading) {
@@ -256,8 +222,9 @@ const StaffManagement = () => {
     )
   }
 
-  // スタッフ詳細画面
-  if (selectedStaff) {
+  // スタッフ詳細画面 - 一時的に非表示
+  // eslint-disable-next-line no-constant-condition, no-constant-binary-expression
+  if (false && selectedStaff) {
     return (
       <div className="container mx-auto px-4 py-8">
         <motion.div
@@ -281,7 +248,7 @@ const StaffManagement = () => {
                   className="bg-white text-blue-700 hover:bg-gray-100"
                 >
                   <X className="h-4 w-4 mr-2" />
-                  戻る
+                  閉じる
                 </Button>
               </div>
             </CardHeader>
@@ -305,7 +272,7 @@ const StaffManagement = () => {
                     </div>
                   </div>
                   <div>
-                    <div className="text-gray-600">入社日</div>
+                    <div className="text-gray-600">登録日</div>
                     <div className="font-medium">{selectedStaff.hire_date}</div>
                   </div>
                   <div>
@@ -654,43 +621,28 @@ const StaffManagement = () => {
                           // 2024年の実績を集計
                           let totalDays2024 = 0
                           let totalHours2024 = 0
-                          let totalWage2024 = 0
 
                           year2024Months.forEach(monthKey => {
                             const stats =
                               staffPerformance[selectedStaff.name].monthlyStats[monthKey]
                             totalDays2024 += stats.days
                             totalHours2024 += stats.hours
-
-                            // 給与計算
-                            if (selectedStaff.employment_type === 'monthly') {
-                              totalWage2024 += parseInt(selectedStaff.monthly_salary || 0)
-                            } else if (selectedStaff.employment_type === 'contract') {
-                              totalWage2024 += parseInt(selectedStaff.contract_fee || 0)
-                            } else if (selectedStaff.employment_type === 'hourly') {
-                              totalWage2024 += Math.round(
-                                stats.hours * parseInt(selectedStaff.hourly_rate || 0)
-                              )
-                            }
                           })
 
                           if (remainingMonths > 0 && monthsWorked2024 > 0) {
                             // 月平均を計算
                             const avgDaysPerMonth = totalDays2024 / monthsWorked2024
                             const avgHoursPerMonth = totalHours2024 / monthsWorked2024
-                            const avgWagePerMonth = totalWage2024 / monthsWorked2024
 
                             // 予測残り値
                             const predictedRemainingDays = Math.round(
                               avgDaysPerMonth * remainingMonths
                             )
                             const predictedRemainingHours = avgHoursPerMonth * remainingMonths
-                            const predictedRemainingWage = avgWagePerMonth * remainingMonths
 
                             // 年間予測
                             const predictedAnnualDays = totalDays2024 + predictedRemainingDays
                             const predictedAnnualHours = totalHours2024 + predictedRemainingHours
-                            const predictedAnnualWage = totalWage2024 + predictedRemainingWage
 
                             return (
                               <div className="mb-4">
@@ -751,24 +703,12 @@ const StaffManagement = () => {
                           // 2024年の実績を集計
                           let totalDays2024 = 0
                           let totalHours2024 = 0
-                          let totalWage2024 = 0
 
                           year2024Months.forEach(monthKey => {
                             const stats =
                               staffPerformance[selectedStaff.name].monthlyStats[monthKey]
                             totalDays2024 += stats.days
                             totalHours2024 += stats.hours
-
-                            // 給与計算
-                            if (selectedStaff.employment_type === 'monthly') {
-                              totalWage2024 += parseInt(selectedStaff.monthly_salary || 0)
-                            } else if (selectedStaff.employment_type === 'contract') {
-                              totalWage2024 += parseInt(selectedStaff.contract_fee || 0)
-                            } else if (selectedStaff.employment_type === 'hourly') {
-                              totalWage2024 += Math.round(
-                                stats.hours * parseInt(selectedStaff.hourly_rate || 0)
-                              )
-                            }
                           })
 
                           // 予測を計算
@@ -1145,8 +1085,8 @@ const StaffManagement = () => {
             className="h-full"
           >
             <div className="flex flex-col overflow-hidden h-full">
-              <div className="flex-1 overflow-auto">
-                <div className="p-6">
+              <div className="flex-1 flex flex-col min-h-0">
+                <div className="p-6 flex-1 flex flex-col min-h-0">
                   {showMasters ? (
                     /* マスター編集セクション */
                     <>
@@ -1223,14 +1163,25 @@ const StaffManagement = () => {
                     </>
                   ) : (
                     /* スタッフ一覧テーブル */
-                    <div className="flex flex-col h-full">
+                    <div className="flex flex-col flex-1 min-h-0">
                       {/* 固定ヘッダー部分 */}
                       <div className="px-6 py-4 bg-white border-b border-gray-200 flex-shrink-0">
                         <div className="flex items-center justify-between">
-                          <h3 className="text-lg font-bold flex items-center gap-2">
-                            <div className="w-1 h-6 bg-orange-600 rounded"></div>
-                            スタッフ一覧 ({filteredStaffList.length}名)
-                          </h3>
+                          <div className="flex items-center gap-4">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => navigate('/')}
+                              className="flex items-center gap-2"
+                            >
+                              <Home className="h-4 w-4" />
+                              ダッシュボード
+                            </Button>
+                            <h3 className="text-lg font-bold flex items-center gap-2">
+                              <div className="w-1 h-6 bg-orange-600 rounded"></div>
+                              スタッフ一覧 ({filteredStaffList.length}名)
+                            </h3>
+                          </div>
                           <div className="flex items-center gap-3">
                             <Filter className="h-4 w-4 text-gray-600" />
                             <select
@@ -1254,12 +1205,22 @@ const StaffManagement = () => {
                                 </option>
                               ))}
                             </select>
+                            <select
+                              value={employmentTypeFilter}
+                              onChange={e => setEmploymentTypeFilter(e.target.value)}
+                              className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white"
+                            >
+                              <option value="all">全ての契約</option>
+                              <option value="PART_TIME">アルバイト</option>
+                              <option value="FULL_TIME">正社員</option>
+                              <option value="CONTRACT">契約社員</option>
+                            </select>
                           </div>
                         </div>
                       </div>
 
                       {/* スクロール可能なコンテンツ部分 */}
-                      <div className="flex-1 overflow-auto">
+                      <div className="flex-1 overflow-auto min-h-0">
                         {filteredStaffList.length === 0 ? (
                           <Card className="bg-gray-50 border-2 border-gray-300">
                             <CardContent className="p-8 text-center">
@@ -1283,9 +1244,9 @@ const StaffManagement = () => {
                             </CardContent>
                           </Card>
                         ) : (
-                          <div className="overflow-x-auto">
+                          <div className="overflow-x-auto h-full">
                             <table className="min-w-full bg-white border border-gray-200 table-auto">
-                              <thead className="bg-gray-50">
+                              <thead className="bg-gray-50 sticky top-0 z-10">
                                 <tr>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                                     スタッフコード
@@ -1306,7 +1267,7 @@ const StaffManagement = () => {
                                     デフォルト店舗
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                                    入社日
+                                    登録日
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                                     スキルレベル

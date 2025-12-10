@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { MESSAGES } from '../../../constants/messages'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Button } from '../../ui/button'
@@ -22,6 +23,7 @@ import {
   Zap,
   GripVertical,
   Camera,
+  Home,
 } from 'lucide-react'
 import { domToPng } from 'modern-screenshot'
 import { Rnd } from 'react-rnd'
@@ -63,8 +65,14 @@ const pageTransition = {
  * - 比較モード（第1案と第2案の並列表示）
  */
 const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
+  const navigate = useNavigate()
   const isViewMode = mode === 'view'
   const isEditMode = mode === 'edit'
+
+  // ダッシュボードへ遷移
+  const handleDashboard = () => {
+    navigate('/')
+  }
 
   // 共通ロジック（マスタデータ取得・店舗選択管理）
   const {
@@ -588,8 +596,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         setHasUnsavedChanges(false)
         alert(MESSAGES.SUCCESS.SAVED)
 
-        // データをリロード
-        await loadShiftData()
+        // 新規プラン作成後はトップ画面に戻る
+        navigate('/')
       } else {
         // 既存のプラン編集の場合
         if (!hasUnsavedChanges) {
@@ -1540,14 +1548,14 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      className="min-h-screen flex flex-col pt-16"
+      className="h-screen flex flex-col pt-16 overflow-hidden"
     >
       {/* ヘッダー */}
       <div className="mb-2 flex items-center justify-between flex-shrink-0 px-8 py-4 bg-white border-b border-gray-200">
         <div className="flex items-center gap-4">
-          <Button variant="outline" size="sm" onClick={handleBack}>
-            <ArrowLeft className="h-4 w-4 mr-1" />
-            戻る
+          <Button variant="outline" size="sm" onClick={handleDashboard}>
+            <Home className="h-4 w-4 mr-1" />
+            ダッシュボード
           </Button>
           <div>
             <h1 className="text-xl font-bold text-gray-900">
@@ -1798,8 +1806,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         </Rnd>
       )}
 
-      {/* チャットボット */}
-      {isChatMinimized ? (
+      {/* チャットボット - 一時的に非表示 */}
+      {/* {isChatMinimized ? (
         <motion.div
           initial={{ scale: 0.8, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
@@ -1924,7 +1932,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
             }}
           />
         </motion.div>
-      )}
+      )} */}
 
       {/* Conflict解消モーダル */}
       <AnimatePresence>
