@@ -25,7 +25,7 @@ import {
   Camera,
   Home,
 } from 'lucide-react'
-import { domToPng } from 'modern-screenshot'
+import { captureMultipleStores } from '../../../utils/screenshotUtils'
 import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import ShiftTableView from '../../shared/ShiftTableView'
@@ -997,111 +997,17 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     setIsCapturing(true)
 
     try {
-      const originalSelectedStores = new Set(selectedStores)
-      const storeIds = Array.from(originalSelectedStores)
-
-      for (const storeId of storeIds) {
-        // 一時的に1店舗のみ選択
-        setSelectedStores(new Set([storeId]))
-
-        // DOM更新を待つ
-        await new Promise(resolve => setTimeout(resolve, 300))
-
-        // テーブル全体をキャプチャ（スクロール含む）
-        const tableElement = tableContainerRef.current
-        if (!tableElement) continue
-
-        // 高さ制限を持つ全要素を取得（overflow, h-full, flex-1, flex-col）
-        const constrainedElements = tableElement.querySelectorAll(
-          '[class*="overflow"], [class*="h-full"], [class*="flex-1"], [class*="flex-col"]'
-        )
-        const savedStyles = []
-
-        // 各制限要素のスタイルを保存して解除
-        constrainedElements.forEach(el => {
-          savedStyles.push({
-            el,
-            scrollLeft: el.scrollLeft,
-            scrollTop: el.scrollTop,
-            overflow: el.style.overflow,
-            maxHeight: el.style.maxHeight,
-            height: el.style.height,
-            flex: el.style.flex,
-          })
-          el.scrollLeft = 0
-          el.scrollTop = 0
-          el.style.overflow = 'visible'
-          el.style.maxHeight = 'none'
-          el.style.height = 'auto'
-          el.style.flex = 'none'
-        })
-
-        // 親コンテナの制限も解除
-        const savedContainerStyle = {
-          overflow: tableElement.style.overflow,
-          maxHeight: tableElement.style.maxHeight,
-          height: tableElement.style.height,
-          flex: tableElement.style.flex,
-        }
-        tableElement.style.overflow = 'visible'
-        tableElement.style.maxHeight = 'none'
-        tableElement.style.height = 'auto'
-        tableElement.style.flex = 'none'
-
-        // DOM更新を待つ
-        await new Promise(resolve => setTimeout(resolve, 200))
-
-        // テーブル全体のサイズを取得
-        const tables = tableElement.querySelectorAll('table')
-        let captureHeight = 0
-        let captureWidth = tableElement.scrollWidth
-        tables.forEach(table => {
-          captureHeight += table.offsetHeight
-          if (table.offsetWidth > captureWidth) captureWidth = table.offsetWidth
-        })
-        // 最小高さを確保
-        captureHeight = Math.max(captureHeight, tableElement.scrollHeight)
-
-        console.log('Screenshot dimensions:', { captureWidth, captureHeight })
-
-        // modern-screenshotでキャプチャ
-        const dataUrl = await domToPng(tableElement, {
-          backgroundColor: '#ffffff',
-          scale: 2,
-          width: captureWidth,
-          height: captureHeight,
-        })
-
-        // スタイルを復元
-        savedStyles.forEach(({ el, scrollLeft, scrollTop, overflow, maxHeight, height, flex }) => {
-          el.style.overflow = overflow
-          el.style.maxHeight = maxHeight
-          el.style.height = height
-          el.style.flex = flex
-          el.scrollLeft = scrollLeft
-          el.scrollTop = scrollTop
-        })
-        tableElement.style.overflow = savedContainerStyle.overflow
-        tableElement.style.maxHeight = savedContainerStyle.maxHeight
-        tableElement.style.height = savedContainerStyle.height
-        tableElement.style.flex = savedContainerStyle.flex
-
-        // PNGダウンロード
-        const storeName = storesMap[storeId]?.store_name || `店舗${storeId}`
-        const filename = `${year}年${month}月_${storeName}.png`
-
-        const link = document.createElement('a')
-        link.download = filename
-        link.href = dataUrl
-        link.click()
-
-        // 少し間隔を開ける
-        await new Promise(resolve => setTimeout(resolve, 500))
-      }
-
-      // 元の選択状態に戻す
-      setSelectedStores(originalSelectedStores)
-      alert(`${storeIds.length}件のスクリーンショットを保存しました`)
+      const count = await captureMultipleStores({
+        tableContainerRef,
+        selectedStores,
+        setSelectedStores,
+        storesMap,
+        year,
+        month,
+        padding: { top: 200, right: 120, bottom: 0, left: 120 },
+        scale: 2,
+      })
+      alert(`${count}件のPNGファイルを保存しました`)
     } catch (error) {
       console.error('スクリーンショットエラー:', error)
       alert(`スクリーンショットの作成に失敗しました: ${error.message}`)
