@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>データベーステーブル使用状況 - Shift Scheduler AI</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --success-color: #16a34a;
+            --warning-color: #ca8a04;
+            --danger-color: #dc2626;
+            --muted-color: #6b7280;
+            --bg-color: #f9fafb;
+            --card-bg: #ffffff;
+            --border-color: #e5e7eb;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: #1f2937;
+            line-height: 1.6;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        h1 {
+            font-size: 2rem;
+            color: #111827;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--muted-color);
+            margin-bottom: 2rem;
+        }
+
+        .summary-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .summary-card {
+            background: var(--card-bg);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .summary-card h3 {
+            font-size: 0.875rem;
+            color: var(--muted-color);
+            margin-bottom: 0.5rem;
+        }
+
+        .summary-card .number {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        .summary-card .number.active { color: var(--success-color); }
+        .summary-card .number.partial { color: var(--warning-color); }
+        .summary-card .number.unused { color: var(--danger-color); }
+        .summary-card .number.total { color: var(--primary-color); }
+
+        .legend {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.875rem;
+        }
+
+        .legend-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .legend-dot.active { background-color: var(--success-color); }
+        .legend-dot.partial { background-color: var(--warning-color); }
+        .legend-dot.unused { background-color: var(--danger-color); }
+
+        .table-section {
+            background: var(--card-bg);
+            border-radius: 0.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        .table-header {
+            background: linear-gradient(135deg, #1e3a8a, #1d4ed8);
+            color: white;
+            padding: 1rem 1.5rem;
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 1200px;
+        }
+
+        th, td {
+            padding: 0.75rem 0.5rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.8125rem;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--muted-color);
+            white-space: nowrap;
+            position: sticky;
+            top: 0;
+        }
+
+        tr:hover {
+            background-color: #f9fafb;
+        }
+
+        tr.unused-row {
+            background-color: #fef2f2;
+        }
+
+        tr.unused-row:hover {
+            background-color: #fee2e2;
+        }
+
+        .no-col {
+            width: 40px;
+            text-align: center;
+            font-weight: 600;
+            color: var(--muted-color);
+        }
+
+        .schema-col {
+            width: 80px;
+        }
+
+        .table-col {
+            width: 180px;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 0.8125rem;
+        }
+
+        .desc-col {
+            width: 150px;
+        }
+
+        .op-col {
+            width: 50px;
+            text-align: center;
+        }
+
+        .ref-col {
+            width: 180px;
+        }
+
+        .status-col {
+            width: 90px;
+        }
+
+        .note-col {
+            min-width: 200px;
+        }
+
+        .schema-badge {
+            display: inline-block;
+            padding: 0.125rem 0.5rem;
+            border-radius: 0.25rem;
+            font-size: 0.6875rem;
+            font-weight: 600;
+        }
+
+        .schema-badge.core { background-color: #dbeafe; color: #1e40af; }
+        .schema-badge.hr { background-color: #ede9fe; color: #5b21b6; }
+        .schema-badge.ops { background-color: #d1fae5; color: #065f46; }
+        .schema-badge.analytics { background-color: #fef3c7; color: #92400e; }
+
+        .op-check {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            font-size: 0.75rem;
+            font-weight: bold;
+        }
+
+        .op-check.yes {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .op-check.no {
+            background-color: #f3f4f6;
+            color: #d1d5db;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            padding: 0.25rem 0.5rem;
+            border-radius: 9999px;
+            font-size: 0.6875rem;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+
+        .status-badge.active {
+            background-color: #dcfce7;
+            color: #166534;
+        }
+
+        .status-badge.partial {
+            background-color: #fef9c3;
+            color: #854d0e;
+        }
+
+        .status-badge.unused {
+            background-color: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+        }
+
+        .status-dot.active { background-color: var(--success-color); }
+        .status-dot.partial { background-color: var(--warning-color); }
+        .status-dot.unused { background-color: var(--danger-color); }
+
+        .ref-list {
+            font-size: 0.75rem;
+            color: #374151;
+        }
+
+        .note-text {
+            font-size: 0.75rem;
+            color: var(--muted-color);
+        }
+
+        .recommendation {
+            margin-top: 2rem;
+            background: var(--card-bg);
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .recommendation h2 {
+            font-size: 1.25rem;
+            margin-bottom: 1rem;
+            color: #111827;
+        }
+
+        .recommendation-list {
+            list-style: none;
+        }
+
+        .recommendation-list li {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+
+        .recommendation-list li:last-child {
+            border-bottom: none;
+        }
+
+        .rec-icon {
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .rec-icon.delete { background-color: #fee2e2; color: #991b1b; }
+        .rec-icon.review { background-color: #fef9c3; color: #854d0e; }
+        .rec-icon.keep { background-color: #dcfce7; color: #166534; }
+
+        .rec-content h4 {
+            font-size: 0.875rem;
+            margin-bottom: 0.25rem;
+        }
+
+        .rec-content p {
+            font-size: 0.8125rem;
+            color: var(--muted-color);
+        }
+
+        .footer {
+            margin-top: 2rem;
+            text-align: center;
+            color: var(--muted-color);
+            font-size: 0.75rem;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>データベーステーブル使用状況</h1>
+        <p class="subtitle">Issue #192: 未使用テーブルの削除 - 調査ドキュメント</p>
+
+        <!-- サマリーカード -->
+        <div class="summary-cards">
+            <div class="summary-card">
+                <h3>総テーブル数</h3>
+                <div class="number total">27</div>
+            </div>
+            <div class="summary-card">
+                <h3>使用中（アクティブ）</h3>
+                <div class="number active">17</div>
+            </div>
+            <div class="summary-card">
+                <h3>部分的使用</h3>
+                <div class="number partial">5</div>
+            </div>
+            <div class="summary-card">
+                <h3>未使用</h3>
+                <div class="number unused">5</div>
+            </div>
+        </div>
+
+        <!-- 凡例 -->
+        <div class="legend">
+            <div class="legend-item">
+                <span class="legend-dot active"></span>
+                <span>使用中: APIエンドポイント・サービスで積極的に使用</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot partial"></span>
+                <span>部分的: 一部機能で使用 or 読み取りのみ</span>
+            </div>
+            <div class="legend-item">
+                <span class="legend-dot unused"></span>
+                <span>未使用: コードで参照されていない（削除候補）</span>
+            </div>
+        </div>
+
+        <!-- メインテーブル -->
+        <div class="table-section">
+            <div class="table-header">全テーブル一覧</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th class="no-col">No.</th>
+                        <th class="schema-col">スキーマ</th>
+                        <th class="table-col">テーブル</th>
+                        <th class="desc-col">概要</th>
+                        <th class="op-col">SELECT</th>
+                        <th class="op-col">INSERT</th>
+                        <th class="op-col">UPDATE</th>
+                        <th class="op-col">DELETE</th>
+                        <th class="ref-col">参照機能</th>
+                        <th class="status-col">使用状況</th>
+                        <th class="note-col">備考</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- core スキーマ -->
+                    <tr>
+                        <td class="no-col">1</td>
+                        <td><span class="schema-badge core">core</span></td>
+                        <td class="table-col">tenants</td>
+                        <td>テナント（企業）管理</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">masterRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">テナント情報取得</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">2</td>
+                        <td><span class="schema-badge core">core</span></td>
+                        <td class="table-col">divisions</td>
+                        <td>部門管理</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">masterRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">部門CRUD</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">3</td>
+                        <td><span class="schema-badge core">core</span></td>
+                        <td class="table-col">stores</td>
+                        <td>店舗管理</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">masterRoutes, shiftsRoutes, MasterDataCollectorService</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">広く使用（参照25回）</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">4</td>
+                        <td><span class="schema-badge core">core</span></td>
+                        <td class="table-col">roles</td>
+                        <td>役職管理</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="ref-list">masterRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">役職CRUD、スタッフJOIN</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">5</td>
+                        <td><span class="schema-badge core">core</span></td>
+                        <td class="table-col">skills</td>
+                        <td>スキル管理</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">MasterDataCollectorService</td>
+                        <td><span class="status-badge partial"><span class="status-dot partial"></span>部分的</span></td>
+                        <td class="note-text">AI生成時のコンテキストのみ</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">6</td>
+                        <td><span class="schema-badge core">core</span></td>
+                        <td class="table-col">employment_types</td>
+                        <td>雇用形態管理</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">MasterDataCollectorService</td>
+                        <td><span class="status-badge partial"><span class="status-dot partial"></span>部分的</span></td>
+                        <td class="note-text">AI生成時のコンテキストのみ</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">7</td>
+                        <td><span class="schema-badge core">core</span></td>
+                        <td class="table-col">shift_patterns</td>
+                        <td>シフトパターン管理</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="ref-list">masterRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">シフトパターンCRUD</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">8</td>
+                        <td><span class="schema-badge core">core</span></td>
+                        <td class="table-col">shift_deadline_settings</td>
+                        <td>シフト希望入力期限設定</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">MasterDataCollectorService</td>
+                        <td><span class="status-badge partial"><span class="status-dot partial"></span>部分的</span></td>
+                        <td class="note-text">LIFF期限チェック未実装</td>
+                    </tr>
+
+                    <!-- hr スキーマ -->
+                    <tr>
+                        <td class="no-col">9</td>
+                        <td><span class="schema-badge hr">hr</span></td>
+                        <td class="table-col">staff</td>
+                        <td>スタッフ情報</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">masterRoutes, shiftsRoutes, liffRoutes, MasterDataCollectorService</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">広く使用（参照32回）</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">10</td>
+                        <td><span class="schema-badge hr">hr</span></td>
+                        <td class="table-col">staff_skills</td>
+                        <td>スタッフスキル習得</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">MasterDataCollectorService</td>
+                        <td><span class="status-badge partial"><span class="status-dot partial"></span>部分的</span></td>
+                        <td class="note-text">CRUD API未実装</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">11</td>
+                        <td><span class="schema-badge hr">hr</span></td>
+                        <td class="table-col">staff_certifications</td>
+                        <td>スタッフ資格情報</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">MasterDataCollectorService</td>
+                        <td><span class="status-badge partial"><span class="status-dot partial"></span>部分的</span></td>
+                        <td class="note-text">CRUD API未実装</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">12</td>
+                        <td><span class="schema-badge hr">hr</span></td>
+                        <td class="table-col">staff_line_accounts</td>
+                        <td>LINE連携アカウント</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">liffRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">LINE認証・スタッフ連携</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">13</td>
+                        <td><span class="schema-badge hr">hr</span></td>
+                        <td class="table-col">commute_allowance</td>
+                        <td>通勤手当設定</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">masterRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">通勤手当CRUD</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">14</td>
+                        <td><span class="schema-badge hr">hr</span></td>
+                        <td class="table-col">insurance_rates</td>
+                        <td>保険料率設定</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">masterRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">保険料率CRUD</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">15</td>
+                        <td><span class="schema-badge hr">hr</span></td>
+                        <td class="table-col">tax_brackets</td>
+                        <td>税金括弧設定</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">masterRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">税金設定CRUD</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">16</td>
+                        <td><span class="schema-badge hr">hr</span></td>
+                        <td class="table-col">payroll</td>
+                        <td>給与計算</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">analyticsRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">給与CSVアップロード・取得</td>
+                    </tr>
+
+                    <!-- ops スキーマ -->
+                    <tr>
+                        <td class="no-col">17</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">shift_plans</td>
+                        <td>シフト計画（AIが生成）</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="ref-list">shiftsRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">中核テーブル（参照33回）</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">18</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">shifts</td>
+                        <td>シフト実績/計画</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="ref-list">shiftsRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">最多参照（参照41回）</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">19</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">shift_preferences</td>
+                        <td>シフト希望（スタッフ入力）</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="ref-list">shiftsRoutes, liffRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">シフト希望管理</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">20</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">staff_monthly_submissions</td>
+                        <td>スタッフ月次提出・コメント</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">liffRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">シフト希望入力時のコメント</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">21</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">work_hours_actual</td>
+                        <td>勤怠実績</td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">analyticsRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">勤怠CSVアップロード</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">22</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">line_message_logs</td>
+                        <td>LINEメッセージログ</td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">lineRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">LINE Webhook処理ログ</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">23</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">labor_law_constraints</td>
+                        <td>労働法制約マスター</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">masterRoutes, MasterDataCollectorService</td>
+                        <td><span class="status-badge partial"><span class="status-dot partial"></span>部分的</span></td>
+                        <td class="note-text">参照のみ</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">24</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">labor_management_rules</td>
+                        <td>労働管理ルール</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">MasterDataCollectorService</td>
+                        <td><span class="status-badge partial"><span class="status-dot partial"></span>部分的</span></td>
+                        <td class="note-text">参照のみ</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">25</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">shift_validation_rules</td>
+                        <td>シフト検証ルール</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">masterRoutes, MasterDataCollectorService</td>
+                        <td><span class="status-badge partial"><span class="status-dot partial"></span>部分的</span></td>
+                        <td class="note-text">参照のみ</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">26</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">store_constraints</td>
+                        <td>店舗別制約</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">masterRoutes, MasterDataCollectorService</td>
+                        <td><span class="status-badge partial"><span class="status-dot partial"></span>部分的</span></td>
+                        <td class="note-text">参照のみ</td>
+                    </tr>
+                    <tr class="unused-row">
+                        <td class="no-col">27</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">availability_requests</td>
+                        <td>出勤可否リクエスト</td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">-</td>
+                        <td><span class="status-badge unused"><span class="status-dot unused"></span>未使用</span></td>
+                        <td class="note-text">スキーマのみ。shift_preferencesで代替可能</td>
+                    </tr>
+                    <tr class="unused-row">
+                        <td class="no-col">28</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">shift_issues</td>
+                        <td>シフト問題（AIが検出）</td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">-</td>
+                        <td><span class="status-badge unused"><span class="status-dot unused"></span>未使用</span></td>
+                        <td class="note-text">スキーマのみ。AI検出機能未実装</td>
+                    </tr>
+                    <tr class="unused-row">
+                        <td class="no-col">29</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">shift_solutions</td>
+                        <td>シフト解決策（AIが生成）</td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">-</td>
+                        <td><span class="status-badge unused"><span class="status-dot unused"></span>未使用</span></td>
+                        <td class="note-text">スキーマのみ。AI生成機能未実装</td>
+                    </tr>
+                    <tr class="unused-row">
+                        <td class="no-col">30</td>
+                        <td><span class="schema-badge ops">ops</span></td>
+                        <td class="table-col">demand_forecasts</td>
+                        <td>需要予測</td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">-</td>
+                        <td><span class="status-badge unused"><span class="status-dot unused"></span>未使用</span></td>
+                        <td class="note-text">スキーマのみ。CSV投入・API未実装</td>
+                    </tr>
+
+                    <!-- analytics スキーマ -->
+                    <tr>
+                        <td class="no-col">31</td>
+                        <td><span class="schema-badge analytics">analytics</span></td>
+                        <td class="table-col">sales_actual</td>
+                        <td>売上実績</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">analyticsRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">売上実績CSV投入・取得</td>
+                    </tr>
+                    <tr>
+                        <td class="no-col">32</td>
+                        <td><span class="schema-badge analytics">analytics</span></td>
+                        <td class="table-col">sales_forecast</td>
+                        <td>売上予測</td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check yes">○</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">analyticsRoutes</td>
+                        <td><span class="status-badge active"><span class="status-dot active"></span>使用中</span></td>
+                        <td class="note-text">売上予測CSV投入・取得</td>
+                    </tr>
+                    <tr class="unused-row">
+                        <td class="no-col">33</td>
+                        <td><span class="schema-badge analytics">analytics</span></td>
+                        <td class="table-col">dashboard_metrics</td>
+                        <td>ダッシュボード指標</td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="op-col"><span class="op-check no">-</span></td>
+                        <td class="ref-list">-</td>
+                        <td><span class="status-badge unused"><span class="status-dot unused"></span>未使用</span></td>
+                        <td class="note-text">スキーマのみ。自動生成未実装</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 推奨事項 -->
+        <div class="recommendation">
+            <h2>推奨事項（Issue #192 対応）</h2>
+            <ul class="recommendation-list">
+                <li>
+                    <div class="rec-icon delete">X</div>
+                    <div class="rec-content">
+                        <h4>ops.availability_requests - 削除推奨</h4>
+                        <p>shift_preferences テーブルで is_ng フラグによる出勤可否管理が実現されており、機能的に重複。削除しても影響なし。</p>
+                    </div>
+                </li>
+                <li>
+                    <div class="rec-icon delete">X</div>
+                    <div class="rec-content">
+                        <h4>ops.shift_issues / ops.shift_solutions - 削除推奨</h4>
+                        <p>AI問題検出・解決機能の実装予定がなければ削除可能。将来のAI拡張計画を確認の上判断。</p>
+                    </div>
+                </li>
+                <li>
+                    <div class="rec-icon review">?</div>
+                    <div class="rec-content">
+                        <h4>ops.demand_forecasts - 要検討</h4>
+                        <p>需要予測機能の実装予定があれば保持。予定がなければ削除候補。プロダクトロードマップを確認。</p>
+                    </div>
+                </li>
+                <li>
+                    <div class="rec-icon review">?</div>
+                    <div class="rec-content">
+                        <h4>analytics.dashboard_metrics - 要検討</h4>
+                        <p>ダッシュボードKPI自動計算機能の実装予定があれば保持。現状はダッシュボードで直接計算している可能性あり。</p>
+                    </div>
+                </li>
+                <li>
+                    <div class="rec-icon keep">O</div>
+                    <div class="rec-content">
+                        <h4>部分的使用テーブル（core.skills, core.employment_types 等）- 保持推奨</h4>
+                        <p>MasterDataCollectorService でAI生成時のコンテキストとして使用。データ整合性維持のため保持を推奨。</p>
+                    </div>
+                </li>
+            </ul>
+        </div>
+
+        <div class="footer">
+            <p>生成日: 2025-12-11 | Shift Scheduler AI - データベース設計書</p>
+        </div>
+    </div>
+</body>
+</html>
