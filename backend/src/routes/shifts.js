@@ -2739,6 +2739,23 @@ router.put('/plans/:plan_id/status', async (req, res) => {
 
     const plan = planCheck.rows[0];
 
+    // 第1案がAPPROVEDになった場合、LINE通知を送信（シフト希望入力開始）
+    if (status === 'APPROVED' && plan.plan_type === 'FIRST' && process.env.LIFF_BACKEND_URL) {
+      try {
+        await axios.post(`${process.env.LIFF_BACKEND_URL}/api/notification/first-plan-approved`, {
+          tenant_id: plan.tenant_id,
+          store_id: plan.store_id,
+          plan_id: parseInt(plan_id),
+          year: plan.plan_year,
+          month: plan.plan_month
+        });
+        console.log('LINE notification sent for first plan approval');
+      } catch (notifyError) {
+        // 通知失敗は承認処理に影響させない（ログのみ）
+        console.error('Failed to send LINE notification:', notifyError.message);
+      }
+    }
+
     // 第2案がAPPROVEDになった場合、LINE通知を送信（シフト確定）
     if (status === 'APPROVED' && plan.plan_type === 'SECOND' && process.env.LIFF_BACKEND_URL) {
       try {
