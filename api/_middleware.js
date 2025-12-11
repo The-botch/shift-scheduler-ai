@@ -4,9 +4,9 @@ export const config = {
 
 export default function middleware(req) {
   // // 本番環境のみBasic認証を有効化
-  // if (process.env.VERCEL_ENV !== 'production') {
-  //   return
-  // }
+  if (process.env.VERCEL_ENV !== 'production') {
+    return
+  }
 
   // 環境変数から認証情報を取得
   // フォーマット: "user1:pass1,user2:pass2,user3:pass3"
