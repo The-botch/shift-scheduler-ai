@@ -1,13 +1,11 @@
-import { NextResponse } from 'next/server'
-
 export const config = {
   matcher: '/:path*',
 }
 
-export function middleware(req) {
-  // 開発環境ではBasic認証をスキップ
-  if (process.env.NODE_ENV === 'development') {
-    return NextResponse.next()
+export default function middleware(req) {
+  // // 本番環境のみBasic認証を有効化
+  if (process.env.VERCEL_ENV !== 'production') {
+    return
   }
 
   // 環境変数から認証情報を取得
@@ -15,7 +13,7 @@ export function middleware(req) {
   const credentials = process.env.BASIC_AUTH_CREDENTIALS
 
   if (!credentials) {
-    return NextResponse.next()
+    return
   }
 
   // 認証情報をパース
@@ -29,7 +27,7 @@ export function middleware(req) {
 
   // 有効なユーザーが存在しない場合はスキップ
   if (Object.keys(validUsers).length === 0) {
-    return NextResponse.next()
+    return
   }
 
   // Authorization ヘッダーを取得
@@ -37,16 +35,16 @@ export function middleware(req) {
 
   if (authorizationHeader) {
     const basicAuth = authorizationHeader.split(' ')[1]
-    const [user, pwd] = atob(basicAuth).split(':')
+    const [user, pwd] = Buffer.from(basicAuth, 'base64').toString().split(':')
 
     // 認証成功チェック
     if (validUsers[user] && validUsers[user] === pwd) {
-      return NextResponse.next()
+      return
     }
   }
 
   // 認証失敗 - Basic認証ダイアログを表示
-  return new NextResponse('Authentication required', {
+  return new Response('Authentication required', {
     status: 401,
     headers: {
       'WWW-Authenticate': 'Basic realm="Secure Area"',
