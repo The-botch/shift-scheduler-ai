@@ -2,11 +2,11 @@ export const config = {
   matcher: '/:path*',
 }
 
-export function middleware(req) {
-  // 開発環境ではBasic認証をスキップ
-  if (process.env.NODE_ENV === 'development') {
-    return NextResponse.next()
-  }
+export default function middleware(req) {
+  // // 本番環境のみBasic認証を有効化
+  // if (process.env.VERCEL_ENV !== 'production') {
+  //   return
+  // }
 
   // 環境変数から認証情報を取得
   // フォーマット: "user1:pass1,user2:pass2,user3:pass3"
