@@ -2,5 +2,10 @@
   "buildCommand": "cd frontend && npm run build",
   "outputDirectory": "frontend/dist",
   "framework": null,
-  "devCommand": "cd frontend && npm run dev"
+  "devCommand": "cd frontend && npm run dev",
+  "functions": {
+    "api/_middleware.js": {
+      "runtime": "edge"
+    }
+  }
 }
