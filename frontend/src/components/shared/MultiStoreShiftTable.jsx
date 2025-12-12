@@ -653,13 +653,10 @@ const MultiStoreShiftTable = ({
                           {group.staff.map(staff => {
                             // Issue #165: 複数シフトを取得
                             const allShifts = getShiftsForDateAndStaff(date, staff.staff_id)
-                            // 選択された店舗のシフトのみ表示
-                            const visibleShifts = allShifts.filter(
-                              s =>
-                                selectedStores &&
-                                selectedStores.size > 0 &&
-                                selectedStores.has(parseInt(s.store_id))
-                            )
+                            // チェックボックスは「所属店舗」を意味する
+                            // スタッフがグループに含まれている時点で所属店舗でのフィルタリングは完了
+                            // そのスタッフの全シフト（他店舗での稼働含む）を表示する
+                            const visibleShifts = allShifts
                             const shift = visibleShifts.length > 0 ? visibleShifts[0] : null
                             const hasMultipleShifts = visibleShifts.length > 1
                             const totalHours = visibleShifts.reduce(
