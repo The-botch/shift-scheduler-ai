@@ -460,15 +460,15 @@ const MultiStoreShiftTable = ({
           className="overflow-x-auto flex-shrink-0 border-b-2 border-gray-300 scrollbar-hide"
           style={{ overflowY: 'hidden' }}
         >
-          <table className="w-full border-collapse text-[0.6rem]" style={{ tableLayout: 'fixed' }}>
+          <table className="w-full border-collapse text-xs" style={{ tableLayout: 'fixed' }}>
             <colgroup>
+              <col style={{ width: '90px' }} />
               <col style={{ width: '80px' }} />
-              <col style={{ width: '60px' }} />
               {storeGroups.map(group => (
                 <React.Fragment key={group.storeId}>
-                  <col style={{ width: '60px' }} />
+                  <col style={{ width: '80px' }} />
                   {group.staff.map(staff => (
-                    <col key={staff.staff_id} style={{ width: '70px' }} />
+                    <col key={staff.staff_id} style={{ width: '100px' }} />
                   ))}
                 </React.Fragment>
               ))}
@@ -478,25 +478,25 @@ const MultiStoreShiftTable = ({
               <tr>
                 <th
                   rowSpan={2}
-                  className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-300 sticky left-0 z-20 bg-gray-50"
+                  className="px-1 py-1 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-300 sticky left-0 z-20 bg-gray-50"
                 >
-                  <div className="text-[0.6rem] font-bold">
+                  <div className="text-sm font-bold">
                     {year}年{month}月
                   </div>
                 </th>
                 <th
                   rowSpan={2}
-                  className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-400 bg-blue-100 sticky left-[80px] z-20"
+                  className="px-1 py-1 text-center font-semibold text-gray-700 border-b border-r-2 border-gray-400 bg-blue-100 sticky left-[90px] z-20"
                 >
-                  <div className="text-[0.65rem] leading-tight">📊全体</div>
+                  <div className="text-sm leading-tight">📊全体</div>
                 </th>
                 {storeGroups.map(group => (
                   <th
                     key={group.storeId}
                     colSpan={1 + group.staff.length}
-                    className="px-1 py-0.5 text-center font-bold text-gray-800 border-b border-r-2 border-gray-400 bg-blue-50"
+                    className="px-2 py-2 text-center font-bold text-gray-800 border-b border-r-2 border-gray-400 bg-blue-50"
                   >
-                    <div className="text-[0.65rem] leading-tight">🏪{group.storeName}</div>
+                    <div className="text-base leading-tight font-bold">🏪{group.storeName}</div>
                   </th>
                 ))}
               </tr>
@@ -504,17 +504,17 @@ const MultiStoreShiftTable = ({
               <tr>
                 {storeGroups.map(group => (
                   <React.Fragment key={group.storeId}>
-                    <th className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r border-gray-300 bg-gray-100">
-                      <div className="text-[0.5rem] leading-tight">Σ{group.storeName}</div>
+                    <th className="px-1 py-1 text-center font-semibold text-gray-700 border-b border-r border-gray-300 bg-gray-100">
+                      <div className="text-xs leading-tight">Σ{group.storeName}</div>
                     </th>
                     {group.staff.map(staff => {
                       const comment = commentsMap.get(staff.staff_id)
                       return (
                         <th
                           key={staff.staff_id}
-                          className="px-0 py-0.5 text-center font-semibold text-gray-700 border-b border-r border-gray-200"
+                          className="px-1 py-1 text-center font-semibold text-gray-700 border-b border-r border-gray-200"
                         >
-                          <div className="text-[0.55rem] leading-tight flex items-center justify-center gap-1">
+                          <div className="text-xs leading-tight flex items-center justify-center gap-1">
                             {staff.name}
                             {comment && (
                               <span
@@ -526,7 +526,7 @@ const MultiStoreShiftTable = ({
                               </span>
                             )}
                           </div>
-                          <div className="text-[0.45rem] text-gray-500 font-normal leading-tight">
+                          <div className="text-[0.65rem] text-gray-500 font-normal leading-tight">
                             {staff.role_name}
                           </div>
                         </th>
@@ -537,18 +537,15 @@ const MultiStoreShiftTable = ({
               </tr>
               {/* 月間合計行 */}
               <tr className="bg-gray-100 font-semibold">
-                <td className="px-0 py-0.5 border-r-2 border-gray-300 text-center text-gray-700 sticky left-0 z-20 bg-gray-100">
+                <td className="px-1 py-1 border-r-2 border-gray-300 text-center text-gray-700 sticky left-0 z-20 bg-gray-100 text-sm">
                   月合計
                 </td>
                 {(() => {
                   const overallMonthly = getOverallMonthlyTotal()
                   return (
-                    <td className="px-0.5 py-0.5 border-r-2 border-gray-400 text-center bg-blue-100 sticky left-[80px] z-20">
-                      <div className="text-gray-800 text-[0.5rem] leading-tight">
+                    <td className="px-1 py-1 border-r-2 border-gray-400 text-center bg-blue-100 sticky left-[90px] z-20">
+                      <div className="text-gray-800 text-xs leading-tight">
                         {overallMonthly.totalDays}名
-                      </div>
-                      <div className="text-gray-800 text-[0.5rem] leading-tight">
-                        {overallMonthly.totalHours.toFixed(1)}h
                       </div>
                     </td>
                   )
@@ -557,24 +554,19 @@ const MultiStoreShiftTable = ({
                   const storeMonthly = getStoreMonthlyTotal(group.storeId)
                   return (
                     <React.Fragment key={group.storeId}>
-                      <td className="px-0.5 py-0.5 border-r border-gray-300 text-center bg-gray-100">
-                        <div className="text-gray-800 text-[0.5rem] leading-tight">
+                      <td className="px-1 py-1 border-r border-gray-300 text-center bg-gray-100">
+                        <div className="text-gray-800 text-xs leading-tight">
                           {storeMonthly.totalDays}名
-                        </div>
-                        <div className="text-gray-800 text-[0.5rem] leading-tight">
-                          {storeMonthly.totalHours.toFixed(1)}h
                         </div>
                       </td>
                       {group.staff.map(staff => {
-                        const { totalDays, totalHours } = getStaffMonthlyTotal(staff.staff_id)
+                        const { totalDays } = getStaffMonthlyTotal(staff.staff_id)
                         return (
                           <td
                             key={staff.staff_id}
-                            className="px-0.5 py-0.5 border-r border-gray-200 text-center"
+                            className="px-1 py-1 border-r border-gray-200 text-center"
                           >
-                            <div className="text-gray-800 text-[0.5rem] leading-tight">
-                              {totalHours.toFixed(1)}h
-                            </div>
+                            <div className="text-gray-800 text-xs leading-tight">{totalDays}日</div>
                           </td>
                         )
                       })}
@@ -592,15 +584,15 @@ const MultiStoreShiftTable = ({
           onScroll={handleBodyScroll}
           className="overflow-x-auto overflow-y-auto flex-1"
         >
-          <table className="w-full border-collapse text-[0.6rem]" style={{ tableLayout: 'fixed' }}>
+          <table className="w-full border-collapse text-xs" style={{ tableLayout: 'fixed' }}>
             <colgroup>
+              <col style={{ width: '90px' }} />
               <col style={{ width: '80px' }} />
-              <col style={{ width: '60px' }} />
               {storeGroups.map(group => (
                 <React.Fragment key={group.storeId}>
-                  <col style={{ width: '60px' }} />
+                  <col style={{ width: '80px' }} />
                   {group.staff.map(staff => (
-                    <col key={staff.staff_id} style={{ width: '70px' }} />
+                    <col key={staff.staff_id} style={{ width: '100px' }} />
                   ))}
                 </React.Fragment>
               ))}
@@ -617,15 +609,15 @@ const MultiStoreShiftTable = ({
                 return (
                   <tr key={date} className={rowBgColor}>
                     {/* 日付セル */}
-                    <td className="px-1 py-0.5 border-r-2 border-b border-gray-200 bg-gray-50 sticky left-0 z-20">
-                      <div className="flex items-center gap-0.5">
+                    <td className="px-1 py-1 border-r-2 border-b border-gray-200 bg-gray-50 sticky left-0 z-20">
+                      <div className="flex items-center gap-1">
                         <span
-                          className={`font-bold text-[0.85rem] leading-tight ${getWeekdayColor(date)}`}
+                          className={`font-bold text-base leading-tight ${getWeekdayColor(date)}`}
                         >
                           {date}({weekday})
                         </span>
                         {holiday && (
-                          <span className="text-[0.5rem] text-red-600 font-medium leading-tight">
+                          <span className="text-[0.65rem] text-red-600 font-medium leading-tight">
                             {holidayName}
                           </span>
                         )}
@@ -634,11 +626,11 @@ const MultiStoreShiftTable = ({
 
                     {/* 全体サマリーセル */}
                     <td
-                      className="px-1 py-0.5 border-r-2 border-b border-gray-400 text-center bg-blue-50 cursor-pointer hover:bg-blue-100 sticky left-[80px] z-20"
+                      className="px-1 py-1 border-r-2 border-b border-gray-400 text-center bg-blue-50 cursor-pointer hover:bg-blue-100 sticky left-[90px] z-20"
                       onClick={() => onDayClick && onDayClick(date)}
                     >
-                      <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                        {overallSummary.staffCount}名 {overallSummary.totalHours.toFixed(1)}h
+                      <div className="font-semibold text-gray-800 text-xs leading-tight">
+                        {overallSummary.staffCount}名
                       </div>
                     </td>
 
@@ -649,11 +641,11 @@ const MultiStoreShiftTable = ({
                         <React.Fragment key={group.storeId}>
                           {/* 店舗の日別サマリーセル */}
                           <td
-                            className="px-1 py-0.5 border-r border-b border-gray-300 text-center bg-gray-50 cursor-pointer hover:bg-gray-100"
+                            className="px-1 py-1 border-r border-b border-gray-300 text-center bg-gray-50 cursor-pointer hover:bg-gray-100"
                             onClick={() => onDayClick && onDayClick(date, group.storeId)}
                           >
-                            <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                              {storeSummary.staffCount}名 {storeSummary.totalHours.toFixed(1)}h
+                            <div className="font-semibold text-gray-800 text-xs leading-tight">
+                              {storeSummary.staffCount}名
                             </div>
                           </td>
 
@@ -661,13 +653,10 @@ const MultiStoreShiftTable = ({
                           {group.staff.map(staff => {
                             // Issue #165: 複数シフトを取得
                             const allShifts = getShiftsForDateAndStaff(date, staff.staff_id)
-                            // 選択された店舗のシフトのみ表示
-                            const visibleShifts = allShifts.filter(
-                              s =>
-                                selectedStores &&
-                                selectedStores.size > 0 &&
-                                selectedStores.has(parseInt(s.store_id))
-                            )
+                            // チェックボックスは「所属店舗」を意味する
+                            // スタッフがグループに含まれている時点で所属店舗でのフィルタリングは完了
+                            // そのスタッフの全シフト（他店舗での稼働含む）を表示する
+                            const visibleShifts = allShifts
                             const shift = visibleShifts.length > 0 ? visibleShifts[0] : null
                             const hasMultipleShifts = visibleShifts.length > 1
                             const totalHours = visibleShifts.reduce(
@@ -744,18 +733,18 @@ const MultiStoreShiftTable = ({
                             return (
                               <td
                                 key={staff.staff_id}
-                                className={`px-0.5 py-0.5 border-r border-b border-gray-200 ${cellBgColor} ${hasMultipleShifts ? 'bg-amber-50 border-amber-300' : ''} ${onCellClick ? 'cursor-pointer hover:opacity-80' : ''}`}
+                                className={`px-1 py-1 border-r border-b border-gray-200 ${cellBgColor} ${hasMultipleShifts ? 'bg-amber-50 border-amber-300' : ''} ${onCellClick ? 'cursor-pointer hover:opacity-80' : ''}`}
                                 onClick={handleCellClick}
                               >
                                 {shouldShowShift ? (
                                   <div className="relative group">
                                     {hasMultipleShifts ? (
                                       // Issue #165: 複数シフト表示（1セル内に縦並び）
-                                      <div className="space-y-0.5">
+                                      <div className="space-y-1">
                                         {visibleShifts.map((s, idx) => (
                                           <div
                                             key={s.shift_id || idx}
-                                            className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id, s)} relative cursor-pointer hover:ring-2 hover:ring-blue-400`}
+                                            className={`px-1 py-1 rounded ${getShiftCardColor(date, staff.staff_id, s)} relative cursor-pointer hover:ring-2 hover:ring-blue-400`}
                                             onClick={e => {
                                               // 各シフトカードをクリックしたら、そのシフトを編集
                                               e.stopPropagation()
@@ -779,40 +768,44 @@ const MultiStoreShiftTable = ({
                                             }}
                                           >
                                             {s.modified_flag && (
-                                              <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
+                                              <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[0.65rem] leading-none">
                                                 !
                                               </div>
                                             )}
-                                            <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                                              <span className="bg-indigo-600 text-white px-0.5 rounded text-[0.4rem] mr-0.5">
-                                                {getStoreCode(s.store_id)}
-                                              </span>
+                                            <div className="font-semibold text-gray-800 text-xs leading-tight">
+                                              {s.store_id !== staff.store_id && (
+                                                <span className="bg-indigo-600 text-white px-1 py-0.5 rounded text-xs font-bold mr-0.5">
+                                                  {getStoreCode(s.store_id)}
+                                                </span>
+                                              )}
                                               {formatTime(s.start_time)}-{formatTime(s.end_time)}
                                             </div>
                                           </div>
                                         ))}
-                                        <div className="text-[0.45rem] text-gray-600 leading-tight text-center">
+                                        <div className="text-xs text-gray-600 leading-tight text-center">
                                           計{totalHours.toFixed(1)}h
                                         </div>
                                       </div>
                                     ) : (
                                       // 単一シフト表示（店舗コードバッジ付き）
                                       <div
-                                        className={`px-0.5 py-0.5 rounded ${getShiftCardColor(date, staff.staff_id, shift)} relative`}
+                                        className={`px-1 py-1 rounded ${getShiftCardColor(date, staff.staff_id, shift)} relative`}
                                       >
                                         {shift.modified_flag && (
-                                          <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-[0.5rem] leading-none">
+                                          <div className="absolute top-0 right-0 text-xs bg-yellow-500 text-white rounded-full w-4 h-4 flex items-center justify-center text-[0.65rem] leading-none">
                                             !
                                           </div>
                                         )}
-                                        <div className="font-semibold text-gray-800 text-[0.5rem] leading-tight">
-                                          <span className="bg-indigo-600 text-white px-0.5 rounded text-[0.4rem] mr-0.5">
-                                            {getStoreCode(shift.store_id)}
-                                          </span>
+                                        <div className="font-semibold text-gray-800 text-xs leading-tight">
+                                          {shift.store_id !== staff.store_id && (
+                                            <span className="bg-indigo-600 text-white px-1 py-0.5 rounded text-xs font-bold mr-0.5">
+                                              {getStoreCode(shift.store_id)}
+                                            </span>
+                                          )}
                                           {formatTime(shift.start_time)}-
                                           {formatTime(shift.end_time)}
                                         </div>
-                                        <div className="text-[0.45rem] text-gray-600 leading-tight">
+                                        <div className="text-xs text-gray-600 leading-tight">
                                           {calculateHours(shift.start_time, shift.end_time).toFixed(
                                             1
                                           )}
@@ -823,7 +816,7 @@ const MultiStoreShiftTable = ({
                                     {/* Issue #165: 既存シフトがある場合でも別店舗シフト追加ボタン */}
                                     {onShiftClick && (
                                       <button
-                                        className="absolute -top-1 -right-1 w-4 h-4 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-[0.6rem] leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"
+                                        className="absolute -top-1 -right-1 w-5 h-5 bg-blue-500 hover:bg-blue-600 text-white rounded-full text-xs leading-none opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center shadow-sm"
                                         title="別店舗のシフトを追加"
                                         onClick={e => {
                                           e.stopPropagation()
@@ -859,10 +852,10 @@ const MultiStoreShiftTable = ({
                                 ) : (
                                   // 空セル
                                   <div
-                                    className={`py-1 flex items-center justify-center ${onShiftClick ? 'group' : ''}`}
+                                    className={`py-2 flex items-center justify-center ${onShiftClick ? 'group' : ''}`}
                                   >
                                     {onShiftClick && (
-                                      <div className="text-gray-300 group-hover:text-gray-500 transition-colors text-lg font-light">
+                                      <div className="text-gray-300 group-hover:text-gray-500 transition-colors text-xl font-light">
                                         +
                                       </div>
                                     )}

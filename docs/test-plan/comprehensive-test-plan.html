@@ -1,0 +1,2181 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフトスケジューラー 業務シナリオテスト計画書</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1d4ed8;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-800: #1f2937;
+            --gray-900: #111827;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.7;
+            color: var(--gray-800);
+            background: var(--gray-50);
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 1rem;
+        }
+
+        header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 1.5rem 2rem;
+            margin-bottom: 1rem;
+            border-radius: 8px;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            margin-bottom: 0.25rem;
+        }
+
+        header .meta {
+            opacity: 0.9;
+            font-size: 0.8rem;
+        }
+
+        /* タブナビゲーション */
+        .tabs {
+            display: flex;
+            gap: 0.25rem;
+            border-bottom: 2px solid var(--gray-200);
+            margin-bottom: 0;
+            overflow-x: auto;
+            background: white;
+            border-radius: 8px 8px 0 0;
+            padding: 0.5rem 0.5rem 0;
+        }
+
+        .tab-btn {
+            padding: 0.75rem 1.25rem;
+            border: none;
+            background: var(--gray-100);
+            color: var(--gray-600);
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-radius: 6px 6px 0 0;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .tab-btn:hover {
+            background: var(--gray-200);
+        }
+
+        .tab-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        /* タブコンテンツ */
+        .tab-content {
+            display: none;
+            background: white;
+            padding: 2rem;
+            border-radius: 0 0 8px 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            min-height: 600px;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        h2 {
+            font-size: 1.3rem;
+            color: var(--gray-900);
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid var(--primary);
+        }
+
+        h3 {
+            font-size: 1.1rem;
+            color: var(--gray-800);
+            margin: 1.5rem 0 0.75rem;
+        }
+
+        h4 {
+            font-size: 1rem;
+            color: var(--gray-700);
+            margin: 1rem 0 0.5rem;
+        }
+
+        p {
+            margin-bottom: 1rem;
+            color: var(--gray-600);
+        }
+
+        /* テーブル共通 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+            font-size: 0.85rem;
+        }
+
+        th {
+            background: var(--primary);
+            color: white;
+            padding: 0.6rem 0.75rem;
+            text-align: left;
+            font-weight: 600;
+        }
+
+        td {
+            padding: 0.6rem 0.75rem;
+            border-bottom: 1px solid var(--gray-200);
+            vertical-align: top;
+        }
+
+        tbody tr:hover {
+            background: var(--gray-50);
+        }
+
+        .category-row {
+            background: var(--gray-100);
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+
+        .base-row {
+            background: #dbeafe;
+        }
+
+        /* 業務フロー図 */
+        .flow-diagram {
+            background: var(--gray-50);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+        }
+
+        .flow-box {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            margin: 0.25rem;
+            font-size: 0.85rem;
+        }
+
+        .flow-trigger {
+            background: #fef3c7;
+            border: 1px solid #f59e0b;
+        }
+
+        .flow-action {
+            background: #dbeafe;
+            border: 1px solid var(--primary);
+        }
+
+        .flow-decision {
+            background: #fce7f3;
+            border: 1px solid #ec4899;
+            transform: rotate(0deg);
+        }
+
+        .flow-arrow {
+            display: inline-block;
+            margin: 0 0.5rem;
+            color: var(--gray-400);
+        }
+
+        .flow-row {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            margin: 0.5rem 0;
+        }
+
+        /* タイムライン */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+            margin: 1rem 0;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            left: 0.5rem;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--gray-300);
+        }
+
+        .timeline-item {
+            position: relative;
+            padding-bottom: 1rem;
+        }
+
+        .timeline-item::before {
+            content: '';
+            position: absolute;
+            left: -1.65rem;
+            top: 0.25rem;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--primary);
+        }
+
+        .timeline-date {
+            font-weight: 600;
+            color: var(--primary);
+            font-size: 0.85rem;
+        }
+
+        /* バッジ */
+        .badge {
+            display: inline-block;
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+
+        .badge-base {
+            background: var(--primary);
+            color: white;
+        }
+
+        .badge-derived {
+            background: #7c3aed;
+            color: white;
+        }
+
+        .badge-func {
+            background: var(--success);
+            color: white;
+        }
+
+        /* 準備リスト */
+        .prep-box {
+            background: #fef3c7;
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+        }
+
+        .prep-box ul {
+            margin: 0;
+            padding-left: 1.25rem;
+        }
+
+        .prep-box li {
+            padding: 0.2rem 0;
+        }
+
+        /* 手順リスト */
+        .step-list {
+            list-style: none;
+            margin: 0.5rem 0;
+            padding: 0;
+            counter-reset: step;
+        }
+
+        .step-list li {
+            padding: 0.4rem 0 0.4rem 2rem;
+            position: relative;
+            border-left: 2px solid var(--gray-200);
+            margin-left: 0.6rem;
+        }
+
+        .step-list li:before {
+            counter-increment: step;
+            content: counter(step);
+            position: absolute;
+            left: -0.7rem;
+            top: 0.35rem;
+            width: 1.25rem;
+            height: 1.25rem;
+            background: var(--primary);
+            color: white;
+            border-radius: 50%;
+            font-size: 0.7rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+        }
+
+        .step-list li:last-child {
+            border-left-color: transparent;
+        }
+
+        /* 期待結果 */
+        .expected-box {
+            background: #d1fae5;
+            border-radius: 6px;
+            padding: 1rem;
+            margin: 0.5rem 0;
+        }
+
+        .expected-box ul {
+            margin: 0;
+            padding-left: 1.25rem;
+        }
+
+        /* カード */
+        .card {
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: var(--gray-100);
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--gray-200);
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 1rem;
+        }
+
+        /* ケース表 */
+        .case-status {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            border: 2px solid var(--gray-400);
+            border-radius: 3px;
+            margin-right: 0.5rem;
+        }
+
+        /* 注意ボックス */
+        .note-box {
+            background: #fef3c7;
+            border-left: 4px solid #f59e0b;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0 6px 6px 0;
+        }
+
+        .note-box.info {
+            background: #dbeafe;
+            border-left-color: var(--primary);
+        }
+
+        .note-box.warning {
+            background: #fef3c7;
+            border-left-color: #f59e0b;
+        }
+
+        .note-box.danger {
+            background: #fee2e2;
+            border-left-color: var(--danger);
+        }
+
+        /* フッター */
+        footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--gray-600);
+            font-size: 0.8rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>シフトスケジューラー 業務シナリオテスト計画書</h1>
+            <div class="meta">
+                バージョン: 7.0 | 最終更新: 2025年12月12日 | 対象期間: 2026年1月〜2月
+            </div>
+        </header>
+
+        <!-- タブナビゲーション -->
+        <nav class="tabs">
+            <button class="tab-btn active" data-tab="overview">概要・シナリオ一覧</button>
+            <button class="tab-btn" data-tab="flow">業務フロー図</button>
+            <button class="tab-btn" data-tab="cases">ケース一覧</button>
+            <button class="tab-btn" data-tab="preparation">準備</button>
+            <button class="tab-btn" data-tab="execution">実行手順</button>
+            <button class="tab-btn" data-tab="order">実行順序</button>
+        </nav>
+
+        <!-- タブ1: 概要・シナリオ一覧 -->
+        <div id="overview" class="tab-content active">
+            <h2>テスト概要</h2>
+
+            <h3>テストの目的</h3>
+            <p>本テストは、シフトスケジューラーの月次業務フローが正常に動作することを検証します。「月次シフト作成」をベースシナリオとし、その過程で発生しうる業務パターン（派生シナリオ）を網羅的にテストします。</p>
+
+            <h3>運用設計の前提</h3>
+            <div class="note-box info">
+                <strong>重要な前提条件：</strong>
+                <ul style="margin: 0.5rem 0 0 1.5rem;">
+                    <li><strong>第1案作成タイミング:</strong> 対象月の前々月末（例: 1月シフト → 11月末）</li>
+                    <li><strong>第1案の役割:</strong> ライトに作成し、原則更新しない。重心は第2案に置く</li>
+                    <li><strong>希望入力トリガー:</strong> 第1案承認が希望入力開始のトリガー</li>
+                    <li><strong>希望・NGの扱い:</strong> あくまで「希望」であり確定ではない（通らない可能性あり）</li>
+                    <li><strong>通知設計:</strong> 第2案通知は廃止。LINEノートで確定シフトを一元管理</li>
+                    <li><strong>当月シフト変更:</strong> 翌月以降のシフト変更のみ対象。当月は当日欠勤対応として別扱い</li>
+                    <li><strong>実績管理:</strong> 打刻機能なし。計画シフトのみ管理（実績はエアシフトで管理）</li>
+                </ul>
+            </div>
+
+            <h3>時間軸の考え方（3ヶ月同時管理）</h3>
+            <p>シフト運用は常に3ヶ月分が同時に動いています:</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>フェーズ</th>
+                        <th>例（12月時点）</th>
+                        <th>状態</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>当月（稼働中）</td>
+                        <td>12月</td>
+                        <td>シフト確定済み・稼働中（当日欠勤対応のみ）</td>
+                    </tr>
+                    <tr>
+                        <td>翌月（確定前〜確定）</td>
+                        <td>1月</td>
+                        <td>希望収集中 or 第2案作成中</td>
+                    </tr>
+                    <tr>
+                        <td>翌々月（第1案作成）</td>
+                        <td>2月</td>
+                        <td>第1案作成・承認待ち</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>シナリオ一覧</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:100px;">ID</th>
+                        <th>シナリオ</th>
+                        <th style="width:70px;">種別</th>
+                        <th style="width:80px;">アクター</th>
+                        <th style="width:150px;">トリガー</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="category-row"><td colspan="5">ベースシナリオ：月次シフト作成</td></tr>
+                    <tr class="base-row">
+                        <td>BASE-001</td>
+                        <td>1月シフト作成：第1案承認 → 希望収集 → 第2案作成 → LINEノート共有</td>
+                        <td><span class="badge badge-base">ベース</span></td>
+                        <td>管理者</td>
+                        <td>11月末（第1案作成）</td>
+                    </tr>
+                    <tr class="base-row">
+                        <td>BASE-002</td>
+                        <td>2月シフト作成：1月と同様のフロー</td>
+                        <td><span class="badge badge-base">ベース</span></td>
+                        <td>管理者</td>
+                        <td>12月末（第1案作成）</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="5">派生シナリオ：翌月シフト変更</td></tr>
+                    <tr>
+                        <td>OPS-001</td>
+                        <td>確定後のシフト変更依頼（翌月分：スタッフから「休みたい」連絡）</td>
+                        <td><span class="badge badge-derived">派生</span></td>
+                        <td>管理者</td>
+                        <td>スタッフ連絡（LINEグループ）</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="5">派生シナリオ：当月対応（当日欠勤）</td></tr>
+                    <tr>
+                        <td>OPS-002</td>
+                        <td>当日欠勤対応（体調不良で出勤不可）※シフト表への反映は不要</td>
+                        <td><span class="badge badge-derived">派生</span></td>
+                        <td>管理者</td>
+                        <td>スタッフ連絡（当日朝）</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="5">派生シナリオ：希望変更</td></tr>
+                    <tr>
+                        <td>OPS-003</td>
+                        <td>希望変更（提出期限内：スタッフ自身で変更可能）</td>
+                        <td><span class="badge badge-derived">派生</span></td>
+                        <td>スタッフ</td>
+                        <td>スタッフ判断</td>
+                    </tr>
+                    <tr>
+                        <td>OPS-004</td>
+                        <td>希望変更（提出期限後：入力不可・閲覧のみ）</td>
+                        <td><span class="badge badge-derived">派生</span></td>
+                        <td>-</td>
+                        <td>提出期限到来</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="5">派生シナリオ：スタッフ変動</td></tr>
+                    <tr>
+                        <td>OPS-005</td>
+                        <td>新規スタッフ入社（即マスター登録＋LINE連携）</td>
+                        <td><span class="badge badge-derived">派生</span></td>
+                        <td>管理者</td>
+                        <td>入社手続き</td>
+                    </tr>
+                    <tr>
+                        <td>OPS-006</td>
+                        <td>スタッフ退職（最終稼働後にisActive=false＋LINE連携停止）</td>
+                        <td><span class="badge badge-derived">派生</span></td>
+                        <td>管理者</td>
+                        <td>最終稼働日終了</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="5">機能テスト：LIFF希望入力</td></tr>
+                    <tr>
+                        <td>LIFF-001</td>
+                        <td>LIFF画面へのアクセス（第1案が作成済み かつ 提出期限内のみ可能）</td>
+                        <td><span class="badge badge-func">機能</span></td>
+                        <td>スタッフ</td>
+                        <td>第1案承認後</td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-002</td>
+                        <td>NG日（出勤不可日）の登録</td>
+                        <td><span class="badge badge-func">機能</span></td>
+                        <td>スタッフ</td>
+                        <td>希望入力</td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-003</td>
+                        <td>希望時間帯の入力</td>
+                        <td><span class="badge badge-func">機能</span></td>
+                        <td>スタッフ</td>
+                        <td>希望入力</td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-004</td>
+                        <td>コメントの送信</td>
+                        <td><span class="badge badge-func">機能</span></td>
+                        <td>スタッフ</td>
+                        <td>希望入力</td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-005</td>
+                        <td>提出期限後のアクセス（閲覧のみ・入力不可・コメント不可）</td>
+                        <td><span class="badge badge-func">機能</span></td>
+                        <td>スタッフ</td>
+                        <td>提出期限後</td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-006</td>
+                        <td>非アクティブスタッフのアクセス拒否</td>
+                        <td><span class="badge badge-func">機能</span></td>
+                        <td>スタッフ</td>
+                        <td>isActive=false</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="5">機能テスト：スタッフ管理</td></tr>
+                    <tr>
+                        <td>STAFF-001</td>
+                        <td>新規スタッフ登録・LINE連携URL発行</td>
+                        <td><span class="badge badge-func">機能</span></td>
+                        <td>管理者</td>
+                        <td>入社</td>
+                    </tr>
+                    <tr>
+                        <td>STAFF-002</td>
+                        <td>スタッフ情報の編集（時給変更）</td>
+                        <td><span class="badge badge-func">機能</span></td>
+                        <td>管理者</td>
+                        <td>情報変更</td>
+                    </tr>
+                    <tr>
+                        <td>STAFF-003</td>
+                        <td>契約タイプでのフィルタリング</td>
+                        <td><span class="badge badge-func">機能</span></td>
+                        <td>管理者</td>
+                        <td>確認作業</td>
+                    </tr>
+                    <tr>
+                        <td>STAFF-004</td>
+                        <td>スタッフの非アクティブ化（isActive=false）</td>
+                        <td><span class="badge badge-func">機能</span></td>
+                        <td>管理者</td>
+                        <td>退職・最終稼働後</td>
+                    </tr>
+                    <tr>
+                        <td>STAFF-005</td>
+                        <td>LINE連携の停止</td>
+                        <td><span class="badge badge-func">機能</span></td>
+                        <td>管理者</td>
+                        <td>退職処理</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- タブ2: 業務フロー図 -->
+        <div id="flow" class="tab-content">
+            <h2>業務フロー図</h2>
+
+            <p>列：アクター（スタッフ / 管理者 / システム）、行：フェーズ・オブジェクト</p>
+
+            <!-- スイムレーン用スタイル -->
+            <style>
+                .swimlane {
+                    display: grid;
+                    grid-template-columns: 140px 1fr 1fr 1fr;
+                    gap: 0;
+                    border: 2px solid var(--gray-300);
+                    border-radius: 8px;
+                    overflow: hidden;
+                    margin: 1rem 0;
+                    font-size: 0.85rem;
+                }
+                .swimlane-header {
+                    background: var(--primary);
+                    color: white;
+                    padding: 0.5rem;
+                    text-align: center;
+                    font-weight: 600;
+                    border-bottom: 1px solid var(--gray-300);
+                }
+                .swimlane-header.phase {
+                    background: var(--gray-700);
+                }
+                .swimlane-row {
+                    display: contents;
+                }
+                .swimlane-cell {
+                    padding: 0.75rem;
+                    border-bottom: 1px solid var(--gray-200);
+                    border-right: 1px solid var(--gray-200);
+                    min-height: 60px;
+                    display: flex;
+                    flex-direction: column;
+                    justify-content: center;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+                .swimlane-cell:last-child {
+                    border-right: none;
+                }
+                .swimlane-cell.phase-label {
+                    background: var(--gray-100);
+                    font-weight: 600;
+                    color: var(--gray-700);
+                    font-size: 0.8rem;
+                }
+                .swimlane-cell.trigger-row {
+                    background: #fef3c7;
+                }
+                /* フロー要素 */
+                .flow-start, .flow-end {
+                    width: 60px;
+                    height: 30px;
+                    border-radius: 15px;
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                }
+                .flow-start {
+                    background: var(--success);
+                    color: white;
+                }
+                .flow-end {
+                    background: var(--gray-600);
+                    color: white;
+                }
+                .flow-process {
+                    background: #dbeafe;
+                    border: 1px solid var(--primary);
+                    padding: 0.4rem 0.75rem;
+                    border-radius: 4px;
+                    text-align: center;
+                    font-size: 0.8rem;
+                }
+                .flow-decision {
+                    width: 80px;
+                    height: 80px;
+                    background: #fce7f3;
+                    border: 2px solid #ec4899;
+                    transform: rotate(45deg);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                }
+                .flow-decision-text {
+                    transform: rotate(-45deg);
+                    font-size: 0.7rem;
+                    text-align: center;
+                    font-weight: 500;
+                }
+                .flow-data {
+                    background: #e0e7ff;
+                    border: 1px solid #6366f1;
+                    padding: 0.4rem 0.75rem;
+                    border-radius: 0;
+                    clip-path: polygon(10% 0%, 100% 0%, 90% 100%, 0% 100%);
+                    text-align: center;
+                    font-size: 0.8rem;
+                }
+                .flow-arrow-down {
+                    color: var(--gray-400);
+                    font-size: 1.25rem;
+                }
+                .flow-arrow-right {
+                    color: var(--gray-400);
+                    font-size: 1rem;
+                }
+                .flow-label {
+                    font-size: 0.7rem;
+                    color: var(--gray-500);
+                    margin-top: 0.25rem;
+                }
+                .branch-yes {
+                    color: var(--success);
+                    font-weight: 600;
+                    font-size: 0.7rem;
+                }
+                .branch-no {
+                    color: var(--danger);
+                    font-weight: 600;
+                    font-size: 0.7rem;
+                }
+                .flow-note {
+                    background: #fef3c7;
+                    border: 1px dashed #f59e0b;
+                    padding: 0.3rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.7rem;
+                    color: var(--gray-700);
+                }
+            </style>
+
+            <h3>BASE-001: 月次シフト作成フロー（1月シフトの例）</h3>
+            <div class="swimlane">
+                <!-- ヘッダー -->
+                <div class="swimlane-header phase">フェーズ</div>
+                <div class="swimlane-header">スタッフ</div>
+                <div class="swimlane-header">管理者</div>
+                <div class="swimlane-header">システム</div>
+
+                <!-- 第1案作成 -->
+                <div class="swimlane-cell phase-label trigger-row">第1案作成<br><small>11月末</small></div>
+                <div class="swimlane-cell trigger-row"></div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-start">開始</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">第1案エディター開く</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">AI生成（ライト版）</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">第1案承認</div>
+                </div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-process">AIがシフト生成</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-data">第1案データ</div>
+                </div>
+
+                <!-- 希望入力開始（トリガー） -->
+                <div class="swimlane-cell phase-label">希望入力開始<br><small>第1案承認後</small></div>
+                <div class="swimlane-cell"></div>
+                <div class="swimlane-cell">
+                    <div class="flow-note">第1案承認がトリガー</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">リマインド通知送信</div>
+                    <div class="flow-label">初月は3回発報（様子見）</div>
+                </div>
+
+                <!-- 希望収集 -->
+                <div class="swimlane-cell phase-label">希望収集<br><small>12/1〜17</small></div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">LIFFで希望入力</div>
+                    <div class="flow-label">NG日・希望時間帯</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-data">希望データ</div>
+                    <div class="flow-note">あくまで「希望」<br>通らない可能性あり</div>
+                </div>
+                <div class="swimlane-cell"></div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">希望をDBに保存</div>
+                </div>
+
+                <!-- 提出期限 -->
+                <div class="swimlane-cell phase-label trigger-row">提出期限<br><small>12/17</small></div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-note">期限後は閲覧のみ<br>コメント送信不可</div>
+                </div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-note">17日まで見ないため<br>社員・バイト同一締切</div>
+                </div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-process">入力締切処理</div>
+                </div>
+
+                <!-- 第2案作成 -->
+                <div class="swimlane-cell phase-label">第2案作成<br><small>12/18〜20</small></div>
+                <div class="swimlane-cell"></div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">第1案→第2案コピー</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">希望とシフト照合</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-decision">
+                        <div class="flow-decision-text">調整<br>必要？</div>
+                    </div>
+                    <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                        <span class="branch-yes">Yes↓</span>
+                        <span class="branch-no">No→</span>
+                    </div>
+                    <div class="flow-process">手動でシフト調整</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">保存</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">第1案→第2案コピー</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">重複警告表示</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-data">第2案データ</div>
+                </div>
+
+                <!-- LINEノート共有 -->
+                <div class="swimlane-cell phase-label">共有<br><small>12/20</small></div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">LINEノートで確認</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">スクリーンショット出力</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">LINEノートに投稿</div>
+                    <div class="flow-label">月ごとに1ノート作成</div>
+                    <div class="flow-note">第2案通知は不要<br>ノートで一元管理</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">PNG画像生成</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-data">シフト画像</div>
+                </div>
+
+                <!-- 完了 -->
+                <div class="swimlane-cell phase-label">完了</div>
+                <div class="swimlane-cell"></div>
+                <div class="swimlane-cell">
+                    <div class="flow-end">完了</div>
+                </div>
+                <div class="swimlane-cell"></div>
+            </div>
+
+            <h3>OPS-001: 確定後のシフト変更依頼（翌月分）</h3>
+            <div class="swimlane">
+                <!-- ヘッダー -->
+                <div class="swimlane-header phase">フェーズ</div>
+                <div class="swimlane-header">スタッフ</div>
+                <div class="swimlane-header">管理者</div>
+                <div class="swimlane-header">システム</div>
+
+                <!-- トリガー -->
+                <div class="swimlane-cell phase-label trigger-row">トリガー</div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-start">開始</div>
+                    <div class="flow-label">「休みたい」連絡</div>
+                    <div class="flow-note">LINEグループに投稿</div>
+                </div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-process">連絡を受け取る</div>
+                </div>
+                <div class="swimlane-cell trigger-row"></div>
+
+                <!-- 編集 -->
+                <div class="swimlane-cell phase-label">編集</div>
+                <div class="swimlane-cell"></div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">第2案エディターで編集</div>
+                    <div class="flow-label">シフト削除 / 代替追加</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">保存</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">変更をDBに保存</div>
+                </div>
+
+                <!-- 共有 -->
+                <div class="swimlane-cell phase-label">共有</div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">ノートで変更確認</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">スクリーンショット再出力</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">LINEノートに追記</div>
+                    <div class="flow-label">同じノートに更新</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-end">完了</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">PNG画像生成</div>
+                </div>
+            </div>
+
+            <h3>OPS-002: 当日欠勤対応</h3>
+            <div class="note-box warning">
+                <strong>重要:</strong> 当日欠勤・当月の細かい入れ替えはシフト表への反映は不要。実際の稼働時間・給与計算はエアシフトで管理。
+            </div>
+            <div class="swimlane">
+                <!-- ヘッダー -->
+                <div class="swimlane-header phase">フェーズ</div>
+                <div class="swimlane-header">スタッフ</div>
+                <div class="swimlane-header">管理者</div>
+                <div class="swimlane-header">システム</div>
+
+                <!-- トリガー -->
+                <div class="swimlane-cell phase-label trigger-row">トリガー</div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-start">開始</div>
+                    <div class="flow-label">「体調不良」連絡</div>
+                </div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-process">連絡を受け取る</div>
+                </div>
+                <div class="swimlane-cell trigger-row"></div>
+
+                <!-- 判断 -->
+                <div class="swimlane-cell phase-label">対応</div>
+                <div class="swimlane-cell"></div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">モニタリング画面で確認</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-decision">
+                        <div class="flow-decision-text">緊急<br>代替？</div>
+                    </div>
+                    <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                        <span class="branch-yes">Yes→代替手配</span>
+                        <span class="branch-no">No→そのまま</span>
+                    </div>
+                    <div class="flow-note">シフト表更新は不要<br>エアシフトで実績管理</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">人員配置表示</div>
+                </div>
+
+                <!-- 完了 -->
+                <div class="swimlane-cell phase-label">完了</div>
+                <div class="swimlane-cell"></div>
+                <div class="swimlane-cell">
+                    <div class="flow-end">完了</div>
+                </div>
+                <div class="swimlane-cell"></div>
+            </div>
+
+            <h3>OPS-005/006: スタッフ変動対応（入社・退職）</h3>
+            <div class="swimlane">
+                <!-- ヘッダー -->
+                <div class="swimlane-header phase">フェーズ</div>
+                <div class="swimlane-header">スタッフ</div>
+                <div class="swimlane-header">管理者</div>
+                <div class="swimlane-header">システム</div>
+
+                <!-- 入社トリガー -->
+                <div class="swimlane-cell phase-label trigger-row">入社<br><small>OPS-005</small></div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-start">入社</div>
+                </div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-process">スタッフ管理を開く</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">新規登録</div>
+                    <div class="flow-note">入社即マスター登録<br>＋LINE連携登録</div>
+                </div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-process">スタッフ追加</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-data">LINE連携URL</div>
+                </div>
+
+                <!-- シフト追加（推奨） -->
+                <div class="swimlane-cell phase-label">シフト追加<br><small>推奨</small></div>
+                <div class="swimlane-cell"></div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">第2案エディターで追加</div>
+                    <div class="flow-note">当月シフトに列追加推奨<br>（翌月コピーに有利）</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">保存</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">シフトに追加</div>
+                </div>
+
+                <!-- 退職トリガー -->
+                <div class="swimlane-cell phase-label trigger-row">退職<br><small>OPS-006</small></div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-start">退職連絡</div>
+                </div>
+                <div class="swimlane-cell trigger-row">
+                    <div class="flow-note">最終稼働日までは<br>退職フラグを立てない</div>
+                </div>
+                <div class="swimlane-cell trigger-row"></div>
+
+                <!-- 退職処理 -->
+                <div class="swimlane-cell phase-label">退職処理<br><small>最終稼働後</small></div>
+                <div class="swimlane-cell"></div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">スタッフ管理を開く</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">isActive=false</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">LINE連携停止</div>
+                    <div class="flow-note">退職者が希望入力<br>できないようにする</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">ステータス更新</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-process">LINE連携無効化</div>
+                </div>
+
+                <!-- 影響 -->
+                <div class="swimlane-cell phase-label">翌月影響</div>
+                <div class="swimlane-cell">
+                    <div class="flow-note">isActive=false<br>→ ログイン不可<br>→ 希望入力不可</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">翌月シフト作成</div>
+                    <div class="flow-label">AI生成時に除外される</div>
+                    <div class="flow-arrow-down">↓</div>
+                    <div class="flow-end">完了</div>
+                </div>
+                <div class="swimlane-cell">
+                    <div class="flow-process">非アクティブ除外</div>
+                </div>
+            </div>
+
+            <h3>タイムライン（1月シフト作成の例）</h3>
+            <div class="timeline">
+                <div class="timeline-item">
+                    <div class="timeline-date">11月末</div>
+                    <div><strong>第1案作成・承認</strong><br>
+                    管理者が第1案をAI生成（ライト版）して承認<br>
+                    <small style="color: var(--gray-600);">→ これが希望入力開始のトリガー</small></div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">12月1日〜17日</div>
+                    <div><strong>希望入力期間</strong><br>
+                    スタッフがLIFFでNG日・希望時間帯を入力<br>
+                    <small style="color: var(--gray-600);">→ OPS-003（希望変更・締切前）が発生しうる</small><br>
+                    <small style="color: var(--gray-600);">→ 社員・バイト同一締切（オーナーが17日まで見ないため）</small></div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">12月17日</div>
+                    <div><strong>希望入力締切</strong><br>
+                    <small style="color: var(--gray-600);">→ OPS-004: 締切後は閲覧のみ（入力・コメント不可）</small></div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">12月18日〜20日</div>
+                    <div><strong>第2案作成・確定</strong><br>
+                    第1案→第2案コピー、希望照合、調整、保存<br>
+                    <small style="color: var(--gray-600);">→ システム締切: 20日</small></div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">12月20日</div>
+                    <div><strong>LINEノート共有</strong><br>
+                    スクリーンショット出力 → LINEノートに投稿<br>
+                    <small style="color: var(--gray-600);">→ 第2案通知は不要（ノートで一元管理）</small></div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">1月1日〜31日</div>
+                    <div><strong>1月運用期間</strong><br>
+                    <small style="color: var(--gray-600);">→ OPS-001（翌月シフト変更依頼）→ LINEノートに追記で対応</small><br>
+                    <small style="color: var(--gray-600);">→ OPS-002（当日欠勤）→ シフト表更新不要（エアシフトで実績管理）</small></div>
+                </div>
+                <div class="timeline-item">
+                    <div class="timeline-date">12月末</div>
+                    <div><strong>2月シフト第1案作成</strong><br>
+                    OPS-006（退職処理: 最終稼働後にisActive=false）<br>
+                    → BASE-002（2月シフト作成）開始</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- タブ3: ケース一覧 -->
+        <div id="cases" class="tab-content">
+            <h2>シナリオ別ケース一覧</h2>
+
+            <h3>BASE-001: 1月シフト作成</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:100px;">ケースID</th>
+                        <th>ケース内容</th>
+                        <th style="width:100px;">フェーズ</th>
+                        <th style="width:80px;">結果</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>BASE-001-01</td>
+                        <td>第1案をAI生成できること（ライト版）</td>
+                        <td>第1案作成</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>BASE-001-02</td>
+                        <td>第1案を承認できること</td>
+                        <td>第1案作成</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>BASE-001-03</td>
+                        <td>第1案承認後、スタッフがLIFFで希望入力できること</td>
+                        <td>希望収集</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>BASE-001-04</td>
+                        <td>提出期限（12/17）を過ぎると入力不可になること</td>
+                        <td>締切</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>BASE-001-05</td>
+                        <td>第1案を第2案にコピーできること</td>
+                        <td>第2案作成</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>BASE-001-06</td>
+                        <td>スタッフの希望（NG日・希望時間帯）を確認できること</td>
+                        <td>第2案作成</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>BASE-001-07</td>
+                        <td>NG日とシフトの重複が警告されること</td>
+                        <td>第2案作成</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>BASE-001-08</td>
+                        <td>第2案を編集・保存できること</td>
+                        <td>第2案作成</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>BASE-001-09</td>
+                        <td>シフト表をスクリーンショットで出力できること</td>
+                        <td>共有</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>BASE-002: 2月シフト作成</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:100px;">ケースID</th>
+                        <th>ケース内容</th>
+                        <th style="width:100px;">前提</th>
+                        <th style="width:80px;">結果</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>BASE-002-01</td>
+                        <td>1月と独立して2月のシフトを作成できること</td>
+                        <td>BASE-001完了</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>BASE-002-02</td>
+                        <td>非アクティブスタッフ（isActive=false）がAI生成候補に含まれないこと</td>
+                        <td>OPS-006完了</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>BASE-002-03</td>
+                        <td>途中入社スタッフがAI生成候補に含まれること</td>
+                        <td>OPS-005完了</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>OPS-001〜006: 派生シナリオ</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:100px;">ケースID</th>
+                        <th>ケース内容</th>
+                        <th style="width:120px;">発生タイミング</th>
+                        <th style="width:80px;">結果</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="category-row"><td colspan="4">OPS-001: 確定後のシフト変更依頼（翌月分）</td></tr>
+                    <tr>
+                        <td>OPS-001-01</td>
+                        <td>確定済みシフト（第2案）を編集できること</td>
+                        <td>BASE-001完了後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-001-02</td>
+                        <td>特定スタッフのシフトを削除できること</td>
+                        <td>BASE-001完了後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-001-03</td>
+                        <td>代わりのスタッフを割り当てできること</td>
+                        <td>BASE-001完了後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-001-04</td>
+                        <td>変更後のシフト表を再出力できること</td>
+                        <td>BASE-001完了後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-001-05</td>
+                        <td>LINEノートに追記（更新）で共有できること</td>
+                        <td>BASE-001完了後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">OPS-002: 当日欠勤対応（シフト表更新不要）</td></tr>
+                    <tr>
+                        <td>OPS-002-01</td>
+                        <td>モニタリング画面で当日の人員状況を確認できること</td>
+                        <td>当日</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-002-02</td>
+                        <td>（参考）シフト表を更新しなくても運用上問題ないこと</td>
+                        <td>当日</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">OPS-003: 希望変更（提出期限内）</td></tr>
+                    <tr>
+                        <td>OPS-003-01</td>
+                        <td>提出期限内は希望を変更できること</td>
+                        <td>希望収集期間</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-003-02</td>
+                        <td>変更が即座にDBに反映されること</td>
+                        <td>希望収集期間</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">OPS-004: 希望変更（提出期限後）</td></tr>
+                    <tr>
+                        <td>OPS-004-01</td>
+                        <td>提出期限後は入力フォームが無効化されること</td>
+                        <td>提出期限後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-004-02</td>
+                        <td>提出期限後はコメント送信ができないこと</td>
+                        <td>提出期限後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-004-03</td>
+                        <td>提出期限後でも過去の希望は閲覧できること</td>
+                        <td>提出期限後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">OPS-005: 新規スタッフ入社</td></tr>
+                    <tr>
+                        <td>OPS-005-01</td>
+                        <td>新規スタッフを登録できること</td>
+                        <td>入社手続き時</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-005-02</td>
+                        <td>LINE連携URLを発行できること</td>
+                        <td>入社手続き時</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-005-03</td>
+                        <td>既存の確定シフトに途中から追加できること（推奨）</td>
+                        <td>BASE-001完了後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-005-04</td>
+                        <td>新規スタッフが翌月の希望入力ができること</td>
+                        <td>LINE連携後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">OPS-006: 退職処理</td></tr>
+                    <tr>
+                        <td>OPS-006-01</td>
+                        <td>スタッフをisActive=falseにできること</td>
+                        <td>最終稼働後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-006-02</td>
+                        <td>LINE連携を停止できること</td>
+                        <td>最終稼働後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-006-03</td>
+                        <td>isActive=falseのスタッフがLIFFにログインできないこと</td>
+                        <td>退職処理後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-006-04</td>
+                        <td>isActive=falseのスタッフが希望入力できないこと</td>
+                        <td>退職処理後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-006-05</td>
+                        <td>非アクティブ後はシフト割当候補に表示されないこと</td>
+                        <td>BASE-002開始時</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>OPS-006-06</td>
+                        <td>過去のシフト履歴は残ること</td>
+                        <td>退職処理後</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>LIFF-001〜006: 希望入力</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:100px;">ケースID</th>
+                        <th>ケース内容</th>
+                        <th style="width:80px;">結果</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>LIFF-001-01</td>
+                        <td>LINEアプリからLIFFが起動すること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-001-02</td>
+                        <td>スタッフ認証が行われること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-001-03</td>
+                        <td>第1案が作成されている場合のみ希望入力画面が表示されること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-002-01</td>
+                        <td>カレンダーから日付を選択してNG日登録できること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-003-01</td>
+                        <td>希望時間帯を入力できること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-004-01</td>
+                        <td>コメントを送信できること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-005-01</td>
+                        <td>提出期限後は入力フォームが無効化されること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-005-02</td>
+                        <td>提出期限後でも過去の希望は閲覧できること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-005-03</td>
+                        <td>提出期限後はコメント送信ができないこと</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>LIFF-006-01</td>
+                        <td>isActive=falseのスタッフはLIFFにアクセスできないこと</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>STAFF-001〜005: スタッフ管理</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:100px;">ケースID</th>
+                        <th>ケース内容</th>
+                        <th style="width:80px;">結果</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>STAFF-001-01</td>
+                        <td>スタッフを新規登録できること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>STAFF-001-02</td>
+                        <td>LINE連携URLが発行されること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>STAFF-002-01</td>
+                        <td>スタッフ情報を編集・保存できること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>STAFF-003-01</td>
+                        <td>契約タイプでフィルタリングできること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>STAFF-004-01</td>
+                        <td>スタッフをisActive=falseにできること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>STAFF-004-02</td>
+                        <td>isActive=falseのスタッフがシフト候補に表示されないこと</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                    <tr>
+                        <td>STAFF-005-01</td>
+                        <td>LINE連携を停止できること</td>
+                        <td><span class="case-status"></span></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- タブ4: 準備 -->
+        <div id="preparation" class="tab-content">
+            <h2>テスト準備</h2>
+
+            <h3>共通準備事項</h3>
+            <div class="prep-box">
+                <ul>
+                    <li>管理画面にログイン可能なアカウントがあること</li>
+                    <li>テスト用店舗が設定されていること</li>
+                    <li>店舗の営業時間が設定されていること</li>
+                    <li>スタッフが3名以上登録されていること</li>
+                    <li>各スタッフがLINE連携済みであること（isActive=true）</li>
+                    <li>仮想日付設定用のブラウザコンソールアクセス（Date.nowモック）</li>
+                </ul>
+            </div>
+
+            <h3>シナリオ別準備</h3>
+
+            <div class="card">
+                <div class="card-header">BASE-001: 1月シフト作成</div>
+                <div class="card-body">
+                    <div class="prep-box">
+                        <ul>
+                            <li>2026年1月のシフト計画（第1案）が存在しないこと</li>
+                            <li>仮想日付を11月末に設定できること（第1案作成用）</li>
+                            <li>仮想日付を12月1日〜17日に設定できること（希望入力用）</li>
+                            <li>仮想日付を12月18日〜20日に設定できること（第2案作成用）</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">BASE-002: 2月シフト作成</div>
+                <div class="card-body">
+                    <div class="prep-box">
+                        <ul>
+                            <li>BASE-001が完了していること（1月シフトが確定済み）</li>
+                            <li>OPS-005が完了していること（途中入社スタッフがいる場合）</li>
+                            <li>OPS-006が完了していること（退職スタッフがいる場合）</li>
+                            <li>仮想日付を12月末に設定できること</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">OPS-001: 確定後のシフト変更依頼</div>
+                <div class="card-body">
+                    <div class="prep-box">
+                        <ul>
+                            <li>BASE-001が完了していること</li>
+                            <li>変更対象のスタッフAが特定日にシフト割当されていること</li>
+                            <li>代替候補のスタッフBがその日に空いていること</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">OPS-002: 当日欠勤対応</div>
+                <div class="card-body">
+                    <div class="prep-box">
+                        <ul>
+                            <li>BASE-001が完了していること</li>
+                            <li>欠勤スタッフBが当日にシフト割当されていること</li>
+                        </ul>
+                    </div>
+                    <div class="note-box warning">
+                        <strong>注意:</strong> 当日欠勤はシフト表更新不要。モニタリング画面での確認のみ。
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">OPS-003: 希望変更（提出期限内）</div>
+                <div class="card-body">
+                    <div class="prep-box">
+                        <ul>
+                            <li>第1案が作成済みであること</li>
+                            <li>仮想日付が希望入力提出期限内であること（12/1〜17）</li>
+                            <li>スタッフCがLIFF画面にアクセスできること</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">OPS-004: 希望変更（提出期限後）</div>
+                <div class="card-body">
+                    <div class="prep-box">
+                        <ul>
+                            <li>仮想日付が希望入力提出期限後であること（12/18以降）</li>
+                            <li>スタッフDが特定日をNG登録済みであること</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">OPS-005: 新規スタッフ入社</div>
+                <div class="card-body">
+                    <div class="prep-box">
+                        <ul>
+                            <li>BASE-001が完了していること（推奨）</li>
+                            <li>新入社員（田中さん）の基本情報を用意（名前、時給、契約タイプ）</li>
+                        </ul>
+                    </div>
+                    <div class="note-box info">
+                        <strong>運用ルール:</strong> 入社したら即マスター登録＋LINE連携登録する決まり。当月シフトに列追加しておくと翌月コピーに有利。
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">OPS-006: 退職処理</div>
+                <div class="card-body">
+                    <div class="prep-box">
+                        <ul>
+                            <li>退職スタッフEがアクティブ状態（isActive=true）であること</li>
+                            <li>スタッフEの1月シフトが存在すること</li>
+                            <li>スタッフEがLINE連携済みであること</li>
+                        </ul>
+                    </div>
+                    <div class="note-box warning">
+                        <strong>運用ルール:</strong> 最終稼働日までは退職フラグを立てない。最終稼働が終わったタイミングでisActive=false＋LINE連携停止。
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">LIFF-006: 非アクティブスタッフのアクセス拒否</div>
+                <div class="card-body">
+                    <div class="prep-box">
+                        <ul>
+                            <li>OPS-006が完了していること（スタッフEがisActive=false）</li>
+                            <li>スタッフEのLINEアカウントでテストできること</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <h3>仮想日付の設定方法</h3>
+            <div class="card">
+                <div class="card-body">
+                    <p>ブラウザの開発者コンソールで以下を実行:</p>
+                    <pre><code>// 例: 2025年11月30日に設定（第1案作成用）
+Date.now = () => new Date('2025-11-30T09:00:00').getTime()
+
+// 例: 2025年12月5日に設定（希望入力用）
+Date.now = () => new Date('2025-12-05T09:00:00').getTime()
+
+// 例: 2025年12月17日に設定（提出期限当日）
+Date.now = () => new Date('2025-12-17T23:59:00').getTime()
+
+// 例: 2025年12月18日に設定（提出期限後）
+Date.now = () => new Date('2025-12-18T09:00:00').getTime()
+
+// リセット
+delete Date.now</code></pre>
+                </div>
+            </div>
+        </div>
+
+        <!-- タブ5: 実行手順 -->
+        <div id="execution" class="tab-content">
+            <h2>ケース別実行手順</h2>
+
+            <h3>BASE-001: 1月シフト作成</h3>
+
+            <div class="card">
+                <div class="card-header">フェーズ1: 第1案作成（11月末）</div>
+                <div class="card-body">
+                    <ol class="step-list">
+                        <li>ブラウザコンソールで仮想日付を11月30日に設定</li>
+                        <li>管理画面にログイン</li>
+                        <li>「シフト管理」→「第1案エディター」を開く</li>
+                        <li>年月を2026年1月に設定</li>
+                        <li>対象店舗を選択</li>
+                        <li>「AI生成」ボタンをクリック（ライト版）</li>
+                        <li>ローディング完了を待つ</li>
+                        <li>生成されたシフトをカレンダーで確認</li>
+                        <li>「保存」ボタンをクリック</li>
+                        <li>「承認」ボタンをクリック</li>
+                    </ol>
+                    <div class="expected-box">
+                        <strong>期待結果:</strong>
+                        <ul>
+                            <li>AIが各日に適切なスタッフを配置</li>
+                            <li>DBに第1案（plan_type='FIRST'）が作成される</li>
+                            <li>第1案承認により希望入力が可能になる</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">フェーズ2: 希望収集（12/1〜17）</div>
+                <div class="card-body">
+                    <ol class="step-list">
+                        <li>ブラウザコンソールで仮想日付を12月5日に設定</li>
+                        <li>スタッフとしてLINEアプリを開く</li>
+                        <li>店舗の公式アカウントからLIFF画面を開く</li>
+                        <li>1月カレンダーでNG日（出勤不可日）をタップして登録</li>
+                        <li>希望時間帯がある日はタップして時間を入力</li>
+                        <li>コメント欄に補足情報を入力（任意）</li>
+                        <li>「送信」ボタンをタップ</li>
+                        <li>複数スタッフで同様の操作を繰り返す</li>
+                    </ol>
+                    <div class="expected-box">
+                        <strong>期待結果:</strong>
+                        <ul>
+                            <li>各スタッフの希望がDBに保存される</li>
+                            <li>カレンダー上でNG日が視覚的に確認できる</li>
+                        </ul>
+                    </div>
+                    <div class="note-box info">
+                        <strong>重要:</strong> 希望・NGは「希望」であり確定ではない。オーナーの判断で通らない可能性あり。
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">フェーズ3: 第2案作成（12/18〜20）</div>
+                <div class="card-body">
+                    <ol class="step-list">
+                        <li>仮想日付を12月18日に設定</li>
+                        <li>管理画面にログイン</li>
+                        <li>「第1案→第2案コピー」ボタンをクリック</li>
+                        <li>確認ダイアログで「OK」をクリック</li>
+                        <li>「第2案エディター」に切り替え</li>
+                        <li>「希望確認」パネルを開く</li>
+                        <li>各スタッフのNG日・希望時間帯を確認</li>
+                        <li>NG日とシフトが重複している箇所を特定</li>
+                        <li>重複箇所を修正（シフト削除または別スタッフに変更）</li>
+                        <li>「保存」ボタンをクリック</li>
+                    </ol>
+                    <div class="expected-box">
+                        <strong>期待結果:</strong>
+                        <ul>
+                            <li>第2案に第1案のデータがコピーされる</li>
+                            <li>スタッフの希望が確認できる</li>
+                            <li>重複警告が表示される（該当がある場合）</li>
+                            <li>修正が保存される</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">フェーズ4: LINEノート共有（12/20）</div>
+                <div class="card-body">
+                    <ol class="step-list">
+                        <li>「スクリーンショット」ボタンをクリック</li>
+                        <li>ダウンロードを待つ</li>
+                        <li>ダウンロードされたPNG画像を開く</li>
+                        <li>ファイル名に「2026年1月」「店舗名」が含まれることを確認</li>
+                        <li>全日程・全スタッフが見切れずに含まれることを確認</li>
+                        <li>LINEグループのノートを開く</li>
+                        <li>「ノートを作成」で月ごとに1つのノートを作成</li>
+                        <li>シフト画像を添付して投稿</li>
+                    </ol>
+                    <div class="expected-box">
+                        <strong>期待結果:</strong>
+                        <ul>
+                            <li>PNG画像がダウンロードされる</li>
+                            <li>画像に全データが含まれる</li>
+                            <li>LINEノートでスタッフに共有できる</li>
+                        </ul>
+                    </div>
+                    <div class="note-box info">
+                        <strong>運用:</strong> 第2案通知は不要。LINEノートで一元管理。変更があれば同じノートに追記。
+                    </div>
+                </div>
+            </div>
+
+            <h3>OPS-001: 確定後のシフト変更依頼</h3>
+            <div class="card">
+                <div class="card-body">
+                    <ol class="step-list">
+                        <li>管理画面にログイン</li>
+                        <li>「シフト管理」→「第2案エディター」を開く</li>
+                        <li>2026年1月、対象店舗を選択</li>
+                        <li>変更対象日（例: 1月15日）を探す</li>
+                        <li>スタッフAのシフトカードをクリック</li>
+                        <li>「削除」を選択</li>
+                        <li>（代替が必要な場合）同日にスタッフBを追加</li>
+                        <li>「保存」ボタンをクリック</li>
+                        <li>「スクリーンショット」ボタンで再出力</li>
+                        <li>LINEノートに追記（リプライ）で更新を共有</li>
+                    </ol>
+                    <div class="expected-box">
+                        <strong>期待結果:</strong>
+                        <ul>
+                            <li>スタッフAのシフトが削除される</li>
+                            <li>スタッフBのシフトが追加される（代替の場合）</li>
+                            <li>変更がDBに保存される</li>
+                            <li>LINEノートで更新が共有される</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+
+            <h3>OPS-002: 当日欠勤対応</h3>
+            <div class="card">
+                <div class="card-body">
+                    <ol class="step-list">
+                        <li>管理画面にログイン</li>
+                        <li>「モニタリング」画面を開く</li>
+                        <li>当日の人員配置状況を確認</li>
+                        <li>欠勤スタッフBの代替候補がいるか確認</li>
+                        <li>（緊急代替が必要な場合）LINEグループで代替者を手配</li>
+                    </ol>
+                    <div class="expected-box">
+                        <strong>期待結果:</strong>
+                        <ul>
+                            <li>モニタリング画面で人員状況が確認できる</li>
+                            <li>シフト表への反映は不要（エアシフトで実績管理）</li>
+                        </ul>
+                    </div>
+                    <div class="note-box warning">
+                        <strong>重要:</strong> 当日欠勤・当月の細かい入れ替えはシフト表に反映しない。実際の稼働時間・給与計算はエアシフトで管理。
+                    </div>
+                </div>
+            </div>
+
+            <h3>OPS-005: 新規スタッフ入社</h3>
+            <div class="card">
+                <div class="card-body">
+                    <ol class="step-list">
+                        <li>管理画面の「スタッフ管理」を開く</li>
+                        <li>「新規登録」ボタンをクリック</li>
+                        <li>田中さんの情報を入力（名前、時給、契約タイプ=アルバイト）</li>
+                        <li>「登録」ボタンをクリック</li>
+                        <li>表示されたLINE連携URLをコピー</li>
+                        <li>田中さんにLINE連携URLを送付</li>
+                        <li>（推奨）「第2案エディター」を開く</li>
+                        <li>（推奨）当月シフトに田中さんの列を追加</li>
+                        <li>「保存」をクリック</li>
+                    </ol>
+                    <div class="expected-box">
+                        <strong>期待結果:</strong>
+                        <ul>
+                            <li>田中さんがスタッフ一覧に表示される（isActive=true）</li>
+                            <li>LINE連携URLが発行される</li>
+                            <li>田中さんが翌月の希望入力ができる</li>
+                        </ul>
+                    </div>
+                    <div class="note-box info">
+                        <strong>推奨運用:</strong> 当月シフトに列追加しておくと、翌月以降の自動コピーに有利。
+                    </div>
+                </div>
+            </div>
+
+            <h3>OPS-006: 退職処理</h3>
+            <div class="card">
+                <div class="card-body">
+                    <ol class="step-list">
+                        <li>（最終稼働日まで待つ）</li>
+                        <li>管理画面の「スタッフ管理」を開く</li>
+                        <li>スタッフEを検索して選択</li>
+                        <li>「編集」ボタンをクリック</li>
+                        <li>「アクティブ」のチェックを外す（isActive=false）</li>
+                        <li>「LINE連携を停止」をクリック</li>
+                        <li>「保存」をクリック</li>
+                        <li>（確認）スタッフEのLINEでLIFFにアクセスできないことを確認</li>
+                        <li>（確認）「第1案エディター」で翌月を選択し、AI生成でスタッフEが除外されることを確認</li>
+                    </ol>
+                    <div class="expected-box">
+                        <strong>期待結果:</strong>
+                        <ul>
+                            <li>スタッフEがisActive=falseになる</li>
+                            <li>スタッフEのLINE連携が停止される</li>
+                            <li>スタッフEがLIFFにログインできなくなる</li>
+                            <li>スタッフEが希望入力できなくなる</li>
+                            <li>翌月シフト生成でスタッフEが除外される</li>
+                            <li>過去のシフト履歴は残る</li>
+                        </ul>
+                    </div>
+                    <div class="note-box warning">
+                        <strong>重要:</strong> 最終稼働日までは退職フラグを立てない。退職者が希望入力できないようにするため、必ずLINE連携も停止する。
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- タブ6: 実行順序 -->
+        <div id="order" class="tab-content">
+            <h2>効率的な実行順序</h2>
+
+            <p>以下の順序でテストを実行することで、依存関係を満たしながら効率的にテストを進められます。</p>
+
+            <h3>推奨実行順序</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:60px;">順番</th>
+                        <th style="width:120px;">シナリオ/ケース</th>
+                        <th>内容</th>
+                        <th style="width:150px;">仮想日付</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="category-row"><td colspan="4">Phase 1: 初期設定・スタッフ管理機能確認</td></tr>
+                    <tr>
+                        <td>1</td>
+                        <td>STAFF-001</td>
+                        <td>新規スタッフ登録（テスト用追加スタッフ）</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td>2</td>
+                        <td>STAFF-002</td>
+                        <td>スタッフ情報編集（時給変更）</td>
+                        <td>-</td>
+                    </tr>
+                    <tr>
+                        <td>3</td>
+                        <td>STAFF-003</td>
+                        <td>契約タイプフィルタリング</td>
+                        <td>-</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">Phase 2: 第1案作成</td></tr>
+                    <tr>
+                        <td>4</td>
+                        <td>BASE-001-01〜02</td>
+                        <td>第1案AI生成・承認（1月シフト）</td>
+                        <td>11/30</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">Phase 3: 希望収集（12/1〜17）</td></tr>
+                    <tr>
+                        <td>5</td>
+                        <td>LIFF-001〜004</td>
+                        <td>LIFF希望入力（複数スタッフで実施）</td>
+                        <td>12/5</td>
+                    </tr>
+                    <tr>
+                        <td>6</td>
+                        <td>OPS-003</td>
+                        <td>希望変更（提出期限内）</td>
+                        <td>12/10</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">Phase 4: 提出期限後の確認</td></tr>
+                    <tr>
+                        <td>7</td>
+                        <td>LIFF-005</td>
+                        <td>提出期限後アクセス確認（入力不可・閲覧のみ）</td>
+                        <td>12/18</td>
+                    </tr>
+                    <tr>
+                        <td>8</td>
+                        <td>OPS-004</td>
+                        <td>希望変更（提出期限後・入力不可確認）</td>
+                        <td>12/18</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">Phase 5: 第2案作成・共有</td></tr>
+                    <tr>
+                        <td>9</td>
+                        <td>BASE-001-05〜09</td>
+                        <td>第2案作成（コピー→調整→保存→共有）</td>
+                        <td>12/18〜20</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">Phase 6: 1月運用中の派生シナリオ</td></tr>
+                    <tr>
+                        <td>10</td>
+                        <td>OPS-001</td>
+                        <td>確定後のシフト変更依頼（翌月分）</td>
+                        <td>12/25</td>
+                    </tr>
+                    <tr>
+                        <td>11</td>
+                        <td>OPS-002</td>
+                        <td>当日欠勤対応（シフト表更新不要確認）</td>
+                        <td>1/5</td>
+                    </tr>
+                    <tr>
+                        <td>12</td>
+                        <td>OPS-005</td>
+                        <td>新規スタッフ入社（田中さん登録→シフト追加）</td>
+                        <td>1/10</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">Phase 7: 退職処理</td></tr>
+                    <tr>
+                        <td>13</td>
+                        <td>OPS-006</td>
+                        <td>退職処理（最終稼働後にisActive=false＋LINE連携停止）</td>
+                        <td>1/20</td>
+                    </tr>
+                    <tr>
+                        <td>14</td>
+                        <td>STAFF-004〜005</td>
+                        <td>非アクティブ・LINE連携停止確認</td>
+                        <td>1/20</td>
+                    </tr>
+                    <tr>
+                        <td>15</td>
+                        <td>LIFF-006</td>
+                        <td>非アクティブスタッフのアクセス拒否確認</td>
+                        <td>1/20</td>
+                    </tr>
+
+                    <tr class="category-row"><td colspan="4">Phase 8: 2月シフト作成</td></tr>
+                    <tr>
+                        <td>16</td>
+                        <td>BASE-002</td>
+                        <td>2月シフト作成（退職者除外・途中入社者含む確認）</td>
+                        <td>12/25</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>依存関係図</h3>
+            <div class="flow-diagram">
+                <pre style="background: transparent; color: var(--gray-700); font-size: 0.85rem;">
+STAFF-001〜003（独立して実施可能）
+       ↓
+BASE-001-01〜02（第1案作成・承認）  ←★希望入力開始トリガー
+       ↓
+LIFF-001〜004 → OPS-003（希望変更・締切前）
+       ↓
+    ┌──提出期限（12/17）──┐
+    ↓                    ↓
+LIFF-005             OPS-004
+（入力不可確認）     （閲覧のみ確認）
+       ↓
+BASE-001-05〜09（第2案作成・共有）
+       ↓
+  ┌────┼────┐
+  ↓    ↓    ↓
+OPS-001 OPS-002 OPS-005
+ (翌月   (当日   (入社)
+ 変更)   欠勤)
+  │    │    │
+  └────┼────┘
+       ↓
+OPS-006（退職処理: 最終稼働後）
+       ↓
+STAFF-004〜005 → LIFF-006
+（非アクティブ確認）（アクセス拒否確認）
+       ↓
+BASE-002（2月シフト作成）
+                </pre>
+            </div>
+
+            <h3>テスト実行チェックリスト</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width:50px;">完了</th>
+                        <th style="width:100px;">シナリオ</th>
+                        <th>確認事項</th>
+                        <th style="width:100px;">実施日</th>
+                        <th style="width:80px;">担当</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>STAFF-001〜003</td>
+                        <td>スタッフ管理機能が正常動作すること</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>BASE-001-01〜02</td>
+                        <td>第1案AI生成・承認ができること（希望入力トリガー）</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>LIFF-001〜004</td>
+                        <td>LIFF希望入力が正常動作すること</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>OPS-003</td>
+                        <td>提出期限内の希望変更ができること</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>LIFF-005, OPS-004</td>
+                        <td>提出期限後は入力不可・閲覧のみになること</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>BASE-001-05〜09</td>
+                        <td>第2案作成・LINEノート共有ができること</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>OPS-001</td>
+                        <td>確定後のシフト変更・ノート追記ができること</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>OPS-002</td>
+                        <td>当日欠勤対応（シフト表更新不要）ができること</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>OPS-005</td>
+                        <td>入社スタッフを登録・シフト追加できること</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>OPS-006</td>
+                        <td>退職処理（isActive=false＋LINE連携停止）ができること</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>LIFF-006</td>
+                        <td>isActive=falseスタッフがLIFFアクセス拒否されること</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    <tr>
+                        <td><span class="case-status"></span></td>
+                        <td>BASE-002</td>
+                        <td>2月シフト作成で退職者除外・途中入社者含むこと</td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3>テスト観点サマリ</h3>
+            <div class="note-box info">
+                <strong>特に重要なテスト観点:</strong>
+                <ul style="margin: 0.5rem 0 0 1.5rem;">
+                    <li><strong>第1案トリガー:</strong> 第1案承認が希望入力開始のトリガーになること</li>
+                    <li><strong>提出期限制御:</strong> 提出期限後は入力不可・コメント不可・閲覧のみになること</li>
+                    <li><strong>通知設計:</strong> 第2案通知は不要。LINEノートで一元管理できること</li>
+                    <li><strong>当日欠勤:</strong> シフト表更新不要（エアシフトで実績管理）</li>
+                    <li><strong>isActive制御:</strong> isActive=falseでログイン・希望入力不可になること</li>
+                    <li><strong>LINE連携停止:</strong> 退職時にLINE連携を停止し、アクセスを完全にブロックできること</li>
+                    <li><strong>3ヶ月同時管理:</strong> 当月（稼働中）・翌月（確定前）・翌々月（第1案作成）が同時に動くこと</li>
+                </ul>
+            </div>
+        </div>
+
+        <footer>
+            <p>Shift Scheduler AI - 業務シナリオテスト計画書 v7.0</p>
+            <p>最終更新: 2025年12月12日</p>
+        </footer>
+    </div>
+
+    <script>
+        // タブ切り替え機能
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                // アクティブ状態を切り替え
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                btn.classList.add('active');
+                document.getElementById(btn.dataset.tab).classList.add('active');
+            });
+        });
+    </script>
+</body>
+</html>
