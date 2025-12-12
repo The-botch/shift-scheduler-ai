@@ -25,7 +25,7 @@ import {
   Camera,
   Home,
 } from 'lucide-react'
-import { domToPng } from 'modern-screenshot'
+import { captureMultipleStores } from '../../../utils/screenshotUtils'
 import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import ShiftTableView from '../../shared/ShiftTableView'
@@ -997,57 +997,17 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     setIsCapturing(true)
 
     try {
-      const originalSelectedStores = new Set(selectedStores)
-      const storeIds = Array.from(originalSelectedStores)
-
-      for (const storeId of storeIds) {
-        // 一時的に1店舗のみ選択
-        setSelectedStores(new Set([storeId]))
-
-        // DOM更新を待つ
-        await new Promise(resolve => setTimeout(resolve, 300))
-
-        // テーブル全体をキャプチャ（スクロール含む）
-        const tableElement = tableContainerRef.current
-        if (!tableElement) continue
-
-        // スクロール位置を保存
-        const scrollElements = tableElement.querySelectorAll('[class*="overflow"]')
-        const scrollPositions = []
-        scrollElements.forEach(el => {
-          scrollPositions.push({ el, scrollLeft: el.scrollLeft, scrollTop: el.scrollTop })
-          el.scrollLeft = 0
-          el.scrollTop = 0
-        })
-
-        // modern-screenshotでキャプチャ
-        const dataUrl = await domToPng(tableElement, {
-          backgroundColor: '#ffffff',
-          scale: 2,
-        })
-
-        // スクロール位置を復元
-        scrollPositions.forEach(({ el, scrollLeft, scrollTop }) => {
-          el.scrollLeft = scrollLeft
-          el.scrollTop = scrollTop
-        })
-
-        // PNGダウンロード
-        const storeName = storesMap[storeId]?.store_name || `店舗${storeId}`
-        const filename = `${year}年${month}月_${storeName}.png`
-
-        const link = document.createElement('a')
-        link.download = filename
-        link.href = dataUrl
-        link.click()
-
-        // 少し間隔を開ける
-        await new Promise(resolve => setTimeout(resolve, 500))
-      }
-
-      // 元の選択状態に戻す
-      setSelectedStores(originalSelectedStores)
-      alert(`${storeIds.length}件のスクリーンショットを保存しました`)
+      const count = await captureMultipleStores({
+        tableContainerRef,
+        selectedStores,
+        setSelectedStores,
+        storesMap,
+        year,
+        month,
+        padding: { top: 200, right: 120, bottom: 0, left: 120 },
+        scale: 2,
+      })
+      alert(`${count}件のPNGファイルを保存しました`)
     } catch (error) {
       console.error('スクリーンショットエラー:', error)
       alert(`スクリーンショットの作成に失敗しました: ${error.message}`)

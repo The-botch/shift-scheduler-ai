@@ -698,11 +698,21 @@ router.post('/plans/generate', async (req, res) => {
     const copiedShifts = [];
 
     // 週番号と曜日を計算するヘルパー関数
+    // 「その月の第何X曜日か」を計算する（例: 第2月曜日、第3金曜日など）
     const getWeekInfo = (date) => {
-      const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+      const year = date.getFullYear();
+      const month = date.getMonth();
       const dayOfWeek = date.getDay(); // 0=日, 1=月, ...
       const dayOfMonth = date.getDate();
-      const weekNumber = Math.ceil((dayOfMonth + firstDay.getDay()) / 7);
+
+      // その月で同じ曜日が何回目かを数える
+      let weekNumber = 0;
+      for (let d = 1; d <= dayOfMonth; d++) {
+        if (new Date(year, month, d).getDay() === dayOfWeek) {
+          weekNumber++;
+        }
+      }
+
       return { weekNumber, dayOfWeek };
     };
 
@@ -3179,12 +3189,21 @@ router.post('/plans/copy-from-previous-all-stores', async (req, res) => {
             // 事前取得済みのシフトからフィルタリング（クエリ不要）
             const sourceShiftsRows = allSourceShifts.filter(s => s.plan_id === sourcePlan.plan_id);
 
-            // 曜日ベースでコピー（既存ロジックと同じ）
+            // 曜日ベースでコピー（「その月の第何X曜日か」を計算）
             const getWeekInfo = (date) => {
-              const firstDay = new Date(date.getFullYear(), date.getMonth(), 1);
+              const year = date.getFullYear();
+              const month = date.getMonth();
               const dayOfWeek = date.getDay();
               const dayOfMonth = date.getDate();
-              const weekNumber = Math.ceil((dayOfMonth + firstDay.getDay()) / 7);
+
+              // その月で同じ曜日が何回目かを数える
+              let weekNumber = 0;
+              for (let d = 1; d <= dayOfMonth; d++) {
+                if (new Date(year, month, d).getDay() === dayOfWeek) {
+                  weekNumber++;
+                }
+              }
+
               return { weekNumber, dayOfWeek };
             };
 
