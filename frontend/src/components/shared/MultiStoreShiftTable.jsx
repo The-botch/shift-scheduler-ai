@@ -566,9 +566,7 @@ const MultiStoreShiftTable = ({
                             key={staff.staff_id}
                             className="px-1 py-1 border-r border-gray-200 text-center"
                           >
-                            <div className="text-gray-800 text-xs leading-tight">
-                              {totalDays}日
-                            </div>
+                            <div className="text-gray-800 text-xs leading-tight">{totalDays}日</div>
                           </td>
                         )
                       })}
