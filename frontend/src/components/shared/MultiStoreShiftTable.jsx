@@ -547,9 +547,6 @@ const MultiStoreShiftTable = ({
                       <div className="text-gray-800 text-xs leading-tight">
                         {overallMonthly.totalDays}名
                       </div>
-                      <div className="text-gray-800 text-xs leading-tight">
-                        {overallMonthly.totalHours.toFixed(1)}h
-                      </div>
                     </td>
                   )
                 })()}
@@ -561,20 +558,15 @@ const MultiStoreShiftTable = ({
                         <div className="text-gray-800 text-xs leading-tight">
                           {storeMonthly.totalDays}名
                         </div>
-                        <div className="text-gray-800 text-xs leading-tight">
-                          {storeMonthly.totalHours.toFixed(1)}h
-                        </div>
                       </td>
                       {group.staff.map(staff => {
-                        const { totalDays, totalHours } = getStaffMonthlyTotal(staff.staff_id)
+                        const { totalDays } = getStaffMonthlyTotal(staff.staff_id)
                         return (
                           <td
                             key={staff.staff_id}
                             className="px-1 py-1 border-r border-gray-200 text-center"
                           >
-                            <div className="text-gray-800 text-xs leading-tight">
-                              {totalHours.toFixed(1)}h
-                            </div>
+                            <div className="text-gray-800 text-xs leading-tight">{totalDays}日</div>
                           </td>
                         )
                       })}
@@ -638,7 +630,7 @@ const MultiStoreShiftTable = ({
                       onClick={() => onDayClick && onDayClick(date)}
                     >
                       <div className="font-semibold text-gray-800 text-xs leading-tight">
-                        {overallSummary.staffCount}名 {overallSummary.totalHours.toFixed(1)}h
+                        {overallSummary.staffCount}名
                       </div>
                     </td>
 
@@ -653,7 +645,7 @@ const MultiStoreShiftTable = ({
                             onClick={() => onDayClick && onDayClick(date, group.storeId)}
                           >
                             <div className="font-semibold text-gray-800 text-xs leading-tight">
-                              {storeSummary.staffCount}名 {storeSummary.totalHours.toFixed(1)}h
+                              {storeSummary.staffCount}名
                             </div>
                           </td>
 
