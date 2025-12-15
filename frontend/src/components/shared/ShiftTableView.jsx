@@ -31,10 +31,10 @@ const ShiftTableView = ({
   const isDayHoliday = isHoliday(year, month, date)
   const holidayName = getHolidayName(year, month, date)
 
-  // 時間範囲（7:00 - 翌6:30 = 30:30）
-  const START_HOUR = 7
-  const END_HOUR = 31
-  const TIME_SLOTS = [] // ['07:00', '07:30', '08:00', ...]
+  // 時間範囲（5:00 - 翌4:30 = 28:30）
+  const START_HOUR = 5
+  const END_HOUR = 29
+  const TIME_SLOTS = [] // ['05:00', '05:30', '06:00', ...]
 
   for (let h = START_HOUR; h <= END_HOUR; h++) {
     if (h <= END_HOUR - 1) {
@@ -52,8 +52,8 @@ const ShiftTableView = ({
     // 新DB形式では "25:00" のような形式がそのまま保存されている
     // 旧形式（0-6時）との互換性も維持
     let actualHour = hour
-    if (hour >= 0 && hour < 7) {
-      // 旧形式: 0-6時は翌日として扱う（24-30時として計算）
+    if (hour >= 0 && hour < 5) {
+      // 旧形式: 0-4時は翌日として扱う（24-28時として計算）
       actualHour = hour + 24
     }
     // 新形式: 24以上の時間はそのまま使用
@@ -227,10 +227,12 @@ const ShiftTableView = ({
                 {TIME_SLOTS.map(timeSlot => (
                   <th
                     key={timeSlot}
-                    className="border border-gray-300 px-0.5 py-0.5 bg-blue-100 text-[0.55rem] font-semibold"
-                    style={{ minWidth: '32px' }}
+                    className="border border-gray-300 px-0 py-0.5 bg-blue-100 text-[0.5rem] font-semibold"
+                    style={{ minWidth: '16px' }}
                   >
-                    <div className="writing-mode-vertical text-center">{timeSlot}</div>
+                    <div className="writing-mode-vertical text-center">
+                      {timeSlot.endsWith(':00') ? timeSlot.slice(0, 2) : ''}
+                    </div>
                   </th>
                 ))}
               </tr>
