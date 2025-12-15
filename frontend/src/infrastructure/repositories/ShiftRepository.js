@@ -694,4 +694,39 @@ export class ShiftRepository {
       return []
     }
   }
+
+  /**
+   * シフト希望入力締切設定を取得
+   * @param {number} tenantId - テナントID
+   * @returns {Promise<Array>} 締切設定データ配列
+   * @example
+   * [
+   *   { employment_type: 'PART_TIME', deadline_day: 17, deadline_time: '12:00', is_enabled: true },
+   *   { employment_type: 'FULL_TIME', deadline_day: 17, deadline_time: '12:00', is_enabled: true },
+   * ]
+   */
+  async getDeadlineSettings(tenantId = null) {
+    try {
+      const actualTenantId = tenantId ?? getCurrentTenantId()
+
+      const url = `${BACKEND_API_URL}/api/liff/deadline-settings?tenant_id=${actualTenantId}`
+      const response = await fetch(url)
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '締切設定取得に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      console.error('締切設定取得エラー:', error)
+      // エラー時はデフォルト値を返す（17日）
+      return [{ employment_type: 'PART_TIME', deadline_day: 17, deadline_time: '12:00', is_enabled: true }]
+    }
+  }
 }
