@@ -1,4 +1,5 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
+import { useBlocker } from 'react-router-dom'
 import { ShiftRepository } from '../infrastructure/repositories/ShiftRepository'
 import { MESSAGES } from '../constants/messages'
 
@@ -33,6 +34,35 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete } = {}) 
     selectedPattern: null,
     position: { x: 0, y: 0 },
   })
+
+  // React Router v6.4+ のuseBlockerでナビゲーションをブロック（ブラウザバック等）
+  const blocker = useBlocker(hasUnsavedChanges)
+
+  // ブロック時に確認ダイアログを表示
+  useEffect(() => {
+    if (blocker.state === 'blocked') {
+      const confirmed = window.confirm('変更が保存されていません。このページを離れますか？')
+      if (confirmed) {
+        blocker.proceed()
+      } else {
+        blocker.reset()
+      }
+    }
+  }, [blocker])
+
+  // ブラウザのタブ閉じる/リロード時の警告（beforeunload）
+  useEffect(() => {
+    const handleBeforeUnload = e => {
+      if (hasUnsavedChanges) {
+        e.preventDefault()
+        e.returnValue = '変更が保存されていません。このページを離れますか？'
+        return e.returnValue
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [hasUnsavedChanges])
 
   /**
    * planIdを設定（単一または配列）

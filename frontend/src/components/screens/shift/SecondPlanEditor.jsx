@@ -69,11 +69,6 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const isViewMode = mode === 'view'
   const isEditMode = mode === 'edit'
 
-  // ダッシュボードへ遷移
-  const handleDashboard = () => {
-    navigate('/')
-  }
-
   // 共通ロジック（マスタデータ取得・店舗選択管理）
   const {
     staffMap,
@@ -116,6 +111,16 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     planType: 'SECOND',
     onApproveComplete: onNext,
   })
+
+  // ダッシュボードへ遷移（未保存変更があれば確認）
+  const handleDashboard = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。ダッシュボードに戻りますか？')) {
+        return
+      }
+    }
+    navigate('/')
+  }
 
   const [loading, setLoading] = useState(true)
   const [calendarData, setCalendarData] = useState(null)
