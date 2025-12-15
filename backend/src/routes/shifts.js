@@ -2766,22 +2766,23 @@ router.put('/plans/:plan_id/status', async (req, res) => {
       }
     }
 
-    // 第2案がAPPROVEDになった場合、LINE通知を送信（シフト確定）
-    if (status === 'APPROVED' && plan.plan_type === 'SECOND' && process.env.LIFF_BACKEND_URL) {
-      try {
-        await axios.post(`${process.env.LIFF_BACKEND_URL}/api/notification/second-plan-approved`, {
-          tenant_id: plan.tenant_id,
-          store_id: plan.store_id,
-          plan_id: parseInt(plan_id),
-          year: plan.plan_year,
-          month: plan.plan_month
-        });
-        console.log('LINE notification sent for second plan approval (shift finalized)');
-      } catch (notifyError) {
-        // 通知失敗は承認処理に影響させない（ログのみ）
-        console.error('Failed to send LINE notification:', notifyError.message);
-      }
-    }
+    // 第2案承認通知は無効化（2024/12/15）
+    // 理由: シフト確定通知は不要と判断
+    // if (status === 'APPROVED' && plan.plan_type === 'SECOND' && process.env.LIFF_BACKEND_URL) {
+    //   try {
+    //     await axios.post(`${process.env.LIFF_BACKEND_URL}/api/notification/second-plan-approved`, {
+    //       tenant_id: plan.tenant_id,
+    //       store_id: plan.store_id,
+    //       plan_id: parseInt(plan_id),
+    //       year: plan.plan_year,
+    //       month: plan.plan_month
+    //     });
+    //     console.log('LINE notification sent for second plan approval (shift finalized)');
+    //   } catch (notifyError) {
+    //     // 通知失敗は承認処理に影響させない（ログのみ）
+    //     console.error('Failed to send LINE notification:', notifyError.message);
+    //   }
+    // }
 
     res.json({
       success: true,
