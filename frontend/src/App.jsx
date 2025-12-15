@@ -8,6 +8,9 @@ import './App.css'
 // Context Providers
 import { TenantProvider, useTenant } from './contexts/TenantContext'
 
+// Authentication
+import { PasswordProtection } from './components/PasswordProtection'
+
 // Screen Components
 import FirstPlanEditor from './components/screens/shift/FirstPlanEditor'
 import ShiftCreationMethodSelector from './components/screens/shift/ShiftCreationMethodSelector'
@@ -769,9 +772,11 @@ function AppContent() {
 
 function App() {
   return (
-    <TenantProvider>
-      <AppContent />
-    </TenantProvider>
+    <PasswordProtection>
+      <TenantProvider>
+        <AppContent />
+      </TenantProvider>
+    </PasswordProtection>
   )
 }
 
