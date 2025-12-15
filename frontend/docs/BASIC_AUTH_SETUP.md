@@ -34,40 +34,7 @@
 
 ## アーキテクチャ
 
-このプロジェクトでは、環境に応じて異なるBasic認証の実装を使用します：
-
-- **ローカル開発**: Viteプラグイン（`vite-plugin-basic-auth.js`）
-- **Vercel本番環境**: Vercel Edge Middleware（`middleware.js`）
-
-### ローカル開発環境（Vite）
-
-```
-┌─────────────────┐
-│  User Request   │
-└────────┬────────┘
-         │
-         ▼
-┌─────────────────────────────────┐
-│  Vite Dev Server                │
-│  (vite-plugin-basic-auth.js)    │
-│                                 │
-│  1. Check BASIC_AUTH_ENABLED    │
-│  2. Verify Session Cookie       │
-│  3. Check Basic Auth Header     │
-│  4. Validate Credentials        │
-│  5. Create Session Cookie       │
-└────────┬────────────────────────┘
-         │
-         ▼
-    ┌────────┐
-    │ Allow  │ ← Valid Session or Credentials
-    └────────┘
-         │
-         ▼
-┌─────────────────┐
-│  Application    │
-└─────────────────┘
-```
+このプロジェクトでは、Vercel本番環境（Staging/Production）でのみBasic認証が動作します。
 
 ### Vercel本番環境（Edge Middleware）
 
@@ -196,44 +163,9 @@ BASIC_AUTH_SESSION_DURATION=28800000
 
 ## ローカル環境での設定
 
-ローカル開発環境では、Viteプラグイン（`vite-plugin-basic-auth.js`）が`.env`ファイルから環境変数を読み込んでBasic認証を提供します。
+**ローカル開発環境ではBasic認証は動作しません。** Vercel環境（Staging/Production）でのみ有効になります。
 
-### 1. `.env`ファイルの編集
-
-プロジェクトルートの`.env`ファイルを開き、以下を設定します。
-
-```bash
-# Basic Authentication Configuration
-BASIC_AUTH_ENABLED=true
-BASIC_AUTH_CREDENTIALS=[{"username":"dev","password":"dev123"}]
-BASIC_AUTH_SESSION_DURATION=3600000
-```
-
-### 2. 開発サーバーの起動（または再起動）
-
-**重要**: `.env`ファイルを変更した場合は、開発サーバーを再起動する必要があります。
-
-```bash
-# サーバーが起動している場合は Ctrl+C で停止してから
-npm run dev
-```
-
-### 3. ブラウザでアクセス
-
-`http://localhost:5173` にアクセスすると、Basic認証ダイアログが表示されます。
-
-- ユーザー名: `dev`
-- パスワード: `dev123`
-
-### 4. 認証を無効化する場合
-
-開発中に認証を無効化したい場合:
-
-```bash
-BASIC_AUTH_ENABLED=false
-```
-
-**注意**: 設定を変更した後は、必ず開発サーバーを再起動してください。
+ローカルでは通常通りアプリにアクセスできます。
 
 ---
 
@@ -511,10 +443,8 @@ Vercelのログを定期的に確認し、不審なアクセスがないかチ�
 
 ## 関連ファイル
 
-- `vite-plugin-basic-auth.js` - ローカル開発用のViteプラグイン（Basic認証）
 - `middleware.js` - Vercel本番環境用のEdge Middleware（Basic認証）
-- `vite.config.js` - Vite設定ファイル（プラグインの読み込み）
-- `.env` - ローカル環境の環境変数
+- `.env` - ローカル環境の環境変数（Basic認証の設定を含む）
 - `.env.example` - 環境変数のサンプル
 - `vercel.json` - Vercelの設定ファイル
 
@@ -530,6 +460,7 @@ Vercelのログを定期的に確認し、不審なアクセスがないかチ�
 
 | 日付 | バージョン | 変更内容 |
 |---|---|---|
+| 2025-12-16 | 1.2.0 | 静的ファイルを認証対象から除外、ローカル認証機能を削除 |
 | 2025-12-16 | 1.1.0 | ローカル開発用Viteプラグインを追加、アーキテクチャセクションを更新 |
 | 2025-12-16 | 1.0.0 | 初版作成 |
 
