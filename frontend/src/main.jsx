@@ -8,7 +8,6 @@ import { getCurrentTenantId, setCurrentTenantId, resetTenantId } from './config/
 
 // Screen Components
 import ShiftDashboard from './components/screens/shift/ShiftDashboard'
-import ShiftManagement from './components/screens/shift/ShiftManagement'
 import FirstPlanEditor from './components/screens/shift/FirstPlanEditor'
 import SecondPlanEditor from './components/screens/shift/SecondPlanEditor'
 import ShiftCreationMethodSelector from './components/screens/shift/ShiftCreationMethodSelector'
