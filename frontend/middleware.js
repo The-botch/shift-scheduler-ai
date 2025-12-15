@@ -12,7 +12,7 @@
  */
 
 export const config = {
-  matcher: '/:path*',
+  matcher: ['/', '/:path*'],
 };
 
 const COOKIE_NAME = 'basic-auth-session';
@@ -162,11 +162,12 @@ function createCookieHeader(name, value, options = {}) {
 }
 
 export default function middleware(request) {
-  // Skip authentication for static files
   const url = new URL(request.url);
   const pathname = url.pathname;
 
-  // Skip static file extensions
+  console.log('[BasicAuth] Middleware triggered for:', pathname);
+
+  // Skip authentication for static files
   const staticFileExtensions = [
     '.js', '.css', '.svg', '.png', '.jpg', '.jpeg',
     '.gif', '.ico', '.woff', '.woff2', '.ttf', '.eot',
@@ -174,27 +175,32 @@ export default function middleware(request) {
   ];
 
   if (staticFileExtensions.some(ext => pathname.endsWith(ext))) {
+    console.log('[BasicAuth] Skipping static file:', pathname);
     return;
   }
 
   // Skip /assets/ directory
   if (pathname.startsWith('/assets/')) {
+    console.log('[BasicAuth] Skipping assets directory:', pathname);
     return;
   }
 
   // Check if Basic Auth is enabled
   const isEnabled = process.env.BASIC_AUTH_ENABLED === 'true';
+  console.log('[BasicAuth] BASIC_AUTH_ENABLED:', isEnabled);
 
   if (!isEnabled) {
+    console.log('[BasicAuth] Basic Auth disabled, allowing access');
     return;
   }
 
   // Get credentials from environment variables
   const credentials = parseCredentials();
+  console.log('[BasicAuth] Credentials configured:', credentials.length, 'user(s)');
 
   // If credentials are not set, skip authentication
   if (credentials.length === 0) {
-    console.warn('Basic Auth is enabled but no credentials are configured');
+    console.warn('[BasicAuth] Basic Auth is enabled but no credentials are configured');
     return;
   }
 
@@ -203,9 +209,15 @@ export default function middleware(request) {
   const cookies = parseCookies(cookieHeader);
   const sessionToken = cookies[COOKIE_NAME];
 
-  if (sessionToken && verifySessionToken(sessionToken)) {
-    // Valid session exists, allow access
-    return;
+  if (sessionToken) {
+    const isValid = verifySessionToken(sessionToken);
+    console.log('[BasicAuth] Session token found, valid:', isValid);
+    if (isValid) {
+      console.log('[BasicAuth] Valid session, allowing access');
+      return;
+    }
+  } else {
+    console.log('[BasicAuth] No session token found');
   }
 
   // Get the Authorization header
@@ -213,6 +225,7 @@ export default function middleware(request) {
 
   // Check if Authorization header exists
   if (!authHeader || !authHeader.startsWith('Basic ')) {
+    console.log('[BasicAuth] No valid Authorization header, requesting authentication');
     return new Response('Authentication required', {
       status: 401,
       headers: {
@@ -226,8 +239,11 @@ export default function middleware(request) {
   const decodedCredentials = base64Decode(base64Credentials);
   const [username, password] = decodedCredentials.split(':');
 
+  console.log('[BasicAuth] Attempting authentication for user:', username);
+
   // Verify credentials
   if (verifyCredentials(username, password, credentials)) {
+    console.log('[BasicAuth] Authentication successful for user:', username);
     // Authentication successful, create session and set cookie
     const sessionToken = createSessionToken(username);
 
@@ -249,6 +265,7 @@ export default function middleware(request) {
   }
 
   // Authentication failed
+  console.log('[BasicAuth] Authentication failed for user:', username);
   return new Response('Invalid credentials', {
     status: 401,
     headers: {
