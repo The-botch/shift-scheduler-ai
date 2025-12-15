@@ -349,10 +349,15 @@ const ShiftTimeline = ({
               <div className="absolute inset-0 shift-container">
                 {processedShifts.map((shift, index) => {
                   const style = getShiftStyle(shift)
-                  // 最大幅を600pxに制限し、人数に応じて幅を調整
-                  const maxWidth = Math.min(600, window.innerWidth * 0.6)
-                  const columnWidth = maxWidth / columns
-                  const left = shift._column * columnWidth
+                  // 固定幅: 80px
+                  const fixedColumnWidth = 80
+                  const left = shift._column * fixedColumnWidth
+
+                  // 勤務時間を計算
+                  const startMinutes = timeToMinutes(shift.start_time)
+                  const endMinutes = timeToMinutes(shift.end_time)
+                  const durationMinutes = endMinutes - startMinutes
+                  const durationHours = (durationMinutes / 60).toFixed(1)
 
                   return (
                     <motion.div
@@ -372,7 +377,7 @@ const ShiftTimeline = ({
                         top: style.top,
                         height: style.height,
                         left: `${left}px`,
-                        width: `${columnWidth - 4}px`,
+                        width: `${fixedColumnWidth - 4}px`,
                         minHeight: '30px',
                         cursor:
                           editable && onShiftClick ? 'pointer' : editable ? 'move' : 'default',
@@ -386,26 +391,27 @@ const ShiftTimeline = ({
                       }}
                     >
                       <div className="px-1 py-0.5 h-full text-white relative">
-                        <div className="font-bold text-[0.5rem] leading-tight mb-0.5 truncate">
+                        {/* スタッフ名 */}
+                        <div className="font-bold text-[0.5rem] leading-tight truncate">
                           {shift.staff_name}
                         </div>
+                        {/* 店舗名（ある場合） */}
                         {shift.store_id && storesMap[shift.store_id] && (
-                          <div className="text-[0.4rem] leading-tight opacity-90 bg-white bg-opacity-20 px-0.5 py-0.5 rounded inline-block mb-0.5">
-                            🏪 {storesMap[shift.store_id].store_name}
+                          <div className="text-[0.4rem] leading-tight opacity-90 truncate">
+                            {storesMap[shift.store_id].store_name}
                           </div>
                         )}
-                        <div className="text-[0.45rem] leading-tight opacity-90">{shift.role}</div>
-                        <div className="text-[0.45rem] leading-tight mt-0.5 font-medium">
-                          {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
+                        {/* 開始-終了時間 */}
+                        <div className="text-[0.45rem] leading-tight font-medium">
+                          {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
                         </div>
-                        {(shift.actual_hours || shift.planned_hours) && (
-                          <div className="text-[0.45rem] leading-tight mt-0.5">
-                            {shift.actual_hours || shift.planned_hours}h
-                          </div>
-                        )}
+                        {/* 合計時間 */}
+                        <div className="text-[0.45rem] leading-tight opacity-90">
+                          {durationHours}h
+                        </div>
                         {shift.modified_flag && (
                           <div className="text-[0.4rem] leading-tight mt-0.5 bg-yellow-400 text-yellow-900 px-0.5 py-0.5 rounded inline-block">
-                            ⚠️ 変更
+                            ⚠️
                           </div>
                         )}
                         {editable && onDelete && (
