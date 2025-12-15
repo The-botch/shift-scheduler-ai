@@ -46,10 +46,16 @@ const ShiftDashboard = ({ onStaffManagement }) => {
   const [dbEnv, setDbEnv] = useState(null)
 
   // シフトステータス取得
-  const { loading, recruitmentStatus, firstPlanStatus, secondPlanStatus, refetch } = useShiftStatus(
+  const { loading, recruitmentStatus, firstPlanStatus, secondPlanStatus, submissionStats, refetch } = useShiftStatus(
     selectedYear,
     selectedMonth
   )
+
+  // recruitmentStatusにsubmissionStatsをマージ
+  const recruitmentStatusWithStats = {
+    ...recruitmentStatus,
+    ...submissionStats,
+  }
 
   // ページに戻ってきた時にデータをリフレッシュ
   useEffect(() => {
@@ -253,7 +259,7 @@ const ShiftDashboard = ({ onStaffManagement }) => {
             <Spinner />
           ) : (
             <ShiftStatusCards
-              recruitmentStatus={recruitmentStatus}
+              recruitmentStatus={recruitmentStatusWithStats}
               firstPlanStatus={firstPlanStatus}
               secondPlanStatus={secondPlanStatus}
               onRecruitmentClick={handleRecruitmentClick}
