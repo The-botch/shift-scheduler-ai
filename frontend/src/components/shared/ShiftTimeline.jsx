@@ -398,9 +398,11 @@ const ShiftTimeline = ({
                         <div className="text-[0.45rem] leading-tight mt-0.5 font-medium">
                           {formatTime(shift.start_time)} - {formatTime(shift.end_time)}
                         </div>
-                        <div className="text-[0.45rem] leading-tight mt-0.5">
-                          {shift.actual_hours || shift.planned_hours}h
-                        </div>
+                        {(shift.actual_hours || shift.planned_hours) && (
+                          <div className="text-[0.45rem] leading-tight mt-0.5">
+                            {shift.actual_hours || shift.planned_hours}h
+                          </div>
+                        )}
                         {shift.modified_flag && (
                           <div className="text-[0.4rem] leading-tight mt-0.5 bg-yellow-400 text-yellow-900 px-0.5 py-0.5 rounded inline-block">
                             ⚠️ 変更
