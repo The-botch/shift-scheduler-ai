@@ -12,7 +12,16 @@
  */
 
 export const config = {
-  matcher: '/(.*)',
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - _next (Next.js internals)
+     * - assets (inside /dist after build)
+     * - favicon.ico, sitemap.xml, robots.txt (SEO files)
+     * - Static file extensions: .js, .css, .svg, .png, .jpg, .jpeg, .gif, .ico, .woff, .woff2, .ttf, .eot
+     */
+    '/((?!assets/|.*\\.(js|css|svg|png|jpg|jpeg|gif|ico|woff|woff2|ttf|eot)$).*)',
+  ],
 };
 
 const COOKIE_NAME = 'basic-auth-session';
