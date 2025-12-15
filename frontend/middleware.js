@@ -12,7 +12,7 @@
  */
 
 export const config = {
-  matcher: '/(.*)',
+  matcher: '/:path*',
 };
 
 const COOKIE_NAME = 'basic-auth-session';
@@ -162,6 +162,26 @@ function createCookieHeader(name, value, options = {}) {
 }
 
 export default function middleware(request) {
+  // Skip authentication for static files
+  const url = new URL(request.url);
+  const pathname = url.pathname;
+
+  // Skip static file extensions
+  const staticFileExtensions = [
+    '.js', '.css', '.svg', '.png', '.jpg', '.jpeg',
+    '.gif', '.ico', '.woff', '.woff2', '.ttf', '.eot',
+    '.webp', '.avif', '.mp4', '.webm', '.json', '.xml'
+  ];
+
+  if (staticFileExtensions.some(ext => pathname.endsWith(ext))) {
+    return;
+  }
+
+  // Skip /assets/ directory
+  if (pathname.startsWith('/assets/')) {
+    return;
+  }
+
   // Check if Basic Auth is enabled
   const isEnabled = process.env.BASIC_AUTH_ENABLED === 'true';
 
