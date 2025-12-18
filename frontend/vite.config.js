@@ -5,6 +5,12 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Vercelの環境変数を明示的に定義
+  define: {
+    'import.meta.env.VITE_PASSWORD_PROTECTION_ENABLED': JSON.stringify(process.env.VITE_PASSWORD_PROTECTION_ENABLED),
+    'import.meta.env.VITE_PASSWORD_PROTECTION_CREDENTIALS': JSON.stringify(process.env.VITE_PASSWORD_PROTECTION_CREDENTIALS),
+    'import.meta.env.VITE_PASSWORD_PROTECTION_SESSION_DURATION': JSON.stringify(process.env.VITE_PASSWORD_PROTECTION_SESSION_DURATION),
+  },
   plugins: [
     react(),
     tailwindcss(),
@@ -13,6 +19,7 @@ export default defineConfig({
       config() {
         console.log('[DEBUG] VITE_PASSWORD_PROTECTION_ENABLED:', process.env.VITE_PASSWORD_PROTECTION_ENABLED)
         console.log('[DEBUG] VITE_PASSWORD_PROTECTION_CREDENTIALS:', process.env.VITE_PASSWORD_PROTECTION_CREDENTIALS ? '***SET***' : 'NOT SET')
+        console.log('[DEBUG] SESSION_DURATION:', process.env.VITE_PASSWORD_PROTECTION_SESSION_DURATION)
       }
     }
   ],
