@@ -5,7 +5,17 @@ import path from 'path'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [
+    react(),
+    tailwindcss(),
+    {
+      name: 'log-env-vars',
+      config() {
+        console.log('[DEBUG] VITE_PASSWORD_PROTECTION_ENABLED:', process.env.VITE_PASSWORD_PROTECTION_ENABLED)
+        console.log('[DEBUG] VITE_PASSWORD_PROTECTION_CREDENTIALS:', process.env.VITE_PASSWORD_PROTECTION_CREDENTIALS ? '***SET***' : 'NOT SET')
+      }
+    }
+  ],
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
