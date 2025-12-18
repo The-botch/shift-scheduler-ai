@@ -15,6 +15,7 @@
 - 検索エンジンのインデックス登録を抑制する補助的な手段
 
 **適さない用途**：
+
 - 機密データの保護
 - 本番環境のセキュリティ対策
 - 法的要件やコンプライアンス対応
@@ -49,13 +50,14 @@ VITE_PASSWORD_PROTECTION_SESSION_DURATION=3600000
 3. "Settings" → "Environment Variables" に移動
 4. 以下の環境変数を追加：
 
-| 変数名 | 値 | 環境 |
-|--------|-----|------|
-| `VITE_PASSWORD_PROTECTION_ENABLED` | `true` | Production, Preview, Development |
-| `VITE_PASSWORD_PROTECTION_CREDENTIALS` | `user1:pass1,user2:pass2` | Production, Preview, Development |
-| `VITE_PASSWORD_PROTECTION_SESSION_DURATION` | `3600000` | Production, Preview, Development |
+| 変数名                                      | 値                        | 環境                             |
+| ------------------------------------------- | ------------------------- | -------------------------------- |
+| `VITE_PASSWORD_PROTECTION_ENABLED`          | `true`                    | Production, Preview, Development |
+| `VITE_PASSWORD_PROTECTION_CREDENTIALS`      | `user1:pass1,user2:pass2` | Production, Preview, Development |
+| `VITE_PASSWORD_PROTECTION_SESSION_DURATION` | `3600000`                 | Production, Preview, Development |
 
 **注意**:
+
 - 環境ごとに異なる認証情報を設定することが可能です
 - Preview環境のみで有効化し、Production環境では無効にすることも可能です
 - 設定後は再デプロイが必要です
@@ -113,6 +115,7 @@ VITE_PASSWORD_PROTECTION_SESSION_DURATION=86400000
 ```
 
 **重要な注意点**:
+
 - セッション期限切れの確認はページリロード時のみ行われます
 - 操作中に自動的にログアウトされることはありません
 - 期限切れ後も、ページをリロードするまでは使用を続けられます
@@ -126,11 +129,13 @@ username1:password1,username2:password2,username3:password3
 ```
 
 **例**:
+
 ```bash
 VITE_PASSWORD_PROTECTION_CREDENTIALS=admin:SecurePass123,developer:DevPass456,tester:TestPass789
 ```
 
 この場合、以下の3つの認証情報のいずれかでログイン可能：
+
 - ユーザー名: `admin`, パスワード: `SecurePass123`
 - ユーザー名: `developer`, パスワード: `DevPass456`
 - ユーザー名: `tester`, パスワード: `TestPass789`
@@ -142,17 +147,20 @@ VITE_PASSWORD_PROTECTION_CREDENTIALS=admin:SecurePass123,developer:DevPass456,te
 #### 1. 認証情報の平文露出
 
 **問題**:
+
 - すべての認証情報（ユーザー名とパスワード）がビルドされたJavaScriptファイルに**平文で含まれます**
 - ブラウザの開発者ツールで誰でも簡単に確認可能
 - ソースコードを調査すれば認証情報が見つかります
 
 **影響**:
+
 ```javascript
 // ビルドされたJavaScriptファイル内
-const credentialsString = "admin:password123,user:secret456";
+const credentialsString = 'admin:password123,user:secret456'
 ```
 
 **リスク**:
+
 - 技術的知識を持つユーザーは容易にバイパス可能
 - パスワードが他のシステムで再利用されている場合、それらも危険にさらされる
 - 認証情報の漏洩を検知する手段がない
@@ -160,11 +168,13 @@ const credentialsString = "admin:password123,user:secret456";
 #### 2. クライアントサイド検証のみ
 
 **問題**:
+
 - 認証ロジックがクライアントサイド（ブラウザ）でのみ実行
 - サーバーサイドでの検証が一切ない
 - JavaScriptを無効化したり、直接APIにアクセスすることでバイパス可能
 
 **影響**:
+
 - バックエンドAPIは保護されていません
 - 直接APIエンドポイントにアクセス可能
 - React DevToolsなどで認証状態を操作可能
@@ -172,39 +182,44 @@ const credentialsString = "admin:password123,user:secret456";
 #### 3. セッション管理の脆弱性
 
 **問題**:
+
 - セッショントークンが暗号化されていない
 - CSRF対策がない
 - セッション固定攻撃への対策がない
 
 **リスク**:
+
 - `sessionStorage` を直接操作してセッションを偽造可能
 - ブラウザの開発者コンソールで以下のコードを実行すれば認証をバイパス：
+
 ```javascript
-sessionStorage.setItem('app-auth-session',
-  JSON.stringify({expiresAt: Date.now() + 3600000})
-);
-location.reload();
+sessionStorage.setItem('app-auth-session', JSON.stringify({ expiresAt: Date.now() + 3600000 }))
+location.reload()
 ```
 
 #### 4. パスワードの弱い暗号化
 
 **問題**:
+
 - パスワードがハッシュ化されていない
 - ソルトが使用されていない
 - 平文比較のみ
 
 **リスク**:
+
 - レインボーテーブル攻撃に脆弱
 - パスワードが即座に判明
 
 #### 5. ブルートフォース攻撃への無防備
 
 **問題**:
+
 - ログイン試行回数の制限がない
 - アカウントロック機能がない
 - レート制限がない
 
 **リスク**:
+
 - 自動化ツールで無制限にパスワードを試行可能
 - 簡単なパスワードは数秒で破られる可能性
 
@@ -241,6 +256,7 @@ location.reload();
 ### ✅ 推奨される使用例
 
 1. **ステージング環境の保護**
+
    ```bash
    # Preview環境でのみ有効化
    VITE_PASSWORD_PROTECTION_ENABLED=true
@@ -270,6 +286,7 @@ location.reload();
    - Vercelは自動的にHTTPSを提供しますが、カスタムドメインでも必ず有効化
 
 2. **強力なパスワードの使用**
+
    ```bash
    # 悪い例
    VITE_PASSWORD_PROTECTION_CREDENTIALS=admin:123456
@@ -299,6 +316,7 @@ location.reload();
 ### ログインフォームが表示されない
 
 **確認事項**:
+
 1. `VITE_PASSWORD_PROTECTION_ENABLED` が `true` に設定されているか
 2. 環境変数が正しく読み込まれているか
    - ブラウザのコンソールで `import.meta.env.VITE_PASSWORD_PROTECTION_ENABLED` を確認
@@ -307,6 +325,7 @@ location.reload();
 ### パスワードが正しいのにログインできない
 
 **確認事項**:
+
 1. ユーザー名とパスワードの大文字小文字が一致しているか
 2. 認証情報の形式が正しいか（`username:password,username2:password2`）
 3. コロン（`:`）やカンマ（`,`）がパスワードに含まれていないか
@@ -315,16 +334,19 @@ location.reload();
 ### セッションがすぐに切れる
 
 **原因**:
+
 - タブを閉じた（sessionStorageの仕様）
 - 設定した時間以上経過してページをリロードした
 - ブラウザのキャッシュをクリアした
 
 **対処法**:
+
 - 環境変数 `VITE_PASSWORD_PROTECTION_SESSION_DURATION` でセッション時間を調整可能
 - デフォルトは1時間（3600000ミリ秒）
 - より長いセッションが必要な場合は、値を大きく設定してください
 
 **セッション期限のテスト方法**:
+
 1. テスト用に短い時間（例: 10000ミリ秒 = 10秒）を設定
 2. ログイン
 3. 設定時間以上待つ
@@ -335,6 +357,7 @@ location.reload();
 ### Vercelで環境変数が反映されない
 
 **対処法**:
+
 1. Vercel Dashboardで環境変数を確認
 2. 環境変数設定後、必ず**再デプロイ**を実行
 3. 正しい環境（Production/Preview/Development）に設定されているか確認
@@ -361,11 +384,11 @@ src/
 
 ### 環境変数
 
-| 変数名 | 型 | デフォルト | 説明 |
-|--------|-----|-----------|------|
-| `VITE_PASSWORD_PROTECTION_ENABLED` | string | なし | `'true'` で有効化 |
-| `VITE_PASSWORD_PROTECTION_CREDENTIALS` | string | なし | `"user:pass,user2:pass2"` 形式 |
-| `VITE_PASSWORD_PROTECTION_SESSION_DURATION` | string | `3600000` | セッション有効期限（ミリ秒） |
+| 変数名                                      | 型     | デフォルト | 説明                           |
+| ------------------------------------------- | ------ | ---------- | ------------------------------ |
+| `VITE_PASSWORD_PROTECTION_ENABLED`          | string | なし       | `'true'` で有効化              |
+| `VITE_PASSWORD_PROTECTION_CREDENTIALS`      | string | なし       | `"user:pass,user2:pass2"` 形式 |
+| `VITE_PASSWORD_PROTECTION_SESSION_DURATION` | string | `3600000`  | セッション有効期限（ミリ秒）   |
 
 ### セッションデータ構造
 
@@ -380,16 +403,19 @@ src/
 このパスワード保護機能は、**軽度な保護**を提供する簡易的な実装です。
 
 **適切な用途**:
+
 - ステージング環境の保護
 - デモサイトの一時的なアクセス制限
 - 開発中プロジェクトの軽度な保護
 
 **不適切な用途**:
+
 - 本番環境のセキュリティ
 - 機密データの保護
 - ユーザー認証システム
 
 真のセキュリティが必要な場合は、以下を検討してください：
+
 - 適切なサーバーサイド認証（OAuth, JWT等）
 - データベースによるユーザー管理
 - セキュリティ監査
