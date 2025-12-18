@@ -37,11 +37,16 @@ export default defineConfig(({ mode }) => {
     {
       name: 'log-env-vars',
       config() {
+        console.log('[DEBUG] ==================== Environment Variables ====================')
+        console.log('[DEBUG] All process.env keys:', Object.keys(process.env).filter(key => key.startsWith('VITE_')))
         console.log('[DEBUG] process.env.VITE_PASSWORD_PROTECTION_ENABLED:', process.env.VITE_PASSWORD_PROTECTION_ENABLED)
         console.log('[DEBUG] loadEnv VITE_PASSWORD_PROTECTION_ENABLED:', env.VITE_PASSWORD_PROTECTION_ENABLED)
         console.log('[DEBUG] Final VITE_PASSWORD_PROTECTION_ENABLED:', VITE_PASSWORD_PROTECTION_ENABLED)
         console.log('[DEBUG] VITE_PASSWORD_PROTECTION_CREDENTIALS:', VITE_PASSWORD_PROTECTION_CREDENTIALS ? '***SET***' : 'NOT SET')
         console.log('[DEBUG] SESSION_DURATION:', VITE_PASSWORD_PROTECTION_SESSION_DURATION)
+        console.log('[DEBUG] mode:', mode)
+        console.log('[DEBUG] process.cwd():', process.cwd())
+        console.log('[DEBUG] ================================================================')
       }
     }
   ],
