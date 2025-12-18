@@ -8,9 +8,11 @@ dist-ssr
 
 # Environment variables
 # モダンな環境変数管理:
-#   .env, .env.example → デフォルト値・テンプレート（コミット可）
+#   .env.example → デフォルト値・テンプレート（コミット可）
+#   .env → ローカル開発用設定（コミット不可）
 #   .env.local → ローカル開発用シークレット（コミット不可）
 #   STG/PRD → クラウドプラットフォーム（Vercel/Railway）のUIで管理
+.env
 .env.local
 .env.*.local
 
