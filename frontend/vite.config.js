@@ -9,17 +9,26 @@ export default defineConfig(({ mode }) => {
   // Set the third parameter to '' to load all env regardless of the `VITE_` prefix.
   const env = loadEnv(mode, process.cwd(), '')
 
+  // Vercelの環境変数を優先し、なければ.envファイルから読み込む
+  // process.envはVercelのビルド時に設定される
+  const VITE_PASSWORD_PROTECTION_ENABLED =
+    process.env.VITE_PASSWORD_PROTECTION_ENABLED || env.VITE_PASSWORD_PROTECTION_ENABLED
+  const VITE_PASSWORD_PROTECTION_CREDENTIALS =
+    process.env.VITE_PASSWORD_PROTECTION_CREDENTIALS || env.VITE_PASSWORD_PROTECTION_CREDENTIALS
+  const VITE_PASSWORD_PROTECTION_SESSION_DURATION =
+    process.env.VITE_PASSWORD_PROTECTION_SESSION_DURATION || env.VITE_PASSWORD_PROTECTION_SESSION_DURATION
+
   return {
   // Vercelの環境変数をViteに渡す
   define: {
     'import.meta.env.VITE_PASSWORD_PROTECTION_ENABLED': JSON.stringify(
-      env.VITE_PASSWORD_PROTECTION_ENABLED
+      VITE_PASSWORD_PROTECTION_ENABLED
     ),
     'import.meta.env.VITE_PASSWORD_PROTECTION_CREDENTIALS': JSON.stringify(
-      env.VITE_PASSWORD_PROTECTION_CREDENTIALS
+      VITE_PASSWORD_PROTECTION_CREDENTIALS
     ),
     'import.meta.env.VITE_PASSWORD_PROTECTION_SESSION_DURATION': JSON.stringify(
-      env.VITE_PASSWORD_PROTECTION_SESSION_DURATION
+      VITE_PASSWORD_PROTECTION_SESSION_DURATION
     ),
   },
   plugins: [
@@ -28,9 +37,11 @@ export default defineConfig(({ mode }) => {
     {
       name: 'log-env-vars',
       config() {
-        console.log('[DEBUG] VITE_PASSWORD_PROTECTION_ENABLED:', env.VITE_PASSWORD_PROTECTION_ENABLED)
-        console.log('[DEBUG] VITE_PASSWORD_PROTECTION_CREDENTIALS:', env.VITE_PASSWORD_PROTECTION_CREDENTIALS ? '***SET***' : 'NOT SET')
-        console.log('[DEBUG] SESSION_DURATION:', env.VITE_PASSWORD_PROTECTION_SESSION_DURATION)
+        console.log('[DEBUG] process.env.VITE_PASSWORD_PROTECTION_ENABLED:', process.env.VITE_PASSWORD_PROTECTION_ENABLED)
+        console.log('[DEBUG] loadEnv VITE_PASSWORD_PROTECTION_ENABLED:', env.VITE_PASSWORD_PROTECTION_ENABLED)
+        console.log('[DEBUG] Final VITE_PASSWORD_PROTECTION_ENABLED:', VITE_PASSWORD_PROTECTION_ENABLED)
+        console.log('[DEBUG] VITE_PASSWORD_PROTECTION_CREDENTIALS:', VITE_PASSWORD_PROTECTION_CREDENTIALS ? '***SET***' : 'NOT SET')
+        console.log('[DEBUG] SESSION_DURATION:', VITE_PASSWORD_PROTECTION_SESSION_DURATION)
       }
     }
   ],
