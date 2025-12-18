@@ -163,7 +163,6 @@ export function PasswordProtection({ children }) {
               ログイン
             </Button>
           </form>
-          <div className="mt-4 text-xs text-gray-500 text-center">セッションは1時間有効です</div>
         </CardContent>
       </Card>
     </div>
