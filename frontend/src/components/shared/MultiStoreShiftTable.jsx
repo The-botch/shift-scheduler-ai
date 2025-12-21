@@ -158,19 +158,14 @@ const MultiStoreShiftTable = ({
     return Math.abs((endH * 60 + endM - startH * 60 - startM) / 60)
   }
 
-  // スタッフごとの月間合計を計算（選択された店舗のシフトのみ）
+  // スタッフごとの月間合計を計算（全シフトを集計、フィルターに依存しない）
   const getStaffMonthlyTotal = staffId => {
     let totalDays = 0
     let totalHours = 0
     dates.forEach(date => {
       const shift = getShiftForDateAndStaff(date, staffId)
-      // シフトがあり、かつそのシフトの店舗が選択されている場合のみカウント
-      if (
-        shift &&
-        selectedStores &&
-        selectedStores.size > 0 &&
-        selectedStores.has(parseInt(shift.store_id))
-      ) {
+      // シフトがあればカウント（店舗フィルターの選択状態に関係なく全シフトの合計を表示）
+      if (shift) {
         totalDays++
         totalHours += calculateHours(shift.start_time, shift.end_time)
       }
