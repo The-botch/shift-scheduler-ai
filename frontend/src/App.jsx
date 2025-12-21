@@ -102,6 +102,10 @@ function AppContent() {
     } else if (path === '/shift/draft-editor') {
       resetAllFlags()
       setShowDraftShiftEditor(true)
+      // location.stateからシフト情報を取得
+      if (location.state?.shift) {
+        setSelectedShiftForEdit(location.state.shift)
+      }
     } else if (path === '/shift/method') {
       resetAllFlags()
       setShowShiftCreationMethodSelector(true)
