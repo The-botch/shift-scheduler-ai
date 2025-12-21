@@ -113,13 +113,22 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   })
 
   // ダッシュボードへ遷移（未保存変更があれば確認）
+  const navigateToDashboard = () => {
+    navigate('/', {
+      state: {
+        year: selectedShift?.year,
+        month: selectedShift?.month,
+      },
+    })
+  }
+
   const handleDashboard = () => {
     if (hasUnsavedChanges) {
       if (!window.confirm('変更が保存されていません。ダッシュボードに戻りますか？')) {
         return
       }
     }
-    navigate('/')
+    navigateToDashboard()
   }
 
   const [loading, setLoading] = useState(true)
@@ -602,7 +611,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         alert(MESSAGES.SUCCESS.SAVED)
 
         // 新規プラン作成後はトップ画面に戻る
-        navigate('/')
+        navigateToDashboard()
       } else {
         // 既存のプラン編集の場合
         if (!hasUnsavedChanges) {

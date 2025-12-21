@@ -43,13 +43,18 @@ const Monitoring = () => {
   const navigate = useNavigate()
   const { tenantId } = useTenant()
 
-  // ダッシュボードへ遷移
-  const handleDashboard = () => {
-    navigate('/')
-  }
-
   // React Routerから渡されたstateを取得
   const shift = location.state?.shift
+
+  // ダッシュボードへ遷移（年月情報を保持）
+  const handleDashboard = () => {
+    navigate('/', {
+      state: {
+        year: shift?.year,
+        month: shift?.month,
+      },
+    })
+  }
 
   // shiftオブジェクトから年月と店舗IDを抽出
   const initialMonth =

@@ -97,13 +97,22 @@ const FirstPlanEditor = ({
   })
 
   // ダッシュボードへ遷移（未保存変更があれば確認）
+  const navigateToDashboard = () => {
+    navigate('/', {
+      state: {
+        year: selectedShift?.year,
+        month: selectedShift?.month,
+      },
+    })
+  }
+
   const handleDashboard = () => {
     if (hasUnsavedChanges) {
       if (!window.confirm('変更が保存されていません。ダッシュボードに戻りますか？')) {
         return
       }
     }
-    navigate('/')
+    navigateToDashboard()
   }
 
   const [loading, setLoading] = useState(true)
@@ -479,7 +488,7 @@ const FirstPlanEditor = ({
         }
 
         // 新規プラン作成後はトップ画面に戻る（selectedShift.statusが変わらないため）
-        navigate('/')
+        navigateToDashboard()
       } else {
         // 既存のプラン編集の場合 - 共通フックを使用
         if (!hasUnsavedChanges) {
@@ -950,7 +959,7 @@ const FirstPlanEditor = ({
       if (onDelete) {
         onDelete()
       } else {
-        navigate('/')
+        navigateToDashboard()
       }
     } catch (error) {
       console.error('削除処理エラー:', error)

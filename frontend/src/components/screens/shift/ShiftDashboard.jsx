@@ -37,9 +37,17 @@ const ShiftDashboard = ({ onStaffManagement }) => {
   const location = useLocation()
   const { targetMonth } = useTargetMonth()
 
-  // 選択中の年月
-  const [selectedYear, setSelectedYear] = useState(targetMonth.year)
-  const [selectedMonth, setSelectedMonth] = useState(targetMonth.month)
+  // 遷移元からの年月情報を取得（ある場合はそれを使用）
+  const stateYear = location.state?.year
+  const stateMonth = location.state?.month
+
+  // 選択中の年月（遷移元からの年月があればそれを優先）
+  const [selectedYear, setSelectedYear] = useState(
+    stateYear ? parseInt(stateYear) : targetMonth.year
+  )
+  const [selectedMonth, setSelectedMonth] = useState(
+    stateMonth ? parseInt(stateMonth) : targetMonth.month
+  )
 
   // 環境情報
   const [backendEnv, setBackendEnv] = useState(null)
