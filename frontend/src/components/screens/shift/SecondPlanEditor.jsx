@@ -725,7 +725,10 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     if (planIdsState.length > 0) {
       planIdsToDelete = [...planIdsState]
     } else {
-      // 第2案が保存されていない場合は単に画面を閉じる
+      // 第2案が保存されていない場合は確認してから画面を閉じる
+      if (!window.confirm('この第2案シフト計画を破棄してもよろしいですか？')) {
+        return
+      }
       if (onPrev) {
         onPrev()
       }
@@ -805,7 +808,11 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   }
 
   // シフト削除ハンドラー
+  // 削除成功時はtrue、キャンセル時はfalseを返す
   const handleDeleteShift = shiftId => {
+    // 削除確認
+    if (!window.confirm('このシフトを削除しますか？')) return false
+
     const updateUI = () => {
       setCalendarData(prev => {
         if (!prev) return prev
@@ -830,6 +837,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     }
 
     handleDeleteShiftBase(shiftId, updateUI)
+    return true
   }
 
   // シフト追加ハンドラー - FirstPlanEditorと同じ構造
@@ -937,9 +945,10 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   }
 
   const handleModalDelete = () => {
-    if (!confirm('このシフトを削除しますか？')) return
-    handleDeleteShift(modalState.shift.shift_id)
-    setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })
+    const deleted = handleDeleteShift(modalState.shift.shift_id)
+    if (deleted) {
+      setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })
+    }
   }
 
   const handleBack = async () => {

@@ -175,14 +175,7 @@ const ShiftTableView = ({
   // シフト削除ハンドラー
   const handleDelete = shift => {
     if (!editable || !onDelete) return
-
-    if (
-      confirm(
-        `${shift.staff_name}のシフト（${shift.start_time}-${shift.end_time}）を削除しますか？`
-      )
-    ) {
-      onDelete(shift.shift_id)
-    }
+    onDelete(shift.shift_id)
   }
 
   return (
