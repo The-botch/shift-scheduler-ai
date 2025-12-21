@@ -3,6 +3,22 @@ import { createPortal } from 'react-dom'
 import { isHoliday, getHolidayName } from '../../utils/holidays'
 import { getDaysInMonth, getDayOfWeek, isoToJSTDateString } from '../../utils/dateUtils'
 
+// 契約種別コードから表示名へのマップ
+const EMPLOYMENT_TYPE_NAMES = {
+  FULL_TIME: '正社員',
+  PART_TIME: 'アルバイト',
+  CONTRACT: '業務委託',
+  TEMPORARY: '派遣社員',
+}
+
+// 契約種別のソート順（小さいほど先に表示）
+const EMPLOYMENT_TYPE_ORDER = {
+  FULL_TIME: 1,
+  CONTRACT: 2,
+  TEMPORARY: 3,
+  PART_TIME: 4, // アルバイトは最後
+}
+
 /**
  * マルチストアシフトテーブル（読み取り専用）
  * 縦軸: 日付、横軸: 店舗別グループ化されたスタッフ
@@ -193,7 +209,18 @@ const MultiStoreShiftTable = ({
   sortedStoreIds.forEach(storeId => {
     // 選択されている店舗のみ表示
     if (selectedStores && selectedStores.has(parseInt(storeId))) {
-      const staffInStore = allStaff.filter(s => parseInt(s.store_id) === parseInt(storeId))
+      const staffInStore = allStaff
+        .filter(s => parseInt(s.store_id) === parseInt(storeId))
+        .sort((a, b) => {
+          // 契約種別でソート（FULL_TIME, CONTRACT, TEMPORARY, PART_TIMEの順）
+          const orderA = EMPLOYMENT_TYPE_ORDER[a.employment_type] ?? 99
+          const orderB = EMPLOYMENT_TYPE_ORDER[b.employment_type] ?? 99
+          if (orderA !== orderB) {
+            return orderA - orderB
+          }
+          // 同じ契約種別の場合は名前でソート
+          return (a.staff_name || '').localeCompare(b.staff_name || '', 'ja')
+        })
       if (staffInStore.length > 0) {
         storeGroups.push({
           storeId,
@@ -532,7 +559,7 @@ const MultiStoreShiftTable = ({
                             )}
                           </div>
                           <div className="text-[0.65rem] text-gray-500 font-normal leading-tight">
-                            {staff.role_name}
+                            {EMPLOYMENT_TYPE_NAMES[staff.employment_type] || staff.employment_type || '-'}
                           </div>
                         </th>
                       )
