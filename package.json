@@ -12,6 +12,8 @@
     "test:schema:keep": "node scripts/test_schema_crud_no_cleanup.mjs",
     "db:cleanup": "node scripts/cleanup_test_data.mjs",
     "db:setup": "node scripts/run_db_setup.mjs",
+    "bk:prod": "node scripts/backup/backup-db.mjs",
+      "_comment": "localでproduction環境のdmpを取得する。暫定対応用なので後で正式な方法に切り替える。使い方は'shift-scheduler-ai/scripts/backup/README.md'参照",
     "prepare": "husky"
   },
   "dependencies": {
