@@ -1,0 +1,104 @@
+# ⚠️ このワークフローは現在無効化されています
+# SharePointの承認が降りたら、下記の手順で有効化してください：
+# 1. Azure ADアプリケーションを登録（詳細は scripts/backup/README.md 参照）
+# 2. GitHub Secretsを設定
+# 3. このファイルの先頭のコメントブロックを削除
+#
+# 🔧 必要なGitHub Secrets:
+#   - DATABASE_URL_PRODUCTION: 本番DBのURL
+#   - AZURE_TENANT_ID: Azure ADテナントID
+#   - AZURE_CLIENT_ID: Azure ADクライアントID
+#   - AZURE_CLIENT_SECRET: Azure ADクライアントシークレット
+#   - SHAREPOINT_SITE_URL: SharePointサイトURL
+#   - SHAREPOINT_FOLDER_PATH: 保存先フォルダパス
+
+# 以下のコメントアウトを解除して有効化 ↓↓↓
+
+# name: Database Backup to SharePoint
+#
+# on:
+#   schedule:
+#     # 毎月1日と15日の午前3時（UTC 18:00 = JST 03:00）に実行
+#     - cron: '0 18 1,15 * *'
+#   workflow_dispatch:  # 手動実行も可能
+#
+# jobs:
+#   backup:
+#     runs-on: ubuntu-latest
+#     timeout-minutes: 30
+#
+#     steps:
+#       - name: チェックアウト
+#         uses: actions/checkout@v4
+#
+#       - name: Node.js のセットアップ
+#         uses: actions/setup-node@v4
+#         with:
+#           node-version: '18'
+#
+#       - name: PostgreSQL クライアントのインストール
+#         run: |
+#           sudo apt-get update
+#           sudo apt-get install -y postgresql-client
+#
+#       - name: バックアップファイル名の設定
+#         id: backup-file
+#         run: |
+#           TIMESTAMP=$(date +%Y-%m-%d)
+#           BACKUP_FILE="db-backup-${TIMESTAMP}.sql"
+#           echo "filename=${BACKUP_FILE}" >> $GITHUB_OUTPUT
+#           echo "timestamp=${TIMESTAMP}" >> $GITHUB_OUTPUT
+#
+#       - name: データベースバックアップの作成
+#         env:
+#           DATABASE_URL: ${{ secrets.DATABASE_URL_PRODUCTION }}
+#         run: |
+#           echo "🚀 バックアップを作成中..."
+#           pg_dump "$DATABASE_URL" > ${{ steps.backup-file.outputs.filename }}
+#
+#           # ファイルサイズを確認
+#           FILE_SIZE=$(du -h ${{ steps.backup-file.outputs.filename }} | cut -f1)
+#           echo "✅ バックアップ完了: ${FILE_SIZE}"
+#           echo "file_size=${FILE_SIZE}" >> $GITHUB_OUTPUT
+#
+#       - name: バックアップファイルの圧縮
+#         run: |
+#           echo "📦 ファイルを圧縮中..."
+#           gzip ${{ steps.backup-file.outputs.filename }}
+#
+#           # 圧縮後のファイルサイズを確認
+#           COMPRESSED_SIZE=$(du -h ${{ steps.backup-file.outputs.filename }}.gz | cut -f1)
+#           echo "✅ 圧縮完了: ${COMPRESSED_SIZE}"
+#
+#       - name: SharePointへのアップロード
+#         env:
+#           AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+#           AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+#           AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+#           SHAREPOINT_SITE_URL: ${{ secrets.SHAREPOINT_SITE_URL }}
+#           SHAREPOINT_FOLDER_PATH: ${{ secrets.SHAREPOINT_FOLDER_PATH }}
+#           BACKUP_FILE: ${{ steps.backup-file.outputs.filename }}.gz
+#         run: |
+#           echo "📤 SharePointにアップロード中..."
+#           node scripts/backup/upload-to-sharepoint.mjs
+#
+#       - name: バックアップ完了通知
+#         if: success()
+#         run: |
+#           echo "✅ バックアップが正常に完了しました"
+#           echo "📅 日時: $(date)"
+#           echo "📂 ファイル名: ${{ steps.backup-file.outputs.filename }}.gz"
+#           echo "📊 ファイルサイズ: ${{ steps.backup-file.outputs.file_size }}"
+#
+#       - name: エラー通知
+#         if: failure()
+#         run: |
+#           echo "❌ バックアップに失敗しました"
+#           echo "📅 日時: $(date)"
+#           echo "🔍 詳細はワークフローログを確認してください"
+
+# 🚧 Phase 2 実装予定
+# - Slack/メール通知機能
+# - バックアップの世代管理（古いファイルの自動削除）
+# - バックアップの整合性チェック
+# - リストア手順の自動化
