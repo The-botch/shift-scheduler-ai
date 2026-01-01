@@ -244,7 +244,13 @@ export async function generateShiftPDF({
             : isSat
               ? [227, 242, 253]
               : [255, 255, 255],
-        textColor: !hasAnyShift ? [136, 136, 136] : isSun ? [211, 47, 47] : isSat ? [25, 118, 210] : [0, 0, 0],
+        textColor: !hasAnyShift
+          ? [136, 136, 136]
+          : isSun
+            ? [211, 47, 47]
+            : isSat
+              ? [25, 118, 210]
+              : [0, 0, 0],
       },
     }
 
@@ -309,7 +315,7 @@ export async function generateShiftPDF({
       0: { cellWidth: 18 }, // 日付列
     },
     margin: { left: 10, right: 10, bottom: 5 },
-    didParseCell: function(data) {
+    didParseCell: function (data) {
       // 全セルに同じフォントを適用
       if (loadedFontName) {
         data.cell.styles.font = loadedFontName
