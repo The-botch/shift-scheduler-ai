@@ -22,6 +22,7 @@ import { AnimatePresence } from 'framer-motion'
 import { useTenant } from '../../../contexts/TenantContext'
 import { isoToJSTDateString, isoToJSTDateParts } from '../../../utils/dateUtils'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
+import { useShiftStatus } from '../../../hooks/useShiftStatus'
 
 const shiftRepository = new ShiftRepository()
 
@@ -42,13 +43,18 @@ const Monitoring = () => {
   const navigate = useNavigate()
   const { tenantId } = useTenant()
 
-  // ダッシュボードへ遷移
-  const handleDashboard = () => {
-    navigate('/')
-  }
-
   // React Routerから渡されたstateを取得
   const shift = location.state?.shift
+
+  // ダッシュボードへ遷移（年月情報を保持）
+  const handleDashboard = () => {
+    navigate('/', {
+      state: {
+        year: shift?.year,
+        month: shift?.month,
+      },
+    })
+  }
 
   // shiftオブジェクトから年月と店舗IDを抽出
   const initialMonth =
@@ -96,6 +102,9 @@ const Monitoring = () => {
   // 履歴表示用の年月
   const [historyYear, setHistoryYear] = useState(initialMonth?.year || currentYear)
   const [historyMonth, setHistoryMonth] = useState(initialMonth?.month || null) // null = 全月表示
+
+  // 募集ステータス用フック
+  const { recruitmentStatus } = useShiftStatus(historyYear, historyMonth, tenantId)
 
   // initialMonthを適用したかどうかを追跡
   const isInitializedRef = useRef(false)
@@ -380,62 +389,6 @@ const Monitoring = () => {
     })
   }, [staffStatus, selectedEmploymentType])
 
-  // 募集状況を判定（締め切り前/締め切り済み/募集終了を区別）
-  const getRecruitmentStatus = () => {
-    if (!historyMonth)
-      return {
-        status: '確認中',
-        color: 'gray',
-        bgColor: 'from-gray-50 to-gray-100',
-        borderColor: 'border-gray-300',
-      }
-
-    const now = new Date()
-    now.setHours(0, 0, 0, 0) // 時刻をリセットして日付のみで比較
-
-    // 締め切り日を計算（対象月の前月20日）
-    const deadlineDate = new Date(historyYear, historyMonth - 2, 20) // 前月の20日
-
-    // 対象月の開始日
-    const targetMonthStart = new Date(historyYear, historyMonth - 1, 1)
-
-    // 対象月の翌月1日（対象月が完全に終わる日）
-    const nextMonthStart = new Date(historyYear, historyMonth, 1)
-
-    // 締め切り前（募集中）
-    if (now < deadlineDate) {
-      return {
-        status: '募集中',
-        color: 'green',
-        bgColor: 'from-green-50 to-green-100',
-        borderColor: 'border-green-200',
-        deadline: `締切: ${deadlineDate.getMonth() + 1}/${deadlineDate.getDate()}`,
-      }
-    }
-
-    // 締め切り後だが対象月内または対象月前（変更可能）
-    if (now >= deadlineDate && now < nextMonthStart) {
-      return {
-        status: '締切済',
-        color: 'orange',
-        bgColor: 'from-orange-50 to-orange-100',
-        borderColor: 'border-orange-200',
-        deadline: '変更可能',
-      }
-    }
-
-    // 対象月が完全に過去（募集終了）
-    return {
-      status: '募集終了',
-      color: 'gray',
-      bgColor: 'from-gray-50 to-gray-100',
-      borderColor: 'border-gray-300',
-      deadline: '確定済み',
-    }
-  }
-
-  const recruitmentStatus = getRecruitmentStatus()
-
   const sendReminder = staffId => {
     setStaffStatus(prev =>
       prev.map(staff =>
@@ -510,8 +463,6 @@ const Monitoring = () => {
         role: roleName,
         start_time: preference.start_time,
         end_time: preference.end_time,
-        actual_hours: 8,
-        planned_hours: 8,
         modified_flag: false,
         is_preference: true,
         is_ng_day: false,
@@ -695,7 +646,9 @@ const Monitoring = () => {
                   ? 'text-green-600'
                   : recruitmentStatus.color === 'orange'
                     ? 'text-orange-600'
-                    : 'text-gray-600'
+                    : recruitmentStatus.color === 'slate'
+                      ? 'text-slate-500'
+                      : 'text-gray-600'
               }`}
             />
             <div>
@@ -705,7 +658,9 @@ const Monitoring = () => {
                     ? 'text-green-700'
                     : recruitmentStatus.color === 'orange'
                       ? 'text-orange-700'
-                      : 'text-gray-700'
+                      : recruitmentStatus.color === 'slate'
+                        ? 'text-slate-600'
+                        : 'text-gray-700'
                 }`}
               >
                 シフト募集状況
@@ -716,10 +671,12 @@ const Monitoring = () => {
                     ? 'text-green-600'
                     : recruitmentStatus.color === 'orange'
                       ? 'text-orange-600'
-                      : 'text-gray-600'
+                      : recruitmentStatus.color === 'slate'
+                        ? 'text-slate-500'
+                        : 'text-gray-600'
                 }`}
               >
-                {recruitmentStatus.status}
+                {recruitmentStatus.statusLabel}
               </div>
               <div
                 className={`text-xs mt-0.5 ${
@@ -727,7 +684,9 @@ const Monitoring = () => {
                     ? 'text-green-600'
                     : recruitmentStatus.color === 'orange'
                       ? 'text-orange-600'
-                      : 'text-gray-600'
+                      : recruitmentStatus.color === 'slate'
+                        ? 'text-slate-500'
+                        : 'text-gray-600'
                 }`}
               >
                 {historyMonth

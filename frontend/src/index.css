@@ -59,6 +59,8 @@ body {
   width: 100%;
   max-width: 100vw;
   line-height: 1.6;
+  /* Macの2本指スワイプによるブラウザナビゲーションを防止 */
+  overscroll-behavior: none;
 }
 
 body {

@@ -47,6 +47,19 @@ const ClipboardIcon = () => (
  */
 const getRecruitmentCardConfig = status => {
   const configs = {
+    not_started: {
+      bgColor: 'from-slate-50 to-slate-100',
+      borderColor: 'border-slate-300',
+      iconBg: 'bg-slate-200',
+      iconColor: 'text-slate-500',
+      titleColor: 'text-slate-700',
+      valueColor: 'text-slate-600',
+      subColor: 'text-slate-500',
+      progressBg: 'bg-slate-200',
+      progressFill: 'bg-slate-400',
+      buttonBg: 'bg-slate-400 hover:bg-slate-500',
+      buttonLabel: '詳細を見る',
+    },
     recruiting: {
       bgColor: 'from-green-50 to-green-100',
       borderColor: 'border-green-300',

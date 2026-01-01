@@ -66,11 +66,6 @@ const FirstPlanEditor = ({
   const isViewMode = mode === 'view'
   const isEditMode = mode === 'edit'
 
-  // ダッシュボードへ遷移
-  const handleDashboard = () => {
-    navigate('/')
-  }
-
   // 共通ロジック（マスタデータ取得・店舗選択管理）
   const {
     staffMap,
@@ -100,6 +95,25 @@ const FirstPlanEditor = ({
     planType: 'FIRST',
     onApproveComplete: onApprove,
   })
+
+  // ダッシュボードへ遷移（未保存変更があれば確認）
+  const navigateToDashboard = () => {
+    navigate('/', {
+      state: {
+        year: selectedShift?.year,
+        month: selectedShift?.month,
+      },
+    })
+  }
+
+  const handleDashboard = () => {
+    if (hasUnsavedChanges) {
+      if (!window.confirm('変更が保存されていません。ダッシュボードに戻りますか？')) {
+        return
+      }
+    }
+    navigateToDashboard()
+  }
 
   const [loading, setLoading] = useState(true)
   const [calendarData, setCalendarData] = useState(null)
@@ -474,7 +488,7 @@ const FirstPlanEditor = ({
         }
 
         // 新規プラン作成後はトップ画面に戻る（selectedShift.statusが変わらないため）
-        navigate('/')
+        navigateToDashboard()
       } else {
         // 既存のプラン編集の場合 - 共通フックを使用
         if (!hasUnsavedChanges) {
@@ -667,7 +681,11 @@ const FirstPlanEditor = ({
   }
 
   // シフト削除ハンドラー（共通フック + UI更新）
+  // 削除成功時はtrue、キャンセル時はfalseを返す
   const handleDeleteShift = shiftId => {
+    // 削除確認
+    if (!window.confirm('このシフトを削除しますか？')) return false
+
     // UI更新のコールバック
     const updateUI = () => {
       // UIから削除
@@ -705,6 +723,7 @@ const FirstPlanEditor = ({
 
     // 共通フックの関数を使用
     handleDeleteShiftBase(shiftId, updateUI)
+    return true
   }
 
   // シフト追加ハンドラー（共通フック + UI更新）
@@ -846,10 +865,10 @@ const FirstPlanEditor = ({
 
   // モーダルからの削除処理
   const handleModalDelete = () => {
-    if (!confirm('このシフトを削除しますか？')) return
-
-    handleDeleteShift(modalState.shift.shift_id)
-    setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })
+    const deleted = handleDeleteShift(modalState.shift.shift_id)
+    if (deleted) {
+      setModalState({ isOpen: false, mode: 'add', shift: null, position: { x: 0, y: 0 } })
+    }
   }
 
   // 戻るボタンのハンドラー（未保存の場合はプラン削除）
@@ -879,7 +898,7 @@ const FirstPlanEditor = ({
     onBack()
   }
 
-  const handleDelete = async (skipConfirm = false) => {
+  const handleDelete = async () => {
     // planIdsState（全店舗分）を優先的に使用、なければ shiftData から抽出
     let planIdsToDelete = []
     if (planIdsState.length > 0) {
@@ -892,7 +911,10 @@ const FirstPlanEditor = ({
 
     if (planIdsToDelete.length === 0) {
       // 削除するプランがない場合（何も保存していない場合）
-      // シフト管理画面に戻る
+      // 確認ダイアログを表示してからシフト管理画面に戻る
+      if (!window.confirm('このシフト計画を破棄してもよろしいですか？')) {
+        return
+      }
       if (onDelete) {
         onDelete()
       } else {
@@ -901,16 +923,14 @@ const FirstPlanEditor = ({
       return
     }
 
-    // 確認ダイアログ（skipConfirmがtrueの場合はスキップ）
-    if (!skipConfirm) {
-      const confirmMessage =
-        planIdsToDelete.length === 1
-          ? 'このシフト計画を削除してもよろしいですか？'
-          : `${planIdsToDelete.length}件のシフト計画を削除してもよろしいですか？`
+    // 確認ダイアログ
+    const confirmMessage =
+      planIdsToDelete.length === 1
+        ? 'このシフト計画を削除してもよろしいですか？'
+        : `${planIdsToDelete.length}件のシフト計画を削除してもよろしいですか？`
 
-      if (!confirm(confirmMessage)) {
-        return
-      }
+    if (!confirm(confirmMessage)) {
+      return
     }
 
     try {
@@ -939,7 +959,7 @@ const FirstPlanEditor = ({
       if (onDelete) {
         onDelete()
       } else {
-        navigate('/')
+        navigateToDashboard()
       }
     } catch (error) {
       console.error('削除処理エラー:', error)

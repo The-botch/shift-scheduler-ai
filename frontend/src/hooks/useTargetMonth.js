@@ -3,11 +3,11 @@
  * 対象月判定ロジック・募集状況判定Hook
  *
  * 対象月ロジック:
- * - 20日以前: 来月が対象月
- * - 21日以降: 再来月が対象月
+ * - 25日以前: 来月が対象月
+ * - 26日以降: 再来月が対象月
  *
  * 募集状況ロジック:
- * - 締切日 = 対象月の前月20日
+ * - 締切日 = 対象月の前月の指定日
  * - now < 締切日 → 募集中（recruiting）
  * - 締切日 <= now < 対象月末 → 締切済（closed）
  * - now >= 対象月末 → 募集終了（finished）
@@ -25,14 +25,14 @@ export const getTargetMonth = (date = new Date()) => {
   const currentMonth = date.getMonth() + 1
   const currentYear = date.getFullYear()
 
-  if (currentDay <= 20) {
-    // 20日以前: 来月が対象月
+  if (currentDay <= 25) {
+    // 25日以前: 来月が対象月
     return {
       year: currentMonth === 12 ? currentYear + 1 : currentYear,
       month: currentMonth === 12 ? 1 : currentMonth + 1,
     }
   } else {
-    // 21日以降: 再来月が対象月
+    // 26日以降: 再来月が対象月
     const targetMonth = currentMonth + 2
     return {
       year: targetMonth > 12 ? currentYear + 1 : currentYear,
