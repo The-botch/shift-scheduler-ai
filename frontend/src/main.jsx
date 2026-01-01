@@ -5,6 +5,7 @@ import './index.css'
 import AppLayout from './AppLayout.jsx'
 import { TenantProvider } from './contexts/TenantContext'
 import { getCurrentTenantId, setCurrentTenantId, resetTenantId } from './config/tenant'
+import { PasswordProtection } from './components/PasswordProtection'
 
 // Screen Components
 import ShiftDashboard from './components/screens/shift/ShiftDashboard'
@@ -76,8 +77,10 @@ const router = createBrowserRouter([
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <TenantProvider>
-      <RouterProvider router={router} />
-    </TenantProvider>
+    <PasswordProtection>
+      <TenantProvider>
+        <RouterProvider router={router} />
+      </TenantProvider>
+    </PasswordProtection>
   </StrictMode>
 )
