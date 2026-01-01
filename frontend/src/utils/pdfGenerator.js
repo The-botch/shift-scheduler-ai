@@ -208,8 +208,8 @@ export async function generateShiftPDF({
 
   // タイトルと店舗名
   doc.setFontSize(10)
-  doc.text(titleText, 14, 10)
-  doc.text(storeName, 283, 10, { align: 'right' })
+  doc.text(titleText, 14, 12)
+  doc.text(storeName, 283, 12, { align: 'right' })
 
   // テーブルヘッダー
   const headers = [
@@ -288,7 +288,7 @@ export async function generateShiftPDF({
   const tableResult = autoTable(doc, {
     head: [headers],
     body: tableData,
-    startY: 15,
+    startY: 30,
     theme: 'grid',
     styles: {
       fontSize: 6,
@@ -308,7 +308,7 @@ export async function generateShiftPDF({
     columnStyles: {
       0: { cellWidth: 18 }, // 日付列
     },
-    margin: { left: 10, right: 10 },
+    margin: { left: 10, right: 10, bottom: 5 },
     didParseCell: function(data) {
       // 全セルに同じフォントを適用
       if (loadedFontName) {
@@ -341,10 +341,10 @@ export async function generateShiftPDF({
 /**
  * PDFをPNG画像に変換
  * @param {ArrayBuffer} pdfData - PDFのArrayBuffer
- * @param {number} scale - 画像のスケール（デフォルト2）
+ * @param {number} scale - 画像のスケール（デフォルト4で高解像度）
  * @returns {Promise<string>} - PNG画像のData URL
  */
-async function convertPdfToPng(pdfData, scale = 2) {
+async function convertPdfToPng(pdfData, scale = 10) {
   // PDFをロード
   const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise
   const page = await pdf.getPage(1)
