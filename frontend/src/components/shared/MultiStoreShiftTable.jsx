@@ -3,6 +3,22 @@ import { createPortal } from 'react-dom'
 import { isHoliday, getHolidayName } from '../../utils/holidays'
 import { getDaysInMonth, getDayOfWeek, isoToJSTDateString } from '../../utils/dateUtils'
 
+// 契約種別コードから表示名へのマップ
+const EMPLOYMENT_TYPE_NAMES = {
+  FULL_TIME: '正社員',
+  PART_TIME: 'アルバイト',
+  CONTRACT: '業務委託',
+  TEMPORARY: '派遣社員',
+}
+
+// 契約種別のソート順（小さいほど先に表示）
+const EMPLOYMENT_TYPE_ORDER = {
+  FULL_TIME: 1,
+  CONTRACT: 2,
+  TEMPORARY: 3,
+  PART_TIME: 4, // アルバイトは最後
+}
+
 /**
  * マルチストアシフトテーブル（読み取り専用）
  * 縦軸: 日付、横軸: 店舗別グループ化されたスタッフ
@@ -158,19 +174,14 @@ const MultiStoreShiftTable = ({
     return Math.abs((endH * 60 + endM - startH * 60 - startM) / 60)
   }
 
-  // スタッフごとの月間合計を計算（選択された店舗のシフトのみ）
+  // スタッフごとの月間合計を計算（全シフトを集計、フィルターに依存しない）
   const getStaffMonthlyTotal = staffId => {
     let totalDays = 0
     let totalHours = 0
     dates.forEach(date => {
       const shift = getShiftForDateAndStaff(date, staffId)
-      // シフトがあり、かつそのシフトの店舗が選択されている場合のみカウント
-      if (
-        shift &&
-        selectedStores &&
-        selectedStores.size > 0 &&
-        selectedStores.has(parseInt(shift.store_id))
-      ) {
+      // シフトがあればカウント（店舗フィルターの選択状態に関係なく全シフトの合計を表示）
+      if (shift) {
         totalDays++
         totalHours += calculateHours(shift.start_time, shift.end_time)
       }
@@ -198,7 +209,18 @@ const MultiStoreShiftTable = ({
   sortedStoreIds.forEach(storeId => {
     // 選択されている店舗のみ表示
     if (selectedStores && selectedStores.has(parseInt(storeId))) {
-      const staffInStore = allStaff.filter(s => parseInt(s.store_id) === parseInt(storeId))
+      const staffInStore = allStaff
+        .filter(s => parseInt(s.store_id) === parseInt(storeId))
+        .sort((a, b) => {
+          // 契約種別でソート（FULL_TIME, CONTRACT, TEMPORARY, PART_TIMEの順）
+          const orderA = EMPLOYMENT_TYPE_ORDER[a.employment_type] ?? 99
+          const orderB = EMPLOYMENT_TYPE_ORDER[b.employment_type] ?? 99
+          if (orderA !== orderB) {
+            return orderA - orderB
+          }
+          // 同じ契約種別の場合は名前でソート
+          return (a.staff_name || '').localeCompare(b.staff_name || '', 'ja')
+        })
       if (staffInStore.length > 0) {
         storeGroups.push({
           storeId,
@@ -421,6 +443,16 @@ const MultiStoreShiftTable = ({
     return 'text-gray-700'
   }
 
+  // テーブル幅を計算（列幅の合計）
+  const tableWidth = useMemo(() => {
+    let width = 90 + 80 // 日付列 + 全体サマリー列
+    storeGroups.forEach(group => {
+      width += 80 // 店舗サマリー列
+      width += group.staff.length * 100 // スタッフ列
+    })
+    return width
+  }, [storeGroups])
+
   return (
     <>
       {/* コメントツールチップ（Portal経由でbody直下にレンダリング） */}
@@ -460,7 +492,10 @@ const MultiStoreShiftTable = ({
           className="overflow-x-auto flex-shrink-0 border-b-2 border-gray-300 scrollbar-hide"
           style={{ overflowY: 'hidden' }}
         >
-          <table className="w-full border-collapse text-xs" style={{ tableLayout: 'fixed' }}>
+          <table
+            className="border-collapse text-xs"
+            style={{ tableLayout: 'fixed', width: `${tableWidth}px` }}
+          >
             <colgroup>
               <col style={{ width: '90px' }} />
               <col style={{ width: '80px' }} />
@@ -527,7 +562,9 @@ const MultiStoreShiftTable = ({
                             )}
                           </div>
                           <div className="text-[0.65rem] text-gray-500 font-normal leading-tight">
-                            {staff.role_name}
+                            {EMPLOYMENT_TYPE_NAMES[staff.employment_type] ||
+                              staff.employment_type ||
+                              '-'}
                           </div>
                         </th>
                       )
@@ -584,7 +621,10 @@ const MultiStoreShiftTable = ({
           onScroll={handleBodyScroll}
           className="overflow-x-auto overflow-y-auto flex-1"
         >
-          <table className="w-full border-collapse text-xs" style={{ tableLayout: 'fixed' }}>
+          <table
+            className="border-collapse text-xs"
+            style={{ tableLayout: 'fixed', width: `${tableWidth}px` }}
+          >
             <colgroup>
               <col style={{ width: '90px' }} />
               <col style={{ width: '80px' }} />
@@ -739,7 +779,7 @@ const MultiStoreShiftTable = ({
                                 {shouldShowShift ? (
                                   <div className="relative group">
                                     {hasMultipleShifts ? (
-                                      // Issue #165: 複数シフト表示（1セル内に縦並び）
+                                      // Issue #165: 複数シフト表示（1セル内に縦並び、各シフトは3行形式）
                                       <div className="space-y-1">
                                         {visibleShifts.map((s, idx) => (
                                           <div
@@ -772,22 +812,27 @@ const MultiStoreShiftTable = ({
                                                 !
                                               </div>
                                             )}
-                                            <div className="font-semibold text-gray-800 text-xs leading-tight">
+                                            {/* 1行目: バッジ（応援勤務の場合のみ店舗コード表示） */}
+                                            <div className="text-[0.6rem] leading-tight">
                                               {s.store_id !== staff.store_id && (
-                                                <span className="bg-indigo-600 text-white px-1 py-0.5 rounded text-xs font-bold mr-0.5">
+                                                <span className="bg-indigo-600 text-white px-1 py-0.5 rounded text-[0.6rem] font-bold">
                                                   {getStoreCode(s.store_id)}
                                                 </span>
                                               )}
+                                            </div>
+                                            {/* 2行目: 開始-終了時間 */}
+                                            <div className="font-semibold text-gray-800 text-xs leading-tight">
                                               {formatTime(s.start_time)}-{formatTime(s.end_time)}
+                                            </div>
+                                            {/* 3行目: 合計時間 */}
+                                            <div className="text-xs text-gray-600 leading-tight">
+                                              {calculateHours(s.start_time, s.end_time).toFixed(1)}h
                                             </div>
                                           </div>
                                         ))}
-                                        <div className="text-xs text-gray-600 leading-tight text-center">
-                                          計{totalHours.toFixed(1)}h
-                                        </div>
                                       </div>
                                     ) : (
-                                      // 単一シフト表示（店舗コードバッジ付き）
+                                      // 単一シフト表示（3行固定: バッジ（応援時のみ）、時間、合計）
                                       <div
                                         className={`px-1 py-1 rounded ${getShiftCardColor(date, staff.staff_id, shift)} relative`}
                                       >
@@ -796,15 +841,20 @@ const MultiStoreShiftTable = ({
                                             !
                                           </div>
                                         )}
-                                        <div className="font-semibold text-gray-800 text-xs leading-tight">
+                                        {/* 1行目: バッジ（応援勤務の場合のみ店舗コード表示） */}
+                                        <div className="text-[0.6rem] leading-tight">
                                           {shift.store_id !== staff.store_id && (
-                                            <span className="bg-indigo-600 text-white px-1 py-0.5 rounded text-xs font-bold mr-0.5">
+                                            <span className="bg-indigo-600 text-white px-1 py-0.5 rounded text-[0.6rem] font-bold">
                                               {getStoreCode(shift.store_id)}
                                             </span>
                                           )}
+                                        </div>
+                                        {/* 2行目: 開始-終了時間 */}
+                                        <div className="font-semibold text-gray-800 text-xs leading-tight">
                                           {formatTime(shift.start_time)}-
                                           {formatTime(shift.end_time)}
                                         </div>
+                                        {/* 3行目: 合計時間 */}
                                         <div className="text-xs text-gray-600 leading-tight">
                                           {calculateHours(shift.start_time, shift.end_time).toFixed(
                                             1
