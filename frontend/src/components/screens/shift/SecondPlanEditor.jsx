@@ -22,10 +22,9 @@ import {
   AlertTriangle,
   Zap,
   GripVertical,
-  Camera,
   Home,
 } from 'lucide-react'
-import { captureMultipleStores } from '../../../utils/screenshotUtils'
+import { generateMultipleStorePDFs } from '../../../utils/pdfGenerator'
 import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import ShiftTableView from '../../shared/ShiftTableView'
@@ -250,7 +249,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const [isTyping, setIsTyping] = useState(false)
   const chatEndRef = useRef(null)
   const tableContainerRef = useRef(null)
-  const [isCapturing, setIsCapturing] = useState(false)
+  const [isGeneratingPNG, setIsGeneratingPNG] = useState(false)
   const [chatPosition, setChatPosition] = useState({
     x: window.innerWidth - 336,
     y: window.innerHeight - 520,
@@ -1005,37 +1004,31 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     }
   }
 
-  // 店舗ごとのスクリーンショット機能
-  const handleScreenshot = async () => {
+  // 店舗ごとのシフト画像出力機能
+  const handlePNGExport = async () => {
     if (selectedStores.size === 0) {
-      alert('スクリーンショットする店舗を選択してください')
+      alert('画像出力する店舗を選択してください')
       return
     }
 
-    if (!tableContainerRef.current) {
-      alert('テーブルが見つかりません')
-      return
-    }
-
-    setIsCapturing(true)
+    setIsGeneratingPNG(true)
 
     try {
-      const count = await captureMultipleStores({
-        tableContainerRef,
-        selectedStores,
-        setSelectedStores,
-        storesMap,
+      const count = await generateMultipleStorePDFs({
         year,
         month,
-        padding: { top: 200, right: 120, bottom: 0, left: 120 },
-        scale: 2,
+        shiftData,
+        staffMap,
+        storesMap,
+        selectedStores,
+        deadlineText: '', // 必要に応じて締切テキストを設定
       })
-      alert(`${count}件のPNGファイルを保存しました`)
+      alert(`${count}件のシフト画像を保存しました`)
     } catch (error) {
-      console.error('スクリーンショットエラー:', error)
-      alert(`スクリーンショットの作成に失敗しました: ${error.message}`)
+      console.error('シフト画像生成エラー:', error)
+      alert(`シフト画像の生成に失敗しました: ${error.message}`)
     } finally {
-      setIsCapturing(false)
+      setIsGeneratingPNG(false)
     }
   }
 
@@ -1576,16 +1569,16 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
           <Button
             size="sm"
             variant="outline"
-            onClick={handleScreenshot}
-            disabled={isCapturing || selectedStores.size === 0}
+            onClick={handlePNGExport}
+            disabled={isGeneratingPNG || selectedStores.size === 0}
             className="border-purple-300 text-purple-600 hover:bg-purple-50"
           >
-            {isCapturing ? (
+            {isGeneratingPNG ? (
               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
             ) : (
-              <Camera className="h-3 w-3 mr-1" />
+              <Download className="h-3 w-3 mr-1" />
             )}
-            {isCapturing ? 'キャプチャ中...' : '店舗別スクショ'}
+            {isGeneratingPNG ? '生成中...' : '店舗別シフト画像DL'}
           </Button>
 
           {isEditMode && (
