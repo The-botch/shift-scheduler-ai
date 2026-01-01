@@ -54,10 +54,14 @@ const ShiftDashboard = ({ onStaffManagement }) => {
   const [dbEnv, setDbEnv] = useState(null)
 
   // シフトステータス取得
-  const { loading, recruitmentStatus, firstPlanStatus, secondPlanStatus, submissionStats, refetch } = useShiftStatus(
-    selectedYear,
-    selectedMonth
-  )
+  const {
+    loading,
+    recruitmentStatus,
+    firstPlanStatus,
+    secondPlanStatus,
+    submissionStats,
+    refetch,
+  } = useShiftStatus(selectedYear, selectedMonth)
 
   // recruitmentStatusにsubmissionStatsをマージ
   const recruitmentStatusWithStats = {

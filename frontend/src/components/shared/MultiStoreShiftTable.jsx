@@ -492,7 +492,10 @@ const MultiStoreShiftTable = ({
           className="overflow-x-auto flex-shrink-0 border-b-2 border-gray-300 scrollbar-hide"
           style={{ overflowY: 'hidden' }}
         >
-          <table className="border-collapse text-xs" style={{ tableLayout: 'fixed', width: `${tableWidth}px` }}>
+          <table
+            className="border-collapse text-xs"
+            style={{ tableLayout: 'fixed', width: `${tableWidth}px` }}
+          >
             <colgroup>
               <col style={{ width: '90px' }} />
               <col style={{ width: '80px' }} />
@@ -559,7 +562,9 @@ const MultiStoreShiftTable = ({
                             )}
                           </div>
                           <div className="text-[0.65rem] text-gray-500 font-normal leading-tight">
-                            {EMPLOYMENT_TYPE_NAMES[staff.employment_type] || staff.employment_type || '-'}
+                            {EMPLOYMENT_TYPE_NAMES[staff.employment_type] ||
+                              staff.employment_type ||
+                              '-'}
                           </div>
                         </th>
                       )
@@ -616,7 +621,10 @@ const MultiStoreShiftTable = ({
           onScroll={handleBodyScroll}
           className="overflow-x-auto overflow-y-auto flex-1"
         >
-          <table className="border-collapse text-xs" style={{ tableLayout: 'fixed', width: `${tableWidth}px` }}>
+          <table
+            className="border-collapse text-xs"
+            style={{ tableLayout: 'fixed', width: `${tableWidth}px` }}
+          >
             <colgroup>
               <col style={{ width: '90px' }} />
               <col style={{ width: '80px' }} />
@@ -843,11 +851,15 @@ const MultiStoreShiftTable = ({
                                         </div>
                                         {/* 2行目: 開始-終了時間 */}
                                         <div className="font-semibold text-gray-800 text-xs leading-tight">
-                                          {formatTime(shift.start_time)}-{formatTime(shift.end_time)}
+                                          {formatTime(shift.start_time)}-
+                                          {formatTime(shift.end_time)}
                                         </div>
                                         {/* 3行目: 合計時間 */}
                                         <div className="text-xs text-gray-600 leading-tight">
-                                          {calculateHours(shift.start_time, shift.end_time).toFixed(1)}h
+                                          {calculateHours(shift.start_time, shift.end_time).toFixed(
+                                            1
+                                          )}
+                                          h
                                         </div>
                                       </div>
                                     )}

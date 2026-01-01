@@ -726,7 +726,14 @@ export class ShiftRepository {
     } catch (error) {
       console.error('締切設定取得エラー:', error)
       // エラー時はデフォルト値を返す（17日）
-      return [{ employment_type: 'PART_TIME', deadline_day: 17, deadline_time: '12:00', is_enabled: true }]
+      return [
+        {
+          employment_type: 'PART_TIME',
+          deadline_day: 17,
+          deadline_time: '12:00',
+          is_enabled: true,
+        },
+      ]
     }
   }
 }

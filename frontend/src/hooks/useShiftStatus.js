@@ -25,7 +25,13 @@ const masterRepository = new MasterRepository()
  * @param {number} deadlineDay - 締切日（DBから取得）
  * @returns {object} 募集ステータス情報
  */
-export const calculateRecruitmentStatus = (firstPlanExists, firstPlanApproved, year, month, deadlineDay = 17) => {
+export const calculateRecruitmentStatus = (
+  firstPlanExists,
+  firstPlanApproved,
+  year,
+  month,
+  deadlineDay = 17
+) => {
   const now = new Date()
   now.setHours(0, 0, 0, 0)
 

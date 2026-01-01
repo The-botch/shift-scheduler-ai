@@ -666,13 +666,13 @@ function AppContent() {
                       ? 'constraint-management'
                       : showShiftCreationMethodSelector
                         ? 'shift-creation-method-selector'
-                          : showDraftShiftEditor
-                            ? 'draft-shift-editor'
-                            : showBudgetActualManagement
-                              ? 'budget-actual-management'
-                              : showMasterDataManagement
-                                ? 'master-data-management'
-                                : currentStep
+                        : showDraftShiftEditor
+                          ? 'draft-shift-editor'
+                          : showBudgetActualManagement
+                            ? 'budget-actual-management'
+                            : showMasterDataManagement
+                              ? 'master-data-management'
+                              : currentStep
             }
           >
             {renderCurrentScreen()}
