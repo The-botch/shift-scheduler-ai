@@ -22,11 +22,8 @@ import {
   AlertTriangle,
   Zap,
   GripVertical,
-  Camera,
   Home,
-  FileText,
 } from 'lucide-react'
-import { captureMultipleStores } from '../../../utils/screenshotUtils'
 import { generateMultipleStorePDFs } from '../../../utils/pdfGenerator'
 import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
@@ -252,7 +249,6 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const [isTyping, setIsTyping] = useState(false)
   const chatEndRef = useRef(null)
   const tableContainerRef = useRef(null)
-  const [isCapturing, setIsCapturing] = useState(false)
   const [isGeneratingPNG, setIsGeneratingPNG] = useState(false)
   const [chatPosition, setChatPosition] = useState({
     x: window.innerWidth - 336,
@@ -1008,44 +1004,10 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     }
   }
 
-  // 店舗ごとのスクリーンショット機能
-  const handleScreenshot = async () => {
-    if (selectedStores.size === 0) {
-      alert('スクリーンショットする店舗を選択してください')
-      return
-    }
-
-    if (!tableContainerRef.current) {
-      alert('テーブルが見つかりません')
-      return
-    }
-
-    setIsCapturing(true)
-
-    try {
-      const count = await captureMultipleStores({
-        tableContainerRef,
-        selectedStores,
-        setSelectedStores,
-        storesMap,
-        year,
-        month,
-        padding: { top: 200, right: 120, bottom: 0, left: 120 },
-        scale: 2,
-      })
-      alert(`${count}件のPNGファイルを保存しました`)
-    } catch (error) {
-      console.error('スクリーンショットエラー:', error)
-      alert(`スクリーンショットの作成に失敗しました: ${error.message}`)
-    } finally {
-      setIsCapturing(false)
-    }
-  }
-
-  // 店舗ごとのPNG出力機能
+  // 店舗ごとのシフト画像出力機能
   const handlePNGExport = async () => {
     if (selectedStores.size === 0) {
-      alert('PNG出力する店舗を選択してください')
+      alert('画像出力する店舗を選択してください')
       return
     }
 
@@ -1061,10 +1023,10 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         selectedStores,
         deadlineText: '', // 必要に応じて締切テキストを設定
       })
-      alert(`${count}件のPNG画像を保存しました`)
+      alert(`${count}件のシフト画像を保存しました`)
     } catch (error) {
-      console.error('PNG生成エラー:', error)
-      alert(`PNGの生成に失敗しました: ${error.message}`)
+      console.error('シフト画像生成エラー:', error)
+      alert(`シフト画像の生成に失敗しました: ${error.message}`)
     } finally {
       setIsGeneratingPNG(false)
     }
@@ -1607,31 +1569,16 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
           <Button
             size="sm"
             variant="outline"
-            onClick={handleScreenshot}
-            disabled={isCapturing || selectedStores.size === 0}
-            className="border-purple-300 text-purple-600 hover:bg-purple-50"
-          >
-            {isCapturing ? (
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-            ) : (
-              <Camera className="h-3 w-3 mr-1" />
-            )}
-            {isCapturing ? 'キャプチャ中...' : '店舗別スクショ'}
-          </Button>
-
-          <Button
-            size="sm"
-            variant="outline"
             onClick={handlePNGExport}
             disabled={isGeneratingPNG || selectedStores.size === 0}
-            className="border-red-300 text-red-600 hover:bg-red-50"
+            className="border-purple-300 text-purple-600 hover:bg-purple-50"
           >
             {isGeneratingPNG ? (
               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
             ) : (
-              <FileText className="h-3 w-3 mr-1" />
+              <Download className="h-3 w-3 mr-1" />
             )}
-            {isGeneratingPNG ? 'PNG生成中...' : '店舗別PNG'}
+            {isGeneratingPNG ? '生成中...' : '店舗別シフト画像DL'}
           </Button>
 
           {isEditMode && (
