@@ -24,8 +24,10 @@ import {
   GripVertical,
   Camera,
   Home,
+  FileText,
 } from 'lucide-react'
 import { captureMultipleStores } from '../../../utils/screenshotUtils'
+import { generateMultipleStorePDFs } from '../../../utils/pdfGenerator'
 import { Rnd } from 'react-rnd'
 import MultiStoreShiftTable from '../../shared/MultiStoreShiftTable'
 import ShiftTableView from '../../shared/ShiftTableView'
@@ -251,6 +253,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const chatEndRef = useRef(null)
   const tableContainerRef = useRef(null)
   const [isCapturing, setIsCapturing] = useState(false)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
   const [chatPosition, setChatPosition] = useState({
     x: window.innerWidth - 336,
     y: window.innerHeight - 520,
@@ -1039,6 +1042,34 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     }
   }
 
+  // 店舗ごとのPDF出力機能
+  const handlePDFExport = async () => {
+    if (selectedStores.size === 0) {
+      alert('PDF出力する店舗を選択してください')
+      return
+    }
+
+    setIsGeneratingPDF(true)
+
+    try {
+      const count = await generateMultipleStorePDFs({
+        year,
+        month,
+        shiftData,
+        staffMap,
+        storesMap,
+        selectedStores,
+        deadlineText: '', // 必要に応じて締切テキストを設定
+      })
+      alert(`${count}件のPDFファイルを保存しました`)
+    } catch (error) {
+      console.error('PDF生成エラー:', error)
+      alert(`PDFの生成に失敗しました: ${error.message}`)
+    } finally {
+      setIsGeneratingPDF(false)
+    }
+  }
+
   // チャット関連ハンドラー
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -1586,6 +1617,21 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
               <Camera className="h-3 w-3 mr-1" />
             )}
             {isCapturing ? 'キャプチャ中...' : '店舗別スクショ'}
+          </Button>
+
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handlePDFExport}
+            disabled={isGeneratingPDF || selectedStores.size === 0}
+            className="border-red-300 text-red-600 hover:bg-red-50"
+          >
+            {isGeneratingPDF ? (
+              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+            ) : (
+              <FileText className="h-3 w-3 mr-1" />
+            )}
+            {isGeneratingPDF ? 'PDF生成中...' : '店舗別PDF'}
           </Button>
 
           {isEditMode && (
