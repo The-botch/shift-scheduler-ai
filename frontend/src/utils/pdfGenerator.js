@@ -1,9 +1,15 @@
 /**
- * シフト表PDF生成ユーティリティ
- * jsPDF + autoTableを使用（日本語フォント対応）
+ * シフト表PNG画像生成ユーティリティ
+ * jsPDF + autoTable + pdf.js を使用してPNG画像を出力
+ * （日本語フォント対応）
  */
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
+import * as pdfjsLib from 'pdfjs-dist'
+import pdfjsWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
+
+// PDF.js workerの設定
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfjsWorker
 
 // 曜日の配列
 const DAY_OF_WEEK = ['日', '月', '火', '水', '木', '金', '土']
@@ -139,7 +145,7 @@ const formatTime = time => {
 }
 
 /**
- * 店舗別のシフト表PDFを生成
+ * 店舗別のシフト表PNG画像を生成
  */
 export async function generateShiftPDF({
   year,
@@ -320,13 +326,50 @@ export async function generateShiftPDF({
     doc.text(deadlineText, 14, finalY + 10)
   }
 
-  // PDFを保存
-  const fileName = `シフト表_${year}${String(month).padStart(2, '0')}01-${year}${String(month).padStart(2, '0')}${daysInMonth}_${storeName}.pdf`
-  doc.save(fileName)
+  // PDFをPNG画像として保存
+  const pdfData = doc.output('arraybuffer')
+  const pngDataUrl = await convertPdfToPng(pdfData)
+
+  // PNGをダウンロード
+  const fileName = `シフト表_${year}${String(month).padStart(2, '0')}01-${year}${String(month).padStart(2, '0')}${daysInMonth}_${storeName}.png`
+  const link = document.createElement('a')
+  link.download = fileName
+  link.href = pngDataUrl
+  link.click()
 }
 
 /**
- * 複数店舗のPDFを一括生成
+ * PDFをPNG画像に変換
+ * @param {ArrayBuffer} pdfData - PDFのArrayBuffer
+ * @param {number} scale - 画像のスケール（デフォルト2）
+ * @returns {Promise<string>} - PNG画像のData URL
+ */
+async function convertPdfToPng(pdfData, scale = 2) {
+  // PDFをロード
+  const pdf = await pdfjsLib.getDocument({ data: pdfData }).promise
+  const page = await pdf.getPage(1)
+
+  // ビューポートを取得（スケール適用）
+  const viewport = page.getViewport({ scale })
+
+  // Canvasを作成
+  const canvas = document.createElement('canvas')
+  const context = canvas.getContext('2d')
+  canvas.width = viewport.width
+  canvas.height = viewport.height
+
+  // PDFをキャンバスにレンダリング
+  await page.render({
+    canvasContext: context,
+    viewport: viewport,
+  }).promise
+
+  // Canvas内容をPNG Data URLとして返す
+  return canvas.toDataURL('image/png')
+}
+
+/**
+ * 複数店舗のPNG画像を一括生成
  */
 export async function generateMultipleStorePDFs({
   year,

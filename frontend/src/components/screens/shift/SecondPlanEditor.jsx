@@ -253,7 +253,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const chatEndRef = useRef(null)
   const tableContainerRef = useRef(null)
   const [isCapturing, setIsCapturing] = useState(false)
-  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+  const [isGeneratingPNG, setIsGeneratingPNG] = useState(false)
   const [chatPosition, setChatPosition] = useState({
     x: window.innerWidth - 336,
     y: window.innerHeight - 520,
@@ -1042,14 +1042,14 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     }
   }
 
-  // 店舗ごとのPDF出力機能
-  const handlePDFExport = async () => {
+  // 店舗ごとのPNG出力機能
+  const handlePNGExport = async () => {
     if (selectedStores.size === 0) {
-      alert('PDF出力する店舗を選択してください')
+      alert('PNG出力する店舗を選択してください')
       return
     }
 
-    setIsGeneratingPDF(true)
+    setIsGeneratingPNG(true)
 
     try {
       const count = await generateMultipleStorePDFs({
@@ -1061,12 +1061,12 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         selectedStores,
         deadlineText: '', // 必要に応じて締切テキストを設定
       })
-      alert(`${count}件のPDFファイルを保存しました`)
+      alert(`${count}件のPNG画像を保存しました`)
     } catch (error) {
-      console.error('PDF生成エラー:', error)
-      alert(`PDFの生成に失敗しました: ${error.message}`)
+      console.error('PNG生成エラー:', error)
+      alert(`PNGの生成に失敗しました: ${error.message}`)
     } finally {
-      setIsGeneratingPDF(false)
+      setIsGeneratingPNG(false)
     }
   }
 
@@ -1622,16 +1622,16 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
           <Button
             size="sm"
             variant="outline"
-            onClick={handlePDFExport}
-            disabled={isGeneratingPDF || selectedStores.size === 0}
+            onClick={handlePNGExport}
+            disabled={isGeneratingPNG || selectedStores.size === 0}
             className="border-red-300 text-red-600 hover:bg-red-50"
           >
-            {isGeneratingPDF ? (
+            {isGeneratingPNG ? (
               <Loader2 className="h-3 w-3 mr-1 animate-spin" />
             ) : (
               <FileText className="h-3 w-3 mr-1" />
             )}
-            {isGeneratingPDF ? 'PDF生成中...' : '店舗別PDF'}
+            {isGeneratingPNG ? 'PNG生成中...' : '店舗別PNG'}
           </Button>
 
           {isEditMode && (
