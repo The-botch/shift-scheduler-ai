@@ -305,14 +305,19 @@ const FirstPlanEditor = ({
     try {
       setLoading(true)
 
-      // まずシフトデータを取得
-      // マルチストア環境では、常に全店舗のシフトを取得
-      const shiftsResult = await shiftRepository.getShifts({ year, month, plan_type: planType })
+      // シフトデータとプランデータを並列取得
+      // プランデータを直接取得することで、shifts 0件でもplanIdを取得可能
+      const [shiftsResult, plansResult] = await Promise.all([
+        shiftRepository.getShifts({ year, month, plan_type: planType }),
+        shiftRepository.getPlans({ year, month }),
+      ])
 
       // シフトデータからpattern_idを取得（最初のシフトから使用）
       const fetchedPatternId = shiftsResult.length > 0 ? shiftsResult[0].pattern_id : null
-      // 全シフトからユニークなplan_idを抽出（全店舗分）
-      const fetchedPlanIds = [...new Set(shiftsResult.map(s => s.plan_id).filter(Boolean))]
+
+      // shift_plansから直接planIdsを取得（shiftsが0件でも取得可能）
+      const firstPlans = plansResult.filter(p => p.plan_type === 'FIRST')
+      const fetchedPlanIds = firstPlans.map(p => p.plan_id)
 
       // ステートに保存
       setDefaultPatternId(fetchedPatternId)
