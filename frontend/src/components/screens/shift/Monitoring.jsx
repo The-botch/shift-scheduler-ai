@@ -6,7 +6,6 @@ import { Button } from '../../ui/button'
 import {
   Users,
   Clock,
-  Send,
   CheckCircle,
   AlertCircle,
   ChevronLeft,
@@ -389,24 +388,6 @@ const Monitoring = () => {
     })
   }, [staffStatus, selectedEmploymentType])
 
-  const sendReminder = staffId => {
-    setStaffStatus(prev =>
-      prev.map(staff =>
-        staff.id === staffId
-          ? {
-              ...staff,
-              lastReminder: new Date().toLocaleString('ja-JP', {
-                month: 'numeric',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit',
-              }),
-            }
-          : staff
-      )
-    )
-  }
-
   const handleStaffClick = staff => {
     setSelectedStaff(staff)
   }
@@ -737,68 +718,42 @@ const Monitoring = () => {
             </div>
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex-1 overflow-y-auto px-6 pb-4">
-          <div className="space-y-3">
+        <CardContent className="flex-1 overflow-y-auto px-4 pb-4">
+          <div className="space-y-1">
             {filteredStaffStatus.map(staff => (
               <motion.div
                 key={staff.id}
-                className="flex items-center justify-between p-3 border rounded-lg hover:bg-blue-50 cursor-pointer"
-                whileHover={{ scale: 1.01 }}
+                className={`flex items-center justify-between px-3 py-2 rounded-md cursor-pointer transition-colors ${
+                  staff.submitted
+                    ? 'bg-green-50 hover:bg-green-100 border-l-4 border-green-500'
+                    : 'bg-red-50 hover:bg-red-100 border-l-4 border-red-500'
+                }`}
+                whileHover={{ scale: 1.005 }}
                 onClick={() => handleStaffClick(staff)}
               >
                 <div className="flex items-center space-x-3">
-                  <div
-                    className={`w-3 h-3 rounded-full ${
-                      staff.submitted
-                        ? 'bg-green-500'
-                        : isPartTimeStaff(staff)
-                          ? 'bg-red-500'
-                          : 'bg-gray-400'
-                    }`}
-                  />
                   <div>
-                    <p className={`font-medium ${staff.submitted ? 'text-blue-600' : ''}`}>
+                    <p
+                      className={`text-sm font-medium ${staff.submitted ? 'text-green-800' : 'text-red-800'}`}
+                    >
                       {staff.name}
-                      <span
-                        className={`text-xs ml-2 px-1.5 py-0.5 rounded ${
-                          isPartTimeStaff(staff)
-                            ? 'bg-blue-100 text-blue-600'
-                            : 'bg-gray-100 text-gray-600'
-                        }`}
-                      >
+                      <span className="text-xs ml-2 px-1.5 py-0.5 rounded bg-gray-200 text-gray-600">
                         {getEmploymentTypeLabel(staff.employment_type)}
                       </span>
-                    </p>
-                    <p className="text-sm text-gray-600">
-                      {staff.submitted
-                        ? `提出済み: ${staff.submittedAt}`
-                        : isPartTimeStaff(staff)
-                          ? `最終催促: ${staff.lastReminder || 'なし'}`
-                          : '固定シフト'}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-center space-x-2">
+                <div className="flex items-center">
                   {staff.submitted ? (
-                    <div className="flex items-center text-green-600">
-                      <CheckCircle className="h-4 w-4 mr-1" />
-                      <span className="text-sm">完了</span>
+                    <div className="flex items-center text-green-700 text-xs">
+                      <CheckCircle className="h-3.5 w-3.5 mr-1" />
+                      <span>{staff.submittedAt}</span>
                     </div>
-                  ) : isPartTimeStaff(staff) ? (
-                    <>
-                      <div className="flex items-center text-red-600">
-                        <AlertCircle className="h-4 w-4 mr-1" />
-                        <span className="text-sm">未提出</span>
-                      </div>
-                      <Button size="sm" variant="outline" onClick={() => sendReminder(staff.id)}>
-                        <Send className="h-4 w-4 mr-1" />
-                        催促
-                      </Button>
-                    </>
                   ) : (
-                    <div className="flex items-center text-gray-500">
-                      <span className="text-sm">希望なし</span>
+                    <div className="flex items-center text-red-700 text-xs font-medium">
+                      <AlertCircle className="h-3.5 w-3.5 mr-1" />
+                      <span>未提出</span>
                     </div>
                   )}
                 </div>
@@ -840,9 +795,7 @@ const Monitoring = () => {
                   <p className="text-sm text-gray-600 mt-1">
                     {selectedStaff.submittedAt
                       ? `提出日時: ${selectedStaff.submittedAt}`
-                      : isPartTimeStaff(selectedStaff)
-                        ? '未提出'
-                        : '固定シフト（希望なし）'}
+                      : '未提出'}
                   </p>
                 </div>
                 <Button variant="ghost" size="sm" onClick={closeModal}>
