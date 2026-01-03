@@ -132,9 +132,12 @@ router.get('/staff', async (req, res) => {
         s.is_active,
         s.store_id,
         s.role_id,
-        st.store_name
+        s.created_at,
+        st.store_name,
+        sla.line_user_id
       FROM hr.staff s
       LEFT JOIN core.stores st ON s.store_id = st.store_id
+      LEFT JOIN hr.staff_line_accounts sla ON s.staff_id = sla.staff_id AND sla.is_active = true
       WHERE s.tenant_id = $1
     `;
 

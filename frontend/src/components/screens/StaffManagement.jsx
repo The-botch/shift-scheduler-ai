@@ -1249,16 +1249,16 @@ const StaffManagement = () => {
                               <thead className="bg-gray-50 sticky top-0 z-10">
                                 <tr>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                                    スタッフコード
+                                    ID
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                                     氏名
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                                    フリガナ
+                                    メールアドレス
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                                    役職
+                                    電話番号
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                                     雇用形態
@@ -1268,12 +1268,6 @@ const StaffManagement = () => {
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                                     登録日
-                                  </th>
-                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                                    スキルレベル
-                                  </th>
-                                  <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
-                                    週最大時間
                                   </th>
                                   <th className="px-4 py-3 text-left text-sm md:text-xs font-semibold text-gray-700 border-b">
                                     LINE連携
@@ -1293,17 +1287,15 @@ const StaffManagement = () => {
                                     className="hover:bg-blue-50 transition-colors cursor-pointer"
                                     onClick={() => setSelectedStaff(staff)}
                                   >
-                                    <td className="px-4 py-3 text-sm border-b">
-                                      {staff.staff_code}
-                                    </td>
+                                    <td className="px-4 py-3 text-sm border-b">{staff.staff_id}</td>
                                     <td className="px-4 py-3 text-sm font-medium border-b">
                                       {staff.name}
                                     </td>
                                     <td className="px-4 py-3 text-sm text-gray-600 border-b">
-                                      {staff.name_kana}
+                                      {staff.email || '-'}
                                     </td>
                                     <td className="px-4 py-3 text-sm border-b">
-                                      {getRoleName(staff.role_id)}
+                                      {staff.phone_number || '-'}
                                     </td>
                                     <td className="px-4 py-3 text-sm border-b">
                                       {getEmploymentTypeName(staff.employment_type)}
@@ -1312,24 +1304,9 @@ const StaffManagement = () => {
                                       {staff.store_name || '未設定'}
                                     </td>
                                     <td className="px-4 py-3 text-sm border-b">
-                                      {staff.hire_date}
-                                    </td>
-                                    <td className="px-4 py-3 text-sm border-b">
-                                      <div className="flex items-center gap-1">
-                                        {[...Array(5)].map((_, i) => (
-                                          <div
-                                            key={i}
-                                            className={`w-2 h-2 rounded-full ${
-                                              i < parseInt(staff.skill_level)
-                                                ? 'bg-yellow-400'
-                                                : 'bg-gray-200'
-                                            }`}
-                                          />
-                                        ))}
-                                      </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-sm border-b">
-                                      {staff.max_hours_per_week}時間
+                                      {staff.created_at
+                                        ? new Date(staff.created_at).toLocaleDateString('ja-JP')
+                                        : '-'}
                                     </td>
                                     <td className="px-4 py-3 text-sm border-b">
                                       {staff.line_user_id ? (
