@@ -174,9 +174,11 @@ export const useShiftStatus = (year, month, tenantId = null) => {
       setDeadlineDay(currentDeadlineDay)
 
       // 第一案の存在確認と承認状況
-      const firstPlan = plans.find(p => p.plan_type === 'FIRST')
-      const hasFirstPlan = !!firstPlan
-      const isFirstPlanApproved = firstPlan?.status?.toUpperCase() === 'APPROVED'
+      // 全店舗のFIRSTプランを取得し、全てがAPPROVEDの場合のみ承認済みとする
+      const firstPlans = plans.filter(p => p.plan_type === 'FIRST')
+      const hasFirstPlan = firstPlans.length > 0
+      const isFirstPlanApproved =
+        hasFirstPlan && firstPlans.every(p => p.status?.toUpperCase() === 'APPROVED')
       setFirstPlanExists(hasFirstPlan)
 
       // 募集状況を計算
@@ -210,28 +212,32 @@ export const useShiftStatus = (year, month, tenantId = null) => {
       })
 
       // 第一案ステータスを判定
-      if (!firstPlan) {
+      // 複数店舗の場合、全店舗APPROVEDで承認済み、それ以外は作成中
+      if (!hasFirstPlan) {
         setFirstPlanStatus({
           status: 'not_started',
           planId: null,
           updatedAt: null,
         })
-      } else if (firstPlan.status?.toUpperCase() === 'APPROVED') {
+      } else if (isFirstPlanApproved) {
+        // 全店舗APPROVED
         setFirstPlanStatus({
           status: 'approved',
-          planId: firstPlan.plan_id,
-          updatedAt: firstPlan.updated_at,
+          planId: firstPlans[0]?.plan_id,
+          updatedAt: firstPlans[0]?.updated_at,
         })
       } else {
+        // 一部またはすべてがDRAFT
         setFirstPlanStatus({
           status: 'draft',
-          planId: firstPlan.plan_id,
-          updatedAt: firstPlan.updated_at,
+          planId: firstPlans[0]?.plan_id,
+          updatedAt: firstPlans[0]?.updated_at,
         })
       }
 
       // 第二案ステータスを判定
-      const isFirstApproved = firstPlan?.status?.toUpperCase() === 'APPROVED'
+      // 全店舗の第一案がAPPROVEDの場合のみ第二案作成可能
+      const isFirstApproved = isFirstPlanApproved
       const secondPlan = plans.find(p => p.plan_type === 'SECOND')
 
       if (secondPlan) {
