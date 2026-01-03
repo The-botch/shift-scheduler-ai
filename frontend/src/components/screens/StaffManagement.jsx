@@ -1287,9 +1287,7 @@ const StaffManagement = () => {
                                     className="hover:bg-blue-50 transition-colors cursor-pointer"
                                     onClick={() => setSelectedStaff(staff)}
                                   >
-                                    <td className="px-4 py-3 text-sm border-b">
-                                      {staff.staff_id}
-                                    </td>
+                                    <td className="px-4 py-3 text-sm border-b">{staff.staff_id}</td>
                                     <td className="px-4 py-3 text-sm font-medium border-b">
                                       {staff.name}
                                     </td>
@@ -1306,7 +1304,9 @@ const StaffManagement = () => {
                                       {staff.store_name || '未設定'}
                                     </td>
                                     <td className="px-4 py-3 text-sm border-b">
-                                      {staff.created_at ? new Date(staff.created_at).toLocaleDateString('ja-JP') : '-'}
+                                      {staff.created_at
+                                        ? new Date(staff.created_at).toLocaleDateString('ja-JP')
+                                        : '-'}
                                     </td>
                                     <td className="px-4 py-3 text-sm border-b">
                                       {staff.line_user_id ? (
