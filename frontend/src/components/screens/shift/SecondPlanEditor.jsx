@@ -959,13 +959,30 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     }
   }
 
+  // 戻るボタンのハンドラー（未保存の場合はプラン削除）
   const handleBack = async () => {
+    // 下書き保存を押していない、かつDRAFTステータスの場合は、プラン削除を確認
+    const isDraft = selectedShift?.status === 'draft' || selectedShift?.status === 'DRAFT'
+
+    if (isDraft && !hasSavedDraft) {
+      const shouldDelete = confirm(
+        '下書きを保存せずに戻ると、このプランとシフトデータが削除されます。\n本当に戻りますか？'
+      )
+      if (shouldDelete) {
+        await handleDelete()
+      }
+      return
+    }
+
+    // 下書き保存済み、または未保存の変更がある場合は確認
     if (hasUnsavedChanges) {
       if (confirm('未保存の変更があります。変更を破棄して戻りますか？')) {
         onPrev()
       }
       return
     }
+
+    // 通常の戻り
     onPrev()
   }
 
