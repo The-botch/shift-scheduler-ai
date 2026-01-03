@@ -45,11 +45,7 @@ export const useShiftPlanEditor = ({
 
   // 共通ロジック（マスタデータ取得・店舗選択管理）
   const shiftEditorBase = useShiftEditorBase(selectedShift)
-  const {
-    staffMap,
-    storesMap,
-    loadMasterData,
-  } = shiftEditorBase
+  const { staffMap, storesMap, loadMasterData } = shiftEditorBase
 
   // 共通ロジック（シフト編集・保存・承認）
   const shiftEditing = useShiftEditing({
@@ -362,7 +358,15 @@ export const useShiftPlanEditor = ({
         alert(`シフト計画の削除中にエラーが発生しました: ${error.message}`)
       }
     },
-    [planIdsState, selectedShift?.planIds, shiftData, planType, onDelete, goBack, navigateToDashboard]
+    [
+      planIdsState,
+      selectedShift?.planIds,
+      shiftData,
+      planType,
+      onDelete,
+      goBack,
+      navigateToDashboard,
+    ]
   )
 
   // 戻るボタン
