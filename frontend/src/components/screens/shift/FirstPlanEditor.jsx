@@ -903,7 +903,7 @@ const FirstPlanEditor = ({
     onBack()
   }
 
-  const handleDelete = async () => {
+  const handleDelete = async (skipConfirm = false) => {
     // planIdsState（全店舗分）を優先的に使用、なければ shiftData から抽出
     let planIdsToDelete = []
     if (planIdsState.length > 0) {
@@ -916,8 +916,8 @@ const FirstPlanEditor = ({
 
     if (planIdsToDelete.length === 0) {
       // 削除するプランがない場合（何も保存していない場合）
-      // 確認ダイアログを表示してからシフト管理画面に戻る
-      if (!window.confirm('このシフト計画を破棄してもよろしいですか？')) {
+      // 確認ダイアログを表示してからシフト管理画面に戻る（skipConfirmの場合はスキップ）
+      if (!skipConfirm && !window.confirm('このシフト計画を破棄してもよろしいですか？')) {
         return
       }
       if (onDelete) {
@@ -928,14 +928,16 @@ const FirstPlanEditor = ({
       return
     }
 
-    // 確認ダイアログ
-    const confirmMessage =
-      planIdsToDelete.length === 1
-        ? 'このシフト計画を削除してもよろしいですか？'
-        : `${planIdsToDelete.length}件のシフト計画を削除してもよろしいですか？`
+    // 確認ダイアログ（skipConfirmの場合はスキップ）
+    if (!skipConfirm) {
+      const confirmMessage =
+        planIdsToDelete.length === 1
+          ? 'このシフト計画を削除してもよろしいですか？'
+          : `${planIdsToDelete.length}件のシフト計画を削除してもよろしいですか？`
 
-    if (!confirm(confirmMessage)) {
-      return
+      if (!confirm(confirmMessage)) {
+        return
+      }
     }
 
     try {

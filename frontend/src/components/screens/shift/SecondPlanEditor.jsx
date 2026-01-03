@@ -727,14 +727,14 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   }
 
   // 削除ハンドラー
-  const handleDelete = async () => {
+  const handleDelete = async (skipConfirm = false) => {
     // 第2案のplanIdを取得
     let planIdsToDelete = []
     if (planIdsState.length > 0) {
       planIdsToDelete = [...planIdsState]
     } else {
-      // 第2案が保存されていない場合は確認してから画面を閉じる
-      if (!window.confirm('この第2案シフト計画を破棄してもよろしいですか？')) {
+      // 第2案が保存されていない場合は確認してから画面を閉じる（skipConfirmの場合はスキップ）
+      if (!skipConfirm && !window.confirm('この第2案シフト計画を破棄してもよろしいですか？')) {
         return
       }
       if (onPrev) {
@@ -743,13 +743,16 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
       return
     }
 
-    const confirmMessage =
-      planIdsToDelete.length === 1
-        ? 'この第2案シフト計画を削除してもよろしいですか？'
-        : `${planIdsToDelete.length}件の第2案シフト計画を削除してもよろしいですか？`
+    // 確認ダイアログ（skipConfirmの場合はスキップ）
+    if (!skipConfirm) {
+      const confirmMessage =
+        planIdsToDelete.length === 1
+          ? 'この第2案シフト計画を削除してもよろしいですか？'
+          : `${planIdsToDelete.length}件の第2案シフト計画を削除してもよろしいですか？`
 
-    if (!confirm(confirmMessage)) {
-      return
+      if (!confirm(confirmMessage)) {
+        return
+      }
     }
 
     try {
@@ -969,7 +972,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         '下書きを保存せずに戻ると、このプランとシフトデータが削除されます。\n本当に戻りますか？'
       )
       if (shouldDelete) {
-        await handleDelete()
+        await handleDelete(true) // 確認済みなのでスキップ
       }
       return
     }
