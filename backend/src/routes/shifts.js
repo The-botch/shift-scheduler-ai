@@ -1,6 +1,6 @@
 import express from 'express';
 import axios from 'axios';
-import { query } from '../config/database.js';
+import { query, transaction } from '../config/database.js';
 import DEFAULT_CONFIG from '../config/defaults.js';
 import { SHIFT_PREFERENCE_STATUS, VALID_PREFERENCE_STATUSES } from '../config/constants.js';
 import { VALIDATION_MESSAGES } from '../config/validation.js';
@@ -1894,27 +1894,36 @@ router.post('/preferences/bulk', async (req, res) => {
       }
     }
 
-    // 一括挿入（UPSERT: 既存データは更新）
-    const insertedIds = [];
-    const updatedIds = [];
-    const errors = [];
+    // 対象月を特定（preferencesの最初の日付から）
+    const firstDate = preferences[0].preference_date;
+    const yearMonth = firstDate.substring(0, 7); // "YYYY-MM"
+    const startDate = `${yearMonth}-01`;
+    // 翌月1日を計算
+    const [year, month] = yearMonth.split('-').map(Number);
+    const nextMonth = month === 12 ? 1 : month + 1;
+    const nextYear = month === 12 ? year + 1 : year;
+    const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
 
-    for (const pref of preferences) {
-      try {
-        // UPSERT: 存在すれば更新、なければ挿入
-        const result = await query(`
+    // トランザクションで削除→挿入を実行
+    const result = await transaction(async (client) => {
+      // 1. 対象月の既存レコードを削除
+      const deleteResult = await client.query(`
+        DELETE FROM ops.shift_preferences
+        WHERE tenant_id = $1 AND staff_id = $2
+        AND preference_date >= $3 AND preference_date < $4
+      `, [tenant_id, staff_id, startDate, endDate]);
+
+      const deletedCount = deleteResult.rowCount;
+
+      // 2. 新しいレコードを挿入
+      const insertedIds = [];
+      for (const pref of preferences) {
+        const insertResult = await client.query(`
           INSERT INTO ops.shift_preferences (
             tenant_id, store_id, staff_id, preference_date,
             is_ng, start_time, end_time, notes
           ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-          ON CONFLICT (tenant_id, staff_id, preference_date)
-          DO UPDATE SET
-            is_ng = EXCLUDED.is_ng,
-            start_time = EXCLUDED.start_time,
-            end_time = EXCLUDED.end_time,
-            notes = EXCLUDED.notes,
-            updated_at = CURRENT_TIMESTAMP
-          RETURNING preference_id, (xmax = 0) as is_insert
+          RETURNING preference_id
         `, [
           tenant_id, store_id, staff_id, pref.preference_date,
           pref.is_ng || false,
@@ -1922,29 +1931,18 @@ router.post('/preferences/bulk', async (req, res) => {
           pref.end_time || null,
           pref.notes || null
         ]);
-
-        if (result.rows[0].is_insert) {
-          insertedIds.push(result.rows[0].preference_id);
-        } else {
-          updatedIds.push(result.rows[0].preference_id);
-        }
-      } catch (err) {
-        errors.push({
-          preference_date: pref.preference_date,
-          error: err.message
-        });
+        insertedIds.push(insertResult.rows[0].preference_id);
       }
-    }
+
+      return { deletedCount, insertedIds };
+    });
 
     res.status(201).json({
       success: true,
       message: 'Bulk operation completed',
-      inserted_count: insertedIds.length,
-      updated_count: updatedIds.length,
-      error_count: errors.length,
-      inserted_ids: insertedIds,
-      updated_ids: updatedIds,
-      errors: errors.length > 0 ? errors : undefined
+      deleted: result.deletedCount,
+      inserted: result.insertedIds.length,
+      inserted_ids: result.insertedIds
     });
   } catch (error) {
     console.error('Error bulk creating shift preferences:', error);
