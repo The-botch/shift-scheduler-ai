@@ -12,6 +12,7 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.71.2",
     "axios": "^1.7.9",
     "cors": "^2.8.5",
     "csv-parse": "^6.1.0",

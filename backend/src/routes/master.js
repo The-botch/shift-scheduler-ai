@@ -166,6 +166,144 @@ router.get('/staff', async (req, res) => {
 });
 
 /**
+ * スタッフ作成
+ */
+router.post('/staff', async (req, res) => {
+  try {
+    const {
+      tenant_id,
+      staff_code,
+      name,
+      email,
+      phone_number,
+      employment_type,
+      hire_date,
+      monthly_salary,
+      hourly_rate,
+      store_id,
+      role_id,
+      division_id
+    } = req.body;
+
+    const result = await query(`
+      INSERT INTO hr.staff (
+        tenant_id, staff_code, name, email, phone_number,
+        employment_type, hire_date, monthly_salary, hourly_rate,
+        store_id, role_id, division_id, is_active
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, TRUE)
+      RETURNING *
+    `, [
+      tenant_id, staff_code, name, email || null, phone_number || null,
+      employment_type || null, hire_date || null, monthly_salary || null, hourly_rate || null,
+      store_id || null, role_id || null, division_id || null
+    ]);
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error creating staff:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * スタッフ更新
+ */
+router.put('/staff/:staff_id', async (req, res) => {
+  try {
+    const { staff_id } = req.params;
+    const {
+      name,
+      email,
+      phone_number,
+      employment_type,
+      store_id,
+      role_id,
+      is_active
+    } = req.body;
+
+    // 変更可能なフィールドのみ更新（hire_dateなどの必須フィールドは既存値を維持）
+    const result = await query(`
+      UPDATE hr.staff SET
+        name = COALESCE($1, name),
+        email = $2,
+        phone_number = $3,
+        employment_type = COALESCE($4, employment_type),
+        store_id = COALESCE($5, store_id),
+        role_id = COALESCE($6, role_id),
+        is_active = COALESCE($7, is_active),
+        updated_at = CURRENT_TIMESTAMP
+      WHERE staff_id = $8
+      RETURNING *
+    `, [
+      name, email || null, phone_number || null,
+      employment_type || null,
+      store_id || null, role_id || null,
+      is_active !== undefined ? is_active : null,
+      staff_id
+    ]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'スタッフが見つかりません'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error updating staff:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
+ * スタッフ削除（論理削除）
+ */
+router.delete('/staff/:staff_id', async (req, res) => {
+  try {
+    const { staff_id } = req.params;
+
+    const result = await query(`
+      UPDATE hr.staff SET
+        is_active = FALSE,
+        updated_at = CURRENT_TIMESTAMP
+      WHERE staff_id = $1
+      RETURNING *
+    `, [staff_id]);
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        success: false,
+        error: 'スタッフが見つかりません'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: result.rows[0]
+    });
+  } catch (error) {
+    console.error('Error deleting staff:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+/**
  * 役職マスタ取得
  */
 router.get('/roles', async (req, res) => {
@@ -898,23 +1036,19 @@ router.post('/stores', async (req, res) => {
 router.put('/stores/:store_id', async (req, res) => {
   try {
     const { store_id } = req.params;
-    const { store_code, store_name, division_id, address, phone_number, business_hours_start, business_hours_end } = req.body;
+    const { store_code, store_name, business_hours_start, business_hours_end } = req.body;
 
-    // 必須チェック
-    if (!store_code || !store_name || !division_id) {
-      return res.status(400).json({
-        success: false,
-        error: 'store_code, store_name, and division_id are required'
-      });
-    }
-
+    // 変更可能なフィールドのみ更新
     const result = await query(`
       UPDATE core.stores
-      SET store_code = $1, store_name = $2, division_id = $3, address = $4, phone_number = $5,
-          business_hours_start = $6, business_hours_end = $7, updated_at = CURRENT_TIMESTAMP
-      WHERE store_id = $8
+      SET store_code = COALESCE($1, store_code),
+          store_name = COALESCE($2, store_name),
+          business_hours_start = $3,
+          business_hours_end = $4,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE store_id = $5
       RETURNING *
-    `, [store_code, store_name, division_id, address, phone_number, business_hours_start, business_hours_end, store_id]);
+    `, [store_code, store_name, business_hours_start || null, business_hours_end || null, store_id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({
