@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { motion } from 'framer-motion'
+import { Rnd } from 'react-rnd'
 import {
   Database,
   Plus,
@@ -51,11 +52,13 @@ const MasterDataManagement = ({ onPrev }) => {
   const [selectedMaster, setSelectedMaster] = useState('staff')
   const [masterData, setMasterData] = useState([])
   const [loading, setLoading] = useState(false)
-  const [showModal, setShowModal] = useState(false)
-  const [modalMode, setModalMode] = useState('create')
+  const [showPopup, setShowPopup] = useState(false)
+  const [popupMode, setPopupMode] = useState('create')
   const [editingItem, setEditingItem] = useState(null)
   const [formData, setFormData] = useState({})
   const [error, setError] = useState(null)
+  const [popupPosition, setPopupPosition] = useState({ top: 0, right: 0 })
+  const popupRef = useRef(null)
 
   const [stores, setStores] = useState([])
   const [roles, setRoles] = useState([])
@@ -65,19 +68,7 @@ const MasterDataManagement = ({ onPrev }) => {
   const masterTypes = [
     { id: 'staff', label: 'スタッフ', icon: Users },
     { id: 'stores', label: '店舗', icon: Store },
-    { id: 'roles', label: '役職', icon: Settings },
-    { id: 'skills', label: 'スキル', icon: Award },
     { id: 'employment_types', label: '雇用形態', icon: Briefcase },
-    { id: 'shift_patterns', label: 'シフトパターン', icon: Clock },
-    { id: 'divisions', label: '部署', icon: Building2 },
-    { id: 'commute_allowance', label: '通勤手当', icon: Car },
-    { id: 'insurance_rates', label: '保険料率', icon: Shield },
-    { id: 'tax_brackets', label: '税率区分', icon: Calculator },
-    { id: 'labor_law_constraints', label: '労働法制約', icon: Scale },
-    { id: 'store_constraints', label: '店舗制約', icon: FileText },
-    { id: 'labor_management_rules', label: '労務管理ルール', icon: CheckSquare },
-    { id: 'shift_validation_rules', label: 'シフト検証ルール', icon: Shield2 },
-    { id: 'impact_documentation', label: '影響範囲ドキュメント', icon: BookOpen, isSpecial: true },
   ]
 
   const loadMasterData = useCallback(async () => {
@@ -176,38 +167,35 @@ const MasterDataManagement = ({ onPrev }) => {
     loadDropdownData()
   }, [selectedMaster, tenantId])
 
-  const handleCreate = () => {
-    setModalMode('create')
+  const handleCreate = e => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setPopupPosition({
+      top: rect.bottom + 8,
+      right: window.innerWidth - rect.right,
+    })
+    setPopupMode('create')
     setEditingItem(null)
 
     switch (selectedMaster) {
       case 'staff':
         setFormData({
           tenant_id: tenantId,
-          staff_code: '',
+          staff_code: `STAFF_${Date.now()}`,
           name: '',
           email: '',
           phone_number: '',
           employment_type: '',
-          hire_date: '',
-          monthly_salary: '',
-          hourly_rate: '',
           store_id: '',
-          role_id: '',
-          division_id: '',
-          resignation_date: '',
+          role_id: roles.length > 0 ? roles[0].role_id : '',
         })
         break
       case 'stores':
         setFormData({
           tenant_id: tenantId,
-          store_code: '',
+          store_code: `STORE_${Date.now()}`,
           store_name: '',
-          address: '',
-          phone_number: '',
           business_hours_start: '',
           business_hours_end: '',
-          division_id: '',
         })
         break
       case 'roles':
@@ -231,7 +219,6 @@ const MasterDataManagement = ({ onPrev }) => {
           tenant_id: tenantId,
           employment_code: '',
           employment_name: '',
-          payment_type: '',
         })
         break
       case 'shift_patterns':
@@ -331,11 +318,16 @@ const MasterDataManagement = ({ onPrev }) => {
         setFormData({})
     }
 
-    setShowModal(true)
+    setShowPopup(true)
   }
 
-  const handleEdit = item => {
-    setModalMode('edit')
+  const handleEdit = (item, e) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setPopupPosition({
+      top: Math.min(rect.top, window.innerHeight - 450),
+      left: rect.right + 8,
+    })
+    setPopupMode('edit')
     setEditingItem(item)
 
     switch (selectedMaster) {
@@ -346,24 +338,15 @@ const MasterDataManagement = ({ onPrev }) => {
           email: item.email || '',
           phone_number: item.phone_number || '',
           employment_type: item.employment_type || '',
-          hire_date: item.hire_date || '',
-          monthly_salary: item.monthly_salary || '',
-          hourly_rate: item.hourly_rate || '',
           store_id: item.store_id || '',
           role_id: item.role_id || '',
-          division_id: item.division_id || '',
-          resignation_date: item.resignation_date || '',
         })
         break
       case 'stores':
         setFormData({
-          store_code: item.store_code,
           store_name: item.store_name,
-          address: item.address || '',
-          phone_number: item.phone_number || '',
           business_hours_start: item.business_hours_start || '',
           business_hours_end: item.business_hours_end || '',
-          division_id: item.division_id || '',
         })
         break
       case 'roles':
@@ -384,7 +367,6 @@ const MasterDataManagement = ({ onPrev }) => {
         setFormData({
           employment_code: item.employment_code,
           employment_name: item.employment_name,
-          payment_type: item.payment_type || '',
         })
         break
       case 'shift_patterns':
@@ -475,7 +457,7 @@ const MasterDataManagement = ({ onPrev }) => {
         setFormData({})
     }
 
-    setShowModal(true)
+    setShowPopup(true)
   }
 
   const handleDelete = async item => {
@@ -554,7 +536,7 @@ const MasterDataManagement = ({ onPrev }) => {
         return
       }
 
-      if (modalMode === 'create') {
+      if (popupMode === 'create') {
         switch (selectedMaster) {
           case 'staff':
             await masterRepository.createStaff(formData)
@@ -652,7 +634,7 @@ const MasterDataManagement = ({ onPrev }) => {
         alert('更新しました')
       }
 
-      setShowModal(false)
+      setShowPopup(false)
       await loadMasterData()
     } catch (error) {
       console.error('保存エラー:', error)
@@ -673,12 +655,8 @@ const MasterDataManagement = ({ onPrev }) => {
         }
         return true
       case 'stores':
-        if (!formData.store_code || !formData.store_name) {
-          setError('店舗コードと店舗名は必須です')
-          return false
-        }
-        if (!formData.division_id) {
-          setError('部署は必須です')
+        if (!formData.store_name) {
+          setError('店舗名は必須です')
           return false
         }
         return true
@@ -794,8 +772,8 @@ const MasterDataManagement = ({ onPrev }) => {
     }
   }
 
-  const handleCloseModal = () => {
-    setShowModal(false)
+  const handleClosePopup = () => {
+    setShowPopup(false)
     setEditingItem(null)
     setFormData({})
     setError(null)
@@ -812,30 +790,17 @@ const MasterDataManagement = ({ onPrev }) => {
     switch (selectedMaster) {
       case 'staff':
         return [
-          { key: 'staff_id', label: 'ID', width: '80px' },
-          { key: 'staff_code', label: 'スタッフコード', width: '150px' },
-          { key: 'name', label: '氏名', width: '200px' },
-          { key: 'store_id', label: '店舗ID', width: '100px' },
-          { key: 'role_id', label: '役職ID', width: '100px' },
-          { key: 'division_id', label: '部署ID', width: '100px' },
-          { key: 'email', label: 'メールアドレス', width: '200px' },
-          { key: 'phone_number', label: '電話番号', width: '150px' },
-          { key: 'employment_type', label: '雇用形態', width: '120px' },
-          { key: 'hire_date', label: '登録日', width: '120px' },
-          { key: 'resignation_date', label: '退職日', width: '120px' },
-          { key: 'is_active', label: '状態', width: '100px' },
+          { key: 'name', label: 'スタッフ名', width: '150px' },
+          { key: 'email', label: 'メール', width: '200px' },
+          { key: 'phone_number', label: '電話番号', width: '140px' },
+          { key: 'employment_type', label: '雇用形態', width: '100px' },
+          { key: 'store_id', label: '所属店舗', width: '120px' },
         ]
       case 'stores':
         return [
-          { key: 'store_id', label: 'ID', width: '80px' },
-          { key: 'store_code', label: '店舗コード', width: '150px' },
-          { key: 'store_name', label: '店舗名', width: '200px' },
-          { key: 'division_id', label: '部署ID', width: '100px' },
-          { key: 'address', label: '住所', width: '250px' },
-          { key: 'phone_number', label: '電話番号', width: '150px' },
-          { key: 'business_hours_start', label: '営業開始', width: '100px' },
-          { key: 'business_hours_end', label: '営業終了', width: '100px' },
-          { key: 'is_active', label: '状態', width: '100px' },
+          { key: 'store_name', label: '店舗名', width: '150px' },
+          { key: 'business_hours_start', label: '開店時間', width: '100px' },
+          { key: 'business_hours_end', label: '閉店時間', width: '100px' },
         ]
       case 'roles':
         return [
@@ -855,11 +820,8 @@ const MasterDataManagement = ({ onPrev }) => {
         ]
       case 'employment_types':
         return [
-          { key: 'employment_type_id', label: 'ID', width: '80px' },
-          { key: 'employment_code', label: '雇用形態コード', width: '150px' },
-          { key: 'employment_name', label: '雇用形態名', width: '200px' },
-          { key: 'payment_type', label: '支払タイプ', width: '150px' },
-          { key: 'is_active', label: '状態', width: '100px' },
+          { key: 'employment_code', label: 'コード', width: '120px' },
+          { key: 'employment_name', label: '雇用形態名', width: '150px' },
         ]
       case 'shift_patterns':
         return [
@@ -959,18 +921,6 @@ const MasterDataManagement = ({ onPrev }) => {
           <>
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
-                スタッフコード <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.staff_code || ''}
-                onChange={e => handleInputChange('staff_code', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例: S001"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
                 氏名 <span className="text-red-500">*</span>
               </label>
               <input
@@ -980,55 +930,6 @@ const MasterDataManagement = ({ onPrev }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 山田太郎"
               />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                店舗 <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.store_id || ''}
-                onChange={e => handleInputChange('store_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">選択してください</option>
-                {stores.map(store => (
-                  <option key={store.store_id} value={store.store_id}>
-                    {store.store_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                役職 <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.role_id || ''}
-                onChange={e => handleInputChange('role_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">選択してください</option>
-                {roles.map(role => (
-                  <option key={role.role_id} value={role.role_id}>
-                    {role.role_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">部署</label>
-              <select
-                value={formData.division_id || ''}
-                onChange={e => handleInputChange('division_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">選択してください</option>
-                {divisions.map(division => (
-                  <option key={division.division_id} value={division.division_id}>
-                    {division.division_name}
-                  </option>
-                ))}
-              </select>
             </div>
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
@@ -1053,7 +954,9 @@ const MasterDataManagement = ({ onPrev }) => {
               />
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">雇用形態</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                雇用形態 <span className="text-red-500">*</span>
+              </label>
               <select
                 value={formData.employment_type || ''}
                 onChange={e => handleInputChange('employment_type', e.target.value)}
@@ -1068,62 +971,27 @@ const MasterDataManagement = ({ onPrev }) => {
               </select>
             </div>
             <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">登録日</label>
-              <input
-                type="date"
-                value={formData.hire_date || ''}
-                onChange={e => handleInputChange('hire_date', e.target.value)}
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                店舗 <span className="text-red-500">*</span>
+              </label>
+              <select
+                value={formData.store_id || ''}
+                onChange={e => handleInputChange('store_id', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">退職日</label>
-              <input
-                type="date"
-                value={formData.resignation_date || ''}
-                onChange={e => handleInputChange('resignation_date', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">月額給与</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.monthly_salary || ''}
-                onChange={e => handleInputChange('monthly_salary', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例: 250000"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">時給</label>
-              <input
-                type="number"
-                step="0.01"
-                value={formData.hourly_rate || ''}
-                onChange={e => handleInputChange('hourly_rate', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例: 1200"
-              />
+              >
+                <option value="">選択してください</option>
+                {stores.map(store => (
+                  <option key={store.store_id} value={store.store_id}>
+                    {store.store_name}
+                  </option>
+                ))}
+              </select>
             </div>
           </>
         )
       case 'stores':
         return (
           <>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                店舗コード <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={formData.store_code || ''}
-                onChange={e => handleInputChange('store_code', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例: ST001"
-              />
-            </div>
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 店舗名 <span className="text-red-500">*</span>
@@ -1134,43 +1002,6 @@ const MasterDataManagement = ({ onPrev }) => {
                 onChange={e => handleInputChange('store_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: 新宿店"
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">
-                部署 <span className="text-red-500">*</span>
-              </label>
-              <select
-                value={formData.division_id || ''}
-                onChange={e => handleInputChange('division_id', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">選択してください</option>
-                {divisions.map(division => (
-                  <option key={division.division_id} value={division.division_id}>
-                    {division.division_name}
-                  </option>
-                ))}
-              </select>
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">住所</label>
-              <input
-                type="text"
-                value={formData.address || ''}
-                onChange={e => handleInputChange('address', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例: 東京都新宿区..."
-              />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">電話番号</label>
-              <input
-                type="tel"
-                value={formData.phone_number || ''}
-                onChange={e => handleInputChange('phone_number', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例: 03-1234-5678"
               />
             </div>
             <div className="mb-4">
@@ -1299,19 +1130,6 @@ const MasterDataManagement = ({ onPrev }) => {
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
                 placeholder="例: アルバイト"
               />
-            </div>
-            <div className="mb-4">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">支払タイプ</label>
-              <select
-                value={formData.payment_type || ''}
-                onChange={e => handleInputChange('payment_type', e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                <option value="">選択してください</option>
-                <option value="HOURLY">時給制</option>
-                <option value="MONTHLY">月給制</option>
-                <option value="DAILY">日給制</option>
-              </select>
             </div>
           </>
         )
@@ -2015,8 +1833,8 @@ const MasterDataManagement = ({ onPrev }) => {
                     <table className="w-full border-collapse">
                       <thead className="bg-gray-100 sticky top-0 z-10">
                         <tr>
-                          <th className="px-4 py-3 text-left text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap">
-                            No.
+                          <th className="px-3 py-3 text-center text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap w-16">
+                            編集
                           </th>
                           {getTableColumns().map(column => (
                             <th
@@ -2027,9 +1845,6 @@ const MasterDataManagement = ({ onPrev }) => {
                               {column.label}
                             </th>
                           ))}
-                          <th className="px-4 py-3 text-center text-xs font-semibold text-gray-700 border-b border-gray-300 whitespace-nowrap">
-                            操作
-                          </th>
                         </tr>
                       </thead>
                       <tbody>
@@ -2038,8 +1853,14 @@ const MasterDataManagement = ({ onPrev }) => {
                             key={index}
                             className="hover:bg-blue-50 transition-colors border-b border-gray-200"
                           >
-                            <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">
-                              {index + 1}
+                            <td className="px-3 py-3 text-sm whitespace-nowrap w-16">
+                              <button
+                                onClick={e => handleEdit(item, e)}
+                                className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors mx-auto block"
+                                title="編集"
+                              >
+                                <Edit3 className="h-4 w-4" />
+                              </button>
                             </td>
                             {getTableColumns().map(column => (
                               <td
@@ -2049,24 +1870,6 @@ const MasterDataManagement = ({ onPrev }) => {
                                 {getCellValue(item, column)}
                               </td>
                             ))}
-                            <td className="px-4 py-3 text-sm whitespace-nowrap">
-                              <div className="flex justify-center gap-2">
-                                <button
-                                  onClick={() => handleEdit(item)}
-                                  className="p-1.5 text-blue-600 hover:text-blue-800 hover:bg-blue-100 rounded transition-colors"
-                                  title="編集"
-                                >
-                                  <Edit3 className="h-4 w-4" />
-                                </button>
-                                <button
-                                  onClick={() => handleDelete(item)}
-                                  className="p-1.5 text-red-600 hover:text-red-800 hover:bg-red-100 rounded transition-colors"
-                                  title="削除"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </button>
-                              </div>
-                            </td>
                           </tr>
                         ))}
                       </tbody>
@@ -2078,49 +1881,80 @@ const MasterDataManagement = ({ onPrev }) => {
           </div>
         </div>
 
-        {/* モーダル */}
-        {showModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col">
-              <div className="flex items-center justify-between p-5 border-b border-gray-200">
-                <h3 className="text-lg font-bold text-gray-900">
-                  {modalMode === 'create' ? '新規作成' : '編集'}
-                </h3>
-                <button
-                  onClick={handleCloseModal}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
+        {/* ポップアップ */}
+        {showPopup && (
+          <>
+            {/* 背景オーバーレイ（クリックで閉じる） */}
+            <div className="fixed inset-0 z-40 bg-black/20" onClick={handleClosePopup} />
 
-              <div className="flex-1 overflow-y-auto p-5">
-                {error && (
-                  <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded">
-                    <p className="text-red-800 text-sm">{error}</p>
+            {/* ドラッグ可能なポップアップ（中央配置） */}
+            <Rnd
+              default={{
+                x: (window.innerWidth - 380) / 2,
+                y: (window.innerHeight - 400) / 2,
+                width: 380,
+                height: 'auto',
+              }}
+              minWidth={320}
+              minHeight={200}
+              bounds="window"
+              dragHandleClassName="popup-drag-handle"
+              enableResizing={false}
+              style={{ zIndex: 50 }}
+            >
+              <div className="bg-white rounded-xl shadow-2xl border border-gray-200 w-full flex flex-col overflow-hidden">
+                {/* ヘッダー（ドラッグハンドル） */}
+                <div className="popup-drag-handle flex items-center justify-between px-4 py-3 bg-gradient-to-r from-blue-600 to-blue-500 rounded-t-xl cursor-move select-none">
+                  <div className="flex items-center gap-2">
+                    {selectedMasterType &&
+                      React.createElement(selectedMasterType.icon, {
+                        className: 'h-4 w-4 text-white',
+                      })}
+                    <h3 className="text-sm font-bold text-white">
+                      {selectedMasterType?.label}
+                      {popupMode === 'create' ? 'を追加' : 'を編集'}
+                    </h3>
                   </div>
-                )}
+                  <button
+                    onClick={handleClosePopup}
+                    className="p-1 text-white/80 hover:text-white hover:bg-white/20 rounded transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
 
-                {getFormFields()}
-              </div>
+                {/* コンテンツ */}
+                <div className="overflow-y-auto p-4 max-h-[60vh]">
+                  {error && (
+                    <div className="mb-3 p-2 bg-red-50 border border-red-200 rounded-lg">
+                      <p className="text-red-800 text-xs">{error}</p>
+                    </div>
+                  )}
 
-              <div className="flex justify-end gap-3 p-5 border-t border-gray-200 bg-gray-50">
-                <button
-                  onClick={handleCloseModal}
-                  className="px-4 py-2 text-sm text-gray-700 bg-white border border-gray-300 rounded hover:bg-gray-50 transition-colors"
-                >
-                  キャンセル
-                </button>
-                <button
-                  onClick={handleSave}
-                  className="flex items-center gap-2 px-4 py-2 text-sm text-white bg-blue-600 rounded hover:bg-blue-700 transition-colors"
-                >
-                  <Save className="h-4 w-4" />
-                  保存
-                </button>
+                  {getFormFields()}
+                </div>
+
+                {/* フッター */}
+                <div className="flex justify-end gap-2 px-4 py-3 border-t border-gray-200 bg-gray-50 rounded-b-xl">
+                  <button
+                    type="button"
+                    onClick={handleClosePopup}
+                    className="px-3 py-1.5 text-xs font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    キャンセル
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSave}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors shadow-sm"
+                  >
+                    <Save className="h-3.5 w-3.5" />
+                    保存
+                  </button>
+                </div>
               </div>
-            </div>
-          </div>
+            </Rnd>
+          </>
         )}
       </motion.div>
     </div>
