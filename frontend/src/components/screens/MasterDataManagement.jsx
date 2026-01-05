@@ -1008,7 +1008,9 @@ const MasterDataManagement = ({ onPrev }) => {
                       }`}
                     />
                   </button>
-                  <span className={`text-sm ${formData.is_active ? 'text-blue-700' : 'text-gray-500'}`}>
+                  <span
+                    className={`text-sm ${formData.is_active ? 'text-blue-700' : 'text-gray-500'}`}
+                  >
                     {formData.is_active ? '在籍中' : '退職済み'}
                   </span>
                 </div>
