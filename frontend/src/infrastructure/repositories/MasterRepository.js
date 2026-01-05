@@ -42,6 +42,89 @@ export class MasterRepository {
   }
 
   /**
+   * スタッフを作成
+   */
+  async createStaff(data) {
+    try {
+      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STAFF}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'スタッフ作成に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      throw new Error(`スタッフ作成エラー: ${error.message}`)
+    }
+  }
+
+  /**
+   * スタッフを更新
+   */
+  async updateStaff(staffId, data) {
+    try {
+      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STAFF}/${staffId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'スタッフ更新に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      throw new Error(`スタッフ更新エラー: ${error.message}`)
+    }
+  }
+
+  /**
+   * スタッフを削除（論理削除）
+   */
+  async deleteStaff(staffId) {
+    try {
+      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STAFF}/${staffId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || 'スタッフ削除に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      throw new Error(`スタッフ削除エラー: ${error.message}`)
+    }
+  }
+
+  /**
    * 役職マスタを取得
    */
   async getRoles(tenantId = null) {
@@ -113,6 +196,89 @@ export class MasterRepository {
       return result.data
     } catch (error) {
       throw new Error(`店舗マスタ取得エラー: ${error.message}`)
+    }
+  }
+
+  /**
+   * 店舗を作成
+   */
+  async createStore(data) {
+    try {
+      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORES}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '店舗作成に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      throw new Error(`店舗作成エラー: ${error.message}`)
+    }
+  }
+
+  /**
+   * 店舗を更新
+   */
+  async updateStore(storeId, data) {
+    try {
+      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORES}/${storeId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '店舗更新に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      throw new Error(`店舗更新エラー: ${error.message}`)
+    }
+  }
+
+  /**
+   * 店舗を削除（論理削除）
+   */
+  async deleteStore(storeId) {
+    try {
+      const response = await fetch(`${BACKEND_API_URL}${API_ENDPOINTS.MASTER_STORES}/${storeId}`, {
+        method: 'DELETE',
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const result = await response.json()
+
+      if (!result.success) {
+        throw new Error(result.error || '店舗削除に失敗しました')
+      }
+
+      return result.data
+    } catch (error) {
+      throw new Error(`店舗削除エラー: ${error.message}`)
     }
   }
 
