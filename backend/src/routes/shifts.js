@@ -1844,7 +1844,9 @@ router.post('/preferences/bulk', async (req, res) => {
       tenant_id,
       store_id,
       staff_id,
-      preferences
+      preferences,
+      year: requestYear,
+      month: requestMonth
     } = req.body;
 
     // 必須項目のバリデーション
@@ -1856,10 +1858,11 @@ router.post('/preferences/bulk', async (req, res) => {
       });
     }
 
-    if (preferences.length === 0) {
+    // 空配列の場合はyear/monthが必須
+    if (preferences.length === 0 && (!requestYear || !requestMonth)) {
       return res.status(400).json({
         success: false,
-        error: 'preferences array cannot be empty'
+        error: 'year and month are required when preferences is empty'
       });
     }
 
@@ -1894,12 +1897,18 @@ router.post('/preferences/bulk', async (req, res) => {
       }
     }
 
-    // 対象月を特定（preferencesの最初の日付から）
-    const firstDate = preferences[0].preference_date;
-    const yearMonth = firstDate.substring(0, 7); // "YYYY-MM"
-    const startDate = `${yearMonth}-01`;
+    // 対象月を特定（preferencesがあれば最初の日付から、なければリクエストパラメータから）
+    let year, month;
+    if (preferences.length > 0) {
+      const firstDate = preferences[0].preference_date;
+      const yearMonth = firstDate.substring(0, 7); // "YYYY-MM"
+      [year, month] = yearMonth.split('-').map(Number);
+    } else {
+      year = Number(requestYear);
+      month = Number(requestMonth);
+    }
+    const startDate = `${year}-${String(month).padStart(2, '0')}-01`;
     // 翌月1日を計算
-    const [year, month] = yearMonth.split('-').map(Number);
     const nextMonth = month === 12 ? 1 : month + 1;
     const nextYear = month === 12 ? year + 1 : year;
     const endDate = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
