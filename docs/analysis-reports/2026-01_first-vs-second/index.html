@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>シフト乖離分析レポート | 2026年1月 第1案 vs 第2案</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --warning: #ca8a04;
+            --danger: #dc2626;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-500: #6b7280;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Hiragino Sans', sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-900);
+            line-height: 1.7;
+        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 40px 20px; }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%);
+            color: white;
+            padding: 50px 20px;
+        }
+        header .container { padding: 0 20px; }
+        .report-meta {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+            font-size: 14px;
+            opacity: 0.9;
+            flex-wrap: wrap;
+        }
+        .report-meta span { background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 4px; }
+        header h1 { font-size: 28px; margin-bottom: 10px; font-weight: 700; }
+        header .subtitle { font-size: 16px; opacity: 0.9; }
+        .comparison-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: white;
+            color: var(--gray-900);
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            margin-top: 20px;
+            font-size: 16px;
+        }
+        .comparison-badge .arrow { color: var(--primary); font-size: 20px; }
+        .comparison-badge .plan { padding: 4px 10px; border-radius: 4px; }
+        .comparison-badge .plan.first { background: #dbeafe; color: #1e40af; }
+        .comparison-badge .plan.second { background: #dcfce7; color: #166534; }
+
+        /* Tab Navigation */
+        .tab-nav {
+            background: white;
+            border-bottom: 1px solid var(--gray-200);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .tab-nav ul {
+            display: flex;
+            list-style: none;
+            max-width: 1100px;
+            margin: 0 auto;
+            overflow-x: auto;
+        }
+        .tab-nav li { flex-shrink: 0; }
+        .tab-nav a {
+            display: block;
+            padding: 18px 24px;
+            color: var(--gray-500);
+            text-decoration: none;
+            font-size: 14px;
+            font-weight: 500;
+            border-bottom: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .tab-nav a:hover { color: var(--gray-900); background: var(--gray-50); }
+        .tab-nav a.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+            background: #eff6ff;
+        }
+
+        /* Tab Content */
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Sections */
+        section { background: white; border-radius: 12px; padding: 40px; margin-bottom: 30px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        section h2 {
+            font-size: 22px;
+            color: var(--gray-900);
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--gray-200);
+        }
+        section h3 { font-size: 17px; color: var(--gray-700); margin: 30px 0 15px; }
+        section h4 { font-size: 15px; color: var(--gray-700); margin: 20px 0 10px; }
+
+        /* Executive Summary */
+        .exec-summary { background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%); border: 2px solid #ef4444; }
+        .exec-summary h2 { border-bottom-color: #ef4444; }
+
+        .key-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        .metric {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .metric.highlight { background: linear-gradient(135deg, #dc2626, #ef4444); color: white; }
+        .metric.warning { background: linear-gradient(135deg, #ca8a04, #eab308); color: white; }
+        .metric.success { background: linear-gradient(135deg, #16a34a, #22c55e); color: white; }
+        .metric-value { font-size: 28px; font-weight: 700; }
+        .metric-label { font-size: 11px; margin-top: 5px; opacity: 0.8; }
+
+        .key-message {
+            background: white;
+            border-left: 4px solid var(--danger);
+            padding: 25px;
+            border-radius: 0 10px 10px 0;
+            margin-bottom: 25px;
+        }
+        .key-message h3 { margin: 0 0 15px; color: var(--danger); font-size: 16px; }
+        .key-message p { font-size: 15px; color: var(--gray-700); }
+
+        .insights-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 15px;
+        }
+        .insight-card {
+            background: white;
+            border-radius: 10px;
+            padding: 18px;
+            border: 1px solid var(--gray-200);
+        }
+        .insight-card.positive { border-left: 4px solid var(--success); }
+        .insight-card.negative { border-left: 4px solid var(--danger); }
+        .insight-card.neutral { border-left: 4px solid var(--warning); }
+        .insight-card h4 { margin: 0 0 8px; font-size: 13px; color: var(--gray-500); }
+        .insight-card p { font-size: 14px; font-weight: 500; }
+
+        /* Tables */
+        table { width: 100%; border-collapse: collapse; font-size: 13px; margin: 20px 0; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--gray-200); }
+        th { background: var(--gray-50); font-weight: 600; color: var(--gray-700); font-size: 11px; text-transform: uppercase; }
+        tr:hover { background: var(--gray-50); }
+
+        .badge {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 600;
+        }
+        .badge-success { background: #dcfce7; color: #166534; }
+        .badge-warning { background: #fef9c3; color: #854d0e; }
+        .badge-danger { background: #fee2e2; color: #991b1b; }
+
+        /* Analysis boxes */
+        .analysis-box {
+            background: var(--gray-50);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        .analysis-box h4 { margin: 0 0 12px; font-size: 14px; }
+        .analysis-box ul { margin-left: 20px; }
+        .analysis-box li { margin: 6px 0; font-size: 13px; color: var(--gray-700); }
+
+        .two-column { display: grid; grid-template-columns: 1fr 1fr; gap: 25px; }
+        @media (max-width: 768px) { .two-column { grid-template-columns: 1fr; } }
+
+        /* Recommendations */
+        .recommendations {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            border: 2px solid #f59e0b;
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 25px;
+        }
+        .recommendations h4 { color: #92400e; margin-bottom: 12px; }
+        .recommendations ul { margin-left: 20px; }
+        .recommendations li { margin: 8px 0; color: #78350f; font-size: 13px; }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--gray-500);
+            font-size: 13px;
+        }
+
+        /* Progress bars */
+        .progress-container { margin: 12px 0; }
+        .progress-label { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 5px; }
+        .progress-bar { height: 24px; background: var(--gray-200); border-radius: 4px; overflow: hidden; display: flex; }
+        .progress-segment { display: flex; align-items: center; justify-content: center; color: white; font-size: 11px; font-weight: 500; }
+        .progress-segment.match { background: var(--success); }
+        .progress-segment.time-diff { background: var(--warning); }
+        .progress-segment.first-only { background: var(--danger); }
+        .progress-segment.second-only { background: var(--primary); }
+
+        .legend { display: flex; gap: 20px; margin-top: 15px; flex-wrap: wrap; }
+        .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+        .legend-color { width: 14px; height: 14px; border-radius: 3px; }
+
+        /* Highlight rows */
+        .row-success { background: #f0fdf4 !important; }
+        .row-danger { background: #fef2f2 !important; }
+
+        .purpose-box {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+        .purpose-box h4 { color: #1e40af; margin-bottom: 10px; }
+        .purpose-box p { font-size: 14px; color: #1e3a8a; }
+
+        /* Scrollable table */
+        .table-scroll { overflow-x: auto; }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="container">
+        <div class="report-meta">
+            <span>Stand Banh Mi</span>
+            <span>生成日: 2026年1月5日</span>
+            <span>分析対象: 6店舗 / 30名</span>
+        </div>
+        <h1>シフト乖離分析レポート</h1>
+        <p class="subtitle">第1案（初稿）と第2案（確定版）の差異を分析し、AI予測精度と店舗運営の改善に活かす</p>
+        <div class="comparison-badge">
+            <span class="plan first">2026年1月 第1案（初稿）</span>
+            <span class="arrow">vs</span>
+            <span class="plan second">2026年1月 第2案（確定）</span>
+        </div>
+    </div>
+</header>
+
+<nav class="tab-nav">
+    <ul>
+        <li><a class="active" onclick="showTab('summary')">サマリー</a></li>
+        <li><a onclick="showTab('store')">店舗別</a></li>
+        <li><a onclick="showTab('staff')">スタッフ別</a></li>
+        <li><a onclick="showTab('contract')">契約形態別</a></li>
+        <li><a onclick="showTab('dow')">曜日別</a></li>
+        <li><a onclick="showTab('time')">時間帯</a></li>
+        <li><a onclick="showTab('action')">改善提言</a></li>
+    </ul>
+</nav>
+
+<div class="container">
+
+    <!-- ============================================ -->
+    <!-- サマリータブ -->
+    <!-- ============================================ -->
+    <div id="tab-summary" class="tab-content active">
+
+        <!-- このレポートの目的 -->
+        <div class="purpose-box">
+            <h4>このレポートの目的</h4>
+            <p>
+                2026年1月の<strong>第1案（シフト初稿）</strong>と<strong>第2案（最終確定シフト）</strong>の差異を分析しています。
+                第1案の精度が高ければ、シフト調整の手間が減り、スタッフへの連絡も少なくなります。
+                <strong>AI導入時にこのデータを活用し、第1案の精度を高めること</strong>が目標です。
+            </p>
+        </div>
+
+        <!-- エグゼクティブサマリー -->
+        <section class="exec-summary">
+            <h2>エグゼクティブサマリー</h2>
+
+            <div class="key-metrics">
+                <div class="metric highlight">
+                    <div class="metric-value">35.1%</div>
+                    <div class="metric-label">完全一致率</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">652</div>
+                    <div class="metric-label">比較対象シフト数</div>
+                </div>
+                <div class="metric success">
+                    <div class="metric-value">229</div>
+                    <div class="metric-label">完全一致</div>
+                </div>
+                <div class="metric warning">
+                    <div class="metric-value">124</div>
+                    <div class="metric-label">時間変更</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">185</div>
+                    <div class="metric-label">第1案のみ（削除）</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">114</div>
+                    <div class="metric-label">第2案のみ（追加）</div>
+                </div>
+            </div>
+
+            <div class="key-message">
+                <h3>第1案から約65%のシフトに変更が発生</h3>
+                <p>
+                    第1案（538件）から第2案（467件）への確定過程で、<strong>約65%のシフトに何らかの変更</strong>が発生しています。
+                    特に<strong>185件が削除</strong>、<strong>114件が新規追加</strong>されており、勤務日自体の変更が多いです。
+                    一方で、時間変更は124件にとどまっており、「日付は合っているが時間がずれる」ケースは比較的少ないです。
+                </p>
+            </div>
+
+            <h3>分析結果の全体像</h3>
+            <div class="insights-grid">
+                <div class="insight-card positive">
+                    <h4>うまくいっている点</h4>
+                    <p>Tipsy Tiger（70.4%）は高い一致率。固定スタッフ中心の店舗は予測しやすい</p>
+                </div>
+                <div class="insight-card positive">
+                    <h4>安定しているスタッフ</h4>
+                    <p>加藤智津子（82.6%）、北村卓也（81.5%）など固定シフトの人は高精度</p>
+                </div>
+                <div class="insight-card negative">
+                    <h4>課題がある店舗</h4>
+                    <p>Stand Pho Yo（16.4%）、Atelier（21.8%）は大幅な調整が発生</p>
+                </div>
+                <div class="insight-card negative">
+                    <h4>変動が大きいスタッフ</h4>
+                    <p>Sa（0%）、篠原喬人（2.5%）など、ほぼ全シフトが変更される人がいる</p>
+                </div>
+                <div class="insight-card neutral">
+                    <h4>最も多い変更パターン</h4>
+                    <p>終了時間の30分短縮（23:30→23:00）が26件で最多</p>
+                </div>
+                <div class="insight-card neutral">
+                    <h4>シフト数の変化</h4>
+                    <p>第1案538件→第2案467件（71件減、約13%減少）</p>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- 店舗別タブ -->
+    <!-- ============================================ -->
+    <div id="tab-store" class="tab-content">
+        <section>
+            <h2>店舗別分析</h2>
+
+            <p style="margin-bottom: 20px; color: var(--gray-700);">
+                店舗によって第1案の精度に大きな差があります。固定スタッフ中心の店舗は高い一致率を達成しています。
+            </p>
+
+            <h3>店舗別一致率ランキング</h3>
+
+            <div class="progress-container">
+                <div class="progress-label"><span>Tipsy Tiger</span><span>70.4% 一致（54件中38件）</span></div>
+                <div class="progress-bar">
+                    <div class="progress-segment match" style="width: 70.4%;">38</div>
+                    <div class="progress-segment time-diff" style="width: 7.4%;">4</div>
+                    <div class="progress-segment first-only" style="width: 14.8%;">8</div>
+                    <div class="progress-segment second-only" style="width: 7.4%;">4</div>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-label"><span>Stand Bo Bun</span><span>49.3% 一致（69件中34件）</span></div>
+                <div class="progress-bar">
+                    <div class="progress-segment match" style="width: 49.3%;">34</div>
+                    <div class="progress-segment first-only" style="width: 34.8%;">24</div>
+                    <div class="progress-segment second-only" style="width: 15.9%;">11</div>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-label"><span>COME 麻布台</span><span>36.7% 一致（147件中54件）</span></div>
+                <div class="progress-bar">
+                    <div class="progress-segment match" style="width: 36.7%;">54</div>
+                    <div class="progress-segment time-diff" style="width: 12.9%;">19</div>
+                    <div class="progress-segment first-only" style="width: 32%;">47</div>
+                    <div class="progress-segment second-only" style="width: 18.4%;">27</div>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-label"><span>Stand Banh Mi</span><span>34.6% 一致（182件中63件）</span></div>
+                <div class="progress-bar">
+                    <div class="progress-segment match" style="width: 34.6%;">63</div>
+                    <div class="progress-segment time-diff" style="width: 25.3%;">46</div>
+                    <div class="progress-segment first-only" style="width: 25.8%;">47</div>
+                    <div class="progress-segment second-only" style="width: 14.3%;">26</div>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-label"><span>Atelier</span><span>21.8% 一致（133件中29件）</span></div>
+                <div class="progress-bar">
+                    <div class="progress-segment match" style="width: 21.8%;">29</div>
+                    <div class="progress-segment time-diff" style="width: 24.8%;">33</div>
+                    <div class="progress-segment first-only" style="width: 30.1%;">40</div>
+                    <div class="progress-segment second-only" style="width: 23.3%;">31</div>
+                </div>
+            </div>
+            <div class="progress-container">
+                <div class="progress-label"><span>Stand Pho Yo</span><span>16.4% 一致（67件中11件）</span></div>
+                <div class="progress-bar">
+                    <div class="progress-segment match" style="width: 16.4%;">11</div>
+                    <div class="progress-segment time-diff" style="width: 32.8%;">22</div>
+                    <div class="progress-segment first-only" style="width: 28.4%;">19</div>
+                    <div class="progress-segment second-only" style="width: 22.4%;">15</div>
+                </div>
+            </div>
+
+            <div class="legend">
+                <div class="legend-item"><div class="legend-color" style="background: var(--success);"></div>一致（変更なし）</div>
+                <div class="legend-item"><div class="legend-color" style="background: var(--warning);"></div>時間変更</div>
+                <div class="legend-item"><div class="legend-color" style="background: var(--danger);"></div>第1案のみ（削除）</div>
+                <div class="legend-item"><div class="legend-color" style="background: var(--primary);"></div>第2案のみ（追加）</div>
+            </div>
+
+            <div class="two-column" style="margin-top: 30px;">
+                <div class="analysis-box">
+                    <h4>一致率が高い店舗の特徴</h4>
+                    <ul>
+                        <li><strong>Tipsy Tiger（70.4%）</strong>：加藤智津子さん、サプコタケサブさんが固定で勤務。変動が少ない</li>
+                        <li><strong>Stand Bo Bun（49.3%）</strong>：時間変更0件。日程の追加/削除はあるが時間は安定</li>
+                        <li><strong>共通点</strong>：固定メンバーが決まっており、毎週同じパターン</li>
+                    </ul>
+                </div>
+                <div class="analysis-box">
+                    <h4>一致率が低い店舗の特徴</h4>
+                    <ul>
+                        <li><strong>Stand Pho Yo（16.4%）</strong>：時間変更22件、削除19件、追加15件。全面的に調整が発生</li>
+                        <li><strong>Atelier（21.8%）</strong>：時間変更33件と最多。終了時間の調整が頻繁</li>
+                        <li><strong>共通点</strong>：希望調整が多く、第1案が当てにならない状態</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="recommendations">
+                <h4>店舗別の改善ポイント</h4>
+                <ul>
+                    <li><strong>Tipsy Tiger</strong>：現状維持でOK。固定スタッフのパターンをAIに学習させれば更に精度向上</li>
+                    <li><strong>Stand Pho Yo / Atelier</strong>：第1案作成前に希望を確定させる運用が必須。現状では予測が難しい</li>
+                    <li><strong>全体</strong>：第1案作成時点でスタッフからの希望収集が不十分な可能性あり</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- スタッフ別タブ -->
+    <!-- ============================================ -->
+    <div id="tab-staff" class="tab-content">
+        <section>
+            <h2>スタッフ別分析（全30名）</h2>
+
+            <p style="margin-bottom: 20px; color: var(--gray-700);">
+                スタッフによって一致率は0%〜82.6%まで大きく異なります。固定シフト型のスタッフは高い一致率を達成しています。
+            </p>
+
+            <div class="table-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>スタッフ名</th>
+                            <th>契約形態</th>
+                            <th>一致</th>
+                            <th>時間変更</th>
+                            <th>第1案のみ</th>
+                            <th>第2案のみ</th>
+                            <th>合計</th>
+                            <th>一致率</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr class="row-success">
+                            <td><strong>加藤智津子</strong></td>
+                            <td>パート</td>
+                            <td>19</td>
+                            <td>1</td>
+                            <td>2</td>
+                            <td>1</td>
+                            <td>23</td>
+                            <td><span class="badge badge-success">82.6%</span></td>
+                        </tr>
+                        <tr class="row-success">
+                            <td><strong>北村卓也</strong></td>
+                            <td>正社員</td>
+                            <td>22</td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td>1</td>
+                            <td>27</td>
+                            <td><span class="badge badge-success">81.5%</span></td>
+                        </tr>
+                        <tr class="row-success">
+                            <td><strong>グエン ニュン</strong></td>
+                            <td>パート</td>
+                            <td>7</td>
+                            <td>0</td>
+                            <td>2</td>
+                            <td>0</td>
+                            <td>9</td>
+                            <td><span class="badge badge-success">77.8%</span></td>
+                        </tr>
+                        <tr class="row-success">
+                            <td><strong>梶尾真紀</strong></td>
+                            <td>パート</td>
+                            <td>18</td>
+                            <td>0</td>
+                            <td>3</td>
+                            <td>3</td>
+                            <td>24</td>
+                            <td><span class="badge badge-success">75.0%</span></td>
+                        </tr>
+                        <tr class="row-success">
+                            <td><strong>吉原将郎</strong></td>
+                            <td>正社員</td>
+                            <td>22</td>
+                            <td>0</td>
+                            <td>5</td>
+                            <td>3</td>
+                            <td>30</td>
+                            <td><span class="badge badge-success">73.3%</span></td>
+                        </tr>
+                        <tr class="row-success">
+                            <td><strong>サプコタケサブ</strong></td>
+                            <td>正社員</td>
+                            <td>19</td>
+                            <td>3</td>
+                            <td>2</td>
+                            <td>2</td>
+                            <td>26</td>
+                            <td><span class="badge badge-success">73.1%</span></td>
+                        </tr>
+                        <tr>
+                            <td>甲木由紀</td>
+                            <td>パート</td>
+                            <td>8</td>
+                            <td>0</td>
+                            <td>5</td>
+                            <td>0</td>
+                            <td>13</td>
+                            <td><span class="badge badge-warning">61.5%</span></td>
+                        </tr>
+                        <tr>
+                            <td>中谷晋</td>
+                            <td>正社員</td>
+                            <td>17</td>
+                            <td>6</td>
+                            <td>6</td>
+                            <td>1</td>
+                            <td>30</td>
+                            <td><span class="badge badge-warning">56.7%</span></td>
+                        </tr>
+                        <tr>
+                            <td>会田英明</td>
+                            <td>正社員</td>
+                            <td>16</td>
+                            <td>4</td>
+                            <td>6</td>
+                            <td>3</td>
+                            <td>29</td>
+                            <td><span class="badge badge-warning">55.2%</span></td>
+                        </tr>
+                        <tr>
+                            <td>高田久瑠実</td>
+                            <td>パート</td>
+                            <td>12</td>
+                            <td>5</td>
+                            <td>5</td>
+                            <td>0</td>
+                            <td>22</td>
+                            <td><span class="badge badge-warning">54.5%</span></td>
+                        </tr>
+                        <tr>
+                            <td>中村栞</td>
+                            <td>パート</td>
+                            <td>15</td>
+                            <td>1</td>
+                            <td>10</td>
+                            <td>4</td>
+                            <td>30</td>
+                            <td><span class="badge badge-warning">50.0%</span></td>
+                        </tr>
+                        <tr>
+                            <td>吉田 朋世</td>
+                            <td>パート</td>
+                            <td>4</td>
+                            <td>0</td>
+                            <td>2</td>
+                            <td>2</td>
+                            <td>8</td>
+                            <td><span class="badge badge-warning">50.0%</span></td>
+                        </tr>
+                        <tr>
+                            <td>五十嵐 ティン</td>
+                            <td>パート</td>
+                            <td>7</td>
+                            <td>0</td>
+                            <td>6</td>
+                            <td>2</td>
+                            <td>15</td>
+                            <td><span class="badge badge-warning">46.7%</span></td>
+                        </tr>
+                        <tr>
+                            <td>佐伯結香</td>
+                            <td>パート</td>
+                            <td>5</td>
+                            <td>0</td>
+                            <td>5</td>
+                            <td>3</td>
+                            <td>13</td>
+                            <td><span class="badge badge-warning">38.5%</span></td>
+                        </tr>
+                        <tr>
+                            <td>武根太一</td>
+                            <td>正社員</td>
+                            <td>10</td>
+                            <td>8</td>
+                            <td>10</td>
+                            <td>6</td>
+                            <td>34</td>
+                            <td><span class="badge badge-warning">29.4%</span></td>
+                        </tr>
+                        <tr>
+                            <td>本村めい</td>
+                            <td>パート</td>
+                            <td>2</td>
+                            <td>0</td>
+                            <td>2</td>
+                            <td>4</td>
+                            <td>8</td>
+                            <td><span class="badge badge-danger">25.0%</span></td>
+                        </tr>
+                        <tr>
+                            <td>佐藤孝仁</td>
+                            <td>正社員</td>
+                            <td>6</td>
+                            <td>16</td>
+                            <td>5</td>
+                            <td>0</td>
+                            <td>27</td>
+                            <td><span class="badge badge-danger">22.2%</span></td>
+                        </tr>
+                        <tr>
+                            <td>中山美和</td>
+                            <td>パート</td>
+                            <td>4</td>
+                            <td>8</td>
+                            <td>6</td>
+                            <td>3</td>
+                            <td>21</td>
+                            <td><span class="badge badge-danger">19.0%</span></td>
+                        </tr>
+                        <tr>
+                            <td>ホアン トアン バオ</td>
+                            <td>パート</td>
+                            <td>3</td>
+                            <td>0</td>
+                            <td>9</td>
+                            <td>5</td>
+                            <td>17</td>
+                            <td><span class="badge badge-danger">17.6%</span></td>
+                        </tr>
+                        <tr>
+                            <td>秋元梢</td>
+                            <td>正社員</td>
+                            <td>6</td>
+                            <td>12</td>
+                            <td>10</td>
+                            <td>6</td>
+                            <td>34</td>
+                            <td><span class="badge badge-danger">17.6%</span></td>
+                        </tr>
+                        <tr>
+                            <td>服部伎沙</td>
+                            <td>パート</td>
+                            <td>2</td>
+                            <td>4</td>
+                            <td>8</td>
+                            <td>6</td>
+                            <td>20</td>
+                            <td><span class="badge badge-danger">10.0%</span></td>
+                        </tr>
+                        <tr>
+                            <td>内藤加奈子</td>
+                            <td>パート</td>
+                            <td>1</td>
+                            <td>6</td>
+                            <td>4</td>
+                            <td>4</td>
+                            <td>15</td>
+                            <td><span class="badge badge-danger">6.7%</span></td>
+                        </tr>
+                        <tr class="row-danger">
+                            <td><strong>吉田瑛里</strong></td>
+                            <td>正社員</td>
+                            <td>2</td>
+                            <td>9</td>
+                            <td>19</td>
+                            <td>12</td>
+                            <td>42</td>
+                            <td><span class="badge badge-danger">4.8%</span></td>
+                        </tr>
+                        <tr class="row-danger">
+                            <td><strong>佐々美音</strong></td>
+                            <td>パート</td>
+                            <td>1</td>
+                            <td>3</td>
+                            <td>15</td>
+                            <td>11</td>
+                            <td>30</td>
+                            <td><span class="badge badge-danger">3.3%</span></td>
+                        </tr>
+                        <tr class="row-danger">
+                            <td><strong>篠原喬人</strong></td>
+                            <td>正社員</td>
+                            <td>1</td>
+                            <td>9</td>
+                            <td>16</td>
+                            <td>14</td>
+                            <td>40</td>
+                            <td><span class="badge badge-danger">2.5%</span></td>
+                        </tr>
+                        <tr class="row-danger">
+                            <td><strong>Sa</strong></td>
+                            <td>正社員</td>
+                            <td>0</td>
+                            <td>20</td>
+                            <td>7</td>
+                            <td>0</td>
+                            <td>27</td>
+                            <td><span class="badge badge-danger">0.0%</span></td>
+                        </tr>
+                        <tr class="row-danger">
+                            <td><strong>中島花梨</strong></td>
+                            <td>パート</td>
+                            <td>0</td>
+                            <td>6</td>
+                            <td>2</td>
+                            <td>9</td>
+                            <td>17</td>
+                            <td><span class="badge badge-danger">0.0%</span></td>
+                        </tr>
+                        <tr class="row-danger">
+                            <td><strong>吉田莉乃</strong></td>
+                            <td>パート</td>
+                            <td>0</td>
+                            <td>2</td>
+                            <td>6</td>
+                            <td>5</td>
+                            <td>13</td>
+                            <td><span class="badge badge-danger">0.0%</span></td>
+                        </tr>
+                        <tr class="row-danger">
+                            <td><strong>松本佳奈</strong></td>
+                            <td>パート</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>4</td>
+                            <td>4</td>
+                            <td><span class="badge badge-danger">0.0%</span></td>
+                        </tr>
+                        <tr class="row-danger">
+                            <td><strong>相模純平</strong></td>
+                            <td>パート</td>
+                            <td>0</td>
+                            <td>0</td>
+                            <td>4</td>
+                            <td>0</td>
+                            <td>4</td>
+                            <td><span class="badge badge-danger">0.0%</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="two-column">
+                <div class="analysis-box">
+                    <h4>高一致率スタッフの特徴（70%以上）</h4>
+                    <ul>
+                        <li>毎週ほぼ同じ曜日・同じ時間帯で勤務</li>
+                        <li>希望変更がほとんどない「固定シフト型」</li>
+                        <li>時間変更もほぼゼロ</li>
+                        <li>AIは確実に予測できる対象</li>
+                    </ul>
+                </div>
+                <div class="analysis-box">
+                    <h4>低一致率スタッフの特徴（10%未満）</h4>
+                    <ul>
+                        <li><strong>Sa（0%）</strong>：時間変更20件。全シフトで時間が変更</li>
+                        <li><strong>篠原喬人（2.5%）</strong>：削除16件、追加14件。日程自体が変わる</li>
+                        <li><strong>吉田瑛里（4.8%）</strong>：削除19件。大幅な勤務日削減</li>
+                        <li>第1案作成時点で希望が把握できていない可能性</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="recommendations">
+                <h4>スタッフ別の改善ポイント</h4>
+                <ul>
+                    <li><strong>高一致率スタッフ（6名）</strong>：「固定シフトフラグ」をマスターに追加し、第1案で自動確定</li>
+                    <li><strong>0%一致スタッフ</strong>：第1案作成前に個別に希望確認する運用が必須</li>
+                    <li><strong>松本佳奈（第2案のみ4件）</strong>：第1案時点で勤務予定がなかった。新規採用や復帰の情報共有を改善</li>
+                    <li><strong>相模純平（第1案のみ4件）</strong>：第1案に入れたが第2案で削除。退職や休職の情報を反映</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- 契約形態別タブ -->
+    <!-- ============================================ -->
+    <div id="tab-contract" class="tab-content">
+        <section>
+            <h2>契約形態別分析</h2>
+
+            <p style="margin-bottom: 20px; color: var(--gray-700);">
+                契約形態（正社員/パートタイム）による第1案精度の違いを分析します。
+            </p>
+
+            <div class="key-metrics" style="max-width: 500px;">
+                <div class="metric">
+                    <div class="metric-value">35.3%</div>
+                    <div class="metric-label">パートタイム一致率</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">35.0%</div>
+                    <div class="metric-label">正社員一致率</div>
+                </div>
+            </div>
+
+            <table style="max-width: 800px;">
+                <thead>
+                    <tr>
+                        <th>契約形態</th>
+                        <th>人数</th>
+                        <th>一致</th>
+                        <th>時間変更</th>
+                        <th>第1案のみ</th>
+                        <th>第2案のみ</th>
+                        <th>合計</th>
+                        <th>一致率</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>パートタイム</strong></td>
+                        <td>19名</td>
+                        <td>108</td>
+                        <td>36</td>
+                        <td>96</td>
+                        <td>66</td>
+                        <td>306</td>
+                        <td><span class="badge badge-warning">35.3%</span></td>
+                    </tr>
+                    <tr>
+                        <td><strong>正社員</strong></td>
+                        <td>11名</td>
+                        <td>121</td>
+                        <td>88</td>
+                        <td>89</td>
+                        <td>48</td>
+                        <td>346</td>
+                        <td><span class="badge badge-warning">35.0%</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="analysis-box" style="margin-top: 30px;">
+                <h4>契約形態別の傾向</h4>
+                <ul>
+                    <li><strong>一致率はほぼ同じ</strong>：正社員35.0%、パート35.3%で差がない</li>
+                    <li><strong>正社員は時間変更が多い</strong>：88件（25.4%）vs パート36件（11.8%）</li>
+                    <li><strong>パートは日程変更が多い</strong>：削除+追加の割合が高い</li>
+                    <li><strong>正社員は「同じ日に違う時間」で入る傾向</strong></li>
+                    <li><strong>パートは「そもそも入る日が変わる」傾向</strong></li>
+                </ul>
+            </div>
+
+            <div class="recommendations">
+                <h4>契約形態別の改善ポイント</h4>
+                <ul>
+                    <li><strong>正社員</strong>：時間帯（早番/遅番/通し）の希望を事前収集すれば改善の余地あり</li>
+                    <li><strong>パートタイム</strong>：勤務可能日の事前確認を徹底。日程自体の変更が課題</li>
+                    <li><strong>両方</strong>：第1案作成のタイミングで希望が固まっていない可能性が高い</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- 曜日別タブ -->
+    <!-- ============================================ -->
+    <div id="tab-dow" class="tab-content">
+        <section>
+            <h2>曜日別分析</h2>
+
+            <p style="margin-bottom: 20px; color: var(--gray-700);">
+                曜日によって第1案の精度に差があるかを分析します。
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>曜日</th>
+                        <th>一致</th>
+                        <th>時間変更</th>
+                        <th>第1案のみ</th>
+                        <th>第2案のみ</th>
+                        <th>合計</th>
+                        <th>一致率</th>
+                        <th>傾向</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="row-success">
+                        <td><strong>日曜</strong></td>
+                        <td>40</td>
+                        <td>16</td>
+                        <td>20</td>
+                        <td>15</td>
+                        <td>91</td>
+                        <td><span class="badge badge-warning">44.0%</span></td>
+                        <td>最も安定</td>
+                    </tr>
+                    <tr class="row-success">
+                        <td><strong>月曜</strong></td>
+                        <td>40</td>
+                        <td>20</td>
+                        <td>18</td>
+                        <td>15</td>
+                        <td>93</td>
+                        <td><span class="badge badge-warning">43.0%</span></td>
+                        <td>安定</td>
+                    </tr>
+                    <tr>
+                        <td>火曜</td>
+                        <td>20</td>
+                        <td>6</td>
+                        <td>14</td>
+                        <td>7</td>
+                        <td>47</td>
+                        <td><span class="badge badge-warning">42.6%</span></td>
+                        <td>シフト少なめ</td>
+                    </tr>
+                    <tr>
+                        <td>水曜</td>
+                        <td>37</td>
+                        <td>19</td>
+                        <td>26</td>
+                        <td>10</td>
+                        <td>92</td>
+                        <td><span class="badge badge-warning">40.2%</span></td>
+                        <td>普通</td>
+                    </tr>
+                    <tr>
+                        <td>金曜</td>
+                        <td>36</td>
+                        <td>16</td>
+                        <td>38</td>
+                        <td>15</td>
+                        <td>105</td>
+                        <td><span class="badge badge-danger">34.3%</span></td>
+                        <td>やや不安定</td>
+                    </tr>
+                    <tr class="row-danger">
+                        <td><strong>土曜</strong></td>
+                        <td>29</td>
+                        <td>27</td>
+                        <td>33</td>
+                        <td>27</td>
+                        <td>116</td>
+                        <td><span class="badge badge-danger">25.0%</span></td>
+                        <td>最も不安定</td>
+                    </tr>
+                    <tr class="row-danger">
+                        <td><strong>木曜</strong></td>
+                        <td>27</td>
+                        <td>20</td>
+                        <td>36</td>
+                        <td>25</td>
+                        <td>108</td>
+                        <td><span class="badge badge-danger">25.0%</span></td>
+                        <td>最も不安定</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="two-column" style="margin-top: 30px;">
+                <div class="analysis-box">
+                    <h4>安定している曜日（日・月）</h4>
+                    <ul>
+                        <li>週初めは予定が確定しやすい</li>
+                        <li>固定シフトスタッフの勤務日と重なる</li>
+                        <li>売上の見込みも立てやすい</li>
+                    </ul>
+                </div>
+                <div class="analysis-box">
+                    <h4>不安定な曜日（木・土）</h4>
+                    <ul>
+                        <li>土曜は時間変更27件と最多</li>
+                        <li>木曜は削除36件と最多</li>
+                        <li>週末・週後半は予定変更が集中</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="recommendations">
+                <h4>曜日別の改善ポイント</h4>
+                <ul>
+                    <li><strong>木曜・土曜</strong>：希望収集の締切を早める（月曜までに確定）</li>
+                    <li><strong>土曜</strong>：時間変更が多いため、早番/遅番の希望を事前に確認</li>
+                    <li><strong>日曜・月曜</strong>：固定スタッフの配置を優先し、まず確定させる</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- 時間帯タブ -->
+    <!-- ============================================ -->
+    <div id="tab-time" class="tab-content">
+        <section>
+            <h2>時間帯分析</h2>
+
+            <p style="margin-bottom: 20px; color: var(--gray-700);">
+                時間変更が発生したシフト（124件）のパターンを分析します。
+            </p>
+
+            <h3>最も多い時間変更パターン（TOP 10）</h3>
+            <table>
+                <thead>
+                    <tr>
+                        <th>第1案</th>
+                        <th>第2案</th>
+                        <th>件数</th>
+                        <th>変更内容</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="background: #fef9c3;">
+                        <td>09:00-23:30</td>
+                        <td><strong>09:00-23:00</strong></td>
+                        <td><strong>26件</strong></td>
+                        <td>終了30分短縮</td>
+                    </tr>
+                    <tr>
+                        <td>09:00-20:30</td>
+                        <td>09:00-17:00</td>
+                        <td>5件</td>
+                        <td>終了3.5時間短縮</td>
+                    </tr>
+                    <tr>
+                        <td>09:00-17:00</td>
+                        <td>09:00-15:00</td>
+                        <td>5件</td>
+                        <td>終了2時間短縮</td>
+                    </tr>
+                    <tr>
+                        <td>16:00-23:00</td>
+                        <td>09:00-23:00</td>
+                        <td>4件</td>
+                        <td>遅番→通しに変更</td>
+                    </tr>
+                    <tr>
+                        <td>09:00-23:00</td>
+                        <td>10:00-23:00</td>
+                        <td>4件</td>
+                        <td>開始1時間遅く</td>
+                    </tr>
+                    <tr>
+                        <td>10:30-15:30</td>
+                        <td>09:00-16:00</td>
+                        <td>3件</td>
+                        <td>開始早め・終了遅め</td>
+                    </tr>
+                    <tr>
+                        <td>09:00-23:00</td>
+                        <td>15:00-23:00</td>
+                        <td>3件</td>
+                        <td>通し→遅番に変更</td>
+                    </tr>
+                    <tr>
+                        <td>09:00-18:00</td>
+                        <td>09:00-22:00</td>
+                        <td>3件</td>
+                        <td>終了4時間延長</td>
+                    </tr>
+                    <tr>
+                        <td>08:00-17:30</td>
+                        <td>08:00-17:00</td>
+                        <td>3件</td>
+                        <td>終了30分短縮</td>
+                    </tr>
+                    <tr>
+                        <td>09:00-23:30</td>
+                        <td>09:00-17:00</td>
+                        <td>3件</td>
+                        <td>通し→早番に変更</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div class="analysis-box" style="margin-top: 30px;">
+                <h4>時間変更の傾向</h4>
+                <ul>
+                    <li><strong>終了時間23:30→23:00が最多（26件）</strong>：30分短縮の調整が頻繁</li>
+                    <li><strong>全体的に終了時間の短縮が多い</strong>：人件費調整や閉店作業の効率化が理由</li>
+                    <li><strong>通し↔早番/遅番の切り替え</strong>も発生（計10件程度）</li>
+                    <li><strong>開始時間の変更は比較的少ない</strong></li>
+                </ul>
+            </div>
+
+            <div class="recommendations">
+                <h4>時間帯の改善ポイント</h4>
+                <ul>
+                    <li><strong>デフォルト終了時間</strong>：23:30ではなく23:00を標準にすれば26件削減</li>
+                    <li><strong>通し勤務の見直し</strong>：最初から早番/遅番で分けて希望を取る</li>
+                    <li><strong>勤務時間のパターン化</strong>：「09:00-17:00」「17:00-23:00」など標準パターンを設定</li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- 改善提言タブ -->
+    <!-- ============================================ -->
+    <div id="tab-action" class="tab-content">
+
+        <!-- オーナー向け：店舗運営改善提言 -->
+        <section style="background: linear-gradient(135deg, #065f46 0%, #10b981 100%); color: white; margin-bottom: 30px;">
+            <h2 style="color: white; border-bottom-color: rgba(255,255,255,0.3);">店舗運営への提言</h2>
+
+            <p style="margin-bottom: 30px; opacity: 0.9; font-size: 15px;">
+                シフト分析から見えてきた、店舗をより効率的に運営し、スタッフとの調整を減らすためのヒントをまとめました。
+            </p>
+
+            <!-- 第1案の精度問題 -->
+            <div style="background: rgba(255,255,255,0.15); padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #a7f3d0; margin-bottom: 15px;">第1案の精度が低い＝調整コストが高い</h3>
+                <p style="margin-bottom: 15px;">
+                    現在、第1案から約<strong>65%のシフトが変更</strong>されています。
+                    これはつまり、シフト確定までに多くの調整が発生しているということです。
+                </p>
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                    <h4 style="color: #6ee7b7; margin-bottom: 10px; font-size: 14px;">調整コストの具体例</h4>
+                    <ul style="margin-left: 15px; font-size: 13px;">
+                        <li style="margin: 8px 0;">スタッフへの連絡・確認の往復</li>
+                        <li style="margin: 8px 0;">「この日は入れなくなりました」への対応</li>
+                        <li style="margin: 8px 0;">穴埋め要員の確保</li>
+                        <li style="margin: 8px 0;">シフト表の何度もの修正</li>
+                    </ul>
+                </div>
+                <p style="padding: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; font-size: 13px;">
+                    <strong>提案：</strong>第1案作成の<strong>前に</strong>希望を確定させる運用に変えることで、調整の手間を大幅に削減できます。
+                </p>
+            </div>
+
+            <!-- 固定スタッフの活用 -->
+            <div style="background: rgba(255,255,255,0.15); padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #a7f3d0; margin-bottom: 15px;">「固定スタッフ」を増やす価値</h3>
+                <p style="margin-bottom: 15px;">
+                    加藤智津子さん（82.6%）、北村卓也さん（81.5%）のように、毎回同じシフトで働くスタッフは<strong>調整不要</strong>です。
+                </p>
+                <div class="two-column" style="gap: 15px;">
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                        <h4 style="color: #6ee7b7; margin-bottom: 10px; font-size: 14px;">店舗へのメリット</h4>
+                        <ul style="margin-left: 15px; font-size: 13px;">
+                            <li style="margin: 8px 0;">シフト作成が楽になる</li>
+                            <li style="margin: 8px 0;">穴が空くリスクが減る</li>
+                            <li style="margin: 8px 0;">お客様への対応が安定する</li>
+                        </ul>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                        <h4 style="color: #6ee7b7; margin-bottom: 10px; font-size: 14px;">スタッフへのメリット</h4>
+                        <ul style="margin-left: 15px; font-size: 13px;">
+                            <li style="margin: 8px 0;">収入が安定する</li>
+                            <li style="margin: 8px 0;">予定が立てやすい</li>
+                            <li style="margin: 8px 0;">確認の連絡が減る</li>
+                        </ul>
+                    </div>
+                </div>
+                <p style="margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; font-size: 13px;">
+                    <strong>提案：</strong>「毎週○曜日は必ず入れる」という固定枠を増やすことで、シフト作成の負担が軽くなります。
+                </p>
+            </div>
+
+            <!-- 木曜・土曜の課題 -->
+            <div style="background: rgba(255,255,255,0.15); padding: 25px; border-radius: 10px; margin-bottom: 20px;">
+                <h3 style="color: #a7f3d0; margin-bottom: 15px;">木曜・土曜は「調整の日」になっている</h3>
+                <p style="margin-bottom: 15px;">
+                    木曜と土曜は一致率<strong>25%</strong>と最も低く、調整が集中しています。
+                </p>
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                    <h4 style="color: #6ee7b7; margin-bottom: 10px; font-size: 14px;">考えられる原因</h4>
+                    <ul style="margin-left: 15px; font-size: 13px;">
+                        <li style="margin: 8px 0;"><strong>土曜</strong>：週末の予定が直前まで決まらないスタッフが多い</li>
+                        <li style="margin: 8px 0;"><strong>木曜</strong>：週後半で体調や予定の変更が発生しやすい</li>
+                        <li style="margin: 8px 0;">繁忙日のため人数調整が頻繁に発生</li>
+                    </ul>
+                </div>
+                <p style="margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; font-size: 13px;">
+                    <strong>提案：</strong>木曜・土曜は「固定スタッフ」を優先配置し、変動しやすいスタッフは別の曜日に回す。
+                </p>
+            </div>
+
+            <!-- 終了時間の見直し -->
+            <div style="background: rgba(255,255,255,0.15); padding: 25px; border-radius: 10px;">
+                <h3 style="color: #a7f3d0; margin-bottom: 15px;">23:30終了は本当に必要？</h3>
+                <p style="margin-bottom: 15px;">
+                    時間変更で最も多いのは<strong>23:30→23:00への30分短縮（26件）</strong>です。
+                    最初から23:00終了にしておけば、この調整は不要になります。
+                </p>
+                <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 8px;">
+                    <h4 style="color: #6ee7b7; margin-bottom: 10px; font-size: 14px;">見直しのメリット</h4>
+                    <ul style="margin-left: 15px; font-size: 13px;">
+                        <li style="margin: 8px 0;">26件分の調整が不要に</li>
+                        <li style="margin: 8px 0;">スタッフの帰宅時間が早まる</li>
+                        <li style="margin: 8px 0;">人件費の微調整が減る</li>
+                    </ul>
+                </div>
+                <p style="margin-top: 15px; padding: 12px; background: rgba(255,255,255,0.1); border-radius: 6px; font-size: 13px;">
+                    <strong>提案：</strong>終了時間のデフォルトを23:00に変更。本当に必要な日だけ23:30にする。
+                </p>
+            </div>
+        </section>
+
+        <!-- 開発者向け：AI改善提言 -->
+        <section style="background: linear-gradient(135deg, #1e3a5f 0%, #2563eb 100%); color: white;">
+            <h2 style="color: white; border-bottom-color: rgba(255,255,255,0.3);">AI予測精度向上への示唆（開発者向け）</h2>
+
+            <p style="margin-bottom: 30px; opacity: 0.9;">
+                この分析から導き出された、AI自動生成の精度向上に向けた具体的なアクションをまとめます。
+            </p>
+
+            <div class="two-column">
+                <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 10px;">
+                    <h3 style="color: #93c5fd; margin-bottom: 15px;">データ・システム面</h3>
+                    <ul style="margin-left: 20px;">
+                        <li style="margin: 12px 0;"><strong>固定シフトフラグの導入</strong>：70%以上一致の6名を「固定シフト」としてマスター登録</li>
+                        <li style="margin: 12px 0;"><strong>デフォルト終了時間の変更</strong>：23:30→23:00で26件の差異削減</li>
+                        <li style="margin: 12px 0;"><strong>店舗別パラメータ</strong>：Tipsy Tigerは固定優先、Stand Pho Yo/Atelierは希望優先</li>
+                        <li style="margin: 12px 0;"><strong>曜日別重み付け</strong>：木・土は変動が大きいため、確定度を低く設定</li>
+                    </ul>
+                </div>
+                <div style="background: rgba(255,255,255,0.1); padding: 25px; border-radius: 10px;">
+                    <h3 style="color: #93c5fd; margin-bottom: 15px;">運用面</h3>
+                    <ul style="margin-left: 20px;">
+                        <li style="margin: 12px 0;"><strong>希望収集の早期化</strong>：第1案作成前に希望を確定させる</li>
+                        <li style="margin: 12px 0;"><strong>0%一致スタッフへのフォロー</strong>：Sa、篠原喬人、吉田瑛里など8名は個別確認必須</li>
+                        <li style="margin: 12px 0;"><strong>木曜・土曜の重点管理</strong>：希望締切を早める</li>
+                        <li style="margin: 12px 0;"><strong>入退社情報の反映</strong>：松本佳奈（新規）、相模純平（退職？）の情報共有</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div style="background: rgba(255,255,255,0.15); padding: 25px; border-radius: 10px; margin-top: 30px;">
+                <h3 style="color: #fcd34d; margin-bottom: 15px;">期待される効果</h3>
+                <p style="font-size: 18px; margin-bottom: 15px;">
+                    現在の一致率<strong>35.1%</strong>を<strong>60%以上</strong>に向上させることが目標です。
+                </p>
+                <ul style="margin-left: 20px;">
+                    <li style="margin: 10px 0;">固定シフトスタッフ（6名）の自動割当で<strong>+100件</strong>以上の一致</li>
+                    <li style="margin: 10px 0;">終了時間デフォルト変更で<strong>+26件</strong>の一致</li>
+                    <li style="margin: 10px 0;">希望収集早期化で<strong>追加/削除（299件）を50%削減</strong></li>
+                </ul>
+            </div>
+        </section>
+    </div>
+
+</div>
+
+<footer>
+    <p>Generated by Shift Scheduler AI | Stand Banh Mi Tenant Analysis</p>
+    <p>このレポートは2026年1月の第1案と第2案のデータに基づいています。毎月の分析により継続的な改善を行います。</p>
+</footer>
+
+<script>
+function showTab(tabName) {
+    // Hide all tab contents
+    document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+    });
+
+    // Remove active class from all nav links
+    document.querySelectorAll('.tab-nav a').forEach(link => {
+        link.classList.remove('active');
+    });
+
+    // Show selected tab content
+    document.getElementById('tab-' + tabName).classList.add('active');
+
+    // Add active class to clicked nav link
+    event.target.classList.add('active');
+
+    // Scroll to top of content
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+</script>
+
+</body>
+</html>

@@ -223,7 +223,8 @@ router.put('/staff/:staff_id', async (req, res) => {
       phone_number,
       employment_type,
       store_id,
-      role_id
+      role_id,
+      is_active
     } = req.body;
 
     // 変更可能なフィールドのみ更新（hire_dateなどの必須フィールドは既存値を維持）
@@ -235,13 +236,15 @@ router.put('/staff/:staff_id', async (req, res) => {
         employment_type = COALESCE($4, employment_type),
         store_id = COALESCE($5, store_id),
         role_id = COALESCE($6, role_id),
+        is_active = COALESCE($7, is_active),
         updated_at = CURRENT_TIMESTAMP
-      WHERE staff_id = $7
+      WHERE staff_id = $8
       RETURNING *
     `, [
       name, email || null, phone_number || null,
       employment_type || null,
       store_id || null, role_id || null,
+      is_active !== undefined ? is_active : null,
       staff_id
     ]);
 
@@ -1033,18 +1036,19 @@ router.post('/stores', async (req, res) => {
 router.put('/stores/:store_id', async (req, res) => {
   try {
     const { store_id } = req.params;
-    const { store_name, business_hours_start, business_hours_end } = req.body;
+    const { store_code, store_name, business_hours_start, business_hours_end } = req.body;
 
     // 変更可能なフィールドのみ更新
     const result = await query(`
       UPDATE core.stores
-      SET store_name = COALESCE($1, store_name),
-          business_hours_start = $2,
-          business_hours_end = $3,
+      SET store_code = COALESCE($1, store_code),
+          store_name = COALESCE($2, store_name),
+          business_hours_start = $3,
+          business_hours_end = $4,
           updated_at = CURRENT_TIMESTAMP
-      WHERE store_id = $4
+      WHERE store_id = $5
       RETURNING *
-    `, [store_name, business_hours_start || null, business_hours_end || null, store_id]);
+    `, [store_code, store_name, business_hours_start || null, business_hours_end || null, store_id]);
 
     if (result.rows.length === 0) {
       return res.status(404).json({

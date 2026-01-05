@@ -340,10 +340,12 @@ const MasterDataManagement = ({ onPrev }) => {
           employment_type: item.employment_type || '',
           store_id: item.store_id || '',
           role_id: item.role_id || '',
+          is_active: item.is_active !== undefined ? item.is_active : true,
         })
         break
       case 'stores':
         setFormData({
+          store_code: item.store_code || '',
           store_name: item.store_name,
           business_hours_start: item.business_hours_start || '',
           business_hours_end: item.business_hours_end || '',
@@ -655,8 +657,8 @@ const MasterDataManagement = ({ onPrev }) => {
         }
         return true
       case 'stores':
-        if (!formData.store_name) {
-          setError('店舗名は必須です')
+        if (!formData.store_code || !formData.store_name) {
+          setError('店舗コードと店舗名は必須です')
           return false
         }
         return true
@@ -795,9 +797,11 @@ const MasterDataManagement = ({ onPrev }) => {
           { key: 'phone_number', label: '電話番号', width: '140px' },
           { key: 'employment_type', label: '雇用形態', width: '100px' },
           { key: 'store_id', label: '所属店舗', width: '120px' },
+          { key: 'is_active', label: '在籍', width: '80px' },
         ]
       case 'stores':
         return [
+          { key: 'store_code', label: '店舗コード', width: '120px' },
           { key: 'store_name', label: '店舗名', width: '150px' },
           { key: 'business_hours_start', label: '開店時間', width: '100px' },
           { key: 'business_hours_end', label: '閉店時間', width: '100px' },
@@ -987,11 +991,46 @@ const MasterDataManagement = ({ onPrev }) => {
                 ))}
               </select>
             </div>
+            {popupMode === 'edit' && (
+              <div className="mb-4">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">在籍状況</label>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => handleInputChange('is_active', !formData.is_active)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      formData.is_active ? 'bg-blue-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        formData.is_active ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                  <span className={`text-sm ${formData.is_active ? 'text-blue-700' : 'text-gray-500'}`}>
+                    {formData.is_active ? '在籍中' : '退職済み'}
+                  </span>
+                </div>
+              </div>
+            )}
           </>
         )
       case 'stores':
         return (
           <>
+            <div className="mb-4">
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                店舗コード <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={formData.store_code || ''}
+                onChange={e => handleInputChange('store_code', e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="例: SBM（シフト表のバッジに表示）"
+              />
+            </div>
             <div className="mb-4">
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 店舗名 <span className="text-red-500">*</span>
@@ -1001,7 +1040,7 @@ const MasterDataManagement = ({ onPrev }) => {
                 value={formData.store_name || ''}
                 onChange={e => handleInputChange('store_name', e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="例: 新宿店"
+                placeholder="例: Stand Banh Mi"
               />
             </div>
             <div className="mb-4">
@@ -1672,6 +1711,18 @@ const MasterDataManagement = ({ onPrev }) => {
     const value = item[column.key]
 
     if (column.key === 'is_active') {
+      // スタッフの場合は「在籍中/退職済み」と表示
+      if (selectedMaster === 'staff') {
+        return value ? (
+          <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
+            在籍中
+          </span>
+        ) : (
+          <span className="px-2 py-1 bg-red-100 text-red-600 rounded text-xs font-medium">
+            退職済み
+          </span>
+        )
+      }
       return value ? (
         <span className="px-2 py-1 bg-green-100 text-green-800 rounded text-xs font-medium">
           有効
