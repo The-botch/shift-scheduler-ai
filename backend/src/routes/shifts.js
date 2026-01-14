@@ -1943,6 +1943,16 @@ router.post('/preferences/bulk', async (req, res) => {
         insertedIds.push(insertResult.rows[0].preference_id);
       }
 
+      // 3. staff_monthly_submissions に提出記録を登録（シフト希望が1件以上の場合）
+      if (preferences.length > 0) {
+        await client.query(`
+          INSERT INTO ops.staff_monthly_submissions (tenant_id, staff_id, year, month)
+          VALUES ($1, $2, $3, $4)
+          ON CONFLICT (tenant_id, staff_id, year, month)
+          DO UPDATE SET updated_at = CURRENT_TIMESTAMP
+        `, [tenant_id, staff_id, year, month]);
+      }
+
       return { deletedCount, insertedIds };
     });
 
