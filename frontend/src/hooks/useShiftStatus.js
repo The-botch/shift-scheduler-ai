@@ -154,13 +154,10 @@ export const useShiftStatus = (year, month, tenantId = null) => {
 
     try {
       // 並列でAPI呼び出し
-      const [plans, deadlineSettings, preferences, staff] = await Promise.all([
+      const [plans, deadlineSettings, submissions, staff] = await Promise.all([
         shiftRepository.getPlans({ tenantId, year, month }),
         shiftRepository.getDeadlineSettings(tenantId),
-        shiftRepository.getPreferences({
-          dateFrom: `${year}-${String(month).padStart(2, '0')}-01`,
-          dateTo: `${year}-${String(month).padStart(2, '0')}-${new Date(year, month, 0).getDate()}`,
-        }),
+        shiftRepository.getSubmissions({ tenantId, year, month }),
         masterRepository.getStaff(),
       ])
 
@@ -192,6 +189,7 @@ export const useShiftStatus = (year, month, tenantId = null) => {
       setRecruitmentStatus(newRecruitmentStatus)
 
       // 提出率を計算（アルバイトのみ、かつ在籍者のみを対象とする）
+      // staff_monthly_submissionsテーブルのレコード有無で提出済み/未提出を判定
       const isPartTimeStaff = s => s.employment_type === 'PART_TIME' || s.employment_type === 'PART'
       const isActiveStaff = s => s.is_active === true
 
@@ -199,7 +197,7 @@ export const useShiftStatus = (year, month, tenantId = null) => {
       const partTimeStaffIds = new Set(partTimeStaff.map(s => s.staff_id))
 
       const submittedStaffIds = new Set(
-        preferences.filter(p => partTimeStaffIds.has(p.staff_id)).map(p => p.staff_id)
+        submissions.filter(s => partTimeStaffIds.has(s.staff_id)).map(s => s.staff_id)
       )
       const submittedCount = submittedStaffIds.size
       const totalCount = partTimeStaff.length
