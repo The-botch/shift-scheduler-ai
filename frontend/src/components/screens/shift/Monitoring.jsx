@@ -173,20 +173,27 @@ const Monitoring = () => {
         ? `${apiUrl}/api/shifts/submissions?tenant_id=${tenantId}&year=${historyYear}&month=${historyMonth}`
         : null
 
-      const [staffResponse, rolesResponse, patternsResponse, preferencesResponse, submissionsResponse] =
-        await Promise.all([
-          fetch(`${apiUrl}/api/master/staff?tenant_id=${tenantId}`),
-          fetch(`${apiUrl}/api/master/roles?tenant_id=${tenantId}`),
-          fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}`),
-          fetch(preferencesUrl),
-          submissionsUrl ? fetch(submissionsUrl) : Promise.resolve(null),
-        ])
+      const [
+        staffResponse,
+        rolesResponse,
+        patternsResponse,
+        preferencesResponse,
+        submissionsResponse,
+      ] = await Promise.all([
+        fetch(`${apiUrl}/api/master/staff?tenant_id=${tenantId}`),
+        fetch(`${apiUrl}/api/master/roles?tenant_id=${tenantId}`),
+        fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}`),
+        fetch(preferencesUrl),
+        submissionsUrl ? fetch(submissionsUrl) : Promise.resolve(null),
+      ])
 
       const staffResult = await staffResponse.json()
       const rolesResult = await rolesResponse.json()
       const patternsResult = await patternsResponse.json()
       const preferencesResult = await preferencesResponse.json()
-      const submissionsResult = submissionsResponse ? await submissionsResponse.json() : { success: true, data: [] }
+      const submissionsResult = submissionsResponse
+        ? await submissionsResponse.json()
+        : { success: true, data: [] }
 
       const staffData = staffResult.success ? staffResult.data : []
       const rolesData = rolesResult.success ? rolesResult.data : []
