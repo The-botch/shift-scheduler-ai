@@ -18,6 +18,7 @@ import {
   Zap,
   GripVertical,
   Home,
+  Wand2,
 } from 'lucide-react'
 import { generateMultipleStorePDFs } from '../../../utils/pdfGenerator'
 import { Rnd } from 'react-rnd'
@@ -817,6 +818,97 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     }
   }
 
+  // アルバイト希望シフト一括反映
+  const handleBulkApplyPreferences = () => {
+    // アルバイトかどうかを判定
+    const isPartTimeStaff = staffId => {
+      const staff = staffMap[staffId]
+      return staff && (staff.employment_type === 'PART_TIME' || staff.employment_type === 'PART')
+    }
+
+    // アルバイトスタッフのIDリスト
+    const partTimeStaffIds = Object.keys(staffMap)
+      .filter(id => isPartTimeStaff(parseInt(id)))
+      .map(id => parseInt(id))
+
+    if (partTimeStaffIds.length === 0) {
+      alert('アルバイトスタッフが見つかりません')
+      return
+    }
+
+    // 希望シフト（NG以外）を持つアルバイト
+    const partTimePreferences = preferences.filter(
+      pref => partTimeStaffIds.includes(pref.staff_id) && !pref.is_ng
+    )
+
+    const staffWithPreferences = new Set(partTimePreferences.map(p => p.staff_id))
+
+    if (!window.confirm(`アルバイトの希望シフトを一括反映しますか？\n\n・希望シフトがある ${staffWithPreferences.size}名分を更新\n\n※保存するまでDBには反映されません`)) {
+      return
+    }
+
+    const currentPlanId = planIdsState.length > 0 ? planIdsState[0] : null
+
+    // 1. 削除対象のアルバイトシフト
+    const partTimeShiftsToDelete = shiftData.filter(shift => isPartTimeStaff(shift.staff_id))
+
+    // 2. 追加する新規シフトを生成
+    const newShifts = []
+    partTimePreferences.forEach((pref, index) => {
+      const staffInfo = staffMap[pref.staff_id]
+      if (!staffInfo) return
+
+      const prefDate = new Date(pref.preference_date)
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(prefDate.getDate()).padStart(2, '0')}`
+
+      const newShift = {
+        shift_id: `temp_bulk_${pref.staff_id}_${dateStr}_${index}_${Date.now()}`,
+        tenant_id: getCurrentTenantId(),
+        store_id: staffInfo.store_id,
+        plan_id: currentPlanId,
+        staff_id: pref.staff_id,
+        shift_date: dateStr,
+        pattern_id: defaultPatternId || (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1),
+        start_time: pref.start_time || '09:00',
+        end_time: pref.end_time || '17:00',
+        break_minutes: pref.break_minutes || 0,
+        staff_name: staffInfo.name || '不明',
+        role: staffInfo.role_name || 'スタッフ',
+        modified_flag: true,
+      }
+      newShifts.push(newShift)
+    })
+
+    // 3. トラッキング機構に登録（保存時にAPIに反映）
+    partTimeShiftsToDelete.forEach(shift => {
+      handleDeleteShiftBase(shift.shift_id, null)
+    })
+    newShifts.forEach(shift => {
+      handleAddShiftBase(shift, null)
+    })
+
+    // 4. UI状態を更新
+    const nonPartTimeShifts = shiftData.filter(shift => !isPartTimeStaff(shift.staff_id))
+    const updatedShiftData = [...nonPartTimeShifts, ...newShifts]
+
+    // shiftData更新
+    setShiftData(updatedShiftData)
+
+    // calendarData更新
+    const shiftsByDate = {}
+    updatedShiftData.forEach(shift => {
+      const date = new Date(shift.shift_date)
+      const day = date.getDate()
+      if (!shiftsByDate[day]) {
+        shiftsByDate[day] = []
+      }
+      shiftsByDate[day].push(shift)
+    })
+    setCalendarData(prev => ({ ...prev, shiftsByDate }))
+
+    alert(`一括反映しました（${newShifts.length}件）`)
+  }
+
   // チャット関連ハンドラー
   const scrollToBottom = () => {
     setTimeout(() => {
@@ -1368,6 +1460,15 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
           {isEditMode && (
             <>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleBulkApplyPreferences}
+                className="border-amber-400 text-amber-700 hover:bg-amber-50"
+              >
+                <Wand2 className="h-4 w-4 mr-1" />
+                アルバイト希望一括反映
+              </Button>
               {/* Issue #165: 時間重複エラー表示 */}
               {timeOverlapInfo.hasOverlap && (
                 <div className="relative group flex items-center text-red-600 text-sm mr-2 cursor-help">
