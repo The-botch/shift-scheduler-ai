@@ -19,6 +19,8 @@ import {
   GripVertical,
   Home,
   Wand2,
+  Settings,
+  ChevronDown,
 } from 'lucide-react'
 import { generateMultipleStorePDFs } from '../../../utils/pdfGenerator'
 import { Rnd } from 'react-rnd'
@@ -169,6 +171,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const chatEndRef = useRef(null)
   const tableContainerRef = useRef(null)
   const [isGeneratingPNG, setIsGeneratingPNG] = useState(false)
+  const [showActionsMenu, setShowActionsMenu] = useState(false)
+  const actionsMenuRef = useRef(null)
   const [chatPosition, setChatPosition] = useState({
     x: window.innerWidth - 336,
     y: window.innerHeight - 520,
@@ -182,6 +186,19 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   useEffect(() => {
     loadShiftData()
   }, [year, month])
+
+  // アクションメニューを外側クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target)) {
+        setShowActionsMenu(false)
+      }
+    }
+    if (showActionsMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showActionsMenu])
 
   const loadShiftData = async () => {
     try {
@@ -1438,37 +1455,65 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
             </div>
           </div>
 
-          <Button size="sm" variant="outline" onClick={handleExportCSV}>
-            <Download className="h-3 w-3 mr-1" />
-            CSV
-          </Button>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handlePNGExport}
-            disabled={isGeneratingPNG || selectedStores.size === 0}
-            className="border-purple-300 text-purple-600 hover:bg-purple-50"
-          >
-            {isGeneratingPNG ? (
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-            ) : (
-              <Download className="h-3 w-3 mr-1" />
+          {/* アクションメニュー（ドロップダウン） */}
+          <div className="relative" ref={actionsMenuRef}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowActionsMenu(!showActionsMenu)}
+              className="border-gray-300"
+            >
+              <Settings className="h-4 w-4 mr-1" />
+              操作
+              <ChevronDown className={`h-3 w-3 ml-1 transition-transform ${showActionsMenu ? 'rotate-180' : ''}`} />
+            </Button>
+            {showActionsMenu && (
+              <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <button
+                  onClick={() => { handleExportCSV(); setShowActionsMenu(false); }}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                >
+                  <Download className="h-4 w-4 mr-2 text-gray-500" />
+                  CSVエクスポート
+                </button>
+                <button
+                  onClick={() => { handlePNGExport(); setShowActionsMenu(false); }}
+                  disabled={isGeneratingPNG || selectedStores.size === 0}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingPNG ? (
+                    <Loader2 className="h-4 w-4 mr-2 text-purple-500 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2 text-purple-500" />
+                  )}
+                  {isGeneratingPNG ? '生成中...' : '店舗別シフト画像DL'}
+                </button>
+                {isEditMode && (
+                  <>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <button
+                      onClick={() => { handleBulkApplyPreferences(); setShowActionsMenu(false); }}
+                      className="w-full px-4 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 flex items-center"
+                    >
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      アルバイト希望一括反映
+                    </button>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <button
+                      onClick={() => { handleDelete(); setShowActionsMenu(false); }}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      削除
+                    </button>
+                  </>
+                )}
+              </div>
             )}
-            {isGeneratingPNG ? '生成中...' : '店舗別シフト画像DL'}
-          </Button>
+          </div>
 
           {isEditMode && (
             <>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleBulkApplyPreferences}
-                className="border-amber-400 text-amber-700 hover:bg-amber-50"
-              >
-                <Wand2 className="h-4 w-4 mr-1" />
-                アルバイト希望一括反映
-              </Button>
               {/* Issue #165: 時間重複エラー表示 */}
               {timeOverlapInfo.hasOverlap && (
                 <div className="relative group flex items-center text-red-600 text-sm mr-2 cursor-help">
@@ -1530,15 +1575,6 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                   <CheckCircle className="h-4 w-4 mr-1" />
                 )}
                 {saving ? '処理中...' : '第2案承認'}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleDelete}
-                className="border-red-300 text-red-600 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                削除
               </Button>
             </>
           )}
