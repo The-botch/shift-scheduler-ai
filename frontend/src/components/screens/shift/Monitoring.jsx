@@ -168,24 +168,38 @@ const Monitoring = () => {
         dateTo = `${historyYear}-12-31`
       }
       const preferencesUrl = `${apiUrl}/api/shifts/preferences?tenant_id=${tenantId}&date_from=${dateFrom}&date_to=${dateTo}`
+      // 提出状況取得用URL（月が指定されている場合のみ）
+      const submissionsUrl = historyMonth
+        ? `${apiUrl}/api/shifts/submissions?tenant_id=${tenantId}&year=${historyYear}&month=${historyMonth}`
+        : null
 
-      const [staffResponse, rolesResponse, patternsResponse, preferencesResponse] =
-        await Promise.all([
-          fetch(`${apiUrl}/api/master/staff?tenant_id=${tenantId}`),
-          fetch(`${apiUrl}/api/master/roles?tenant_id=${tenantId}`),
-          fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}`),
-          fetch(preferencesUrl),
-        ])
+      const [
+        staffResponse,
+        rolesResponse,
+        patternsResponse,
+        preferencesResponse,
+        submissionsResponse,
+      ] = await Promise.all([
+        fetch(`${apiUrl}/api/master/staff?tenant_id=${tenantId}`),
+        fetch(`${apiUrl}/api/master/roles?tenant_id=${tenantId}`),
+        fetch(`${apiUrl}/api/master/shift-patterns?tenant_id=${tenantId}`),
+        fetch(preferencesUrl),
+        submissionsUrl ? fetch(submissionsUrl) : Promise.resolve(null),
+      ])
 
       const staffResult = await staffResponse.json()
       const rolesResult = await rolesResponse.json()
       const patternsResult = await patternsResponse.json()
       const preferencesResult = await preferencesResponse.json()
+      const submissionsResult = submissionsResponse
+        ? await submissionsResponse.json()
+        : { success: true, data: [] }
 
       const staffData = staffResult.success ? staffResult.data : []
       const rolesData = rolesResult.success ? rolesResult.data : []
       const patternsData = patternsResult.success ? patternsResult.data : []
       let availData = preferencesResult.success ? preferencesResult.data : []
+      const submissionsData = submissionsResult.success ? submissionsResult.data : []
 
       // スタッフマップと役職マップを作成
       const staffMapping = {}
@@ -251,33 +265,20 @@ const Monitoring = () => {
         }
       })
 
-      // ★変更: 新API形式（1日1レコード）での提出状況集計
+      // staff_monthly_submissionsテーブルのレコード有無で提出状況を判定
       // created_atまたはupdated_atを提出日時として使用
       const submittedStaffIds = new Set()
-      availData.forEach(req => {
-        // 1日1レコード形式なので、レコードがあれば提出済み
-        const submittedAt = req.updated_at || req.created_at
-        if (submittedAt) {
-          submittedStaffIds.add(req.staff_id.toString())
+      submissionsData.forEach(submission => {
+        // staff_monthly_submissionsにレコードがあれば提出済み
+        const submittedAt = submission.updated_at || submission.created_at
+        submittedStaffIds.add(submission.staff_id.toString())
 
-          if (staffMap[req.staff_id]) {
-            const date = new Date(submittedAt)
-            const formatted = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
-            if (
-              !staffMap[req.staff_id].submittedAt ||
-              new Date(submittedAt) > new Date(staffMap[req.staff_id].rawSubmittedAt || 0)
-            ) {
-              staffMap[req.staff_id].submittedAt = formatted
-              staffMap[req.staff_id].rawSubmittedAt = submittedAt
-            }
-          }
-        }
-      })
-
-      // 提出済みフラグを設定
-      Object.keys(staffMap).forEach(staffId => {
-        if (submittedStaffIds.has(staffId)) {
-          staffMap[staffId].submitted = true
+        if (staffMap[submission.staff_id]) {
+          const date = new Date(submittedAt)
+          const formatted = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
+          staffMap[submission.staff_id].submittedAt = formatted
+          staffMap[submission.staff_id].rawSubmittedAt = submittedAt
+          staffMap[submission.staff_id].submitted = true
         }
       })
 
