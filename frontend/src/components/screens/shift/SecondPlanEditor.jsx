@@ -119,6 +119,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     setModalState,
     resetChanges,
     setHasUnsavedChanges,
+    allowNavigation,
     // ベース関数（ローカルでラップする用）
     handleDeleteShiftBase,
     handleAddShiftBase,
@@ -508,10 +509,10 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         }
 
         setHasSavedDraft(true)
-        setHasUnsavedChanges(false)
         alert(MESSAGES.SUCCESS.SAVED)
 
-        // 新規プラン作成後はトップ画面に戻る
+        // 新規プラン作成後はトップ画面に戻る（ブロッカーをスキップ）
+        allowNavigation()
         navigateToDashboard()
       } else {
         // 既存のプラン編集の場合
@@ -586,6 +587,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
         setHasSavedDraft(true)
         alert(MESSAGES.SUCCESS.APPROVE_SECOND_PLAN)
+        allowNavigation()
         if (onNext) {
           onNext()
         }
@@ -619,6 +621,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
       setHasSavedDraft(true)
       alert(MESSAGES.SUCCESS.APPROVE_SECOND_PLAN)
+      allowNavigation()
       if (onNext) {
         onNext()
       }
