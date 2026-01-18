@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import { useBlocker } from 'react-router-dom'
 import { ShiftRepository } from '../infrastructure/repositories/ShiftRepository'
 import { MESSAGES } from '../constants/messages'
@@ -26,6 +26,9 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete } = {}) 
   const [saving, setSaving] = useState(false)
   const [planIds, setPlanIds] = useState([]) // 全店舗分のplanId配列
 
+  // 保存後の意図的なナビゲーションをトラッキング（ブロッカーをバイパス）
+  const skipBlockerRef = useRef(false)
+
   // シフト編集モーダルの状態
   const [modalState, setModalState] = useState({
     isOpen: false,
@@ -36,7 +39,14 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete } = {}) 
   })
 
   // React Router v6.4+ のuseBlockerでナビゲーションをブロック（ブラウザバック等）
-  const blocker = useBlocker(hasUnsavedChanges)
+  // 関数を渡すことでナビゲーション時に評価される（skipBlockerRef.currentの最新値を参照）
+  const blocker = useBlocker(() => {
+    // skipBlockerRef.currentがtrueの場合はブロックしない（保存後のナビゲーション）
+    if (skipBlockerRef.current) {
+      return false
+    }
+    return hasUnsavedChanges
+  })
 
   // ブロック時に確認ダイアログを表示
   useEffect(() => {
@@ -269,6 +279,9 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete } = {}) 
           : MESSAGES.SUCCESS.APPROVE_SECOND_PLAN
       alert(message)
 
+      // ナビゲーション前にブロッカーをスキップ
+      skipBlockerRef.current = true
+
       // コールバック実行
       if (onApproveComplete) {
         onApproveComplete()
@@ -373,6 +386,14 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete } = {}) 
     }
   }, [addedShifts, modifiedShifts, deletedShiftIds])
 
+  /**
+   * 保存後のナビゲーションを許可（ブロッカーをスキップ）
+   */
+  const allowNavigation = useCallback(() => {
+    skipBlockerRef.current = true
+    setHasUnsavedChanges(false)
+  }, [])
+
   return {
     // 状態
     modifiedShifts,
@@ -407,5 +428,6 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete } = {}) 
     resetChanges,
     getChangesSummary,
     setHasUnsavedChanges,
+    allowNavigation,
   }
 }

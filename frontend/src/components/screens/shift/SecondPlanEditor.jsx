@@ -18,6 +18,9 @@ import {
   Zap,
   GripVertical,
   Home,
+  Wand2,
+  Settings,
+  ChevronDown,
 } from 'lucide-react'
 import { generateMultipleStorePDFs } from '../../../utils/pdfGenerator'
 import { Rnd } from 'react-rnd'
@@ -116,6 +119,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     setModalState,
     resetChanges,
     setHasUnsavedChanges,
+    allowNavigation,
     // ベース関数（ローカルでラップする用）
     handleDeleteShiftBase,
     handleAddShiftBase,
@@ -168,6 +172,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   const chatEndRef = useRef(null)
   const tableContainerRef = useRef(null)
   const [isGeneratingPNG, setIsGeneratingPNG] = useState(false)
+  const [showActionsMenu, setShowActionsMenu] = useState(false)
+  const actionsMenuRef = useRef(null)
   const [chatPosition, setChatPosition] = useState({
     x: window.innerWidth - 336,
     y: window.innerHeight - 520,
@@ -181,6 +187,19 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   useEffect(() => {
     loadShiftData()
   }, [year, month])
+
+  // アクションメニューを外側クリックで閉じる
+  useEffect(() => {
+    const handleClickOutside = event => {
+      if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target)) {
+        setShowActionsMenu(false)
+      }
+    }
+    if (showActionsMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showActionsMenu])
 
   const loadShiftData = async () => {
     try {
@@ -490,10 +509,10 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         }
 
         setHasSavedDraft(true)
-        setHasUnsavedChanges(false)
         alert(MESSAGES.SUCCESS.SAVED)
 
-        // 新規プラン作成後はトップ画面に戻る
+        // 新規プラン作成後はトップ画面に戻る（ブロッカーをスキップ）
+        allowNavigation()
         navigateToDashboard()
       } else {
         // 既存のプラン編集の場合
@@ -568,6 +587,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
         setHasSavedDraft(true)
         alert(MESSAGES.SUCCESS.APPROVE_SECOND_PLAN)
+        allowNavigation()
         if (onNext) {
           onNext()
         }
@@ -601,6 +621,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
       setHasSavedDraft(true)
       alert(MESSAGES.SUCCESS.APPROVE_SECOND_PLAN)
+      allowNavigation()
       if (onNext) {
         onNext()
       }
@@ -815,6 +836,122 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     } finally {
       setIsGeneratingPNG(false)
     }
+  }
+
+  // アルバイト希望シフト一括反映
+  const handleBulkApplyPreferences = () => {
+    // アルバイトかどうかを判定
+    const isPartTimeStaff = staffId => {
+      const staff = staffMap[staffId]
+      return staff && (staff.employment_type === 'PART_TIME' || staff.employment_type === 'PART')
+    }
+
+    // アルバイトスタッフのIDリスト
+    const partTimeStaffIds = Object.keys(staffMap)
+      .filter(id => isPartTimeStaff(parseInt(id)))
+      .map(id => parseInt(id))
+
+    if (partTimeStaffIds.length === 0) {
+      alert('アルバイトスタッフが見つかりません')
+      return
+    }
+
+    // 希望シフト（NG以外）を持つアルバイト
+    const partTimePreferences = preferences.filter(
+      pref => partTimeStaffIds.includes(pref.staff_id) && !pref.is_ng
+    )
+
+    const staffWithPreferences = new Set(partTimePreferences.map(p => p.staff_id))
+
+    if (
+      !window.confirm(
+        `アルバイトの希望シフトを一括反映しますか？\n\n・希望シフトがある ${staffWithPreferences.size}名分を更新\n\n※保存するまでDBには反映されません`
+      )
+    ) {
+      return
+    }
+
+    // 既存プランかどうか（planIdsStateが空でなければ既存プラン）
+    const isExistingPlan = planIdsState.length > 0
+
+    // 既存プランの場合、store_id → plan_id のマッピングを作成
+    const storeToPlanIdMap = new Map()
+    if (isExistingPlan) {
+      shiftData.forEach(shift => {
+        if (shift.store_id && shift.plan_id) {
+          storeToPlanIdMap.set(Number(shift.store_id), shift.plan_id)
+        }
+      })
+    }
+
+    // 1. アルバイトのシフトを削除、それ以外は残す
+    const nonPartTimeShifts = shiftData.filter(shift => !isPartTimeStaff(shift.staff_id))
+    const partTimeShiftsToDelete = shiftData.filter(shift => isPartTimeStaff(shift.staff_id))
+
+    // 2. 希望シフトから新規シフトを生成
+    const newShifts = []
+    partTimePreferences.forEach((pref, index) => {
+      const staffInfo = staffMap[pref.staff_id]
+      if (!staffInfo) return
+
+      const staffStoreId = Number(staffInfo.store_id)
+      const planIdForShift = isExistingPlan ? storeToPlanIdMap.get(staffStoreId) : null
+
+      // 既存プランでこの店舗のplan_idが見つからない場合はスキップ
+      if (isExistingPlan && !planIdForShift) {
+        console.warn(
+          `Store ${staffStoreId} has no plan_id, skipping shift for staff ${pref.staff_id}`
+        )
+        return
+      }
+
+      const prefDate = new Date(pref.preference_date)
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(prefDate.getDate()).padStart(2, '0')}`
+
+      const newShift = {
+        shift_id: `temp_bulk_${pref.staff_id}_${dateStr}_${index}_${Date.now()}`,
+        tenant_id: getCurrentTenantId(),
+        store_id: staffStoreId,
+        plan_id: planIdForShift,
+        staff_id: pref.staff_id,
+        shift_date: dateStr,
+        pattern_id:
+          defaultPatternId || (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1),
+        start_time: pref.start_time || '09:00',
+        end_time: pref.end_time || '17:00',
+        break_minutes: pref.break_minutes || 0,
+        staff_name: staffInfo.name || '不明',
+        role: staffInfo.role_name || 'スタッフ',
+        modified_flag: true,
+      }
+      newShifts.push(newShift)
+    })
+
+    // 3. トラッキング機構に登録（保存時にAPIに反映）
+    partTimeShiftsToDelete.forEach(shift => {
+      handleDeleteShiftBase(shift.shift_id, null)
+    })
+    newShifts.forEach(shift => {
+      handleAddShiftBase(shift, null)
+    })
+
+    // 4. UI状態を更新
+    const updatedShiftData = [...nonPartTimeShifts, ...newShifts]
+    setShiftData(updatedShiftData)
+
+    // calendarData更新
+    const shiftsByDate = {}
+    updatedShiftData.forEach(shift => {
+      const date = new Date(shift.shift_date)
+      const day = date.getDate()
+      if (!shiftsByDate[day]) {
+        shiftsByDate[day] = []
+      }
+      shiftsByDate[day].push(shift)
+    })
+    setCalendarData(prev => ({ ...prev, shiftsByDate }))
+
+    alert(`一括反映しました（${newShifts.length}件）`)
   }
 
   // チャット関連ハンドラー
@@ -1346,25 +1483,76 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
             </div>
           </div>
 
-          <Button size="sm" variant="outline" onClick={handleExportCSV}>
-            <Download className="h-3 w-3 mr-1" />
-            CSV
-          </Button>
-
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handlePNGExport}
-            disabled={isGeneratingPNG || selectedStores.size === 0}
-            className="border-purple-300 text-purple-600 hover:bg-purple-50"
-          >
-            {isGeneratingPNG ? (
-              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-            ) : (
-              <Download className="h-3 w-3 mr-1" />
+          {/* アクションメニュー（ドロップダウン） */}
+          <div className="relative" ref={actionsMenuRef}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowActionsMenu(!showActionsMenu)}
+              className="border-gray-300"
+            >
+              <Settings className="h-4 w-4 mr-1" />
+              操作
+              <ChevronDown
+                className={`h-3 w-3 ml-1 transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}
+              />
+            </Button>
+            {showActionsMenu && (
+              <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
+                <button
+                  onClick={() => {
+                    handleExportCSV()
+                    setShowActionsMenu(false)
+                  }}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                >
+                  <Download className="h-4 w-4 mr-2 text-gray-500" />
+                  CSVエクスポート
+                </button>
+                <button
+                  onClick={() => {
+                    handlePNGExport()
+                    setShowActionsMenu(false)
+                  }}
+                  disabled={isGeneratingPNG || selectedStores.size === 0}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isGeneratingPNG ? (
+                    <Loader2 className="h-4 w-4 mr-2 text-purple-500 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4 mr-2 text-purple-500" />
+                  )}
+                  {isGeneratingPNG ? '生成中...' : '店舗別シフト画像DL'}
+                </button>
+                {isEditMode && (
+                  <>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <button
+                      onClick={() => {
+                        handleBulkApplyPreferences()
+                        setShowActionsMenu(false)
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 flex items-center"
+                    >
+                      <Wand2 className="h-4 w-4 mr-2" />
+                      アルバイト希望一括反映
+                    </button>
+                    <div className="border-t border-gray-100 my-1"></div>
+                    <button
+                      onClick={() => {
+                        handleDelete()
+                        setShowActionsMenu(false)
+                      }}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                    >
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      削除
+                    </button>
+                  </>
+                )}
+              </div>
             )}
-            {isGeneratingPNG ? '生成中...' : '店舗別シフト画像DL'}
-          </Button>
+          </div>
 
           {isEditMode && (
             <>
@@ -1429,15 +1617,6 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                   <CheckCircle className="h-4 w-4 mr-1" />
                 )}
                 {saving ? '処理中...' : '第2案承認'}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={handleDelete}
-                className="border-red-300 text-red-600 hover:bg-red-50"
-              >
-                <Trash2 className="h-4 w-4 mr-1" />
-                削除
               </Button>
             </>
           )}

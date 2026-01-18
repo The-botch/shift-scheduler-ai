@@ -116,6 +116,7 @@ const FirstPlanEditor = ({
     setModalState,
     resetChanges,
     setHasUnsavedChanges,
+    allowNavigation,
     // ベース関数（ローカルでラップする用）
     handleDeleteShiftBase,
     handleAddShiftBase,
@@ -373,7 +374,6 @@ const FirstPlanEditor = ({
         }
 
         setHasSavedDraft(true)
-        setHasUnsavedChanges(false)
         alert(MESSAGES.SUCCESS.SAVED)
 
         // 親コンポーネントに状態変更を通知（DRAFT状態、作成されたplan_id）
@@ -382,7 +382,8 @@ const FirstPlanEditor = ({
           onStatusChange('DRAFT', createdPlanIds)
         }
 
-        // 新規プラン作成後はトップ画面に戻る（selectedShift.statusが変わらないため）
+        // 新規プラン作成後はトップ画面に戻る（ブロッカーをスキップ）
+        allowNavigation()
         navigateToDashboard()
       } else {
         // 既存のプラン編集の場合 - 共通フックを使用
@@ -458,6 +459,7 @@ const FirstPlanEditor = ({
 
           setHasSavedDraft(true)
           alert(MESSAGES.SUCCESS.APPROVE_FIRST_PLAN)
+          allowNavigation()
           onApprove?.()
         }
       } catch (error) {
@@ -517,6 +519,7 @@ const FirstPlanEditor = ({
         await loadShiftData()
       } else {
         alert(MESSAGES.SUCCESS.APPROVE_FIRST_PLAN)
+        allowNavigation()
         onApprove?.()
       }
     } catch (error) {
