@@ -864,16 +864,37 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
       return
     }
 
-    const currentPlanId = planIdsState.length > 0 ? planIdsState[0] : null
+    // 既存プランかどうか（planIdsStateが空でなければ既存プラン）
+    const isExistingPlan = planIdsState.length > 0
 
-    // 1. 削除対象のアルバイトシフト
+    // 既存プランの場合、store_id → plan_id のマッピングを作成
+    const storeToPlanIdMap = new Map()
+    if (isExistingPlan) {
+      shiftData.forEach(shift => {
+        if (shift.store_id && shift.plan_id) {
+          storeToPlanIdMap.set(Number(shift.store_id), shift.plan_id)
+        }
+      })
+    }
+
+    // 1. アルバイトのシフトを削除、それ以外は残す
+    const nonPartTimeShifts = shiftData.filter(shift => !isPartTimeStaff(shift.staff_id))
     const partTimeShiftsToDelete = shiftData.filter(shift => isPartTimeStaff(shift.staff_id))
 
-    // 2. 追加する新規シフトを生成
+    // 2. 希望シフトから新規シフトを生成
     const newShifts = []
     partTimePreferences.forEach((pref, index) => {
       const staffInfo = staffMap[pref.staff_id]
       if (!staffInfo) return
+
+      const staffStoreId = Number(staffInfo.store_id)
+      const planIdForShift = isExistingPlan ? storeToPlanIdMap.get(staffStoreId) : null
+
+      // 既存プランでこの店舗のplan_idが見つからない場合はスキップ
+      if (isExistingPlan && !planIdForShift) {
+        console.warn(`Store ${staffStoreId} has no plan_id, skipping shift for staff ${pref.staff_id}`)
+        return
+      }
 
       const prefDate = new Date(pref.preference_date)
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(prefDate.getDate()).padStart(2, '0')}`
@@ -881,8 +902,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
       const newShift = {
         shift_id: `temp_bulk_${pref.staff_id}_${dateStr}_${index}_${Date.now()}`,
         tenant_id: getCurrentTenantId(),
-        store_id: staffInfo.store_id,
-        plan_id: currentPlanId,
+        store_id: staffStoreId,
+        plan_id: planIdForShift,
         staff_id: pref.staff_id,
         shift_date: dateStr,
         pattern_id: defaultPatternId || (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1),
@@ -905,10 +926,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
     })
 
     // 4. UI状態を更新
-    const nonPartTimeShifts = shiftData.filter(shift => !isPartTimeStaff(shift.staff_id))
     const updatedShiftData = [...nonPartTimeShifts, ...newShifts]
-
-    // shiftData更新
     setShiftData(updatedShiftData)
 
     // calendarData更新
