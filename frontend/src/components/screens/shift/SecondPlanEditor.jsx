@@ -190,7 +190,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
   // アクションメニューを外側クリックで閉じる
   useEffect(() => {
-    const handleClickOutside = (event) => {
+    const handleClickOutside = event => {
       if (actionsMenuRef.current && !actionsMenuRef.current.contains(event.target)) {
         setShowActionsMenu(false)
       }
@@ -863,7 +863,11 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
     const staffWithPreferences = new Set(partTimePreferences.map(p => p.staff_id))
 
-    if (!window.confirm(`アルバイトの希望シフトを一括反映しますか？\n\n・希望シフトがある ${staffWithPreferences.size}名分を更新\n\n※保存するまでDBには反映されません`)) {
+    if (
+      !window.confirm(
+        `アルバイトの希望シフトを一括反映しますか？\n\n・希望シフトがある ${staffWithPreferences.size}名分を更新\n\n※保存するまでDBには反映されません`
+      )
+    ) {
       return
     }
 
@@ -895,7 +899,9 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
       // 既存プランでこの店舗のplan_idが見つからない場合はスキップ
       if (isExistingPlan && !planIdForShift) {
-        console.warn(`Store ${staffStoreId} has no plan_id, skipping shift for staff ${pref.staff_id}`)
+        console.warn(
+          `Store ${staffStoreId} has no plan_id, skipping shift for staff ${pref.staff_id}`
+        )
         return
       }
 
@@ -909,7 +915,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
         plan_id: planIdForShift,
         staff_id: pref.staff_id,
         shift_date: dateStr,
-        pattern_id: defaultPatternId || (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1),
+        pattern_id:
+          defaultPatternId || (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1),
         start_time: pref.start_time || '09:00',
         end_time: pref.end_time || '17:00',
         break_minutes: pref.break_minutes || 0,
@@ -1486,19 +1493,27 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
             >
               <Settings className="h-4 w-4 mr-1" />
               操作
-              <ChevronDown className={`h-3 w-3 ml-1 transition-transform ${showActionsMenu ? 'rotate-180' : ''}`} />
+              <ChevronDown
+                className={`h-3 w-3 ml-1 transition-transform ${showActionsMenu ? 'rotate-180' : ''}`}
+              />
             </Button>
             {showActionsMenu && (
               <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg border border-gray-200 py-1 z-50">
                 <button
-                  onClick={() => { handleExportCSV(); setShowActionsMenu(false); }}
+                  onClick={() => {
+                    handleExportCSV()
+                    setShowActionsMenu(false)
+                  }}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
                 >
                   <Download className="h-4 w-4 mr-2 text-gray-500" />
                   CSVエクスポート
                 </button>
                 <button
-                  onClick={() => { handlePNGExport(); setShowActionsMenu(false); }}
+                  onClick={() => {
+                    handlePNGExport()
+                    setShowActionsMenu(false)
+                  }}
                   disabled={isGeneratingPNG || selectedStores.size === 0}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -1513,7 +1528,10 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                   <>
                     <div className="border-t border-gray-100 my-1"></div>
                     <button
-                      onClick={() => { handleBulkApplyPreferences(); setShowActionsMenu(false); }}
+                      onClick={() => {
+                        handleBulkApplyPreferences()
+                        setShowActionsMenu(false)
+                      }}
                       className="w-full px-4 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 flex items-center"
                     >
                       <Wand2 className="h-4 w-4 mr-2" />
@@ -1521,7 +1539,10 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                     </button>
                     <div className="border-t border-gray-100 my-1"></div>
                     <button
-                      onClick={() => { handleDelete(); setShowActionsMenu(false); }}
+                      onClick={() => {
+                        handleDelete()
+                        setShowActionsMenu(false)
+                      }}
                       className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
