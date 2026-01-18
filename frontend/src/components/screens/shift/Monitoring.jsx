@@ -19,7 +19,7 @@ import {
 import ShiftTimeline from '../../shared/ShiftTimeline'
 import { AnimatePresence } from 'framer-motion'
 import { useTenant } from '../../../contexts/TenantContext'
-import { isoToJSTDateString, isoToJSTDateParts } from '../../../utils/dateUtils'
+import { isoToJSTDateString, isoToJSTDateParts, isoToJSTDateTime } from '../../../utils/dateUtils'
 import { ShiftRepository } from '../../../infrastructure/repositories/ShiftRepository'
 import { useShiftStatus } from '../../../hooks/useShiftStatus'
 
@@ -274,9 +274,7 @@ const Monitoring = () => {
         submittedStaffIds.add(submission.staff_id.toString())
 
         if (staffMap[submission.staff_id]) {
-          const date = new Date(submittedAt)
-          const formatted = `${date.getMonth() + 1}/${date.getDate()} ${date.getHours()}:${String(date.getMinutes()).padStart(2, '0')}`
-          staffMap[submission.staff_id].submittedAt = formatted
+          staffMap[submission.staff_id].submittedAt = isoToJSTDateTime(submittedAt)
           staffMap[submission.staff_id].rawSubmittedAt = submittedAt
           staffMap[submission.staff_id].submitted = true
         }

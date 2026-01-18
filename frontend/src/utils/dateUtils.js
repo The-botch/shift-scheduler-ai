@@ -154,3 +154,22 @@ export const isoToJSTDateParts = isoString => {
     day: jstDate.getDate(),
   }
 }
+
+/**
+ * ISO日時文字列（UTC）からJSTの日時文字列を取得（M/D H:mm形式）
+ * 環境（UTC/JST）に依存せず、常にJSTとして変換する
+ * @param {string} isoString - ISO8601形式の日時文字列
+ * @returns {string} JST日時文字列（例: "1/15 14:30"）
+ */
+export const isoToJSTDateTime = isoString => {
+  if (!isoString) return ''
+  const date = new Date(isoString)
+  if (isNaN(date.getTime())) return ''
+  // 明示的にJSTタイムゾーンに変換（環境に依存しない）
+  const jstDate = toZonedTime(date, JST_TIMEZONE)
+  const month = jstDate.getMonth() + 1
+  const day = jstDate.getDate()
+  const hours = jstDate.getHours()
+  const minutes = String(jstDate.getMinutes()).padStart(2, '0')
+  return `${month}/${day} ${hours}:${minutes}`
+}
