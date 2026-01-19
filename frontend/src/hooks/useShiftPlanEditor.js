@@ -153,7 +153,7 @@ export const useShiftPlanEditor = ({
     })
 
     return {
-      hasOverlaps: overlaps.size > 0,
+      hasOverlap: overlaps.size > 0,
       overlappingShiftIds: overlaps,
     }
   }, [shiftData])
