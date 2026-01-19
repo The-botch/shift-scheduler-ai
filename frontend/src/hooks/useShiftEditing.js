@@ -107,6 +107,12 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete } = {}) 
     } else {
       // 既存シフト（DB保存済み）の場合：削除リストに追加
       setDeletedShiftIds(prev => new Set([...prev, shiftId]))
+      // modifiedShiftsからも削除（変更→削除の場合に不整合を防ぐ）
+      setModifiedShifts(prev => {
+        const updated = { ...prev }
+        delete updated[shiftId]
+        return updated
+      })
     }
 
     // UIの更新（呼び出し元で定義）
@@ -205,8 +211,12 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete } = {}) 
         upsertPromises.push(shiftRepository.createShift(shiftData))
       }
 
-      // 修正されたシフトを更新
+      // 修正されたシフトを更新（削除対象は除外）
       for (const [shiftId, updates] of Object.entries(modifiedShifts)) {
+        // 削除対象のシフトは更新しない
+        if (deletedShiftIds.has(Number(shiftId)) || deletedShiftIds.has(shiftId)) {
+          continue
+        }
         upsertPromises.push(shiftRepository.updateShift(Number(shiftId), updates))
       }
 
