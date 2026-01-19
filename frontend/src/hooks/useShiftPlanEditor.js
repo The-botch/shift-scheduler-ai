@@ -116,14 +116,22 @@ export const useShiftPlanEditor = ({
     const parseTime = timeStr => {
       if (!timeStr) return 0
       const parts = timeStr.split(':').map(Number)
-      return parts[0] * 60 + parts[1]
+      // 00:00は24:00として扱う（深夜0時終了のシフト対応）
+      const hours = parts[0]
+      const minutes = parts[1]
+      return hours === 0 && minutes === 0 ? 24 * 60 : hours * 60 + minutes
     }
 
     const isOverlap = (shift1, shift2) => {
       const s1Start = parseTime(shift1.start_time)
-      const s1End = parseTime(shift1.end_time)
+      let s1End = parseTime(shift1.end_time)
       const s2Start = parseTime(shift2.start_time)
-      const s2End = parseTime(shift2.end_time)
+      let s2End = parseTime(shift2.end_time)
+
+      // 終了時間が開始時間より前なら翌日扱い
+      if (s1End <= s1Start) s1End += 24 * 60
+      if (s2End <= s2Start) s2End += 24 * 60
+
       return !(s1End <= s2Start || s2End <= s1Start)
     }
 
@@ -137,15 +145,30 @@ export const useShiftPlanEditor = ({
       groupedByStaffDate[key].push(shift)
     })
 
-    // 重複を検出
-    const overlaps = new Set()
-    Object.values(groupedByStaffDate).forEach(shifts => {
+    // 重複を検出（詳細情報を含む配列形式）
+    const overlaps = []
+    const overlappingShiftIds = new Set()
+    Object.entries(groupedByStaffDate).forEach(([key, shifts]) => {
       if (shifts.length > 1) {
         for (let i = 0; i < shifts.length; i++) {
           for (let j = i + 1; j < shifts.length; j++) {
             if (isOverlap(shifts[i], shifts[j])) {
-              overlaps.add(shifts[i].shift_id)
-              overlaps.add(shifts[j].shift_id)
+              overlappingShiftIds.add(shifts[i].shift_id)
+              overlappingShiftIds.add(shifts[j].shift_id)
+              overlaps.push({
+                staffName: shifts[i].staff_name || `スタッフID: ${shifts[i].staff_id}`,
+                date: shifts[i].shift_date,
+                shift1: {
+                  store_name: shifts[i].store_name || `店舗${shifts[i].store_id}`,
+                  start_time: shifts[i].start_time,
+                  end_time: shifts[i].end_time,
+                },
+                shift2: {
+                  store_name: shifts[j].store_name || `店舗${shifts[j].store_id}`,
+                  start_time: shifts[j].start_time,
+                  end_time: shifts[j].end_time,
+                },
+              })
             }
           }
         }
@@ -153,8 +176,9 @@ export const useShiftPlanEditor = ({
     })
 
     return {
-      hasOverlaps: overlaps.size > 0,
-      overlappingShiftIds: overlaps,
+      hasOverlap: overlaps.length > 0,
+      overlaps,
+      overlappingShiftIds,
     }
   }, [shiftData])
 
