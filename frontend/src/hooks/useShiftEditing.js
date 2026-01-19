@@ -175,7 +175,17 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete } = {}) 
     try {
       setSaving(true)
 
-      const updatePromises = []
+      // 1. まず削除を実行（重複チェックのため先に削除する必要がある）
+      const deletePromises = []
+      for (const shiftId of deletedShiftIds) {
+        deletePromises.push(shiftRepository.deleteShift(shiftId))
+      }
+      if (deletePromises.length > 0) {
+        await Promise.all(deletePromises)
+      }
+
+      // 2. 次に作成と更新を実行
+      const upsertPromises = []
 
       // 新規追加されたシフトを作成
       for (const newShift of addedShifts) {
@@ -192,22 +202,16 @@ export const useShiftEditing = ({ planType = 'FIRST', onApproveComplete } = {}) 
           is_preferred: newShift.is_preferred,
           is_modified: newShift.is_modified,
         }
-        updatePromises.push(shiftRepository.createShift(shiftData))
+        upsertPromises.push(shiftRepository.createShift(shiftData))
       }
 
       // 修正されたシフトを更新
       for (const [shiftId, updates] of Object.entries(modifiedShifts)) {
-        updatePromises.push(shiftRepository.updateShift(Number(shiftId), updates))
+        upsertPromises.push(shiftRepository.updateShift(Number(shiftId), updates))
       }
 
-      // 削除されたシフトを削除
-      for (const shiftId of deletedShiftIds) {
-        updatePromises.push(shiftRepository.deleteShift(shiftId))
-      }
-
-      // すべての変更を並行実行
-      if (updatePromises.length > 0) {
-        await Promise.all(updatePromises)
+      if (upsertPromises.length > 0) {
+        await Promise.all(upsertPromises)
       }
 
       // 状態をリセット
