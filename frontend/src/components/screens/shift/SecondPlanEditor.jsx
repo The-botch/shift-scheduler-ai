@@ -140,6 +140,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
   // SecondPlanEditor特有のstate
   const [firstPlanShifts, setFirstPlanShifts] = useState([]) // 第1案（比較表示用）
   const [monthlyComments, setMonthlyComments] = useState([]) // 月次コメント
+  const [processing, setProcessing] = useState(false) // 操作中フラグ（連打防止）
 
   // コメントをMapに変換（O(1)検索用）
   const commentsMap = useMemo(() => {
@@ -840,6 +841,9 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
 
   // アルバイト希望シフト一括反映
   const handleBulkApplyPreferences = () => {
+    // 連打防止
+    if (processing) return
+
     // アルバイトかどうかを判定
     const isPartTimeStaff = staffId => {
       const staff = staffMap[staffId]
@@ -871,87 +875,92 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
       return
     }
 
-    // 既存プランかどうか（planIdsStateが空でなければ既存プラン）
-    const isExistingPlan = planIdsState.length > 0
+    setProcessing(true)
+    try {
+      // 既存プランかどうか（planIdsStateが空でなければ既存プラン）
+      const isExistingPlan = planIdsState.length > 0
 
-    // 既存プランの場合、store_id → plan_id のマッピングを作成
-    const storeToPlanIdMap = new Map()
-    if (isExistingPlan) {
-      shiftData.forEach(shift => {
-        if (shift.store_id && shift.plan_id) {
-          storeToPlanIdMap.set(Number(shift.store_id), shift.plan_id)
+      // 既存プランの場合、store_id → plan_id のマッピングを作成
+      const storeToPlanIdMap = new Map()
+      if (isExistingPlan) {
+        shiftData.forEach(shift => {
+          if (shift.store_id && shift.plan_id) {
+            storeToPlanIdMap.set(Number(shift.store_id), shift.plan_id)
+          }
+        })
+      }
+
+      // 1. アルバイトのシフトを削除、それ以外は残す
+      const nonPartTimeShifts = shiftData.filter(shift => !isPartTimeStaff(shift.staff_id))
+      const partTimeShiftsToDelete = shiftData.filter(shift => isPartTimeStaff(shift.staff_id))
+
+      // 2. 希望シフトから新規シフトを生成
+      const newShifts = []
+      partTimePreferences.forEach((pref, index) => {
+        const staffInfo = staffMap[pref.staff_id]
+        if (!staffInfo) return
+
+        const staffStoreId = Number(staffInfo.store_id)
+        const planIdForShift = isExistingPlan ? storeToPlanIdMap.get(staffStoreId) : null
+
+        // 既存プランでこの店舗のplan_idが見つからない場合はスキップ
+        if (isExistingPlan && !planIdForShift) {
+          console.warn(
+            `Store ${staffStoreId} has no plan_id, skipping shift for staff ${pref.staff_id}`
+          )
+          return
         }
+
+        const prefDate = new Date(pref.preference_date)
+        const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(prefDate.getDate()).padStart(2, '0')}`
+
+        const newShift = {
+          shift_id: `temp_bulk_${pref.staff_id}_${dateStr}_${index}_${Date.now()}`,
+          tenant_id: getCurrentTenantId(),
+          store_id: staffStoreId,
+          plan_id: planIdForShift,
+          staff_id: pref.staff_id,
+          shift_date: dateStr,
+          pattern_id:
+            defaultPatternId || (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1),
+          start_time: pref.start_time || '09:00',
+          end_time: pref.end_time || '17:00',
+          break_minutes: pref.break_minutes || 0,
+          staff_name: staffInfo.name || '不明',
+          role: staffInfo.role_name || 'スタッフ',
+          modified_flag: true,
+        }
+        newShifts.push(newShift)
       })
+
+      // 3. トラッキング機構に登録（保存時にAPIに反映）
+      partTimeShiftsToDelete.forEach(shift => {
+        handleDeleteShiftBase(shift.shift_id, null)
+      })
+      newShifts.forEach(shift => {
+        handleAddShiftBase(shift, null)
+      })
+
+      // 4. UI状態を更新
+      const updatedShiftData = [...nonPartTimeShifts, ...newShifts]
+      setShiftData(updatedShiftData)
+
+      // calendarData更新
+      const shiftsByDate = {}
+      updatedShiftData.forEach(shift => {
+        const date = new Date(shift.shift_date)
+        const day = date.getDate()
+        if (!shiftsByDate[day]) {
+          shiftsByDate[day] = []
+        }
+        shiftsByDate[day].push(shift)
+      })
+      setCalendarData(prev => ({ ...prev, shiftsByDate }))
+
+      alert(`一括反映しました（${newShifts.length}件）`)
+    } finally {
+      setProcessing(false)
     }
-
-    // 1. アルバイトのシフトを削除、それ以外は残す
-    const nonPartTimeShifts = shiftData.filter(shift => !isPartTimeStaff(shift.staff_id))
-    const partTimeShiftsToDelete = shiftData.filter(shift => isPartTimeStaff(shift.staff_id))
-
-    // 2. 希望シフトから新規シフトを生成
-    const newShifts = []
-    partTimePreferences.forEach((pref, index) => {
-      const staffInfo = staffMap[pref.staff_id]
-      if (!staffInfo) return
-
-      const staffStoreId = Number(staffInfo.store_id)
-      const planIdForShift = isExistingPlan ? storeToPlanIdMap.get(staffStoreId) : null
-
-      // 既存プランでこの店舗のplan_idが見つからない場合はスキップ
-      if (isExistingPlan && !planIdForShift) {
-        console.warn(
-          `Store ${staffStoreId} has no plan_id, skipping shift for staff ${pref.staff_id}`
-        )
-        return
-      }
-
-      const prefDate = new Date(pref.preference_date)
-      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(prefDate.getDate()).padStart(2, '0')}`
-
-      const newShift = {
-        shift_id: `temp_bulk_${pref.staff_id}_${dateStr}_${index}_${Date.now()}`,
-        tenant_id: getCurrentTenantId(),
-        store_id: staffStoreId,
-        plan_id: planIdForShift,
-        staff_id: pref.staff_id,
-        shift_date: dateStr,
-        pattern_id:
-          defaultPatternId || (shiftPatterns.length > 0 ? shiftPatterns[0].pattern_id : 1),
-        start_time: pref.start_time || '09:00',
-        end_time: pref.end_time || '17:00',
-        break_minutes: pref.break_minutes || 0,
-        staff_name: staffInfo.name || '不明',
-        role: staffInfo.role_name || 'スタッフ',
-        modified_flag: true,
-      }
-      newShifts.push(newShift)
-    })
-
-    // 3. トラッキング機構に登録（保存時にAPIに反映）
-    partTimeShiftsToDelete.forEach(shift => {
-      handleDeleteShiftBase(shift.shift_id, null)
-    })
-    newShifts.forEach(shift => {
-      handleAddShiftBase(shift, null)
-    })
-
-    // 4. UI状態を更新
-    const updatedShiftData = [...nonPartTimeShifts, ...newShifts]
-    setShiftData(updatedShiftData)
-
-    // calendarData更新
-    const shiftsByDate = {}
-    updatedShiftData.forEach(shift => {
-      const date = new Date(shift.shift_date)
-      const day = date.getDate()
-      if (!shiftsByDate[day]) {
-        shiftsByDate[day] = []
-      }
-      shiftsByDate[day].push(shift)
-    })
-    setCalendarData(prev => ({ ...prev, shiftsByDate }))
-
-    alert(`一括反映しました（${newShifts.length}件）`)
   }
 
   // チャット関連ハンドラー
@@ -1504,7 +1513,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                     handleExportCSV()
                     setShowActionsMenu(false)
                   }}
-                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center"
+                  disabled={processing || saving}
+                  className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Download className="h-4 w-4 mr-2 text-gray-500" />
                   CSVエクスポート
@@ -1514,7 +1524,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                     handlePNGExport()
                     setShowActionsMenu(false)
                   }}
-                  disabled={isGeneratingPNG || selectedStores.size === 0}
+                  disabled={isGeneratingPNG || processing || saving || selectedStores.size === 0}
                   className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isGeneratingPNG ? (
@@ -1532,10 +1542,15 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                         handleBulkApplyPreferences()
                         setShowActionsMenu(false)
                       }}
-                      className="w-full px-4 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 flex items-center"
+                      disabled={processing || saving}
+                      className="w-full px-4 py-2 text-left text-sm text-amber-700 hover:bg-amber-50 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <Wand2 className="h-4 w-4 mr-2" />
-                      アルバイト希望一括反映
+                      {processing ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Wand2 className="h-4 w-4 mr-2" />
+                      )}
+                      {processing ? '処理中...' : 'アルバイト希望一括反映'}
                     </button>
                     <div className="border-t border-gray-100 my-1"></div>
                     <button
@@ -1543,7 +1558,8 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
                         handleDelete()
                         setShowActionsMenu(false)
                       }}
-                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center"
+                      disabled={processing || saving}
+                      className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Trash2 className="h-4 w-4 mr-2" />
                       削除
@@ -1593,7 +1609,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
               <Button
                 size="sm"
                 onClick={handleSaveDraft}
-                disabled={saving || timeOverlapInfo.hasOverlap}
+                disabled={saving || processing || timeOverlapInfo.hasOverlap}
                 className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50"
                 title={timeOverlapInfo.hasOverlap ? '時間重複があるため保存できません' : ''}
               >
@@ -1607,7 +1623,7 @@ const SecondPlanEditor = ({ selectedShift, onNext, onPrev, mode = 'edit' }) => {
               <Button
                 size="sm"
                 onClick={handleApprove}
-                disabled={saving || timeOverlapInfo.hasOverlap}
+                disabled={saving || processing || timeOverlapInfo.hasOverlap}
                 className="bg-green-600 hover:bg-green-700 disabled:opacity-50"
                 title={timeOverlapInfo.hasOverlap ? '時間重複があるため承認できません' : ''}
               >
