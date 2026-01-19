@@ -138,14 +138,22 @@ export const useShiftPlanEditor = ({
     })
 
     // 重複を検出
-    const overlaps = new Set()
+    const overlappingShiftIds = new Set()
+    const overlaps = []
     Object.values(groupedByStaffDate).forEach(shifts => {
       if (shifts.length > 1) {
         for (let i = 0; i < shifts.length; i++) {
           for (let j = i + 1; j < shifts.length; j++) {
             if (isOverlap(shifts[i], shifts[j])) {
-              overlaps.add(shifts[i].shift_id)
-              overlaps.add(shifts[j].shift_id)
+              overlappingShiftIds.add(shifts[i].shift_id)
+              overlappingShiftIds.add(shifts[j].shift_id)
+              overlaps.push({
+                staffId: shifts[i].staff_id,
+                staffName: shifts[i].staff_name,
+                date: shifts[i].shift_date,
+                shift1: shifts[i],
+                shift2: shifts[j],
+              })
             }
           }
         }
@@ -153,8 +161,9 @@ export const useShiftPlanEditor = ({
     })
 
     return {
-      hasOverlaps: overlaps.size > 0,
-      overlappingShiftIds: overlaps,
+      hasOverlap: overlaps.length > 0,
+      overlappingShiftIds,
+      overlaps,
     }
   }, [shiftData])
 
